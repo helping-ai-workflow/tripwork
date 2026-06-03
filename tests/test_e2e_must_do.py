@@ -1,4 +1,5 @@
 import pathlib, yaml
+import pytest
 from scripts.verify import classify_candidate
 
 FIX = pathlib.Path(__file__).resolve().parent / "fixtures" / "e2e-trip"
@@ -13,7 +14,10 @@ def _classify_all():
     cands = yaml.safe_load(open(FIX / "candidates.yaml", encoding="utf-8"))["candidates"]
     out = {}
     for c in cands:
-        status, _ = classify_candidate(c, local_lang="ko", **GEO[c["name_local"]])
+        key = c["name_local"]
+        if key not in GEO:
+            pytest.fail(f"no GEO entry for candidate '{key}'")
+        status, _ = classify_candidate(c, local_lang="ko", **GEO[key])
         out[c["id"]] = status
     return out
 

@@ -4,7 +4,7 @@ import requests
 from scripts.distance import haversine_km
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
-USER_AGENT = "tripwork/0.1 (https://github.com/helping-ai-workflow/tripwork)"
+USER_AGENT = "tripwork/0.2 (https://github.com/helping-ai-workflow/tripwork)"
 
 @dataclass
 class GeocodeResult:
