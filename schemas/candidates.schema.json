@@ -5,7 +5,7 @@
   "properties": {
     "candidates": {"type": "array", "items": {
       "type": "object",
-      "required": ["id", "name_display", "category"],
+      "required": ["id", "name_local", "name_display", "category", "sources"],
       "properties": {
         "id": {"type": "string"},
         "name_local": {"type": "string"},

@@ -67,6 +67,19 @@ def test_advisory_requires_effective_date():
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
 
+def test_candidate_requires_name_local_and_sources():
+    schema = _load_schema("candidates.schema.json")
+    bad = {"candidates": [{"id": "x", "name_display": "X", "category": "restaurant"}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_candidate_with_name_local_and_sources_valid():
+    schema = _load_schema("candidates.schema.json")
+    ok = {"candidates": [{"id": "x", "name_local": "엑스", "name_display": "X",
+                          "category": "restaurant",
+                          "sources": [{"url": "a", "lang": "ko"}]}]}
+    jsonschema.validate(ok, schema)
+
 def test_advisory_requires_at_least_one_official_source():
     schema = _load_schema("advisory.schema.json")
     bad = {"items": [{"topic": "battery", "rule": "no overhead bin",
