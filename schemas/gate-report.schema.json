@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["status", "checks", "failures"],
+  "properties": {
+    "status": {"type": "string", "enum": ["pass", "fail"]},
+    "checks": {"type": "array", "items": {
+      "type": "object", "required": ["name", "passed"],
+      "properties": {"name": {"type": "string"}, "passed": {"type": "boolean"}}}},
+    "failures": {"type": "array", "items": {"type": "string"}}
+  }
+}

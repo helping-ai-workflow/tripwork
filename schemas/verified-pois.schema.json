@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["pois"],
+  "properties": {
+    "pois": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["id", "name_local", "name_display", "category",
+                     "geocode", "district", "sources", "verify_status"],
+        "properties": {
+          "id": {"type": "string"},
+          "name_local": {"type": "string"},
+          "name_display": {"type": "string"},
+          "name_roman": {"type": "string"},
+          "category": {"type": "string"},
+          "district": {"type": "string"},
+          "geocode": {
+            "type": "object",
+            "required": ["lat", "lng"],
+            "properties": {"lat": {"type": "number"}, "lng": {"type": "number"}}
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 2,
+            "items": {
+              "type": "object",
+              "required": ["url", "lang"],
+              "properties": {"url": {"type": "string"}, "lang": {"type": "string"}, "note": {"type": "string"}}
+            }
+          },
+          "verify_status": {"type": "string", "enum": ["verified", "conflicting", "rejected", "unverified"]},
+          "conflict_note": {"type": "string"},
+          "booking": {
+            "type": "object",
+            "properties": {
+              "required": {"type": "boolean"},
+              "lead_time": {"type": "string"},
+              "hours": {"type": "string"}
+            }
+          }
+        }
+      }
+    }
+  }
+}

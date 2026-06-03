@@ -1,0 +1,66 @@
+---
+name: using-tripwork
+description: Use when starting any travel-planning workflow with tripwork. Establishes routing, the file-centric workspace model, and the Source-Verified-First iron rule.
+---
+
+# Using tripwork
+
+tripwork is a staged, orchestrator-driven pipeline for building source-verified travel itineraries.
+
+**Entry point:** Always start with `tripwork:orchestrator`. Never jump directly to synthesis or export.
+
+## File Paths Are Target-Repo Convention
+
+Example paths throughout these skills (`trips/<slug>/`, `work/<slug>/`) reflect the target repo's convention. The authoritative layout is defined in the target repo's `CLAUDE.md`, not in plugin skills. Plugin scripts accept explicit paths as arguments and do not hardcode layout.
+
+## Pipeline
+
+```
+orchestrator
+  ├─ trip-brief            → trip-brief.yaml
+  ├─ destination-research  → candidates.yaml (untrusted pool)
+  ├─ source-verify  (gate) → verified-pois.yaml
+  ├─ routing-audit         → routing.yaml
+  ├─ itinerary-synthesis   → itinerary.md (+ contingency + checklist sections)
+  ├─ travel-advisory (gate)→ advisory.yaml
+  ├─ itinerary-gate        → gate-report.yaml (pass)
+  └─ export-artifact       → exports/ (md / gmaps / line / notion)
+```
+
+## Iron Rules
+
+| Rule | Why |
+|---|---|
+| Source-Verified-First | Every POI/restaurant/address/opening-hour/regulation needs >= 2 independent sources (>= 1 local-language) AND a geocode that falls in its claimed region before it reaches the itinerary. Enforced by `source-verify` + `travel-advisory`. |
+| Only verified flows downstream | `itinerary-synthesis` reads only `verify_status: verified`. `conflicting`/`rejected`/`unverified` stay recorded but never enter the plan. |
+| Gate ≠ content correct | `itinerary-gate` passing means structure is valid; content correctness is guaranteed upstream by `source-verify`. |
+| Stop on confirmation | Cross-source conflict, hop flagged `far`, booking lead-time missed, regulation `banned`, or must-do verification failure → stop and ask the user. Never silently drop content. |
+| Invoke orchestrator to advance | After any stage completes, re-invoke `tripwork:orchestrator` to determine the next stage. |
+
+## Quick Reference
+
+| Task | Skill |
+|---|---|
+| New trip request | `tripwork:orchestrator` |
+| Capture trip parameters | `tripwork:trip-brief` |
+| Gather candidate POIs | `tripwork:destination-research` |
+| Verify candidates | `tripwork:source-verify` |
+| Check cross-region feasibility | `tripwork:routing-audit` |
+| Build day-by-day plan | `tripwork:itinerary-synthesis` |
+| Check entry/customs/battery rules | `tripwork:travel-advisory` |
+| Validate structure before export | `tripwork:itinerary-gate` |
+| Render deliverables | `tripwork:export-artifact` |
+
+## Workspace
+
+- `trips/<slug>/` — living docs (version-controlled by the consumer)
+- `work/<slug>/` — rebuildable state + research cache (gitignored)
+
+## Stage Contract
+
+| Field | Value |
+|---|---|
+| Input | Any travel-planning request (new or resumed). |
+| Output | Control passes to `tripwork:orchestrator`. No trip artifact is written by this skill. |
+| Stop condition | Agent has invoked `tripwork:orchestrator`. Every subsequent stage decision belongs to the orchestrator. |
+| Next stage | `tripwork:orchestrator` — always. There is no alternative entry point. |
