@@ -100,3 +100,11 @@ def test_gate_report_valid():
     schema = _load_schema("gate-report.schema.json")
     data = {"status": "pass", "checks": [{"name": "all_pois_geocoded", "passed": True}], "failures": []}
     jsonschema.validate(data, schema)
+
+def test_trip_brief_region_radius_override_allowed():
+    schema = _load_schema("trip-brief.schema.json")
+    data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
+            "members": [], "base": {"name": "h", "district": "d"},
+            "must_do": [], "constraints": [], "preferences": {},
+            "routing": {"max_hop_mins": 60, "region_radius_km": 3.0}}
+    jsonschema.validate(data, schema)
