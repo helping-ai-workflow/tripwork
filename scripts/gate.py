@@ -2,6 +2,8 @@
 checked here (that is source-verify's job) — only structure.
 """
 
+POI_KEYS = ("meals", "activities", "visits")
+
 def run_gate(pois, days):
     """Return a gate-report dict: {status, checks, failures}.
 
@@ -10,7 +12,7 @@ def run_gate(pois, days):
       - every day has at least one meal
     """
     by_id = {p["id"]: p for p in pois}
-    referenced = {pid for d in days for pid in d.get("meals", [])}
+    referenced = {pid for d in days for key in POI_KEYS for pid in d.get(key, [])}
 
     failures = []
 
