@@ -1,14 +1,7 @@
-import pathlib, yaml
+import yaml
 import pytest
 from scripts.verify import classify_candidate
-
-FIX = pathlib.Path(__file__).resolve().parent / "fixtures" / "e2e-trip"
-
-GEO = {
-    "한방삼계탕": {"geocoded": True, "in_claimed_region": False},
-    "고봉삼계탕": {"geocoded": True, "in_claimed_region": True},
-    "오다리집":   {"geocoded": True, "in_claimed_region": True},
-}
+from tests.e2e_fixtures import GEO, E2E_FIX as FIX
 
 def _classify_all():
     cands = yaml.safe_load(open(FIX / "candidates.yaml", encoding="utf-8"))["candidates"]

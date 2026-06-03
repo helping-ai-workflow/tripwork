@@ -2,16 +2,9 @@ import pathlib, yaml, json
 import jsonschema
 from scripts.verify import classify_candidate
 from scripts.distance import classify_hop
+from tests.e2e_fixtures import GEO, E2E_FIX as FIX
 
-FIX = pathlib.Path(__file__).resolve().parent / "fixtures" / "e2e-trip"
 SCHEMAS = pathlib.Path(__file__).resolve().parent.parent / "schemas"
-
-# Geocode results the skill would obtain (mocked here as known truth).
-GEO = {
-    "한방삼계탕": {"geocoded": True, "in_claimed_region": False},   # 강남, not 잠실
-    "고봉삼계탕": {"geocoded": True, "in_claimed_region": True},
-    "오다리집":   {"geocoded": True, "in_claimed_region": True},
-}
 
 def _load(p):
     return yaml.safe_load(open(p, encoding="utf-8"))
