@@ -67,7 +67,51 @@ def test_advisory_requires_effective_date():
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
 
+def test_candidate_requires_name_local_and_sources():
+    schema = _load_schema("candidates.schema.json")
+    bad = {"candidates": [{"id": "x", "name_display": "X", "category": "restaurant"}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_candidate_with_name_local_and_sources_valid():
+    schema = _load_schema("candidates.schema.json")
+    ok = {"candidates": [{"id": "x", "name_local": "엑스", "name_display": "X",
+                          "category": "restaurant",
+                          "sources": [{"url": "a", "lang": "ko"}]}]}
+    jsonschema.validate(ok, schema)
+
+def test_candidate_empty_sources_rejected():
+    schema = _load_schema("candidates.schema.json")
+    bad = {"candidates": [{"id": "x", "name_local": "엑스", "name_display": "X",
+                           "category": "restaurant", "sources": []}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_advisory_requires_at_least_one_official_source():
+    schema = _load_schema("advisory.schema.json")
+    bad = {"items": [{"topic": "battery", "rule": "no overhead bin",
+                      "effective_date": "2026-01-26",
+                      "sources": [{"url": "blog", "official": False}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_advisory_one_official_source_passes():
+    schema = _load_schema("advisory.schema.json")
+    ok = {"items": [{"topic": "battery", "rule": "no overhead bin",
+                     "effective_date": "2026-01-26",
+                     "sources": [{"url": "airline", "official": True},
+                                 {"url": "blog", "official": False}]}]}
+    jsonschema.validate(ok, schema)
+
 def test_gate_report_valid():
     schema = _load_schema("gate-report.schema.json")
     data = {"status": "pass", "checks": [{"name": "all_pois_geocoded", "passed": True}], "failures": []}
+    jsonschema.validate(data, schema)
+
+def test_trip_brief_region_radius_override_allowed():
+    schema = _load_schema("trip-brief.schema.json")
+    data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
+            "members": [], "base": {"name": "h", "district": "d"},
+            "must_do": [], "constraints": [], "preferences": {},
+            "routing": {"max_hop_mins": 60, "region_radius_km": 3.0}}
     jsonschema.validate(data, schema)

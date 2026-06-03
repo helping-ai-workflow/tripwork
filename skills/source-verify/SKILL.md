@@ -13,7 +13,7 @@ Gates are evaluated in strict order — Gate 1 fires before Gate 2, Gate 2 befor
 
 1. **Multi-source** (Gate 1, checked first) — >= 2 independent sources, at least one in the destination's local language. Fewer/wrong language -> `unverified`. This gate precedes geocode so a single-source candidate is never misclassified as `rejected`.
 2. **Geocode** (Gate 2) — resolve the place name with `scripts/geocode.py::geocode` (OSM Nominatim, <= 1 req/s, set User-Agent). No result -> `rejected`.
-3. **Region match + cross-source conflict** (Gate 3) — evaluated only after Gates 1 & 2 pass. Detect cross-source disagreement on rating/hours/address and signal it to `classify_candidate` via the `conflict_detected=True` argument (computed by this skill); on conflict -> `conflicting` + `conflict_note`, and **stop and ask the user** which source to trust. Geocoded point must also fall within the claimed district (`scripts/geocode.py::in_region`); outside -> `conflicting`, record `conflict_note`.
+3. **Region match + cross-source conflict** (Gate 3) — evaluated only after Gates 1 & 2 pass. Detect cross-source disagreement on rating/hours/address and signal it to `classify_candidate` via the `conflict_detected=True` argument (computed by this skill); on conflict -> `conflicting` + `conflict_note`, and **stop and ask the user** which source to trust. Geocoded point must also fall within the claimed district (`scripts/geocode.py::in_region`, region radius defaults to 5 km and is overridable via `trip-brief.routing.region_radius_km`); outside -> `conflicting`, record `conflict_note`.
 
 ## Output
 

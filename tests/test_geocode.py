@@ -31,3 +31,9 @@ def test_in_region_true():
 def test_in_region_false_cross_district():
     # 강남 point vs 잠실 region centroid -> far apart, outside radius
     assert in_region(37.4979, 127.0276, 37.5133, 127.1000, radius_km=3.0) is False
+
+def test_in_region_radius_is_configurable():
+    # a point ~4km away: inside default 5km, outside a tight 2km
+    from scripts.geocode import in_region
+    assert in_region(37.5400, 127.0000, 37.5040, 127.0000, radius_km=5.0) is True
+    assert in_region(37.5400, 127.0000, 37.5040, 127.0000, radius_km=2.0) is False

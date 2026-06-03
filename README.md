@@ -10,7 +10,7 @@ and geocoded into its claimed region.
 
 ## Pipeline
 
-`trip-brief -> destination-research -> source-verify -> routing-audit ->
+`workspace-shape-preflight -> trip-brief -> destination-research -> source-verify -> routing-audit ->
 itinerary-synthesis -> travel-advisory -> itinerary-gate -> export-artifact`
 
 ## Outputs

@@ -19,6 +19,7 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 
 ## Stage Selection
 
+0. If `work/.preflight-completed` is absent → run `tripwork:workspace-shape-preflight` first.
 1. No trip-brief.yaml -> run `trip-brief`.
 2. No candidates.yaml -> run `destination-research`.
 3. candidates exist but verified-pois.yaml stale/missing -> run `source-verify`.

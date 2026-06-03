@@ -7,7 +7,7 @@ description: Use when starting any travel-planning workflow with tripwork. Estab
 
 tripwork is a staged, orchestrator-driven pipeline for building source-verified travel itineraries.
 
-**Entry point:** Always start with `tripwork:orchestrator`. Never jump directly to synthesis or export.
+**Entry point:** Always start with `tripwork:workspace-shape-preflight` (first time in a cwd) then `tripwork:orchestrator`. Never jump directly to synthesis or export.
 
 ## File Paths Are Target-Repo Convention
 
@@ -16,15 +16,16 @@ Example paths throughout these skills (`trips/<slug>/`, `work/<slug>/`) reflect 
 ## Pipeline
 
 ```
-orchestrator
-  ├─ trip-brief            → trip-brief.yaml
-  ├─ destination-research  → candidates.yaml (untrusted pool)
-  ├─ source-verify  (gate) → verified-pois.yaml
-  ├─ routing-audit         → routing.yaml
-  ├─ itinerary-synthesis   → itinerary.md (+ contingency + checklist sections)
-  ├─ travel-advisory (gate)→ advisory.yaml
-  ├─ itinerary-gate        → gate-report.yaml (pass)
-  └─ export-artifact       → exports/ (md / gmaps / line / notion)
+workspace-shape-preflight  (entry gate — first invocation only)
+  └─ orchestrator
+       ├─ trip-brief            → trip-brief.yaml
+       ├─ destination-research  → candidates.yaml (untrusted pool)
+       ├─ source-verify  (gate) → verified-pois.yaml
+       ├─ routing-audit         → routing.yaml
+       ├─ itinerary-synthesis   → itinerary.md (+ contingency + checklist sections)
+       ├─ travel-advisory (gate)→ advisory.yaml
+       ├─ itinerary-gate        → gate-report.yaml (pass)
+       └─ export-artifact       → exports/ (md / gmaps / line / notion)
 ```
 
 ## Iron Rules
@@ -36,11 +37,13 @@ orchestrator
 | Gate ≠ content correct | `itinerary-gate` passing means structure is valid; content correctness is guaranteed upstream by `source-verify`. |
 | Stop on confirmation | Cross-source conflict, hop flagged `far`, booking lead-time missed, regulation `banned`, or must-do verification failure → stop and ask the user. Never silently drop content. |
 | Invoke orchestrator to advance | After any stage completes, re-invoke `tripwork:orchestrator` to determine the next stage. |
+| Preflight before pipeline | First invocation in a cwd is gated by `workspace-shape-preflight`; the `work/.preflight-completed` stamp must exist before the orchestrator advances. |
 
 ## Quick Reference
 
 | Task | Skill |
 |---|---|
+| Validate/bootstrap workspace | `tripwork:workspace-shape-preflight` |
 | New trip request | `tripwork:orchestrator` |
 | Capture trip parameters | `tripwork:trip-brief` |
 | Gather candidate POIs | `tripwork:destination-research` |
