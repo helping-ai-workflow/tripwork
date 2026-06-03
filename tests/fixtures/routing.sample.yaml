@@ -1,0 +1,12 @@
+clusters:
+  - district: 잠실
+    is_base: true
+    pois: [lotte-aquarium, seokchon-lake]
+  - district: 명동
+    is_base: false
+    pois: [odarijip-myeongdong]
+hops:
+  - { from: 성수동, to: 명동, mode: subway, mins: 22, flag: ok }
+  - { from: 명동, to: 잠실, mode: subway, mins: 25, flag: ok }
+warnings:
+  - "한방삼계탕 在 강남 非 잠실；原 brief 標蠶室有誤"

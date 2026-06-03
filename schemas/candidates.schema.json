@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["candidates"],
+  "properties": {
+    "candidates": {"type": "array", "items": {
+      "type": "object",
+      "required": ["id", "name_display", "category"],
+      "properties": {
+        "id": {"type": "string"},
+        "name_local": {"type": "string"},
+        "name_display": {"type": "string"},
+        "name_roman": {"type": "string"},
+        "category": {"type": "string"},
+        "claimed_district": {"type": "string"},
+        "sources": {"type": "array", "items": {
+          "type": "object", "required": ["url"],
+          "properties": {"url": {"type": "string"}, "lang": {"type": "string"}, "note": {"type": "string"}}}}
+      }
+    }}
+  }
+}

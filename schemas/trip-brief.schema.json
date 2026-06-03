@@ -1,0 +1,22 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["slug", "dates", "members", "base", "must_do", "constraints", "preferences"],
+  "properties": {
+    "slug": {"type": "string"},
+    "dates": {
+      "type": "object", "required": ["start", "end"],
+      "properties": {"start": {"type": "string"}, "end": {"type": "string"}}
+    },
+    "members": {"type": "array", "items": {
+      "type": "object", "required": ["name"],
+      "properties": {"name": {"type": "string"}, "notes": {"type": "string"}}}},
+    "base": {"type": "object", "required": ["name", "district"],
+      "properties": {"name": {"type": "string"}, "district": {"type": "string"}}},
+    "must_do": {"type": "array", "items": {"type": "string"}},
+    "constraints": {"type": "array", "items": {"type": "string"}},
+    "preferences": {"type": "object"},
+    "routing": {"type": "object",
+      "properties": {"max_hop_mins": {"type": "number"}}}
+  }
+}
