@@ -1,0 +1,33 @@
+# tests/test_verify.py
+from scripts.verify import classify_candidate
+
+def _cand(sources, langs):
+    return {"id": "x", "sources": [{"url": u, "lang": l} for u, l in zip(sources, langs)]}
+
+def test_single_source_is_unverified():
+    c = _cand(["a"], ["ko"])
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
+    assert status == "unverified"
+
+def test_no_geocode_is_rejected():
+    c = _cand(["a", "b"], ["ko", "zh"])
+    status, note = classify_candidate(c, geocoded=False, in_claimed_region=False)
+    assert status == "rejected"
+
+def test_geocode_outside_region_is_conflicting():
+    c = _cand(["a", "b"], ["ko", "zh"])
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=False)
+    assert status == "conflicting"
+    assert "region" in note.lower()
+
+def test_two_sources_geocoded_in_region_is_verified():
+    c = _cand(["a", "b"], ["ko", "zh"])
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
+    assert status == "verified"
+
+def test_two_sources_same_lang_still_needs_one_local():
+    # both non-local language -> treat as insufficient (unverified)
+    c = _cand(["a", "b"], ["zh", "zh"])
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True,
+                                      local_lang="ko")
+    assert status == "unverified"
