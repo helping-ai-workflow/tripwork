@@ -9,11 +9,11 @@ This is an iron-rule gate. Apply the **Source-Verified-First** discipline to eve
 
 ## Three gates (logic in `scripts/verify.py::classify_candidate`)
 
-1. **Multi-source** — >= 2 independent sources, at least one in the destination's local language. Fewer -> `unverified`.
-2. **Geocode** — resolve the place name with `scripts/geocode.py::geocode` (OSM Nominatim, <= 1 req/s, set User-Agent). No result -> `rejected`.
-3. **Region match** — geocoded point must fall within the claimed district (`scripts/geocode.py::in_region`). Outside -> `conflicting`, record `conflict_note`.
+Gates are evaluated in strict order — Gate 1 fires before Gate 2, Gate 2 before Gate 3.
 
-Also detect cross-source disagreement on rating/hours/address; on conflict -> `conflicting` + `conflict_note`, and **stop and ask the user** which source to trust.
+1. **Multi-source** (Gate 1, checked first) — >= 2 independent sources, at least one in the destination's local language. Fewer/wrong language -> `unverified`. This gate precedes geocode so a single-source candidate is never misclassified as `rejected`.
+2. **Geocode** (Gate 2) — resolve the place name with `scripts/geocode.py::geocode` (OSM Nominatim, <= 1 req/s, set User-Agent). No result -> `rejected`.
+3. **Region match + cross-source conflict** (Gate 3) — evaluated only after Gates 1 & 2 pass. Detect cross-source disagreement on rating/hours/address and signal it to `classify_candidate` via the `conflict_detected=True` argument (computed by this skill); on conflict -> `conflicting` + `conflict_note`, and **stop and ask the user** which source to trust. Geocoded point must also fall within the claimed district (`scripts/geocode.py::in_region`); outside -> `conflicting`, record `conflict_note`.
 
 ## Output
 
