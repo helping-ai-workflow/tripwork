@@ -106,6 +106,7 @@ flowchart TB
     SYN --> ADV["travel-advisory ⛔ 關卡<br/>入境／海關／行動電源規定（官方來源）"]
     ADV --> GATE["itinerary-gate<br/>輸出前的結構檢查"]
     GATE --> EXP["export-artifact<br/>Markdown / Maps / LINE / Notion"]
+    EXP --> EGATE["export-gate ⛔ 關卡<br/>檢查成品連結／格式可正常顯示"]
 ```
 
 白話版每一步：
@@ -121,12 +122,13 @@ flowchart TB
 | **travel-advisory** ⛔ | 查入境、海關、行動電源等**硬規定**，一律要官方來源並標生效日期；被禁項目醒目提醒 |
 | **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點） |
 | **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、可選 Notion |
+| **export-gate** | 對輸出的 Markdown 成品做最後機械檢查：每個地點名稱本身是可點連結、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；有問題就退回重產 |
 
 ---
 
 ## 3. 你會拿到什麼
 
-- **Markdown 行程**——逐日時段表，每個地點附 **Google Maps 連結**（用當地語言店名，搭計程車／導航最準）。
+- **Markdown 行程**——逐日時段表，**地點名稱本身就是 Google Maps 連結**（用當地語言店名，搭計程車／導航最準），要訂位／要買票的項目再附一條**官方來源連結**可一鍵查證或下單。
 - **LINE 短文**——純文字、用 emoji 分段、不含網址，**長輩友善**，直接貼到家庭群組。
 - **行前清單**——所有需要提前訂位／辦理的事項，含前置天數。
 - **備案**——每個易出包的點（要訂位的餐廳、戶外活動）都附一個 plan B。
@@ -220,10 +222,10 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 77 個測試
+pytest                 # 134 個測試
 ```
 
-- 流水線由 `skills/` 下的 10 個 skill 組成，全程由 `orchestrator` 調度。
+- 流水線由 `skills/` 下的 11 個 skill 組成，全程由 `orchestrator` 調度。
 - 純邏輯（查證三關、路線分類、距離、各種 render）在 `scripts/`，皆有單元測試。
 - Schema 定義在 `schemas/`；端到端 fixture 在 `tests/`。
 

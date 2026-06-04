@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.5.0 — 2026-06-04
+
+Export integrity — the rendered deliverable is now contract-checked.
+
+- `scripts/render/markdown.py`: `md_escape` backslash-escapes `\ $ _ * | < ` `` ` `` in all free
+  text (prices like `\$120` no longer trigger KaTeX math mode and break previews,
+  D4); each POI row appends a primary `官網` source link (D2); the POI name remains
+  the maps link (D5).
+- `verified-pois` schema: `sources[]` gains optional `official` (marks the
+  official-site source for the deliverable link, D2).
+- New `export-gate` stage (`scripts/export_gate.py` + `skills/export-gate/`): a
+  mechanical post-export gate on `exports/<slug>-itinerary.md` checking
+  `no_naked_dollar`, `links_well_formed`, `poi_name_is_link`,
+  `bookable_has_official_source`. Reuses `gate-report.schema.json`. Wired as
+  orchestrator stage 10; `fail` returns to `export-artifact` (D6).
+- `export-artifact`: deliverable renamed `exports/<slug>-itinerary.md` (no longer
+  clashes with the synthesis intermediate, D3); day tables must go through
+  `render_day_table`.
+
 ## 0.4.0 — 2026-06-04
 
 Closing-buffer awareness (intra-day scheduling safety).

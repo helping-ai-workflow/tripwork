@@ -7,7 +7,8 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 EXPECTED = [
     "using-tripwork", "orchestrator", "trip-brief", "destination-research",
     "source-verify", "routing-audit", "calendar-check", "itinerary-synthesis",
-    "travel-advisory", "itinerary-gate", "export-artifact", "workspace-shape-preflight",
+    "travel-advisory", "itinerary-gate", "export-artifact", "export-gate",
+    "workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
@@ -63,3 +64,12 @@ def test_preflight_documents_stamp_and_gate():
     text = (SKILLS / "workspace-shape-preflight" / "SKILL.md").read_text(encoding="utf-8")
     assert "preflight-completed" in text  # stamp file name
     assert "orchestrator" in text          # gates the orchestrator
+
+def test_orchestrator_wires_export_gate_after_export():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "export-gate" in text, "orchestrator must route to export-gate after export-artifact"
+
+def test_export_artifact_uses_slug_named_deliverable():
+    text = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
+    assert "<slug>-itinerary.md" in text, "deliverable must be renamed to avoid intermediate clash (D3)"
+    assert "render_day_table" in text, "day table must go through the renderer, not hand-authoring (D5)"
