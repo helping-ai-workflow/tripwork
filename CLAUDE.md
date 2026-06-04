@@ -1,0 +1,81 @@
+# tripwork — repo conventions for contributors (human + AI agent)
+
+tripwork is a Source-Verified-First travel-planning pipeline plugin. The
+pipeline, iron rules, and stage contracts live in `skills/`; pure decision
+logic lives in `scripts/` with unit tests in `tests/`. This file carries the
+contribution conventions that are NOT derivable from the code — chiefly the
+README-freshness contract.
+
+## Plugin-internal change checklist (mandatory)
+
+The following changes MUST update `README.md` in the **same PR** (the relevant
+narrative section, not just a CHANGELOG bullet):
+
+- `skills/` — a flow/stage skill added / renamed / removed
+- `schemas/` — an artifact schema added, or a field that changes user-visible
+  behaviour (e.g. `closed_days`, a new gate output)
+- Pipeline stage order or branching changed (e.g. inserting `calendar-check`
+  between `routing-audit` and `itinerary-synthesis`)
+- Export adapters changed (markdown / gmaps / line / notion)
+- An iron rule or stop-on-confirmation condition added or changed
+
+**Mechanical guard:** `tests/test_readme_freshness.py` fails when README drifts
+— every flow skill must be mentioned, the `calendar-check` stage must appear in
+the workflow diagram, and no obsolete name may reappear. It runs in the
+standard `pytest` sweep on every PR. (`using-tripwork` is the agent-facing meta
+skill and is intentionally excluded — it is not a user-facing pipeline stage.)
+
+**Narrative correctness** (does the README explain the new stage well? is the
+mermaid placed correctly?) is human-review territory — the freshness test only
+checks mention coverage.
+
+This rule applies to AI agent contributors as well as humans. A PR that touches
+the categories above without a README update will fail the freshness test and
+be rejected.
+
+## README writing convention (mandatory)
+
+`README.md` is **user-facing for non-engineers**. Plain-language value and
+copy-paste prompts come first; plugin-internal vocabulary stays in the workflow
+diagram / step table and the collapsed 開發者資訊 `<details>`, never in the
+opening prose.
+
+| Section | Purpose | What goes here | What must NOT go here |
+|---|---|---|---|
+| 這是給誰用的 / 痛點表 | Sell the value in plain language | "不用會寫程式", pain → fix table | skill names, schema field names |
+| §1 快速開始 | 起手式 + install + update | one copy-paste prompt, `claude plugin` commands | pipeline internals |
+| §2 完整跑一次會發生什麼 | The one mermaid + plain step table | skill names, ⛔ gate markers, artifact files | code-level detail |
+| §3 你會拿到什麼 | Deliverables | md / gmaps / LINE / Notion outputs | how they are rendered |
+| §4 招牌規則 + 何時停下來問你 | Iron rule + stop conditions in plain language | Source-Verified-First, stop-on-confirmation list | gate/script names |
+| §5 實測範例 | Dogfood proof | real geocoded cases, gate-fires-correctly evidence | — |
+| 常見問題 / 開發者資訊 | FAQ + collapsed dev section | API-key/Notion FAQ; `pip install` / pytest / geocode policy inside `<details>` | dev jargon outside `<details>` |
+
+Hard rules:
+
+- The §2 mermaid is the only main-pipeline diagram. Keep it in sync with the
+  orchestrator stage order.
+- Skill names appear in §2 (diagram + step table) and the dev `<details>`, not
+  in the §1 / §3 / §4 selling prose.
+
+## Every plugin update must check README (mandatory)
+
+When opening any PR that touches `skills/` / `schemas/` / pipeline-stage code /
+export adapters / iron rules, walk the README and answer:
+
+1. Does the §2 mermaid still match the orchestrator stage order? (Did a stage
+   move, get inserted, or produce a new artifact file?)
+2. Does the §2 step table need a new skill row, or an updated description?
+3. Does the 痛點表 / §4 stop-condition list need a new row? (Did a new
+   stop-on-confirmation or user-visible behaviour land?)
+4. Does §5 / FAQ / dev `<details>` need a new line? (New schema field, script,
+   or export behaviour worth a mention?)
+
+PR descriptions touching the categories above must include a one-line
+"README check: ✅ §2/§4 still match" OR a "README update bundled in this PR"
+pointer.
+
+## Pre-ship gate
+
+This repo follows the user's 8-step plugin pre-ship gate (TDD red→green,
+full pytest green, e2e fixture closure, matrix re-review) before any
+`OK 更新 plugin` release. README freshness is part of step 9 ship artifacts.

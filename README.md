@@ -1,31 +1,235 @@
 # tripwork
 
-Source-Verified-First travel-planning pipeline plugin (Claude Code / agent skills).
+> 一個會「先查證、再排進行程」的旅遊規劃外掛（Claude Code plugin）。
+> 每一個景點、餐廳、地址、營業時間、入境規定，都要先通過 **2 個以上獨立來源
+> 交叉比對（至少 1 個當地語言）＋ 地圖座標落在正確區域** 才會被寫進你的行程。
+> 不會給你過時、搬家、或網路謠傳的地點。
 
-## Iron Rule
+**目前版本：** 見 [CHANGELOG.md](CHANGELOG.md)。
 
-No POI, restaurant, address, opening-hour, or regulation reaches your itinerary
-until it is cross-checked against >= 2 independent sources (>= 1 local-language)
-and geocoded into its claimed region.
+---
 
-## Pipeline
+## 這是給誰用的？
 
-`workspace-shape-preflight -> trip-brief -> destination-research -> source-verify -> routing-audit ->
-itinerary-synthesis -> travel-advisory -> itinerary-gate -> export-artifact`
+你**不需要會寫程式**。只要會在 Claude Code 裡打字，就能用一句話讓 tripwork
+幫你排出一份「每個地點都查證過」的旅遊行程。
 
-## Outputs
+它特別適合：
 
-Markdown itinerary (with Google Maps links), LINE-friendly short text, and
-optional Notion write-back.
+- 想要一份**可信、不踩雷**的行程，而不是一堆過期的部落格連結
+- 帶**長輩或小孩**，需要把同一區的景點排在一起、少拉車
+- 不想自己一個個查**營業時間、要不要訂位、海關／行動電源規定**
+- 想直接拿到 **Google Maps 連結**、給長輩看的 **LINE 純文字行程**，或寫回 **Notion**
 
-## Install
+---
 
-Add the helping-ai-workflow marketplace, then `/plugin install tripwork`.
+## 它幫你解決什麼痛點
 
-## Geocoding
+| 自己排行程的麻煩 | tripwork 怎麼處理 |
+|---|---|
+| 查到的店其實已經關了 / 搬家了 | 每個地點都要 ≥2 來源交叉比對 + 地圖座標確認，查不到就不放進行程 |
+| 行程一天跑東跑西、長輩累垮 | 自動把同一區的景點分群，跨區拉車太遠會**停下來問你**要不要換 |
+| 餐廳要訂位卻不知道 | 自動列出「出發前要先訂」的清單，連前置天數一起標出來 |
+| 排到當地紅字假日，人爆多或店家沒開 | 自動查出旅遊期間的**當地國定假日（含補假）**：閉館日不排那個點、假期/週末日標人潮提示並建議提早出門、錯開脆弱小店 |
+| 行動電源、入境規定看不懂、又怕過期 | 規定一律找**官方來源**、標註生效日期，被禁的項目會醒目提醒並要你確認 |
+| 排好的行程要分享給家人很麻煩 | 一鍵輸出 Markdown（含地圖連結）、LINE 短文、Notion |
 
-Uses OSM Nominatim (no API key). Respect its usage policy (<= 1 req/s).
+---
 
-## Development
+## 1. 快速開始
 
-`pip install -e ".[dev]" && pytest`
+### 起手式（複製貼上就好）
+
+裝好外掛後（見下方「安裝」），在 Claude Code 裡用**一句話**描述你的旅程即可：
+
+```
+用 tripwork 幫我排 3 天 2 夜東京自由行，有長輩，想去淺草寺和阿美橫町。
+```
+
+更多範例：
+
+- `用 tripwork 排京都 2 天，想去伏見稲荷和嵐山竹林。`
+- `用 tripwork 排沖繩家庭旅遊 4 天，有小孩，想要有海邊。`
+- `用 tripwork 排大阪 3 天美食之旅，預算中等，住心齋橋附近。`
+
+tripwork 接手後會**反問你缺的資訊**（日期、住哪、必去的點、預算、同行成員），
+你照實回答即可，剩下的查證、分區、排程、輸出全部由它完成。途中遇到需要你
+決定的地方（例如某個點太遠、餐廳要訂位、有被禁的物品）它**一定會停下來問你**，
+不會自己亂改或偷偷拿掉你想去的點。
+
+> 想要更聊天式的引導？若你同時裝了 `superpowers` 外掛，可以用
+> `使用 superpowers:brainstorming 啟動 tripwork，我要排 <一句話>` 來開場，
+> 它會更細地陪你釐清需求。非必要——直接打一句話也能跑。
+
+### 安裝
+
+tripwork 透過 marketplace 安裝。在 Claude Code 裡執行：
+
+```bash
+claude plugin marketplace add git@github.com:helping-ai-workflow/tripwork.git
+claude plugin install tripwork
+```
+
+裝好後重開一個 Claude Code 對話，就能用上面的起手式開始排行程。
+
+**前置需求：**
+
+- **Claude Code**（桌面 App、CLI、或 IDE 外掛皆可）
+- 規劃過程會用到 Claude Code 內建的**網路搜尋**（查證來源用）。
+- 不需要任何 API key——地圖座標用免費的 OpenStreetMap Nominatim。
+
+### 更新
+
+```bash
+claude plugin marketplace update tripwork && claude plugin install tripwork
+```
+
+---
+
+## 2. 完整跑一次會發生什麼
+
+tripwork 不是一次把行程「生」出來，而是一條**有關卡的流水線**：每一步只做一件事，
+做完回到調度中心（orchestrator）決定下一步。這樣每個地點都被獨立查證，錯誤無法一路矇混到最後。
+
+```mermaid
+flowchart TB
+    P["✍️ 你的一句話需求"]
+    P --> WSP["workspace-shape-preflight<br/>確認工作資料夾"]
+    WSP --> ORC["orchestrator 調度中心"]
+    ORC --> TB["trip-brief<br/>把需求整理成參數"]
+    TB --> DR["destination-research<br/>廣泛蒐集候選地點（含當地語言搜尋）"]
+    DR --> SV["source-verify ⛔ 關卡<br/>≥2 來源 + 地圖座標 + 區域比對"]
+    SV --> RA["routing-audit<br/>同區分群、算跨區拉車時間"]
+    RA --> CAL["calendar-check<br/>查旅遊期間當地假日（含補假）"]
+    CAL --> SYN["itinerary-synthesis<br/>排出逐日行程 + 備案 + 行前清單<br/>（閉館日不排、假期標人潮）"]
+    SYN --> ADV["travel-advisory ⛔ 關卡<br/>入境／海關／行動電源規定（官方來源）"]
+    ADV --> GATE["itinerary-gate<br/>輸出前的結構檢查"]
+    GATE --> EXP["export-artifact<br/>Markdown / Maps / LINE / Notion"]
+```
+
+白話版每一步：
+
+| 步驟 | 它在做什麼 |
+|---|---|
+| **trip-brief** | 把你說的話整理成日期、住宿、必去清單、預算、成員等參數 |
+| **destination-research** | 廣泛上網蒐集候選景點／餐廳（**會用當地語言搜尋**，挖出國際網站漏掉的店）。此階段先不信任，只是蒐集 |
+| **source-verify** ⛔ | **招牌關卡**。每個候選地點要：①≥2 個獨立來源（至少 1 個當地語言）②地圖能查到座標 ③座標落在它聲稱的區域內。三關都過才算「已驗證」，才能進行程 |
+| **routing-audit** | 把已驗證地點按「區」分群，估算跨區移動時間；太遠（預設 >60 分）會**停下來問你** |
+| **calendar-check** | 用官方來源查出旅遊期間的**當地國定假日（含補假）**，標好哪幾天人潮／店家可能受影響 |
+| **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門**；自動產生**備案**與**行前訂位清單** |
+| **travel-advisory** ⛔ | 查入境、海關、行動電源等**硬規定**，一律要官方來源並標生效日期；被禁項目醒目提醒 |
+| **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點） |
+| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、可選 Notion |
+
+---
+
+## 3. 你會拿到什麼
+
+- **Markdown 行程**——逐日時段表，每個地點附 **Google Maps 連結**（用當地語言店名，搭計程車／導航最準）。
+- **LINE 短文**——純文字、用 emoji 分段、不含網址，**長輩友善**，直接貼到家庭群組。
+- **行前清單**——所有需要提前訂位／辦理的事項，含前置天數。
+- **備案**——每個易出包的點（要訂位的餐廳、戶外活動）都附一個 plan B。
+- **Notion（選用）**——若你的環境接了 Notion，會把行程寫回指定頁面；沒接也不會報錯，自動略過。
+
+---
+
+## 4. 招牌規則：先查證，再排進行程
+
+tripwork 的核心是一條鐵律 **Source-Verified-First**：
+
+> 沒有任何景點、餐廳、地址、營業時間或規定，能在「通過 ≥2 個獨立來源交叉比對
+> （至少 1 個當地語言）＋ 地圖座標落在它聲稱的區域」之前，被寫進你的行程。
+
+沒通過的地點**不會被偷偷丟掉**——它們會被記下來並標明原因（來源不足／查無座標／
+座標跑到別區／來源彼此矛盾），讓你看得到、也能自己決定。
+
+### 它什麼時候會停下來問你
+
+這些情況 tripwork **一定會停下來**，不會自作主張：
+
+- 不同來源對同一個點**講法矛盾**（評分／營業時間／地址不一致）→ 問你信哪個
+- 某個跨區移動**太遠**（超過你設定的上限，預設 60 分）→ 問你要保留還是換點
+- 某家餐廳的**訂位時間來不及** → 提醒你
+- 某項規定是**被禁止**的（例如某類行動電源）→ 要你明確確認
+- 你**指定必去**的點，在所有可行日都**剛好公休** → 停下來問你怎麼調
+- 你**指定必去**的點驗證失敗 → 直接告訴你，不會默默拿掉
+
+---
+
+## 5. 實測範例（這份 README 附帶的真實試跑）
+
+下面兩個案例是用 tripwork 的查證／路線邏輯，搭配**即時地圖座標**實際跑出來的，
+用來證明流程會產出合理的行程、而且關卡真的會擋。
+
+### 案例 A — 東京 3 天 2 夜（帶長輩，住淺草）
+
+5 個候選地點全部成功查到座標、且落在正確的區（台東区）：
+
+| 地點 | 區域 | 座標查證 |
+|---|---|---|
+| 浅草寺 | 淺草 | ✅ 35.713, 139.796 |
+| 仲見世通り | 淺草 | ✅ 35.713, 139.797 |
+| 上野恩賜公園 | 上野 | ✅ 35.715, 139.774 |
+| 東京国立博物館 | 上野 | ✅ 35.719, 139.776 |
+| アメ横（阿美橫町） | 上野 | ✅ 35.710, 139.775 |
+
+- 淺草 ↔ 上野直線僅 **1.97 km**，地鐵約 15 分 → 判定 `ok`。
+- 分成「淺草日」與「上野日」兩群，**同區排在一起**，帶長輩不用來回拉車 → 合理。
+
+### 案例 B — 京都 2 天（伏見稲荷 + 嵐山竹林）
+
+關卡如預期觸發：
+
+- 伏見稲荷 ↔ 嵐山直線 **11.30 km**，搭 JR 需在京都站轉車，門到門實測約 **65 分**
+  → 超過 60 分上限，判定 `far` → **tripwork 會停下來問你**要不要保留兩點或調整，
+  不會默默排一個讓你當天疲於奔命的行程。✅ 安全機制有效。
+- 另外發現一個實用細節：地圖查座標要用**當地語言店名**（`渡月橋` 查得到、
+  英文 `Togetsukyo Bridge` 加了 "Bridge" 反而查不到）。tripwork 的 export 與查證
+  都以當地語言店名為準，正是為此。
+
+> 結論：流程跑得通，行程合理，且「太遠就停下來問」的安全閥確實會作動。
+
+---
+
+## 常見問題
+
+**要付費或申請 API key 嗎？**
+不用。地圖座標用免費的 OpenStreetMap Nominatim；網路搜尋用 Claude Code 內建功能。
+
+**它會不會自己亂編地點？**
+不會。沒通過查證關卡的地點進不了行程，且會被標明原因留存，不會假裝成「已驗證」。
+
+**支援哪些目的地？**
+任何地方都可以——只要該地點在網路上有 ≥2 個來源、且地圖查得到座標。會自動用
+當地語言搜尋，所以日本、韓國、東南亞等地的在地小店也涵蓋得到。
+
+**Notion 沒接會怎樣？**
+其他輸出（Markdown／LINE）照常產生，Notion 那一步自動略過、不會讓整個流程失敗。
+
+**我可以中途改需求嗎？**
+可以。每個階段的產物都是檔案，調度中心會從你改動的地方接續往下跑，不用整個重來。
+
+---
+
+## 開發者資訊
+
+<details>
+<summary><b>本機開發與測試</b></summary>
+
+```bash
+pip install -e ".[dev]"
+pytest                 # 77 個測試
+```
+
+- 流水線由 `skills/` 下的 10 個 skill 組成，全程由 `orchestrator` 調度。
+- 純邏輯（查證三關、路線分類、距離、各種 render）在 `scripts/`，皆有單元測試。
+- Schema 定義在 `schemas/`；端到端 fixture 在 `tests/`。
+
+**地圖座標用量限制：** 使用 OSM Nominatim（免 API key），請遵守其使用政策
+（≤ 1 req/s、帶 User-Agent）。`scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流。
+
+</details>
+
+## 授權
+
+[MIT](LICENSE)
