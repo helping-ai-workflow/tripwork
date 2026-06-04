@@ -17,12 +17,30 @@ def md_escape(text):
         out = out.replace(ch, "\\" + ch)
     return out
 
+def _primary_source_url(poi):
+    """Official source url if any source is flagged official, else the first url, else None."""
+    sources = poi.get("sources") or []
+    for s in sources:
+        if s.get("official"):
+            return s.get("url")
+    return sources[0].get("url") if sources else None
+
+def _poi_cell(poi, text):
+    parts = [link_markdown(poi)]
+    url = _primary_source_url(poi)
+    if url:
+        parts.append(f"· [官網]({url})")
+    escaped = md_escape(text)
+    if escaped:
+        parts.append(escaped)
+    return " ".join(parts)
+
 def render_day_table(day):
     lines = [f"### {md_escape(day.get('label', ''))}", "", "| 時段 | 行程 |", "|---|---|"]
     for row in day.get("rows", []):
         time = md_escape(row.get("time", ""))
         text = row.get("text", "")
         poi = row.get("poi")
-        cell = f"{link_markdown(poi)} {md_escape(text)}".strip() if poi else md_escape(text)
+        cell = _poi_cell(poi, text) if poi else md_escape(text)
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"
