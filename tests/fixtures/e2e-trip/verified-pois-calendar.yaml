@@ -16,3 +16,26 @@ pois:
     verify_status: verified
     closed_days:
       - tuesday
+    hours:
+      close: "18:00"
+      last_entry: "17:00"
+      typical_visit_mins: 90
+  - id: hwangsaengga
+    name_local: "황생가칼국수"
+    name_display: "Hwangsaengga Kalguksu"
+    name_roman: "Hwangsaengga Kalguksu"
+    category: restaurant
+    district: "종로"
+    geocode:
+      lat: 37.5793
+      lng: 126.9852
+    sources:
+      - url: "https://www.mangoplate.com"
+        lang: ko
+      - url: "https://www.tripadvisor.com"
+        lang: zh
+    verify_status: verified
+    hours:
+      close: "21:30"
+      last_order: "20:30"
+      typical_visit_mins: 60
