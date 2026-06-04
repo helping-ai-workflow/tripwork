@@ -64,3 +64,7 @@ def test_preflight_documents_stamp_and_gate():
     text = (SKILLS / "workspace-shape-preflight" / "SKILL.md").read_text(encoding="utf-8")
     assert "preflight-completed" in text  # stamp file name
     assert "orchestrator" in text          # gates the orchestrator
+
+def test_orchestrator_wires_export_gate_after_export():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "export-gate" in text, "orchestrator must route to export-gate after export-artifact"

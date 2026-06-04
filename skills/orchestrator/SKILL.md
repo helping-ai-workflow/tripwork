@@ -29,7 +29,8 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 6. calendar ready, no itinerary.md -> run `itinerary-synthesis`.
 7. itinerary exists, no advisory.yaml -> run `travel-advisory`.
 8. advisory ready -> run `itinerary-gate`.
-9. gate-report status==pass -> run `export-artifact`.
+9. gate-report status==pass, no exports/<slug>-itinerary.md -> run `export-artifact`.
+10. export deliverable exists, no export-gate-report.yaml -> run `export-gate`. If `export-gate-report` status==fail -> return to `export-artifact` to re-render.
 
 After each stage completes, re-invoke this skill to pick the next stage.
 
