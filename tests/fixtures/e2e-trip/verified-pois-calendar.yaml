@@ -1,0 +1,18 @@
+pois:
+  - id: gyeongbokgung
+    name_local: "경복궁"
+    name_display: "Gyeongbokgung Palace"
+    name_roman: "Gyeongbokgung"
+    category: sight
+    district: "종로"
+    geocode:
+      lat: 37.5796
+      lng: 126.977
+    sources:
+      - url: "https://royal.cha.go.kr"
+        lang: ko
+      - url: "https://www.visitseoul.net"
+        lang: zh
+    verify_status: verified
+    closed_days:
+      - tuesday

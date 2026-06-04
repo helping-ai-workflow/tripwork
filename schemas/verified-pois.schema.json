@@ -32,6 +32,11 @@
           },
           "verify_status": {"type": "string", "enum": ["verified", "conflicting", "rejected", "unverified"]},
           "conflict_note": {"type": "string"},
+          "closed_days": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "Weekday names ('tuesday'), ISO dates ('2026-05-25'), or the token 'public_holiday'. Consumed by scripts/calendar.py::poi_closed_on."
+          },
           "booking": {
             "type": "object",
             "properties": {

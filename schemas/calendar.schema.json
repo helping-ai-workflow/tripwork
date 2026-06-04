@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["holidays"],
+  "properties": {
+    "holidays": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "name_local", "name_display", "sources"],
+        "properties": {
+          "date": {"type": "string"},
+          "name_local": {"type": "string"},
+          "name_display": {"type": "string"},
+          "type": {"type": "string", "enum": ["national", "substitute", "festival", "observance"]},
+          "impact": {
+            "type": "object",
+            "properties": {
+              "crowds": {"type": "boolean"},
+              "closures": {"type": "boolean"}
+            }
+          },
+          "note": {"type": "string"},
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "contains": {
+              "type": "object",
+              "required": ["official"],
+              "properties": {"official": {"const": true}}
+            },
+            "items": {
+              "type": "object",
+              "required": ["url", "official"],
+              "properties": {"url": {"type": "string"}, "official": {"type": "boolean"}}
+            }
+          }
+        }
+      }
+    }
+  }
+}

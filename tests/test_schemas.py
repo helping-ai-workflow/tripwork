@@ -108,6 +108,41 @@ def test_gate_report_valid():
     data = {"status": "pass", "checks": [{"name": "all_pois_geocoded", "passed": True}], "failures": []}
     jsonschema.validate(data, schema)
 
+def test_calendar_sample_valid():
+    schema = _load_schema("calendar.schema.json")
+    ok = {"holidays": [{"date": "2026-05-25", "name_local": "대체공휴일",
+                        "name_display": "Substitute Holiday", "type": "substitute",
+                        "impact": {"crowds": True, "closures": False},
+                        "sources": [{"url": "https://gov.kr", "official": True}]}]}
+    jsonschema.validate(ok, schema)
+
+
+def test_calendar_requires_official_source():
+    schema = _load_schema("calendar.schema.json")
+    bad = {"holidays": [{"date": "2026-05-25", "name_local": "x", "name_display": "x",
+                         "sources": [{"url": "blog", "official": False}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+
+def test_calendar_requires_date():
+    schema = _load_schema("calendar.schema.json")
+    bad = {"holidays": [{"name_local": "x", "name_display": "x",
+                         "sources": [{"url": "gov", "official": True}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+
+def test_verified_pois_closed_days_allowed():
+    schema = _load_schema("verified-pois.schema.json")
+    ok = {"pois": [{"id": "x", "name_local": "경복궁", "name_display": "Gyeongbokgung",
+                    "category": "sight", "district": "종로",
+                    "geocode": {"lat": 37.5796, "lng": 126.977},
+                    "sources": [{"url": "a", "lang": "ko"}, {"url": "b", "lang": "zh"}],
+                    "verify_status": "verified", "closed_days": ["tuesday"]}]}
+    jsonschema.validate(ok, schema)
+
+
 def test_trip_brief_region_radius_override_allowed():
     schema = _load_schema("trip-brief.schema.json")
     data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},

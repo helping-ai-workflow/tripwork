@@ -1,0 +1,22 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install -e ".[dev]"
+      - name: Run full test suite
+        # Hermetic: geocode is mocked (pytest-mock), no network needed.
+        # Covers schema validation, source-verify gates, routing, calendar
+        # closure logic, e2e fixtures, README freshness, version consistency.
+        run: python -m pytest -q

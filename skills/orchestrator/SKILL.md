@@ -13,6 +13,7 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 - `trips/<slug>/candidates.yaml`
 - `trips/<slug>/verified-pois.yaml`
 - `trips/<slug>/routing.yaml`
+- `trips/<slug>/calendar.yaml`
 - `trips/<slug>/advisory.yaml`
 - `trips/<slug>/itinerary.md`
 - `work/<slug>/stage-state.yaml`
@@ -24,10 +25,11 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 2. No candidates.yaml -> run `destination-research`.
 3. candidates exist but verified-pois.yaml stale/missing -> run `source-verify`.
 4. verified-pois ready, no routing.yaml -> run `routing-audit`.
-5. routing ready, no itinerary.md -> run `itinerary-synthesis`.
-6. itinerary exists, no advisory.yaml -> run `travel-advisory`.
-7. advisory ready -> run `itinerary-gate`.
-8. gate-report status==pass -> run `export-artifact`.
+5. routing ready, no calendar.yaml -> run `calendar-check`.
+6. calendar ready, no itinerary.md -> run `itinerary-synthesis`.
+7. itinerary exists, no advisory.yaml -> run `travel-advisory`.
+8. advisory ready -> run `itinerary-gate`.
+9. gate-report status==pass -> run `export-artifact`.
 
 After each stage completes, re-invoke this skill to pick the next stage.
 

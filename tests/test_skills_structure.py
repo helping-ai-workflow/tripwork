@@ -6,8 +6,8 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 
 EXPECTED = [
     "using-tripwork", "orchestrator", "trip-brief", "destination-research",
-    "source-verify", "routing-audit", "itinerary-synthesis", "travel-advisory",
-    "itinerary-gate", "export-artifact", "workspace-shape-preflight",
+    "source-verify", "routing-audit", "calendar-check", "itinerary-synthesis",
+    "travel-advisory", "itinerary-gate", "export-artifact", "workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
@@ -50,6 +50,14 @@ def test_export_skill_documents_notion_graceful_skip():
     text = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
     assert "graceful" in text.lower() or "skip" in text.lower()
     assert "Notion" in text
+
+def test_source_verify_geocode_uses_name_local():
+    # Gate 2 geocode query must use name_local: live Nominatim mis-resolves
+    # English descriptor suffixes (e.g. "Togetsukyo Bridge" -> no result while
+    # "渡月橋" resolves). Keeps verify consistent with export's name_local usage.
+    text = (SKILLS / "source-verify" / "SKILL.md").read_text(encoding="utf-8")
+    assert "name_local" in text, "source-verify Gate 2 must geocode by name_local"
+
 
 def test_preflight_documents_stamp_and_gate():
     text = (SKILLS / "workspace-shape-preflight" / "SKILL.md").read_text(encoding="utf-8")
