@@ -27,7 +27,7 @@
             "items": {
               "type": "object",
               "required": ["url", "lang"],
-              "properties": {"url": {"type": "string"}, "lang": {"type": "string"}, "note": {"type": "string"}}
+              "properties": {"url": {"type": "string"}, "lang": {"type": "string"}, "note": {"type": "string"}, "official": {"type": "boolean"}}
             }
           },
           "verify_status": {"type": "string", "enum": ["verified", "conflicting", "rejected", "unverified"]},

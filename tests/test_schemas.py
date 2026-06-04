@@ -170,3 +170,10 @@ def test_trip_brief_region_radius_override_allowed():
             "must_do": [], "constraints": [], "preferences": {},
             "routing": {"max_hop_mins": 60, "region_radius_km": 3.0}}
     jsonschema.validate(data, schema)
+
+def test_verified_pois_source_declares_official():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "verified-pois.schema.json"))
+    props = schema["properties"]["pois"]["items"]["properties"]["sources"]["items"]["properties"]
+    assert "official" in props and props["official"]["type"] == "boolean"
