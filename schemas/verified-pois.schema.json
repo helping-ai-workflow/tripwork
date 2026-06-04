@@ -37,6 +37,16 @@
             "items": {"type": "string"},
             "description": "Weekday names ('tuesday'), ISO dates ('2026-05-25'), or the token 'public_holiday'. Consumed by scripts/calendar.py::poi_closed_on."
           },
+          "hours": {
+            "type": "object",
+            "description": "Intra-day closing window, consumed by scripts/hours.py::closing_status.",
+            "properties": {
+              "close": {"type": "string"},
+              "last_order": {"type": "string"},
+              "last_entry": {"type": "string"},
+              "typical_visit_mins": {"type": "integer"}
+            }
+          },
           "booking": {
             "type": "object",
             "properties": {

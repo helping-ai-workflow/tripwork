@@ -143,6 +143,26 @@ def test_verified_pois_closed_days_allowed():
     jsonschema.validate(ok, schema)
 
 
+def test_verified_pois_hours_allowed():
+    schema = _load_schema("verified-pois.schema.json")
+    ok = {"pois": [{"id": "x", "name_local": "店", "name_display": "Shop",
+                    "category": "restaurant", "district": "中区",
+                    "geocode": {"lat": 1.0, "lng": 2.0},
+                    "sources": [{"url": "a", "lang": "ja"}, {"url": "b", "lang": "zh"}],
+                    "verify_status": "verified",
+                    "hours": {"close": "21:30", "last_order": "20:30", "typical_visit_mins": 60}}]}
+    jsonschema.validate(ok, schema)
+
+
+def test_trip_brief_scheduling_override_allowed():
+    schema = _load_schema("trip-brief.schema.json")
+    data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
+            "members": [], "base": {"name": "h", "district": "d"},
+            "must_do": [], "constraints": [], "preferences": {},
+            "scheduling": {"min_buffer_mins": 30, "default_visit_mins": 60}}
+    jsonschema.validate(data, schema)
+
+
 def test_trip_brief_region_radius_override_allowed():
     schema = _load_schema("trip-brief.schema.json")
     data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},

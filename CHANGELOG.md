@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.4.0 — 2026-06-04
+
+Closing-buffer awareness (intra-day scheduling safety).
+
+- `scripts/hours.py`: `closing_status(start, close, last_call, need_mins)`
+  classifies a scheduled arrival as `ok` / `tight` / `after_last_call` /
+  `closed` against a POI's closing window.
+- `verified-pois` schema gains per-POI `hours` (`close` / `last_order` /
+  `last_entry` / `typical_visit_mins`), recorded by `source-verify`.
+- `trip-brief` schema gains optional `scheduling`
+  (`min_buffer_mins` default 30, `default_visit_mins` default 60).
+- `itinerary-synthesis` never schedules a slot past last order/entry, flags
+  thin buffers, and stops if a `must_do` cannot fit before close on any slot.
+- day-granularity calendar closure (v0.3.0) now complemented by time-of-day
+  buffer — a place open on the chosen day can still be reached too late.
+
 ## 0.3.0 — 2026-06-04
 
 Calendar-awareness feature + geocode-query hardening.
