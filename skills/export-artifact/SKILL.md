@@ -5,11 +5,11 @@ description: Use when gate-report status is pass and the itinerary must be expor
 
 # export-artifact
 
-Render the verified itinerary into deliverables under `trips/<slug>/exports/`. Run only when `gate-report.yaml` status is `pass`.
+Render the verified itinerary into deliverables under `trips/<slug>/exports/`. Run only when `gate-report.yaml` status is `pass`. The markdown deliverable is `trips/<slug>/exports/<slug>-itinerary.md` — a slug-prefixed name so an editor tab never confuses it with the synthesis intermediate `trips/<slug>/itinerary.md` (D3).
 
 ## Adapters
 
-1. **markdown** — `scripts/render/markdown.py::render_day_table` per day -> `exports/itinerary.md`. Restaurant/POI rows embed Google Maps links.
+1. **markdown** — every day table MUST be produced by `scripts/render/markdown.py::render_day_table` (do NOT hand-author table rows — hand-authoring is how naked `$` and dead-text names leaked before). Output `exports/<slug>-itinerary.md`. The renderer makes the POI name the maps link, appends a primary source link (`官網`), and escapes free text so prices like `\$120` cannot trigger KaTeX. The result is re-validated by `export-gate`.
 2. **gmaps-links** — `scripts/render/gmaps_links.py` builds each link from `name_local` (best for taxi/Maps). Shared by markdown + Notion.
 3. **line-short** — `scripts/render/line_short.py::render_line_short` -> `exports/line-short.txt`. Plain text, emoji-delimited, elder-friendly, no URLs.
 4. **notion** — write back to a Notion page via the consumer's Notion MCP. This is driven by this skill, not a bundled script (the plugin core never imports an MCP client).
@@ -25,9 +25,9 @@ Return to `tripwork:orchestrator`.
 | Field | Value |
 |---|---|
 | Input | `trips/<slug>/itinerary.md`, `verified-pois.yaml`, and `gate-report.yaml` (status pass). |
-| Output | `trips/<slug>/exports/` (markdown + line-short.txt; optional Notion page). |
+| Output | `trips/<slug>/exports/<slug>-itinerary.md` (+ line-short.txt; optional Notion page). |
 | Stop condition | `gate-report` status != pass → do not export; return upstream. |
-| Next stage | `tripwork:orchestrator` (pipeline complete). |
+| Next stage | `tripwork:orchestrator` (which routes to `export-gate`). |
 
 ## Common Mistakes
 

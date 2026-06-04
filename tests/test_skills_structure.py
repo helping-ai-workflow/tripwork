@@ -68,3 +68,8 @@ def test_preflight_documents_stamp_and_gate():
 def test_orchestrator_wires_export_gate_after_export():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "export-gate" in text, "orchestrator must route to export-gate after export-artifact"
+
+def test_export_artifact_uses_slug_named_deliverable():
+    text = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
+    assert "<slug>-itinerary.md" in text, "deliverable must be renamed to avoid intermediate clash (D3)"
+    assert "render_day_table" in text, "day table must go through the renderer, not hand-authoring (D5)"
