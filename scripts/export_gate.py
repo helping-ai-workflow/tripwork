@@ -31,8 +31,6 @@ def run_export_gate(md_text, pois):
         t = target.strip()
         if not t or not re.match(r"https?://", t):
             failures.append(f"malformed link target for '[{label}]': '{target}'")
-
-    for label, _t in _LINK.findall(md_text):
         if label.strip() in _MAP_TOKENS:
             failures.append(f"standalone map token '[{label}]'; POI name must be the link")
 
