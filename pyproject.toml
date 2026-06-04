@@ -1,11 +1,17 @@
 [project]
 name = "tripwork"
-version = "0.2.0"
+version = "0.3.0"
 requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0", "jsonschema>=4.0", "requests>=2.31"]
 
 [project.optional-dependencies]
 dev = ["pytest>=8.0", "pytest-mock>=3.12"]
+
+# Explicit package list — the plugin ships only the `scripts/` python helpers.
+# Without this, setuptools flat-layout auto-discovery errors on the sibling
+# data dirs (skills/ schemas/ tests/) as "multiple top-level packages".
+[tool.setuptools]
+packages = ["scripts", "scripts.render"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

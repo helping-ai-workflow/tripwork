@@ -18,6 +18,13 @@ def _marketplace_version():
     return mk["plugins"][0]["version"]
 
 
+def _pyproject_version():
+    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
+    m = re.search(r'^version\s*=\s*"(\d+\.\d+\.\d+)"', text, re.MULTILINE)
+    assert m, "pyproject.toml has no version"
+    return m.group(1)
+
+
 def _changelog_top_version():
     text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
     m = re.search(r"^##\s*(\d+\.\d+\.\d+)", text, re.MULTILINE)
@@ -33,3 +40,8 @@ def test_plugin_and_marketplace_versions_match():
 def test_changelog_top_matches_plugin_version():
     assert _changelog_top_version() == _plugin_version(), \
         "CHANGELOG top heading does not match plugin.json version"
+
+
+def test_pyproject_matches_plugin_version():
+    assert _pyproject_version() == _plugin_version(), \
+        "pyproject.toml version does not match plugin.json version"
