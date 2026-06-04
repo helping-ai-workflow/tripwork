@@ -16,6 +16,8 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 - `trips/<slug>/calendar.yaml`
 - `trips/<slug>/advisory.yaml`
 - `trips/<slug>/itinerary.md`
+- `trips/<slug>/exports/<slug>-itinerary.md`
+- `trips/<slug>/export-gate-report.yaml`
 - `work/<slug>/stage-state.yaml`
 
 ## Stage Selection

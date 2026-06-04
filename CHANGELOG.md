@@ -4,7 +4,7 @@
 
 Export integrity — the rendered deliverable is now contract-checked.
 
-- `scripts/render/markdown.py`: `md_escape` escapes `$ _ * | < ` `` ` `` in all free
+- `scripts/render/markdown.py`: `md_escape` backslash-escapes `\ $ _ * | < ` `` ` `` in all free
   text (prices like `\$120` no longer trigger KaTeX math mode and break previews,
   D4); each POI row appends a primary `官網` source link (D2); the POI name remains
   the maps link (D5).
