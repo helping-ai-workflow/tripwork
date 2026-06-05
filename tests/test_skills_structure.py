@@ -97,3 +97,7 @@ def test_itinerary_gate_documents_lodging_checks():
     text = (SKILLS / "itinerary-gate" / "SKILL.md").read_text(encoding="utf-8")
     assert "overnight_stops_have_lodging" in text
     assert "required_facilities_met" in text
+
+def test_orchestrator_wires_accommodation_research():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "accommodation-research" in text
