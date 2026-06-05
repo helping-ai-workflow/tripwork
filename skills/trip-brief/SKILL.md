@@ -16,6 +16,18 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
 - `constraints` (budget, mobility, dietary)
 - `preferences` (free-form object)
 - `routing.max_hop_mins` (optional; default 60 applied downstream)
+- `overnight_stops` (optional; ordered list of `{district, nights, lodging?}`). Capture
+  for multi-point trips (a self-drive tour sleeps in several towns). A single-base trip
+  omits it — the lone `base` is then the only overnight stop; the first stop usually
+  equals `base`. `lodging` is optional per stop: present → it will be verified;
+  absent → `accommodation-research` will recommend candidates for the user to pick.
+- `facility_needs` (optional; `{required: [token], periodic: [{facility, max_gap_nights}]}`).
+  `required` facilities must be at every stop (hard); `periodic` facilities need only
+  recur within a cadence (soft). Facilities are an open vocabulary; common tokens to
+  ask about: `parking`, `laundry`, `kitchen`, `elevator`, `breakfast`, `family_room`,
+  `crib`, `wifi`, `heating`. When `members` note elderly, suggest asking about
+  `elevator`/`accessible`; with infants/children, suggest `family_room`/`crib` — a
+  suggestion to raise with the user, not an auto-added requirement.
 
 ## Ingest sources
 

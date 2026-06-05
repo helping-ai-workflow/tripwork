@@ -73,3 +73,8 @@ def test_export_artifact_uses_slug_named_deliverable():
     text = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
     assert "<slug>-itinerary.md" in text, "deliverable must be renamed to avoid intermediate clash (D3)"
     assert "render_day_table" in text, "day table must go through the renderer, not hand-authoring (D5)"
+
+def test_trip_brief_documents_overnight_stops_and_facilities():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "overnight_stops" in text
+    assert "facility_needs" in text
