@@ -185,3 +185,12 @@ def test_verified_pois_geocode_declares_source():
     geo = schema["properties"]["pois"]["items"]["properties"]["geocode"]["properties"]
     assert "geocode_source" in geo
     assert geo["geocode_source"]["enum"] == ["nominatim", "nominatim_structured", "cluster_fallback"]
+
+def test_trip_brief_declares_overnight_stops_and_facility_needs():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "overnight_stops" in props
+    assert props["overnight_stops"]["items"]["required"] == ["district", "nights"]
+    assert "facility_needs" in props
+    assert "periodic" in props["facility_needs"]["properties"]

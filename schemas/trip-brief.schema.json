@@ -19,6 +19,18 @@
     "routing": {"type": "object",
       "properties": {"max_hop_mins": {"type": "number"}, "region_radius_km": {"type": "number"}}},
     "scheduling": {"type": "object",
-      "properties": {"min_buffer_mins": {"type": "number"}, "default_visit_mins": {"type": "number"}}}
+      "properties": {"min_buffer_mins": {"type": "number"}, "default_visit_mins": {"type": "number"}}},
+    "overnight_stops": {"type": "array", "items": {
+      "type": "object", "required": ["district", "nights"],
+      "properties": {
+        "district": {"type": "string"},
+        "nights": {"type": "integer", "minimum": 1},
+        "lodging": {"type": "object", "required": ["name"],
+          "properties": {"name": {"type": "string"}, "name_local": {"type": "string"}}}}}},
+    "facility_needs": {"type": "object", "properties": {
+      "required": {"type": "array", "items": {"type": "string"}},
+      "periodic": {"type": "array", "items": {
+        "type": "object", "required": ["facility", "max_gap_nights"],
+        "properties": {"facility": {"type": "string"}, "max_gap_nights": {"type": "integer", "minimum": 1}}}}}}
   }
 }
