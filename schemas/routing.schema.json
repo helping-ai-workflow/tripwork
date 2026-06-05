@@ -8,6 +8,8 @@
       "properties": {
         "district": {"type": "string"},
         "is_base": {"type": "boolean"},
+        "centroid": {"type": "object", "required": ["lat", "lng"],
+          "properties": {"lat": {"type": "number"}, "lng": {"type": "number"}}},
         "pois": {"type": "array", "items": {"type": "string"}}}}},
     "hops": {"type": "array", "items": {
       "type": "object", "required": ["from", "to", "mins", "flag"],

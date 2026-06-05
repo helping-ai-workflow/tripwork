@@ -194,3 +194,11 @@ def test_trip_brief_declares_overnight_stops_and_facility_needs():
     assert props["overnight_stops"]["items"]["required"] == ["district", "nights"]
     assert "facility_needs" in props
     assert "periodic" in props["facility_needs"]["properties"]
+
+def test_routing_cluster_declares_centroid():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "routing.schema.json"))
+    cprops = schema["properties"]["clusters"]["items"]["properties"]
+    assert "centroid" in cprops
+    assert cprops["centroid"]["required"] == ["lat", "lng"]
