@@ -1,5 +1,25 @@
 # Changelog
 
+## 0.6.0 — 2026-06-05
+
+Accommodation layer + no-key geocode resilience.
+
+- New `accommodation-research` stage (`skills/accommodation-research/`): per overnight
+  stop, verify a user-provided hotel or recommend N=3 verified candidates (stop-to-pick).
+  Produces `accommodations.yaml` (`schemas/accommodations.schema.json`). Wired as
+  orchestrator stage 5 (D1).
+- `trip-brief` schema: `overnight_stops` (ordered, per-stop optional `lodging`) +
+  `facility_needs` (`required` hard / `periodic` soft). `base` retained, coexists (D1).
+- D7 no-key geocode: `scripts/geocode.py::resolve_place` (structured Nominatim query
+  then free-text), `cluster_centroid`; a real place Nominatim cannot pin degrades to
+  `unverified` (`scripts/verify.py`) instead of `rejected`; accommodations fall back to
+  the stop's cluster centroid (`geocode_source: cluster_fallback`) and stay verified.
+  `verified-pois`/`routing` schemas gain `geocode_source` / cluster `centroid`.
+- Facilities (`scripts/facilities.py`): `stop_meets_required`, `coverage_gaps`
+  (periodic cadence, advisory), `reception_ok` (late-arrival lock-out, reuses
+  `hours.py`). `itinerary-gate` adds `overnight_stops_have_lodging` +
+  `required_facilities_met`; lodging rows reuse the v0.5.0 renderer + export-gate.
+
 ## 0.5.0 — 2026-06-04
 
 Export integrity — the rendered deliverable is now contract-checked.
