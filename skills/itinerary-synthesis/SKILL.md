@@ -74,7 +74,7 @@ Write `itinerary.md`, return to `tripwork:orchestrator`.
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/calendar.yaml`. |
+| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml`. |
 | Output | `trips/<slug>/itinerary.md` (day tables + contingency + checklist sections). |
 | Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot → ask user. |
 | Next stage | `tripwork:orchestrator`. |
