@@ -147,3 +147,7 @@ def test_inter_stop_legs_records_fare():
 def test_synthesis_documents_cost_summary():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "cost.yaml" in text
+
+def test_orchestrator_wires_cost_rollup():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "cost-rollup" in text
