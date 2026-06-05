@@ -124,3 +124,7 @@ def test_synthesis_documents_legs():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "legs.yaml" in text
     assert "last_service" in text or "pass_advice" in text
+
+def test_orchestrator_wires_inter_stop_legs():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "inter-stop-legs" in text
