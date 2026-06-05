@@ -114,3 +114,8 @@ def test_synthesis_documents_seasonal():
 def test_orchestrator_wires_seasonal_advisory():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "seasonal-advisory" in text
+
+def test_trip_brief_documents_leg_mode():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "leg_mode" in text
+    assert "max_single_drive_mins" in text

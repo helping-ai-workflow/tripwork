@@ -31,6 +31,12 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
 - `transport` (optional; e.g. `self_drive` / `public` / `mixed`). A hint for downstream
   stages — `self_drive` enables `seasonal-advisory`'s after-dark driving-leg flag (and,
   later, drive-leg checks). Omit for trips where driving conditions do not apply.
+- `overnight_stops[].leg_mode` (optional per stop) + `routing.max_single_drive_mins`
+  (optional; default 300 = 5h). `leg_mode` overrides the trip-level `transport` for the leg
+  **into** that stop (from the previous stop) — capture it for mixed trips (e.g. rail
+  between cities, a rented car for one segment). `inter-stop-legs` uses `leg_mode` (else
+  `transport`) to pick each leg's transit-vs-drive branch, and flags a single-day drive
+  over `max_single_drive_mins`.
 
 ## Ingest sources
 
