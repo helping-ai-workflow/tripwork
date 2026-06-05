@@ -9,10 +9,13 @@ def test_single_source_is_unverified():
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
     assert status == "unverified"
 
-def test_no_geocode_is_rejected():
+def test_no_geocode_is_unverified():
+    # D7: with sources sufficient (Gate 1 passes) but geocode unresolved,
+    # degrade to 'unverified' (recorded for manual confirm), not 'rejected'.
     c = _cand(["a", "b"], ["ko", "zh"])
     status, note = classify_candidate(c, geocoded=False, in_claimed_region=False)
-    assert status == "rejected"
+    assert status == "unverified"
+    assert "geocode" in note.lower()
 
 def test_geocode_outside_region_is_conflicting():
     c = _cand(["a", "b"], ["ko", "zh"])
