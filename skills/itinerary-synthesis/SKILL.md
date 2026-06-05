@@ -29,6 +29,16 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
 
+## Inter-city moves (reads `legs.yaml`)
+
+- On a travel day (a day that moves between overnight stops), render the inter-city move as
+  a first-class row: transit → the `service` + `reserved` + `transfers` + `duration_mins`;
+  drive → the `duration_mins`. Do not bury the move inside a generic note.
+- Push `reserved`-seat reminders, `pass_advice`, and `last_service` notes into the
+  **Pre-trip checklist / Contingency**.
+- `drive_too_long` / `missed_last_service` legs are already resolved (stop-on-confirmation
+  in `inter-stop-legs`) before synthesis runs; do not re-judge them here.
+
 ## Seasonal awareness (reads `seasonal.yaml`)
 
 - Push every `advisory` / `info` hazard item (chains, warm gear, heat/hydration, short

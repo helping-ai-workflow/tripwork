@@ -119,3 +119,8 @@ def test_trip_brief_documents_leg_mode():
     text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
     assert "leg_mode" in text
     assert "max_single_drive_mins" in text
+
+def test_synthesis_documents_legs():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "legs.yaml" in text
+    assert "last_service" in text or "pass_advice" in text
