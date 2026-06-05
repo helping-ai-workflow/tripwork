@@ -251,3 +251,10 @@ def test_seasonal_schema_requires_official_source():
            "daylight": []}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
+
+def test_trip_brief_declares_transport():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "transport" in props
+    assert props["transport"]["type"] == "string"

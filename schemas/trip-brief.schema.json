@@ -16,6 +16,7 @@
     "must_do": {"type": "array", "items": {"type": "string"}},
     "constraints": {"type": "array", "items": {"type": "string"}},
     "preferences": {"type": "object"},
+    "transport": {"type": "string"},
     "routing": {"type": "object",
       "properties": {"max_hop_mins": {"type": "number"}, "region_radius_km": {"type": "number"}}},
     "scheduling": {"type": "object",
