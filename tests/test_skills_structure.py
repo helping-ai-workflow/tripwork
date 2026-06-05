@@ -138,3 +138,8 @@ def test_trip_brief_documents_budget():
 def test_accommodation_research_records_numeric_cost():
     text = (SKILLS / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
     assert "numeric `cost`" in text or "`cost` (amount" in text
+
+def test_inter_stop_legs_records_fare():
+    text = (SKILLS / "inter-stop-legs" / "SKILL.md").read_text(encoding="utf-8")
+    assert "`fare`" in text
+    assert "pass" in text  # the trip-level pass option

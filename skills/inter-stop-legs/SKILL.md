@@ -29,6 +29,11 @@ operator timetable e.g. JR / Korail, intercity bus operator, road authority). Re
   fare calc; precise break-even is deferred to B3).
 - **drive** — `duration_mins`.
 
+Also record the numeric **cost** for the rollup: each leg's `fare` (amount + currency) and,
+when a regional/rail pass applies, a trip-level `pass` object (`name`, `price`, `covers`).
+`cost-rollup` computes the precise pass break-even from these — `pass_advice` stays as the
+human-readable note.
+
 ## Feasibility (logic in `scripts/legs.py::classify_leg`)
 
 Run `classify_leg(leg, trip-brief.routing.max_single_drive_mins or 300)`:
