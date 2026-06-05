@@ -50,3 +50,32 @@ def test_gate_meal_check_still_requires_food():
     report = run_gate(pois, days)
     assert report["status"] == "fail"
     assert any("meal" in f.lower() for f in report["failures"])
+
+def _accom(chosen, facilities):
+    return {"stops": [{
+        "district": "Tekapo", "nights": 2, "chosen": chosen,
+        "candidates": [{"id": "godley", "facilities": facilities}],
+    }]}
+
+def test_gate_skips_accommodation_when_absent():
+    # backward-compat: no accommodations arg -> only the original checks run
+    r = run_gate([], [])
+    assert all(c["name"] not in ("overnight_stops_have_lodging", "required_facilities_met")
+               for c in r["checks"])
+
+def test_gate_fails_stop_without_chosen_lodging():
+    r = run_gate([], [], accommodations=_accom(None, []), facility_needs={"required": []})
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging") is False
+
+def test_gate_fails_missing_required_facility():
+    r = run_gate([], [], accommodations=_accom("godley", ["wifi"]),
+                 facility_needs={"required": ["parking"]})
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met") is False
+
+def test_gate_passes_lodging_with_required_facility():
+    r = run_gate([], [], accommodations=_accom("godley", ["parking", "wifi"]),
+                 facility_needs={"required": ["parking"]})
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging") is True
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met") is True
