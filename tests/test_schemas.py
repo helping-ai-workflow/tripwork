@@ -318,3 +318,11 @@ def test_cost_schema_requires_currency_and_total():
     schema = json.load(open(root / "schemas" / "cost.schema.json"))
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate({"line_items": []}, schema)  # missing currency + total
+
+def test_accommodations_candidate_declares_cost():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "accommodations.schema.json"))
+    cand = schema["properties"]["stops"]["items"]["properties"]["candidates"]["items"]["properties"]
+    assert "cost" in cand
+    assert cand["cost"]["properties"]["basis"]["enum"] == ["per_night", "total"]
