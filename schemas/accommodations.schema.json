@@ -1,0 +1,41 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": ["stops"],
+  "properties": {
+    "stops": {"type": "array", "items": {
+      "type": "object",
+      "required": ["district", "nights", "candidates", "chosen"],
+      "properties": {
+        "district": {"type": "string"},
+        "nights": {"type": "integer"},
+        "chosen": {"type": ["string", "null"]},
+        "candidates": {"type": "array", "items": {
+          "type": "object",
+          "required": ["id", "name_local", "name_display", "facilities", "geocode", "sources", "verify_status"],
+          "properties": {
+            "id": {"type": "string"},
+            "name_local": {"type": "string"},
+            "name_display": {"type": "string"},
+            "name_roman": {"type": "string"},
+            "price_band": {"type": "string"},
+            "facilities": {"type": "array", "items": {"type": "string"}},
+            "rating_source": {"type": "string"},
+            "gmaps": {"type": "string"},
+            "reception": {"type": "object", "properties": {
+              "close": {"type": "string"}, "late_checkin": {"type": "boolean"}}},
+            "geocode": {"type": "object", "required": ["lat", "lng"], "properties": {
+              "lat": {"type": "number"}, "lng": {"type": "number"},
+              "geocode_source": {"enum": ["nominatim", "nominatim_structured", "cluster_fallback"]}}},
+            "booking": {"type": "object", "properties": {
+              "required": {"type": "boolean"}, "lead_time": {"type": "string"}, "url": {"type": "string"}}},
+            "sources": {"type": "array", "minItems": 2, "items": {
+              "type": "object", "required": ["url", "lang"], "properties": {
+                "url": {"type": "string"}, "lang": {"type": "string"},
+                "official": {"type": "boolean"}, "note": {"type": "string"}}}},
+            "verify_status": {"enum": ["verified", "conflicting", "rejected", "unverified"]},
+            "conflict_note": {"type": "string"}
+          }}}
+      }}}
+  }
+}

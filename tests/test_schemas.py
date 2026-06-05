@@ -202,3 +202,27 @@ def test_routing_cluster_declares_centroid():
     cprops = schema["properties"]["clusters"]["items"]["properties"]
     assert "centroid" in cprops
     assert cprops["centroid"]["required"] == ["lat", "lng"]
+
+def test_accommodations_schema_validates_a_stop():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "accommodations.schema.json"))
+    doc = {"stops": [{
+        "district": "Tekapo", "nights": 2, "chosen": "godley",
+        "candidates": [{
+            "id": "godley", "name_local": "The Godley Hotel", "name_display": "The Godley Hotel",
+            "facilities": ["parking", "laundry"],
+            "geocode": {"lat": -44.0, "lng": 170.4, "geocode_source": "cluster_fallback"},
+            "sources": [{"url": "https://godley.example", "lang": "en", "official": True},
+                        {"url": "https://review.example", "lang": "en"}],
+            "verify_status": "verified",
+        }],
+    }]}
+    jsonschema.validate(doc, schema)  # must not raise
+
+def test_accommodations_schema_allows_null_chosen():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "accommodations.schema.json"))
+    doc = {"stops": [{"district": "Wanaka", "nights": 2, "chosen": None, "candidates": []}]}
+    jsonschema.validate(doc, schema)
