@@ -46,7 +46,7 @@ After each stage completes, re-invoke this skill to pick the next stage.
 
 ## Stop-on-Confirmation
 
-Halt and ask the user when a stage reports: cross-source conflict, hop flagged `far`, booking lead-time missed, regulation risk, or must-do verification failure. Record the decision in `work/<slug>/stage-state.yaml` before continuing.
+Halt and ask the user when a stage reports: cross-source conflict, hop flagged `far`, booking lead-time missed, regulation risk, must-do verification failure, an unfilled overnight stop needing a lodging pick or a missing required facility, a `blocking` seasonal hazard, a leg flagged `drive_too_long` / `missed_last_service`, or the cost estimate over a set budget. Record the decision in `work/<slug>/stage-state.yaml` before continuing.
 
 ## Stage Contract
 
