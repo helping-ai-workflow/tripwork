@@ -29,6 +29,16 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
 
+## Seasonal awareness (reads `seasonal.yaml`)
+
+- Push every `advisory` / `info` hazard item (chains, warm gear, heat/hydration, short
+  daylight) into the **Pre-trip checklist / Contingency**.
+- For any `daylight[]` entry with `after_dark_arrival: true`, advise an earlier start on
+  that day and note the approximate sunset time on the day row (it is a no-key
+  approximation — present it as guidance, not an exact time).
+- `blocking` hazards are already resolved (stop-on-confirmation in `seasonal-advisory`)
+  before synthesis runs; do not re-judge them here.
+
 ## Lodging placement (reads `accommodations.yaml`)
 
 - Fill each day's `宿 <hotel>` from the overnight stop's `chosen` lodging. Render it via

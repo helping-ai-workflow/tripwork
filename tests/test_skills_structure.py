@@ -105,3 +105,8 @@ def test_itinerary_gate_documents_lodging_checks():
 def test_orchestrator_wires_accommodation_research():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "accommodation-research" in text
+
+def test_synthesis_documents_seasonal():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "seasonal" in text
+    assert "after_dark" in text or "after-dark" in text
