@@ -7,8 +7,8 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 EXPECTED = [
     "using-tripwork", "orchestrator", "trip-brief", "destination-research",
     "source-verify", "routing-audit", "accommodation-research", "calendar-check",
-    "itinerary-synthesis", "travel-advisory", "itinerary-gate", "export-artifact",
-    "export-gate", "workspace-shape-preflight",
+    "seasonal-advisory", "itinerary-synthesis", "travel-advisory", "itinerary-gate",
+    "export-artifact", "export-gate", "workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
@@ -79,6 +79,10 @@ def test_trip_brief_documents_overnight_stops_and_facilities():
     assert "overnight_stops" in text
     assert "facility_needs" in text
 
+def test_trip_brief_documents_transport():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "transport" in text
+
 def test_routing_audit_documents_centroid():
     text = (SKILLS / "routing-audit" / "SKILL.md").read_text(encoding="utf-8")
     assert "centroid" in text
@@ -101,3 +105,12 @@ def test_itinerary_gate_documents_lodging_checks():
 def test_orchestrator_wires_accommodation_research():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "accommodation-research" in text
+
+def test_synthesis_documents_seasonal():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "seasonal" in text
+    assert "after_dark" in text or "after-dark" in text
+
+def test_orchestrator_wires_seasonal_advisory():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "seasonal-advisory" in text

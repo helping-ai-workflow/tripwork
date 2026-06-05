@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.7.0 — 2026-06-05
+
+Seasonal/weather advisory + no-key daylight.
+
+- New `seasonal-advisory` stage (`skills/seasonal-advisory/`): no-key seasonal/weather
+  hazard research (official sources: road authority / met service / parks) into
+  `seasonal.yaml` (`schemas/seasonal.schema.json`). Two-tier severity — `blocking`
+  stops on confirmation (closed pass), `advisory`/`info` flow to the synthesis checklist
+  (chains, gear, short daylight). Wired as orchestrator stage 7 (B2).
+- `scripts/season.py`: no-key solar-geometry daylight — `daylight_hours`,
+  `approx_sunset`, `after_dark`. Per overnight stop's sunset is computed and, for
+  `self_drive` trips, after-dark driving legs are flagged for an earlier start.
+- `trip-brief` schema gains optional `transport` (e.g. `self_drive`).
+- `itinerary-synthesis` consumes `seasonal.yaml` (advisories + daylight into the
+  checklist). No `itinerary-gate` change — `blocking` stops at the stage, like
+  `travel-advisory` `banned`.
+
 ## 0.6.0 — 2026-06-05
 
 Accommodation layer + no-key geocode resilience.

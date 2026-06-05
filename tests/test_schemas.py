@@ -226,3 +226,35 @@ def test_accommodations_schema_allows_null_chosen():
     schema = json.load(open(root / "schemas" / "accommodations.schema.json"))
     doc = {"stops": [{"district": "Wanaka", "nights": 2, "chosen": None, "candidates": []}]}
     jsonschema.validate(doc, schema)
+
+def test_seasonal_schema_validates_items_and_daylight():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "seasonal.schema.json"))
+    doc = {
+        "items": [{
+            "hazard": "road_closure", "note": "Crown Range may close in snow",
+            "severity": "blocking",
+            "sources": [{"url": "https://nzta.govt.nz", "official": True}],
+        }],
+        "daylight": [{"district": "Tekapo", "date": "2026-07-15", "sunset": "16:30",
+                      "after_dark_arrival": True}],
+    }
+    jsonschema.validate(doc, schema)  # must not raise
+
+def test_seasonal_schema_requires_official_source():
+    import json, pathlib, jsonschema, pytest
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "seasonal.schema.json"))
+    bad = {"items": [{"hazard": "heat", "note": "x", "severity": "info",
+                      "sources": [{"url": "https://blog.example", "official": False}]}],
+           "daylight": []}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_trip_brief_declares_transport():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "transport" in props
+    assert props["transport"]["type"] == "string"

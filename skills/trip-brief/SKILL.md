@@ -28,6 +28,9 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
   `crib`, `wifi`, `heating`. When `members` note elderly, suggest asking about
   `elevator`/`accessible`; with infants/children, suggest `family_room`/`crib` — a
   suggestion to raise with the user, not an auto-added requirement.
+- `transport` (optional; e.g. `self_drive` / `public` / `mixed`). A hint for downstream
+  stages — `self_drive` enables `seasonal-advisory`'s after-dark driving-leg flag (and,
+  later, drive-leg checks). Omit for trips where driving conditions do not apply.
 
 ## Ingest sources
 
