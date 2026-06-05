@@ -29,6 +29,15 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
 
+## Cost summary (reads `cost.yaml`)
+
+- Render a **cost-summary block** in the deliverable: the per-category breakdown
+  (accommodation / transport / pass / incidental), the `total`, the budget status, the
+  rail-pass recommendation (`pass_break_even`), and any `fx_note`. Mark it clearly an
+  **estimate** with its `as_of` date.
+- An over-budget total is already resolved (stop-on-confirmation in `cost-rollup`) before
+  synthesis runs; do not re-judge it here.
+
 ## Inter-city moves (reads `legs.yaml`)
 
 - On a travel day (a day that moves between overnight stops), render the inter-city move as
@@ -74,7 +83,7 @@ Write `itinerary.md`, return to `tripwork:orchestrator`.
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml`. |
+| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml` + `trips/<slug>/cost.yaml`. |
 | Output | `trips/<slug>/itinerary.md` (day tables + contingency + checklist sections). |
 | Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot → ask user. |
 | Next stage | `tripwork:orchestrator`. |

@@ -292,3 +292,54 @@ def test_trip_brief_declares_leg_mode_and_max_single_drive():
     props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
     assert "leg_mode" in props["overnight_stops"]["items"]["properties"]
     assert "max_single_drive_mins" in props["routing"]["properties"]
+
+def test_cost_schema_validates_a_rollup():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "cost.schema.json"))
+    doc = {
+        "currency": "JPY",
+        "line_items": [
+            {"category": "accommodation", "label": "4 nights", "amount": 60000},
+            {"category": "transport", "label": "Tokyo-Kyoto-Osaka", "amount": 28000},
+            {"category": "incidental", "label": "5 days @ 6000", "amount": 30000},
+        ],
+        "total": 118000,
+        "budget": {"amount": 120000, "over": False, "delta": 2000},
+        "pass_break_even": {"name": "JR Pass 7d", "pass_price": 50000,
+                            "individual_total": 28000, "use_pass": False, "saving": 22000},
+        "as_of": "2026-06-05", "estimate_note": "estimate; prices vary",
+    }
+    jsonschema.validate(doc, schema)  # must not raise
+
+def test_cost_schema_requires_currency_and_total():
+    import json, pathlib, jsonschema, pytest
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "cost.schema.json"))
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate({"line_items": []}, schema)  # missing currency + total
+
+def test_accommodations_candidate_declares_cost():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "accommodations.schema.json"))
+    cand = schema["properties"]["stops"]["items"]["properties"]["candidates"]["items"]["properties"]
+    assert "cost" in cand
+    assert cand["cost"]["properties"]["basis"]["enum"] == ["per_night", "total"]
+
+def test_legs_declare_fare_and_pass():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "legs.schema.json"))
+    leg_props = schema["properties"]["legs"]["items"]["properties"]
+    assert "fare" in leg_props
+    assert "pass" in schema["properties"]
+    assert "price" in schema["properties"]["pass"]["properties"]
+
+def test_trip_brief_declares_cost_fields():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "budget" in props
+    assert "daily_incidental" in props
+    assert "home_currency" in props

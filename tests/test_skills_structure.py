@@ -7,8 +7,9 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 EXPECTED = [
     "using-tripwork", "orchestrator", "trip-brief", "destination-research",
     "source-verify", "routing-audit", "accommodation-research", "inter-stop-legs",
-    "calendar-check", "seasonal-advisory", "itinerary-synthesis", "travel-advisory",
-    "itinerary-gate", "export-artifact", "export-gate", "workspace-shape-preflight",
+    "calendar-check", "seasonal-advisory", "cost-rollup", "itinerary-synthesis",
+    "travel-advisory", "itinerary-gate", "export-artifact", "export-gate",
+    "workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
@@ -128,3 +129,25 @@ def test_synthesis_documents_legs():
 def test_orchestrator_wires_inter_stop_legs():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "inter-stop-legs" in text
+
+def test_trip_brief_documents_budget():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "budget" in text
+    assert "daily_incidental" in text
+
+def test_accommodation_research_records_numeric_cost():
+    text = (SKILLS / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "numeric `cost`" in text or "`cost` (amount" in text
+
+def test_inter_stop_legs_records_fare():
+    text = (SKILLS / "inter-stop-legs" / "SKILL.md").read_text(encoding="utf-8")
+    assert "`fare`" in text
+    assert "pass" in text  # the trip-level pass option
+
+def test_synthesis_documents_cost_summary():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "cost.yaml" in text
+
+def test_orchestrator_wires_cost_rollup():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "cost-rollup" in text

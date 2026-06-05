@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.9.0 — 2026-06-05
+
+Trip-cost rollup (big-ticket estimate + budget compare).
+
+- New `cost-rollup` stage (`skills/cost-rollup/`): sums accommodation + inter-city
+  transport + rail pass + a daily-incidental allowance into `cost.yaml`
+  (`schemas/cost.schema.json`), computes a precise rail-pass break-even, and compares the
+  total to `trip-brief.budget` (over → stop-on-confirmation). Wired as orchestrator
+  stage 9 (B3). Everything is a no-key estimate with an `as_of` date.
+- `scripts/cost.py`: pure aggregation — `sum_costs`, `incidental_total`,
+  `pass_break_even`, `over_budget`.
+- Numeric cost recorded upstream: `accommodations` candidates gain `cost`
+  (amount/currency/basis); `legs` gain per-leg `fare` + a trip-level `pass` option;
+  `trip-brief` gains `budget` / `daily_incidental` / `home_currency`.
+- `itinerary-synthesis` renders a cost-summary block (breakdown, total, budget status,
+  pass recommendation, FX note). No `itinerary-gate` change. Cross-currency uses a
+  researched approximate rate (no FX API); per-meal/per-POI pricing stays out of scope.
+
 ## 0.8.0 — 2026-06-05
 
 Mode-aware inter-stop legs (transit + self-drive parity).

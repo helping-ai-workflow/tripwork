@@ -17,6 +17,7 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 - `trips/<slug>/legs.yaml`
 - `trips/<slug>/calendar.yaml`
 - `trips/<slug>/seasonal.yaml`
+- `trips/<slug>/cost.yaml`
 - `trips/<slug>/advisory.yaml`
 - `trips/<slug>/itinerary.md`
 - `trips/<slug>/exports/<slug>-itinerary.md`
@@ -34,17 +35,18 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 6. accommodations ready, no legs.yaml -> run `inter-stop-legs`.
 7. legs ready, no calendar.yaml -> run `calendar-check`.
 8. calendar ready, no seasonal.yaml -> run `seasonal-advisory`.
-9. seasonal ready, no itinerary.md -> run `itinerary-synthesis`.
-10. itinerary exists, no advisory.yaml -> run `travel-advisory`.
-11. advisory ready -> run `itinerary-gate`.
-12. gate-report status==pass, no exports/<slug>-itinerary.md -> run `export-artifact`.
-13. export deliverable exists, no export-gate-report.yaml -> run `export-gate`. If `export-gate-report` status==fail -> return to `export-artifact` to re-render.
+9. seasonal ready, no cost.yaml -> run `cost-rollup`.
+10. cost ready, no itinerary.md -> run `itinerary-synthesis`.
+11. itinerary exists, no advisory.yaml -> run `travel-advisory`.
+12. advisory ready -> run `itinerary-gate`.
+13. gate-report status==pass, no exports/<slug>-itinerary.md -> run `export-artifact`.
+14. export deliverable exists, no export-gate-report.yaml -> run `export-gate`. If `export-gate-report` status==fail -> return to `export-artifact` to re-render.
 
 After each stage completes, re-invoke this skill to pick the next stage.
 
 ## Stop-on-Confirmation
 
-Halt and ask the user when a stage reports: cross-source conflict, hop flagged `far`, booking lead-time missed, regulation risk, or must-do verification failure. Record the decision in `work/<slug>/stage-state.yaml` before continuing.
+Halt and ask the user when a stage reports: cross-source conflict, hop flagged `far`, booking lead-time missed, regulation risk, must-do verification failure, an unfilled overnight stop needing a lodging pick or a missing required facility, a `blocking` seasonal hazard, a leg flagged `drive_too_long` / `missed_last_service`, or the cost estimate over a set budget. Record the decision in `work/<slug>/stage-state.yaml` before continuing.
 
 ## Stage Contract
 

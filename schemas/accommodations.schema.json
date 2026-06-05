@@ -19,6 +19,7 @@
             "name_display": {"type": "string"},
             "name_roman": {"type": "string"},
             "price_band": {"type": "string"},
+            "cost": {"type": "object", "properties": {"amount": {"type": "number"}, "currency": {"type": "string"}, "basis": {"enum": ["per_night", "total"]}}},
             "facilities": {"type": "array", "items": {"type": "string"}},
             "rating_source": {"type": "string"},
             "gmaps": {"type": "string"},
