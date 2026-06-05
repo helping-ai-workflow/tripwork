@@ -6,9 +6,9 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 
 EXPECTED = [
     "using-tripwork", "orchestrator", "trip-brief", "destination-research",
-    "source-verify", "routing-audit", "accommodation-research", "calendar-check",
-    "seasonal-advisory", "itinerary-synthesis", "travel-advisory", "itinerary-gate",
-    "export-artifact", "export-gate", "workspace-shape-preflight",
+    "source-verify", "routing-audit", "accommodation-research", "inter-stop-legs",
+    "calendar-check", "seasonal-advisory", "itinerary-synthesis", "travel-advisory",
+    "itinerary-gate", "export-artifact", "export-gate", "workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
@@ -114,3 +114,17 @@ def test_synthesis_documents_seasonal():
 def test_orchestrator_wires_seasonal_advisory():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "seasonal-advisory" in text
+
+def test_trip_brief_documents_leg_mode():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "leg_mode" in text
+    assert "max_single_drive_mins" in text
+
+def test_synthesis_documents_legs():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "legs.yaml" in text
+    assert "last_service" in text or "pass_advice" in text
+
+def test_orchestrator_wires_inter_stop_legs():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "inter-stop-legs" in text

@@ -18,7 +18,7 @@
     "preferences": {"type": "object"},
     "transport": {"type": "string"},
     "routing": {"type": "object",
-      "properties": {"max_hop_mins": {"type": "number"}, "region_radius_km": {"type": "number"}}},
+      "properties": {"max_hop_mins": {"type": "number"}, "region_radius_km": {"type": "number"}, "max_single_drive_mins": {"type": "number"}}},
     "scheduling": {"type": "object",
       "properties": {"min_buffer_mins": {"type": "number"}, "default_visit_mins": {"type": "number"}}},
     "overnight_stops": {"type": "array", "items": {
@@ -26,6 +26,7 @@
       "properties": {
         "district": {"type": "string"},
         "nights": {"type": "integer", "minimum": 1},
+        "leg_mode": {"type": "string"},
         "lodging": {"type": "object", "required": ["name"],
           "properties": {"name": {"type": "string"}, "name_local": {"type": "string"}}}}}},
     "facility_needs": {"type": "object", "properties": {

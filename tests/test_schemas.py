@@ -258,3 +258,37 @@ def test_trip_brief_declares_transport():
     props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
     assert "transport" in props
     assert props["transport"]["type"] == "string"
+
+def test_legs_schema_validates_a_transit_leg():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "legs.schema.json"))
+    doc = {"legs": [{
+        "from": "Tokyo", "to": "Kyoto", "mode": "rail", "duration_mins": 140,
+        "status": "ok", "service": "Nozomi 21", "reserved": True, "transfers": 0,
+        "last_service": "21:30", "pass_advice": "3 shinkansen legs -> JR Pass likely worth it",
+        "sources": [{"url": "https://global.jr-central.co.jp", "official": True}],
+    }]}
+    jsonschema.validate(doc, schema)  # must not raise
+
+def test_legs_schema_requires_official_source():
+    import json, pathlib, jsonschema, pytest
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "legs.schema.json"))
+    bad = {"legs": [{"from": "A", "to": "B", "mode": "rail", "status": "ok",
+                     "sources": [{"url": "https://blog.example", "official": False}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_legs_schema_allows_empty_legs():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "legs.schema.json"))
+    jsonschema.validate({"legs": []}, schema)  # single-base trip
+
+def test_trip_brief_declares_leg_mode_and_max_single_drive():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "leg_mode" in props["overnight_stops"]["items"]["properties"]
+    assert "max_single_drive_mins" in props["routing"]["properties"]

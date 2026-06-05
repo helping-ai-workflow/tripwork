@@ -29,6 +29,16 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
 
+## Inter-city moves (reads `legs.yaml`)
+
+- On a travel day (a day that moves between overnight stops), render the inter-city move as
+  a first-class row: transit → the `service` + `reserved` + `transfers` + `duration_mins`;
+  drive → the `duration_mins`. Do not bury the move inside a generic note.
+- Push `reserved`-seat reminders, `pass_advice`, and `last_service` notes into the
+  **Pre-trip checklist / Contingency**.
+- `drive_too_long` / `missed_last_service` legs are already resolved (stop-on-confirmation
+  in `inter-stop-legs`) before synthesis runs; do not re-judge them here.
+
 ## Seasonal awareness (reads `seasonal.yaml`)
 
 - Push every `advisory` / `info` hazard item (chains, warm gear, heat/hydration, short
@@ -64,7 +74,7 @@ Write `itinerary.md`, return to `tripwork:orchestrator`.
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/calendar.yaml`. |
+| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml`. |
 | Output | `trips/<slug>/itinerary.md` (day tables + contingency + checklist sections). |
 | Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot → ask user. |
 | Next stage | `tripwork:orchestrator`. |

@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.8.0 — 2026-06-05
+
+Mode-aware inter-stop legs (transit + self-drive parity).
+
+- New `inter-stop-legs` stage (`skills/inter-stop-legs/`): one mode-aware leg per pair of
+  consecutive overnight stops, researched from official sources into `legs.yaml`
+  (`schemas/legs.schema.json`). Transit legs carry `service` / `reserved` / `transfers` /
+  `last_service` / `pass_advice`; drive legs carry `duration_mins`. Wired as orchestrator
+  stage 6 (B1).
+- `scripts/legs.py`: pure feasibility — `drive_too_long`, `misses_last_service`,
+  `classify_leg`. A single-day drive over `routing.max_single_drive_mins` (default 300) or
+  a planned same-day departure past the last service → stop-on-confirmation, like a
+  routing `far` hop. No `itinerary-gate` change.
+- `trip-brief` schema: `overnight_stops[].leg_mode` (per-leg mode override of the
+  trip-level `transport`) + `routing.max_single_drive_mins`.
+- `itinerary-synthesis` renders the inter-city move per travel day and pushes reserved /
+  pass / last-service notes into the checklist. Single-base trips have an empty `legs`
+  list (no behaviour change). Precise rail-pass break-even is deferred to B3.
+
 ## 0.7.0 — 2026-06-05
 
 Seasonal/weather advisory + no-key daylight.
