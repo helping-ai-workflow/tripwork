@@ -110,3 +110,7 @@ def test_synthesis_documents_seasonal():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "seasonal" in text
     assert "after_dark" in text or "after-dark" in text
+
+def test_orchestrator_wires_seasonal_advisory():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "seasonal-advisory" in text
