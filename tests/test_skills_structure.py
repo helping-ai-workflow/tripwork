@@ -129,3 +129,8 @@ def test_synthesis_documents_legs():
 def test_orchestrator_wires_inter_stop_legs():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "inter-stop-legs" in text
+
+def test_trip_brief_documents_budget():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "budget" in text
+    assert "daily_incidental" in text

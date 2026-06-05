@@ -37,6 +37,11 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
   between cities, a rented car for one segment). `inter-stop-legs` uses `leg_mode` (else
   `transport`) to pick each leg's transit-vs-drive branch, and flags a single-day drive
   over `max_single_drive_mins`.
+- `budget` (optional `{amount, currency}`) + `daily_incidental` (optional `{amount,
+  currency}`) + `home_currency` (optional). `budget` is the structured trip budget
+  `cost-rollup` compares against (over → it stops and asks). `daily_incidental` is the
+  user's per-day allowance for food / tickets / local transport — an estimate, not
+  researched per item. `home_currency` drives an FX advisory note on the total.
 
 ## Ingest sources
 
