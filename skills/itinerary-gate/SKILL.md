@@ -11,6 +11,13 @@ Structure only. Content correctness is guaranteed upstream by `source-verify`; t
 
 - Every POI referenced by an itinerary day exists in verified-pois and has a `geocode`.
 - Every day has at least one meal.
+- `overnight_stops_have_lodging` — every overnight stop in `accommodations.yaml` has a
+  `chosen` lodging.
+- `required_facilities_met` — every chosen lodging has all `trip-brief.facility_needs.required`
+  facilities.
+
+(Periodic-facility coverage is advisory and surfaced by `itinerary-synthesis`, not gated
+here. The accommodation checks run only when `accommodations.yaml` is present.)
 
 ## Output
 
@@ -20,7 +27,7 @@ Write `trips/<slug>/gate-report.yaml` (schema: `schemas/gate-report.schema.json`
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/itinerary.md` + `trips/<slug>/verified-pois.yaml`. |
+| Input | `trips/<slug>/itinerary.md` + `trips/<slug>/verified-pois.yaml` + `trips/<slug>/accommodations.yaml`. |
 | Output | `trips/<slug>/gate-report.yaml` (`status` pass/fail + failures). |
 | Stop condition | `status: fail` → return to the responsible upstream stage. |
 | Next stage | `tripwork:orchestrator` (which routes to `export-artifact` only on pass). |

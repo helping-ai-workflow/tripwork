@@ -13,7 +13,7 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
 
     Gate 1: >= 2 sources (else 'unverified').
             If local_lang given, at least one source must be in that lang (else 'unverified').
-    Gate 2: geocode must resolve (else 'rejected').
+    Gate 2: geocode must resolve (else 'unverified', D7).
     Gate 3a: conflict_detected — cross-source disagreement on rating/hours/address
              (else 'conflicting').  Computed by the skill and signalled via this param.
     Gate 3b: geocoded point must fall within the claimed region (else 'conflicting').
@@ -37,9 +37,10 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     if local_lang is not None and local_lang not in langs:
         return "unverified", f"needs >=1 source in local language '{local_lang}'"
 
-    # Gate 2: geocode must resolve
+    # Gate 2: geocode must resolve. D7: a real place Nominatim can't pin is recorded
+    # for manual confirmation ('unverified'), never silently dropped ('rejected').
     if not geocoded:
-        return "rejected", "geocode failed: could not resolve coordinates"
+        return "unverified", "geocode unresolved: could not resolve coordinates"
 
     # Gate 3: cross-source conflict or region mismatch
     if conflict_detected:

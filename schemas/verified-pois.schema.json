@@ -19,7 +19,8 @@
           "geocode": {
             "type": "object",
             "required": ["lat", "lng"],
-            "properties": {"lat": {"type": "number"}, "lng": {"type": "number"}}
+            "properties": {"lat": {"type": "number"}, "lng": {"type": "number"},
+              "geocode_source": {"enum": ["nominatim", "nominatim_structured", "cluster_fallback"]}}
           },
           "sources": {
             "type": "array",
