@@ -285,3 +285,10 @@ def test_legs_schema_allows_empty_legs():
     root = pathlib.Path(__file__).resolve().parent.parent
     schema = json.load(open(root / "schemas" / "legs.schema.json"))
     jsonschema.validate({"legs": []}, schema)  # single-base trip
+
+def test_trip_brief_declares_leg_mode_and_max_single_drive():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "leg_mode" in props["overnight_stops"]["items"]["properties"]
+    assert "max_single_drive_mins" in props["routing"]["properties"]
