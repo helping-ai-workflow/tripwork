@@ -46,5 +46,5 @@ Return to `tripwork:orchestrator`.
 
 | Mistake | Fix |
 |---|---|
-| Writing a POI with no `geocode` | Geocode-required; no coordinates → `rejected`, not written as verified. |
+| Writing a POI with no `geocode` as verified | No coordinates → `unverified` (D7: recorded for manual confirmation), never written as `verified`. |
 | Ignoring a region mismatch | Coordinates outside claimed district → `conflicting` + `conflict_note`, stop. |
