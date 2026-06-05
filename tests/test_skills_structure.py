@@ -6,9 +6,9 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 
 EXPECTED = [
     "using-tripwork", "orchestrator", "trip-brief", "destination-research",
-    "source-verify", "routing-audit", "calendar-check", "itinerary-synthesis",
-    "travel-advisory", "itinerary-gate", "export-artifact", "export-gate",
-    "workspace-shape-preflight",
+    "source-verify", "routing-audit", "accommodation-research", "calendar-check",
+    "itinerary-synthesis", "travel-advisory", "itinerary-gate", "export-artifact",
+    "export-gate", "workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
