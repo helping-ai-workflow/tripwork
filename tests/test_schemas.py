@@ -326,3 +326,12 @@ def test_accommodations_candidate_declares_cost():
     cand = schema["properties"]["stops"]["items"]["properties"]["candidates"]["items"]["properties"]
     assert "cost" in cand
     assert cand["cost"]["properties"]["basis"]["enum"] == ["per_night", "total"]
+
+def test_legs_declare_fare_and_pass():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "legs.schema.json"))
+    leg_props = schema["properties"]["legs"]["items"]["properties"]
+    assert "fare" in leg_props
+    assert "pass" in schema["properties"]
+    assert "price" in schema["properties"]["pass"]["properties"]
