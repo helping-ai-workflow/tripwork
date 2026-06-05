@@ -177,3 +177,11 @@ def test_verified_pois_source_declares_official():
     schema = json.load(open(root / "schemas" / "verified-pois.schema.json"))
     props = schema["properties"]["pois"]["items"]["properties"]["sources"]["items"]["properties"]
     assert "official" in props and props["official"]["type"] == "boolean"
+
+def test_verified_pois_geocode_declares_source():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "verified-pois.schema.json"))
+    geo = schema["properties"]["pois"]["items"]["properties"]["geocode"]["properties"]
+    assert "geocode_source" in geo
+    assert geo["geocode_source"]["enum"] == ["nominatim", "nominatim_structured", "cluster_fallback"]
