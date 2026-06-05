@@ -92,3 +92,8 @@ def test_synthesis_documents_lodging_and_coverage():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "accommodations" in text
     assert "coverage_gaps" in text
+
+def test_itinerary_gate_documents_lodging_checks():
+    text = (SKILLS / "itinerary-gate" / "SKILL.md").read_text(encoding="utf-8")
+    assert "overnight_stops_have_lodging" in text
+    assert "required_facilities_met" in text
