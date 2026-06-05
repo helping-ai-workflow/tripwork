@@ -82,3 +82,8 @@ def test_trip_brief_documents_overnight_stops_and_facilities():
 def test_routing_audit_documents_centroid():
     text = (SKILLS / "routing-audit" / "SKILL.md").read_text(encoding="utf-8")
     assert "centroid" in text
+
+def test_source_verify_documents_geocode_degrade():
+    text = (SKILLS / "source-verify" / "SKILL.md").read_text(encoding="utf-8")
+    assert "resolve_place" in text or "structured" in text
+    assert "unverified" in text  # geocode-fail degrades, not rejected
