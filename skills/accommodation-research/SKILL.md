@@ -30,6 +30,12 @@ every candidate, exactly like `source-verify`.
   (`scripts/geocode.py::in_region`) → `conflicting` + stop and ask. Centroid fallback is
   trivially in-region.
 
+## Cost (for the rollup)
+
+Record each candidate's numeric `cost` (amount + currency + `basis: per_night | total`)
+from the booking / official source, alongside the human-readable `price_band`.
+`cost-rollup` (a later stage) sums these — do not compute totals here.
+
 ## Facilities (Source-Verified-First — from sources, never guessed)
 
 Record each candidate's `facilities` (open vocabulary: `parking`, `laundry`, `kitchen`,

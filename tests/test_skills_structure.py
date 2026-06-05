@@ -134,3 +134,7 @@ def test_trip_brief_documents_budget():
     text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
     assert "budget" in text
     assert "daily_incidental" in text
+
+def test_accommodation_research_records_numeric_cost():
+    text = (SKILLS / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "numeric `cost`" in text or "`cost` (amount" in text
