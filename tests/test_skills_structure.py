@@ -78,3 +78,7 @@ def test_trip_brief_documents_overnight_stops_and_facilities():
     text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
     assert "overnight_stops" in text
     assert "facility_needs" in text
+
+def test_routing_audit_documents_centroid():
+    text = (SKILLS / "routing-audit" / "SKILL.md").read_text(encoding="utf-8")
+    assert "centroid" in text
