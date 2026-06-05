@@ -87,3 +87,8 @@ def test_source_verify_documents_geocode_degrade():
     text = (SKILLS / "source-verify" / "SKILL.md").read_text(encoding="utf-8")
     assert "resolve_place" in text or "structured" in text
     assert "unverified" in text  # geocode-fail degrades, not rejected
+
+def test_synthesis_documents_lodging_and_coverage():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "accommodations" in text
+    assert "coverage_gaps" in text

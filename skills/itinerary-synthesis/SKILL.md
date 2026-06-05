@@ -29,6 +29,18 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
 
+## Lodging placement (reads `accommodations.yaml`)
+
+- Fill each day's `宿 <hotel>` from the overnight stop's `chosen` lodging. Render it via
+  the existing `scripts/render/markdown.py::render_day_table` (the lodging dict is
+  POI-shaped: `name_local` / `name_display` / `sources`), so the hotel name becomes the
+  maps link and a primary `官網` / booking link is appended — no new renderer.
+- **Periodic-facility coverage (advisory):** for each `trip-brief.facility_needs.periodic`
+  entry, build the ordered stop list `[{nights, has_facility}]` from each stop's chosen
+  lodging and run `scripts/facilities.py::coverage_gaps(stops, max_gap_nights)`. Any
+  reported gap is pushed into the **Pre-trip checklist / Contingency** as advice (e.g.
+  "no laundry for 3 nights between Tekapo and Te Anau") — it never blocks the pipeline.
+
 ## Required derived sections
 
 1. **備案 / Contingency** — for each fragile point (booking-required restaurant, outdoor activity), a fallback. Derived inline; not a separate skill.
