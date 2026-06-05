@@ -335,3 +335,11 @@ def test_legs_declare_fare_and_pass():
     assert "fare" in leg_props
     assert "pass" in schema["properties"]
     assert "price" in schema["properties"]["pass"]["properties"]
+
+def test_trip_brief_declares_cost_fields():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "budget" in props
+    assert "daily_incidental" in props
+    assert "home_currency" in props
