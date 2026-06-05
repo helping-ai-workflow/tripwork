@@ -1,6 +1,6 @@
 {
   "name": "tripwork",
-  "description": "Source-Verified-First travel-planning pipeline: trip-brief → destination-research → source-verify → routing-audit → itinerary-synthesis → export",
+  "description": "Source-Verified-First travel-planning pipeline: trip-brief → destination-research → source-verify → routing-audit → accommodation-research → itinerary-synthesis → export",
   "version": "0.6.0",
   "author": { "name": "helping-ai-workflow", "url": "https://github.com/helping-ai-workflow/tripwork" },
   "homepage": "https://github.com/helping-ai-workflow/tripwork",
