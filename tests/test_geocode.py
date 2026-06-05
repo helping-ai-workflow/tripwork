@@ -37,3 +37,32 @@ def test_in_region_radius_is_configurable():
     from scripts.geocode import in_region
     assert in_region(37.5400, 127.0000, 37.5040, 127.0000, radius_km=5.0) is True
     assert in_region(37.5400, 127.0000, 37.5040, 127.0000, radius_km=2.0) is False
+
+def test_resolve_place_uses_structured_first(mocker):
+    from scripts.geocode import resolve_place
+    mocker.patch("scripts.geocode.requests.get",
+                 return_value=_FakeResp([{"lat": "1.0", "lon": "2.0", "display_name": "X"}]))
+    r, source = resolve_place("The Godley Hotel", district="Tekapo", country="New Zealand")
+    assert r.lat == pytest.approx(1.0)
+    assert source == "nominatim_structured"
+
+def test_resolve_place_falls_back_to_freetext(mocker):
+    from scripts.geocode import resolve_place
+    mocker.patch("scripts.geocode.requests.get",
+                 side_effect=[_FakeResp([]),
+                              _FakeResp([{"lat": "3.0", "lon": "4.0", "display_name": "Y"}])])
+    r, source = resolve_place("Arran Motel", district="Tekapo", country="New Zealand")
+    assert r.lng == pytest.approx(4.0)
+    assert source == "nominatim"
+
+def test_resolve_place_none_when_both_miss(mocker):
+    from scripts.geocode import resolve_place
+    mocker.patch("scripts.geocode.requests.get",
+                 side_effect=[_FakeResp([]), _FakeResp([])])
+    r, source = resolve_place("nowhere", district="X", country="Y")
+    assert r is None and source is None
+
+def test_cluster_centroid_mean():
+    from scripts.geocode import cluster_centroid
+    assert cluster_centroid([(0.0, 0.0), (2.0, 4.0)]) == (1.0, 2.0)
+    assert cluster_centroid([]) is None
