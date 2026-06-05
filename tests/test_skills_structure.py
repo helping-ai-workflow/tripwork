@@ -143,3 +143,7 @@ def test_inter_stop_legs_records_fare():
     text = (SKILLS / "inter-stop-legs" / "SKILL.md").read_text(encoding="utf-8")
     assert "`fare`" in text
     assert "pass" in text  # the trip-level pass option
+
+def test_synthesis_documents_cost_summary():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "cost.yaml" in text
