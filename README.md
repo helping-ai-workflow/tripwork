@@ -235,7 +235,7 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 169 個測試
+pytest                 # 186 個測試
 ```
 
 - 流水線由 `skills/` 下的 13 個 skill 組成，全程由 `orchestrator` 調度。
