@@ -246,7 +246,7 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 228 個測試
+pytest                 # 240 個測試
 ```
 
 - 流水線由 `skills/` 下的 15 個 skill 組成，全程由 `orchestrator` 調度。
@@ -255,6 +255,8 @@ pytest                 # 228 個測試
 
 **地圖座標用量限制：** 使用 OSM Nominatim（免 API key），請遵守其使用政策
 （≤ 1 req/s、帶 User-Agent）。`scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流。
+`resolve_place` 的查詢會以**每趟快取**（`work/<slug>/geocode-cache/`，連查無結果也快取）
+減少 re-run 時的重複 Nominatim 呼叫。
 
 </details>
 
