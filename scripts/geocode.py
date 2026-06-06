@@ -2,6 +2,7 @@
 from dataclasses import dataclass
 import requests
 from scripts.distance import haversine_km
+from scripts.geocode_cache import cache_key, cache_get, cache_put
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
 USER_AGENT = "tripwork/0.2 (https://github.com/helping-ai-workflow/tripwork)"
@@ -57,20 +58,37 @@ def geocode_structured(name, city=None, country=None, timeout=10):
     return GeocodeResult(lat=float(top["lat"]), lng=float(top["lon"]),
                          display_name=top.get("display_name", ""))
 
-def resolve_place(name, district=None, country=None, timeout=10):
-    """Two-tier resolve: structured query first, free-text fallback.
+def resolve_place(name, district=None, country=None, timeout=10, cache=None):
+    """Two-tier resolve (structured query first, free-text fallback) with an
+    optional per-trip cache.
 
+    When `cache` (a dict) is given, a hit — including a cached miss (None) — returns
+    without touching Nominatim; otherwise the result (or None) is stored in `cache`.
     Returns (GeocodeResult, source) where source is 'nominatim_structured' or
-    'nominatim'; (None, None) if neither resolves.
+    'nominatim'; (None, None) if neither resolves. `cache=None` is the original behaviour.
     """
-    r = geocode_structured(name, city=district, country=country, timeout=timeout)
-    if r is not None:
-        return r, "nominatim_structured"
-    q = " ".join(p for p in (name, district, country) if p)
-    r = geocode(q, timeout=timeout)
-    if r is not None:
-        return r, "nominatim"
-    return None, None
+    key = cache_key(name, district, country) if cache is not None else None
+    if cache is not None:
+        hit, value = cache_get(cache, key)
+        if hit:
+            if value is None:
+                return None, None
+            return (GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")),
+                    value["source"])
+
+    result = geocode_structured(name, city=district, country=country, timeout=timeout)
+    source = "nominatim_structured"
+    if result is None:
+        q = " ".join(p for p in (name, district, country) if p)
+        result = geocode(q, timeout=timeout)
+        source = "nominatim" if result is not None else None
+
+    if cache is not None:
+        cache_put(cache, key, None if result is None else
+                  {"lat": result.lat, "lng": result.lng,
+                   "display_name": result.display_name, "source": source})
+
+    return (result, source) if result is not None else (None, None)
 
 def cluster_centroid(points):
     """Mean (lat, lng) of a non-empty list of (lat, lng) tuples; None if empty."""

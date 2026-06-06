@@ -66,3 +66,44 @@ def test_cluster_centroid_mean():
     from scripts.geocode import cluster_centroid
     assert cluster_centroid([(0.0, 0.0), (2.0, 4.0)]) == (1.0, 2.0)
     assert cluster_centroid([]) is None
+
+def test_resolve_place_cache_hit_skips_network(mocker):
+    from scripts.geocode import resolve_place
+    from scripts.geocode_cache import cache_key
+    m = mocker.patch("scripts.geocode.requests.get")  # must NOT be called
+    key = cache_key("The Godley Hotel", "Tekapo", "New Zealand")
+    cache = {key: {"lat": -44.0, "lng": 170.5, "display_name": "Godley", "source": "nominatim"}}
+    r, source = resolve_place("The Godley Hotel", district="Tekapo", country="New Zealand", cache=cache)
+    assert r.lat == pytest.approx(-44.0) and source == "nominatim"
+    assert m.call_count == 0
+
+def test_resolve_place_cached_miss_skips_network(mocker):
+    from scripts.geocode import resolve_place
+    from scripts.geocode_cache import cache_key
+    m = mocker.patch("scripts.geocode.requests.get")  # must NOT be called
+    key = cache_key("Nowhere Motel", "Tekapo", "New Zealand")
+    cache = {key: None}                                # cached miss
+    r, source = resolve_place("Nowhere Motel", district="Tekapo", country="New Zealand", cache=cache)
+    assert r is None and source is None
+    assert m.call_count == 0
+
+def test_resolve_place_populates_cache_on_hit(mocker):
+    from scripts.geocode import resolve_place
+    from scripts.geocode_cache import cache_key
+    mocker.patch("scripts.geocode.requests.get",
+                 return_value=_FakeResp([{"lat": "1.0", "lon": "2.0", "display_name": "X"}]))
+    cache = {}
+    r, source = resolve_place("Somewhere", district="D", country="C", cache=cache)
+    assert source == "nominatim_structured"
+    key = cache_key("Somewhere", "D", "C")
+    assert cache[key]["lat"] == 1.0 and cache[key]["source"] == "nominatim_structured"
+
+def test_resolve_place_populates_cache_on_miss(mocker):
+    from scripts.geocode import resolve_place
+    from scripts.geocode_cache import cache_key
+    mocker.patch("scripts.geocode.requests.get",
+                 side_effect=[_FakeResp([]), _FakeResp([])])  # structured miss, freetext miss
+    cache = {}
+    r, source = resolve_place("Ghost Inn", district="D", country="C", cache=cache)
+    assert r is None and source is None
+    assert cache[cache_key("Ghost Inn", "D", "C")] is None    # negative cached
