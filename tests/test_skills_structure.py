@@ -159,3 +159,7 @@ def test_orchestrator_wires_cost_rollup():
 def test_accommodation_research_documents_geocode_cache():
     text = (SKILLS / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
     assert "geocode-cache" in text
+
+def test_trip_brief_documents_max_walk_mins():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "max_walk_mins" in text
