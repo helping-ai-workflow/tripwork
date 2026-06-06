@@ -343,3 +343,32 @@ def test_trip_brief_declares_cost_fields():
     assert "budget" in props
     assert "daily_incidental" in props
     assert "home_currency" in props
+
+def test_transit_schema_validates_a_doc():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "transit.schema.json"))
+    doc = {
+        "peak_windows": [{"label": "morning", "start": "07:30", "end": "09:30",
+                          "note": "commuter crush"}],
+        "ic_card": {"name": "Suica", "where_to_buy": "any JR machine", "top_up": "cash at machines",
+                    "covers": "trains + buses + convenience stores",
+                    "sources": [{"url": "https://www.jreast.co.jp/suica"}]},
+        "walks": [{"poi_id": "sensoji", "station": "Asakusa", "mins": 5, "note": "flat"}],
+    }
+    jsonschema.validate(doc, schema)  # must not raise
+
+def test_transit_schema_empty_arrays_ok_and_ic_card_optional():
+    import json, pathlib, jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "transit.schema.json"))
+    jsonschema.validate({"peak_windows": [], "walks": []}, schema)  # cash-only / walk-everywhere
+
+def test_transit_schema_ic_card_requires_source():
+    import json, pathlib, jsonschema, pytest
+    root = pathlib.Path(__file__).resolve().parent.parent
+    schema = json.load(open(root / "schemas" / "transit.schema.json"))
+    bad = {"peak_windows": [], "walks": [],
+           "ic_card": {"name": "Suica", "sources": []}}   # no source
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
