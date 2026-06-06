@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.11.0 — 2026-06-06
+
+Transit polish — intra-city comfort for elderly / luggage trips.
+
+- New `transit-detail` stage (`skills/transit-detail/`): researches the destination's
+  commuter **peak windows**, an **IC-card** advisory (Suica / ICOCA / T-money / …), and
+  per-POI **station-to-POI walk** notes into `transit.yaml`
+  (`schemas/transit.schema.json`). Wired as orchestrator stage 9. All advisory — no
+  stop-on-confirmation, no `itinerary-gate` change.
+- `scripts/transit.py`: pure `in_peak` (is a move in a rush-hour window?) + `walk_too_far`
+  (is a station-to-POI walk over the comfortable max?).
+- `trip-brief` schema gains `routing.max_walk_mins` (default 15).
+- `itinerary-synthesis` consumes `transit.yaml`: off-peak advice for groups with elders /
+  children, a taxi/flag for long walks, and the IC-card + walk notes into the checklist.
+  No-key research, same model as calendar / seasonal.
+
 ## 0.10.0 — 2026-06-06
 
 Geocode cache (faster re-runs, less Nominatim load).
