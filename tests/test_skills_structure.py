@@ -163,3 +163,8 @@ def test_accommodation_research_documents_geocode_cache():
 def test_trip_brief_documents_max_walk_mins():
     text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
     assert "max_walk_mins" in text
+
+def test_synthesis_documents_transit():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "transit.yaml" in text
+    assert "in_peak" in text or "walk_too_far" in text

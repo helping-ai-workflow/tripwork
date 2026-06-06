@@ -29,6 +29,18 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
 
+## Transit comfort (reads `transit.yaml`)
+
+- For a scheduled intra-city move or POI arrival whose time is `in_peak` (via
+  `scripts/transit.py::in_peak` against `peak_windows`) **and** `members` include elders /
+  children, advise shifting off-peak or note the rush-hour crush — never silently leave a
+  luggage-laden group in the peak.
+- For a POI with a `walks` entry where `scripts/transit.py::walk_too_far(mins,
+  trip-brief.routing.max_walk_mins or 15)` is true, flag it (suggest a taxi from the station,
+  or note the walk so an elder can plan).
+- Push the `ic_card` advice and any long-walk notes into the **Pre-trip checklist /
+  Contingency**.
+
 ## Cost summary (reads `cost.yaml`)
 
 - Render a **cost-summary block** in the deliverable: the per-category breakdown
@@ -83,7 +95,7 @@ Write `itinerary.md`, return to `tripwork:orchestrator`.
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml` + `trips/<slug>/cost.yaml`. |
+| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml` + `trips/<slug>/transit.yaml` + `trips/<slug>/cost.yaml`. |
 | Output | `trips/<slug>/itinerary.md` (day tables + contingency + checklist sections). |
 | Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot → ask user. |
 | Next stage | `tripwork:orchestrator`. |
