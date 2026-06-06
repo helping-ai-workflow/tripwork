@@ -17,6 +17,7 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 - `trips/<slug>/legs.yaml`
 - `trips/<slug>/calendar.yaml`
 - `trips/<slug>/seasonal.yaml`
+- `trips/<slug>/transit.yaml`
 - `trips/<slug>/cost.yaml`
 - `trips/<slug>/advisory.yaml`
 - `trips/<slug>/itinerary.md`
@@ -35,12 +36,13 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 6. accommodations ready, no legs.yaml -> run `inter-stop-legs`.
 7. legs ready, no calendar.yaml -> run `calendar-check`.
 8. calendar ready, no seasonal.yaml -> run `seasonal-advisory`.
-9. seasonal ready, no cost.yaml -> run `cost-rollup`.
-10. cost ready, no itinerary.md -> run `itinerary-synthesis`.
-11. itinerary exists, no advisory.yaml -> run `travel-advisory`.
-12. advisory ready -> run `itinerary-gate`.
-13. gate-report status==pass, no exports/<slug>-itinerary.md -> run `export-artifact`.
-14. export deliverable exists, no export-gate-report.yaml -> run `export-gate`. If `export-gate-report` status==fail -> return to `export-artifact` to re-render.
+9. seasonal ready, no transit.yaml -> run `transit-detail`.
+10. transit ready, no cost.yaml -> run `cost-rollup`.
+11. cost ready, no itinerary.md -> run `itinerary-synthesis`.
+12. itinerary exists, no advisory.yaml -> run `travel-advisory`.
+13. advisory ready -> run `itinerary-gate`.
+14. gate-report status==pass, no exports/<slug>-itinerary.md -> run `export-artifact`.
+15. export deliverable exists, no export-gate-report.yaml -> run `export-gate`. If `export-gate-report` status==fail -> return to `export-artifact` to re-render.
 
 After each stage completes, re-invoke this skill to pick the next stage.
 

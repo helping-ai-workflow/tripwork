@@ -168,3 +168,7 @@ def test_synthesis_documents_transit():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "transit.yaml" in text
     assert "in_peak" in text or "walk_too_far" in text
+
+def test_orchestrator_wires_transit_detail():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "transit-detail" in text
