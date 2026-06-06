@@ -19,6 +19,12 @@ def test_long_station_walk_is_flagged():
     assert walk_too_far(20, 15) is True         # 20-min walk with elders -> flag
     assert walk_too_far(5, 15) is False
 
+def test_walk_ceiling_is_configurable_per_trip():
+    # trip-brief.routing.max_walk_mins drives the flag: a frail-elder trip lowering it to
+    # 10 flags an 12-min walk that the default 15 would have allowed.
+    assert walk_too_far(12, 15) is False        # default ceiling: fine
+    assert walk_too_far(12, 10) is True         # tighter ceiling: flagged
+
 def test_transit_yaml_fixture_is_schema_valid():
     schema = json.load(open(ROOT / "schemas" / "transit.schema.json"))
     doc = {
