@@ -21,7 +21,7 @@
     "daily_incidental": {"type": "object", "properties": {"amount": {"type": "number"}, "currency": {"type": "string"}}},
     "home_currency": {"type": "string"},
     "routing": {"type": "object",
-      "properties": {"max_hop_mins": {"type": "number"}, "region_radius_km": {"type": "number"}, "max_single_drive_mins": {"type": "number"}}},
+      "properties": {"max_hop_mins": {"type": "number"}, "region_radius_km": {"type": "number"}, "max_single_drive_mins": {"type": "number"}, "max_walk_mins": {"type": "number"}}},
     "scheduling": {"type": "object",
       "properties": {"min_buffer_mins": {"type": "number"}, "default_visit_mins": {"type": "number"}}},
     "overnight_stops": {"type": "array", "items": {

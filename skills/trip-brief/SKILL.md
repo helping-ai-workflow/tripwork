@@ -42,6 +42,9 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
   `cost-rollup` compares against (over → it stops and asks). `daily_incidental` is the
   user's per-day allowance for food / tickets / local transport — an estimate, not
   researched per item. `home_currency` drives an FX advisory note on the total.
+- `routing.max_walk_mins` (optional; default 15). The comfortable station-to-POI walk
+  ceiling — `transit-detail` records each POI's walk minutes and `itinerary-synthesis`
+  flags a walk over this (suggest a taxi / note it for elders). Lower it for frail elders.
 
 ## Ingest sources
 

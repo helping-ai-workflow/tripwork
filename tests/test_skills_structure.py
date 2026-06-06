@@ -7,9 +7,9 @@ SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 EXPECTED = [
     "using-tripwork", "orchestrator", "trip-brief", "destination-research",
     "source-verify", "routing-audit", "accommodation-research", "inter-stop-legs",
-    "calendar-check", "seasonal-advisory", "cost-rollup", "itinerary-synthesis",
-    "travel-advisory", "itinerary-gate", "export-artifact", "export-gate",
-    "workspace-shape-preflight",
+    "calendar-check", "seasonal-advisory", "transit-detail", "cost-rollup",
+    "itinerary-synthesis", "travel-advisory", "itinerary-gate", "export-artifact",
+    "export-gate", "workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
@@ -159,3 +159,16 @@ def test_orchestrator_wires_cost_rollup():
 def test_accommodation_research_documents_geocode_cache():
     text = (SKILLS / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
     assert "geocode-cache" in text
+
+def test_trip_brief_documents_max_walk_mins():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "max_walk_mins" in text
+
+def test_synthesis_documents_transit():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "transit.yaml" in text
+    assert "in_peak" in text or "walk_too_far" in text
+
+def test_orchestrator_wires_transit_detail():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "transit-detail" in text
