@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.10.0 — 2026-06-06
+
+Geocode cache (faster re-runs, less Nominatim load).
+
+- New `scripts/geocode_cache.py`: a per-trip on-disk cache (`cache_key`, `cache_get`,
+  `cache_put`, `load_cache`, `save_cache`). `cache_get` returns `(hit, value)` so a cached
+  miss (`None`, negative caching) short-circuits the network.
+- `scripts/geocode.py::resolve_place` gains an optional `cache=None` param: a hit (including
+  a cached miss) returns without touching Nominatim; otherwise the result (or `None`) is
+  stored. `cache=None` preserves the original behaviour.
+- `source-verify` and `accommodation-research` pass a per-trip cache
+  (`work/<slug>/geocode-cache/geocode.json`) so re-runs skip already-resolved and known-miss
+  lookups. No pipeline / schema / orchestrator change.
+
 ## 0.9.0 — 2026-06-05
 
 Trip-cost rollup (big-ticket estimate + budget compare).

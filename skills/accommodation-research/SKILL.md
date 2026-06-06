@@ -25,7 +25,10 @@ every candidate, exactly like `source-verify`.
   district, country)` — structured Nominatim query first, free-text fallback. On
   NO_RESULT, fall back to the stop's cluster `centroid` from `routing.yaml`
   (`geocode.geocode_source: cluster_fallback`); the hotel is in the stop town by
-  definition, so it stays `verified`. Record `geocode_source` either way.
+  definition, so it stays `verified`. Record `geocode_source` either way. Pass the per-trip
+  cache (`work/<slug>/geocode-cache/geocode.json` via `scripts/geocode_cache.py`) as
+  `resolve_place(..., cache=cache)` — re-runs then skip already-resolved and known-miss
+  hotel lookups.
 - **Region:** a hotel that *does* geocode but lands outside the stop district
   (`scripts/geocode.py::in_region`) → `conflicting` + stop and ask. Centroid fallback is
   trivially in-region.

@@ -93,6 +93,10 @@ def test_source_verify_documents_geocode_degrade():
     assert "resolve_place" in text or "structured" in text
     assert "unverified" in text  # geocode-fail degrades, not rejected
 
+def test_source_verify_documents_geocode_cache():
+    text = (SKILLS / "source-verify" / "SKILL.md").read_text(encoding="utf-8")
+    assert "geocode-cache" in text
+
 def test_synthesis_documents_lodging_and_coverage():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "accommodations" in text
@@ -151,3 +155,7 @@ def test_synthesis_documents_cost_summary():
 def test_orchestrator_wires_cost_rollup():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "cost-rollup" in text
+
+def test_accommodation_research_documents_geocode_cache():
+    text = (SKILLS / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "geocode-cache" in text
