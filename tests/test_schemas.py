@@ -372,3 +372,9 @@ def test_transit_schema_ic_card_requires_source():
            "ic_card": {"name": "Suica", "sources": []}}   # no source
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
+
+def test_trip_brief_routing_declares_max_walk_mins():
+    import json, pathlib
+    root = pathlib.Path(__file__).resolve().parent.parent
+    props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
+    assert "max_walk_mins" in props["routing"]["properties"]
