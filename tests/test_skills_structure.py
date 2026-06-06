@@ -155,3 +155,7 @@ def test_synthesis_documents_cost_summary():
 def test_orchestrator_wires_cost_rollup():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "cost-rollup" in text
+
+def test_accommodation_research_documents_geocode_cache():
+    text = (SKILLS / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
+    assert "geocode-cache" in text
