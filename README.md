@@ -98,6 +98,7 @@ tripwork 不是一次把行程「生」出來，而是一條**有關卡的流水
 做完回到調度中心（orchestrator）決定下一步。這樣每個地點都被獨立查證，錯誤無法一路矇混到最後。
 
 ```mermaid
+%%{init: {'flowchart':{'htmlLabels':true}}}%%
 flowchart TB
     P["✍️ 你的一句話需求"]
     P --> WSP["workspace-shape-preflight<br/>確認工作資料夾"]

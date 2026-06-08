@@ -6,7 +6,7 @@
     {
       "name": "tripwork",
       "description": "Staged travel-planning pipeline with multi-source verification and geocoded routing audit",
-      "version": "0.11.0",
+      "version": "0.11.1",
       "source": "./",
       "author": { "name": "helping-ai-workflow", "url": "https://github.com/helping-ai-workflow/tripwork" }
     }

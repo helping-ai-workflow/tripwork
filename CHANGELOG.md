@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.1 — 2026-06-09
+
+Docs — fix README pipeline mermaid clipping CJK node labels on GitHub.
+
+- `README.md` §2 flowchart: add `%%{init: {'flowchart':{'htmlLabels':true}}}%%`
+  directive so node labels render via foreignObject (browser box-model layout)
+  instead of SVG `<text>` width estimation. GitHub's client-side width measure
+  undercounts CJK glyph advance (treats them as Latin half-width before the web
+  font loads), sizing node boxes too narrow and clipping trailing characters.
+  No label text changed — every character preserved.
+
 ## 0.11.0 — 2026-06-06
 
 Transit polish — intra-city comfort for elderly / luggage trips.
