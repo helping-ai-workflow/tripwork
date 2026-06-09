@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.11.2 — 2026-06-09
+
+Docs — wrap README pipeline mermaid node labels to stop GitHub CJK clipping.
+
+- `README.md` §2 flowchart: the 0.11.1 `htmlLabels` directive did not stop the
+  clip on GitHub (GitHub measures CJK glyph advance too narrow at render time,
+  sizing node boxes by the Latin skill-name line while the wider CJK detail line
+  overflows and the trailing characters are clipped). Re-flow every node's detail
+  into shorter `<br/>`-separated lines so no single CJK line exceeds the box
+  width. All label text preserved verbatim — only line breaks added.
+
 ## 0.11.1 — 2026-06-09
 
 Docs — fix README pipeline mermaid clipping CJK node labels on GitHub.
