@@ -56,6 +56,16 @@ Hard rules:
   orchestrator stage order.
 - Skill names appear in §2 (diagram + step table) and the dev `<details>`, not
   in the §1 / §3 / §4 selling prose.
+- **§2 mermaid node line-length cap.** GitHub renders mermaid client-side and
+  **clips any node line wider than ~26 character-units at the right edge** —
+  language-agnostic (a pure-ASCII line like `Markdown / Maps / LINE / Notion`
+  clips too; 1 CJK char ≈ 2 units). The `%%{init:{flowchart:{htmlLabels:true}}}%%`
+  directive does **not** fix it (GitHub caps regardless). The only reliable fix
+  is to break every node label into short `<br/>` lines: **≤ ~8 CJK chars or
+  ≤ ~16 ASCII chars per line.** Skill-name tokens (≤25 chars) are safe unbroken.
+  This is not reproducible with local `mermaid-cli` (local Chrome has CJK fonts
+  and does not clip) — verify on GitHub web, not locally. (History: v0.11.1
+  tried htmlLabels and failed on GitHub; v0.11.2 fixed it by wrapping.)
 
 ## Every plugin update must check README (mandatory)
 
