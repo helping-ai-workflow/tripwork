@@ -20,6 +20,27 @@ def test_clean_passes():
     r = run_export_gate(CLEAN, [BOOKABLE])
     assert r["status"] == "pass", r["failures"]
 
+def test_export_gate_fail_empty_deliverable():   # TW-015
+    r = run_export_gate("", [], min_days=3)
+    assert r["status"] == "fail"
+    assert any("empty" in f.lower() for f in r["failures"])
+    assert _names("deliverable_has_content", r) is False
+
+def test_export_gate_fail_too_few_day_sections():   # TW-015
+    r = run_export_gate(CLEAN, [BOOKABLE], min_days=3)   # CLEAN has 1 day
+    assert r["status"] == "fail"
+    assert any("too few day" in f.lower() for f in r["failures"])
+    assert _names("deliverable_has_content", r) is False
+
+def test_export_gate_pass_when_min_days_met():   # TW-015
+    md = "# 行程\n" + "".join(f"### Day {i}\n| a | [x](https://a) |\n" for i in range(1, 4))
+    r = run_export_gate(md, [], min_days=3)
+    assert _names("deliverable_has_content", r) is True
+
+def test_export_gate_min_days_optional_backward_compat():
+    r = run_export_gate(CLEAN, [BOOKABLE])   # no min_days -> content check still present, passes
+    assert _names("deliverable_has_content", r) is True
+
 def test_naked_dollar_fails():
     dirty = CLEAN.replace("\\$120", "$120")
     r = run_export_gate(dirty, [BOOKABLE])
