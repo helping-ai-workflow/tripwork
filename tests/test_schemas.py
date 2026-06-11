@@ -108,6 +108,23 @@ def test_gate_report_valid():
     data = {"status": "pass", "checks": [{"name": "all_pois_geocoded", "passed": True}], "failures": []}
     jsonschema.validate(data, schema)
 
+def test_gate_report_pass_with_failures_rejected():  # TW-009
+    schema = _load_schema("gate-report.schema.json")
+    bad = {"status": "pass", "checks": [{"name": "x", "passed": True}], "failures": ["boom"]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_gate_report_pass_with_empty_checks_rejected():  # TW-009
+    schema = _load_schema("gate-report.schema.json")
+    bad = {"status": "pass", "checks": [], "failures": []}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_gate_report_valid_fail():
+    schema = _load_schema("gate-report.schema.json")
+    ok = {"status": "fail", "checks": [{"name": "x", "passed": False}], "failures": ["boom"]}
+    jsonschema.validate(ok, schema)
+
 def test_calendar_sample_valid():
     schema = _load_schema("calendar.schema.json")
     ok = {"holidays": [{"date": "2026-05-25", "name_local": "대체공휴일",
