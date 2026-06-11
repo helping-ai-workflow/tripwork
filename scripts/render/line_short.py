@@ -1,6 +1,7 @@
-"""Itinerary dict -> LINE-friendly short plain text. No links, elder-friendly."""
+"""Canonical itinerary.yaml -> LINE-friendly short plain text. No links, elder-friendly."""
 
 DIVIDER = "━━━━━━━━━━━━━"
+_SLOT_EMOJI = {"meal": "🍽", "activity": "🎯", "visit": "📍", "move": "🚆", "lodging": "🏨"}
 
 def render_line_short(itin):
     lines = [itin.get("title", "行程"), ""]
@@ -8,10 +9,10 @@ def render_line_short(itin):
         lines.append(DIVIDER)
         lines.append(day.get("label", ""))
         lines.append(DIVIDER)
-        for it in day.get("items", []):
-            time = it.get("time", "")
-            emoji = it.get("emoji", "")
-            text = it.get("text", "")
+        for row in day.get("rows", []):
+            time = row.get("time", "")
+            emoji = _SLOT_EMOJI.get(row.get("slot", ""), "")
+            text = row.get("text", "")
             prefix = f"{time} " if time else ""
             piece = f"{emoji} {text}".strip()
             lines.append(f"{prefix}{piece}".strip())

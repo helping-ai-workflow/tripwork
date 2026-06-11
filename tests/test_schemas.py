@@ -108,6 +108,23 @@ def test_gate_report_valid():
     data = {"status": "pass", "checks": [{"name": "all_pois_geocoded", "passed": True}], "failures": []}
     jsonschema.validate(data, schema)
 
+def test_gate_report_pass_with_failures_rejected():  # TW-009
+    schema = _load_schema("gate-report.schema.json")
+    bad = {"status": "pass", "checks": [{"name": "x", "passed": True}], "failures": ["boom"]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_gate_report_pass_with_empty_checks_rejected():  # TW-009
+    schema = _load_schema("gate-report.schema.json")
+    bad = {"status": "pass", "checks": [], "failures": []}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_gate_report_valid_fail():
+    schema = _load_schema("gate-report.schema.json")
+    ok = {"status": "fail", "checks": [{"name": "x", "passed": False}], "failures": ["boom"]}
+    jsonschema.validate(ok, schema)
+
 def test_calendar_sample_valid():
     schema = _load_schema("calendar.schema.json")
     ok = {"holidays": [{"date": "2026-05-25", "name_local": "대체공휴일",
@@ -142,6 +159,75 @@ def test_verified_pois_closed_days_allowed():
                     "verify_status": "verified", "closed_days": ["tuesday"]}]}
     jsonschema.validate(ok, schema)
 
+
+def _itin(rows, date="2026-06-12", **day_over):
+    day = {"date": date, "label": "Day 1", "rows": rows}
+    day.update(day_over)
+    return {"title": "t", "days": [day]}
+
+def test_itinerary_valid_minimal():  # TW-017
+    schema = _load_schema("itinerary.schema.json")
+    jsonschema.validate(_itin([{"time": "12:00", "slot": "meal", "poi_id": "x", "text": "lunch"}]), schema)
+
+def test_itinerary_rejects_bad_date():
+    schema = _load_schema("itinerary.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_itin([{"slot": "meal", "text": "l"}], date="06/12/2026"), schema)
+
+def test_itinerary_rejects_bad_time():
+    schema = _load_schema("itinerary.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_itin([{"time": "25:99", "slot": "meal", "text": "l"}]), schema)
+
+def test_itinerary_rejects_unknown_slot():
+    schema = _load_schema("itinerary.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_itin([{"slot": "brunch", "text": "l"}]), schema)
+
+def test_itinerary_rejects_extra_key():
+    schema = _load_schema("itinerary.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_itin([{"slot": "meal", "text": "l", "typo": 1}]), schema)
+
+def test_itinerary_checklist_accepted():  # TW-034 surface support
+    schema = _load_schema("itinerary.schema.json")
+    doc = _itin([{"slot": "meal", "text": "l"}])
+    doc["checklist"] = ["lithium battery: carry-on only", "book restaurant 1 week ahead"]
+    jsonschema.validate(doc, schema)
+
+def _vp_item(**over):
+    base = {"id": "x", "name_local": "x", "name_display": "x",
+            "category": "restaurant", "district": "x",
+            "geocode": {"lat": 1.0, "lng": 2.0},
+            "sources": [{"url": "a", "lang": "ko"}, {"url": "b", "lang": "zh"}],
+            "verify_status": "verified"}
+    base.update(over)
+    return {"pois": [base]}
+
+def test_verified_pois_unverified_without_geocode_validates():  # TW-012
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(verify_status="unverified", status_reason="geocode unresolved",
+                   sources=[{"url": "a", "lang": "ko"}])
+    del doc["pois"][0]["geocode"]
+    jsonschema.validate(doc, schema)  # must NOT raise
+
+def test_verified_pois_unverified_missing_status_reason_rejected():  # TW-012
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(verify_status="unverified", sources=[{"url": "a", "lang": "ko"}])
+    del doc["pois"][0]["geocode"]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(doc, schema)
+
+def test_verified_pois_closed_days_noncanonical_rejected():  # TW-001
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(closed_days=["Tuesday"])  # capitalized, non-canonical
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(doc, schema)
+
+def test_verified_pois_closed_days_canonical_accepted():  # TW-001
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(closed_days=["tuesday", "2026-06-13", "public_holiday"])
+    jsonschema.validate(doc, schema)  # must NOT raise
 
 def test_verified_pois_hours_allowed():
     schema = _load_schema("verified-pois.schema.json")

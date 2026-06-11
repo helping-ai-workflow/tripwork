@@ -1,11 +1,11 @@
 ---
 name: itinerary-synthesis
-description: Use when verified-pois.yaml + routing.yaml are ready and a day-by-day itinerary must be produced. Produces itinerary.md.
+description: Use when verified-pois + routing + accommodations + legs + calendar + seasonal + transit + cost + advisory are ready and a day-by-day itinerary must be produced. Produces itinerary.yaml (canonical) + itinerary.md (rendered).
 ---
 
 # itinerary-synthesis
 
-Compose `trips/<slug>/itinerary.md` from verified POIs and routing clusters.
+Compose the canonical `trips/<slug>/itinerary.yaml` from verified POIs and routing clusters, then render `trips/<slug>/itinerary.md` from it.
 
 ## Rules
 
@@ -82,6 +82,16 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   reported gap is pushed into the **Pre-trip checklist / Contingency** as advice (e.g.
   "no laundry for 3 nights between Tekapo and Te Anau") — it never blocks the pipeline.
 
+## Advisory-awareness (reads `advisory.yaml`)
+
+travel-advisory runs **before** synthesis, so its rules shape the itinerary, not a footnote after it.
+
+- `risk: banned` item → never schedule anything that relies on it; surface its `topic` + `rule`
+  in the `checklist` (e.g. "spare lithium battery: carry-on only — none in checked baggage").
+- `risk: restricted` item → keep, but surface its `topic` + constraint in the `checklist`.
+- Every `banned`/`restricted` item's `topic` MUST appear in the `itinerary.yaml` `checklist`
+  (or a day row text) — `scripts/gate.py::run_gate(..., advisory=...)` fails the gate otherwise.
+
 ## Required derived sections
 
 1. **備案 / Contingency** — for each fragile point (booking-required restaurant, outdoor activity), a fallback. Derived inline; not a separate skill.
@@ -89,14 +99,23 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 
 ## Output
 
-Write `itinerary.md`, return to `tripwork:orchestrator`.
+Write `trips/<slug>/itinerary.yaml` as the **canonical** artifact (schema:
+`schemas/itinerary.schema.json`) — `{title, checklist, days:[{date, label, rows:[{time,
+slot, poi_id, text}], lodging}]}`. Each row references a POI by `poi_id` (matching a
+`verify_status: verified` id in `verified-pois.yaml`); `slot ∈ meal|activity|visit|move|lodging`.
+Then render `trips/<slug>/itinerary.md` from it via `scripts/render/markdown.py::render_day_table(day, poi_map)`.
+
+`itinerary.gate`, LINE / Google-Maps / Notion exports all read `itinerary.yaml` — never
+re-build a day structure from the rendered `.md`. The `.md` is a derived view, not a source.
+
+Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml` + `trips/<slug>/transit.yaml` + `trips/<slug>/cost.yaml`. |
-| Output | `trips/<slug>/itinerary.md` (day tables + contingency + checklist sections). |
+| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml` + `trips/<slug>/transit.yaml` + `trips/<slug>/cost.yaml` + `trips/<slug>/advisory.yaml`. |
+| Output | `trips/<slug>/itinerary.yaml` (canonical) + `trips/<slug>/itinerary.md` (rendered: day tables + contingency + checklist sections). |
 | Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot → ask user. |
 | Next stage | `tripwork:orchestrator`. |
 

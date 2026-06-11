@@ -29,7 +29,7 @@ ACCOM = {"stops": [
 ]}
 
 def test_every_stop_has_verified_lodging_and_parking():
-    r = run_gate([], [], accommodations=ACCOM, facility_needs=FACILITY_NEEDS)
+    r = run_gate([], {"days": []}, accommodations=ACCOM, facility_needs=FACILITY_NEEDS)
     assert r["status"] == "pass", r["failures"]
     assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging")
     assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met")
@@ -54,6 +54,6 @@ def test_late_arrival_without_late_checkin_is_blocked():
 def test_missing_parking_fails_the_gate():
     bad = {"stops": [{"district": "X", "nights": 1, "chosen": "h",
                       "candidates": [_lodge("h", ["wifi"])]}]}
-    r = run_gate([], [], accommodations=bad, facility_needs=FACILITY_NEEDS)
+    r = run_gate([], {"days": []}, accommodations=bad, facility_needs=FACILITY_NEEDS)
     assert r["status"] == "fail"
     assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met") is False

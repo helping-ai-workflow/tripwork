@@ -15,14 +15,25 @@ _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 # Standalone map-token labels that mean the POI name was left as dead text.
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
 
-def run_export_gate(md_text, pois):
+def run_export_gate(md_text, pois, min_days=None):
     """Return {status, checks, failures} for a rendered itinerary markdown.
 
     Args:
-        md_text: full text of exports/<slug>-itinerary.md
-        pois:    list of verified-pois dicts (verify_status, booking, sources, names)
+        md_text:  full text of exports/<slug>-itinerary.md
+        pois:     list of verified-pois dicts (verify_status, booking, sources, names)
+        min_days: optional int; fail if fewer than this many '### ' day sections
+                  (or if the deliverable is empty). Guards against an export that
+                  rendered to nothing or got truncated. (TW-015)
     """
     failures = []
+
+    stripped = (md_text or "").strip()
+    if not stripped:
+        failures.append("deliverable is empty")
+    elif min_days is not None:
+        n_days = len(re.findall(r"(?m)^###\s", md_text))
+        if n_days < min_days:
+            failures.append(f"too few day sections: {n_days} < {min_days}")
 
     if _NAKED_DOLLAR.search(md_text):
         failures.append("naked '$' found; prices must be escaped as '\\$'")
@@ -52,6 +63,8 @@ def run_export_gate(md_text, pois):
             )
 
     checks = [
+        {"name": "deliverable_has_content",
+         "passed": not any("empty" in f or "too few day" in f for f in failures)},
         {"name": "no_naked_dollar",
          "passed": not any("naked '$'" in f for f in failures)},
         {"name": "links_well_formed",

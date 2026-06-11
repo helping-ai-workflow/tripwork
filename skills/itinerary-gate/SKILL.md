@@ -1,23 +1,32 @@
 ---
 name: itinerary-gate
-description: Use when itinerary.md + advisory.yaml are ready and structure must be validated before export. Mechanical gate. Produces gate-report.yaml.
+description: Use when itinerary.yaml + advisory.yaml are ready and the plan must be validated before export. Mechanical gate. Produces gate-report.yaml.
 ---
 
-# itinerary-gate — mechanical structure check
+# itinerary-gate — mechanical plan check
 
-Structure only. Content correctness is guaranteed upstream by `source-verify`; this gate does NOT re-judge content.
+Reads the **canonical `itinerary.yaml`** (never re-builds a day structure from the rendered
+`.md`). Content correctness of each source is `source-verify`'s job; this gate checks the
+assembled plan obeys the iron rules. Call
+`run_gate(verified_pois, itinerary, accommodations=…, facility_needs=…, calendar=…, advisory=…, must_do=…)`.
 
 ## Checks (logic in `scripts/gate.py::run_gate`)
 
-- Every POI referenced by an itinerary day exists in verified-pois and has a `geocode`.
-- Every day has at least one meal.
-- `overnight_stops_have_lodging` — every overnight stop in `accommodations.yaml` has a
-  `chosen` lodging.
-- `required_facilities_met` — every chosen lodging has all `trip-brief.facility_needs.required`
-  facilities.
+- `referenced_pois_verified` — every `poi_id` (and each day's `lodging`) referenced by the
+  itinerary is `verify_status: verified` in verified-pois. A `conflicting`/`unverified` POI
+  fails the gate even though it has a geocode.
+- `referenced_pois_geocoded` — every referenced POI has a non-null `geocode`.
+- `days_have_meals` — every day has at least one `slot: meal` row.
+- `no_closed_day_violation` (when `calendar` passed) — no POI is scheduled on a day it is
+  closed (`scripts/calendar.py::poi_closed_on`).
+- `must_do_covered` (when `must_do` passed) — every `trip-brief` must_do id is scheduled.
+- `advisory_items_surfaced` (when `advisory` passed) — every `risk: banned`/`restricted`
+  advisory `topic` appears in the itinerary `checklist` or a row text.
+- `overnight_stops_have_lodging` / `required_facilities_met` (when `accommodations` passed) —
+  every overnight stop has a `chosen` lodging meeting `trip-brief.facility_needs.required`.
 
 (Periodic-facility coverage is advisory and surfaced by `itinerary-synthesis`, not gated
-here. The accommodation checks run only when `accommodations.yaml` is present.)
+here. The accommodation/calendar/advisory/must_do checks run only when their input is present.)
 
 ## Output
 
@@ -27,7 +36,7 @@ Write `trips/<slug>/gate-report.yaml` (schema: `schemas/gate-report.schema.json`
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/itinerary.md` + `trips/<slug>/verified-pois.yaml` + `trips/<slug>/accommodations.yaml`. |
+| Input | `trips/<slug>/itinerary.yaml` + `trips/<slug>/verified-pois.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/calendar.yaml` + `trips/<slug>/advisory.yaml` + `trip-brief` must_do. |
 | Output | `trips/<slug>/gate-report.yaml` (`status` pass/fail + failures). |
 | Stop condition | `status: fail` → return to the responsible upstream stage. |
 | Next stage | `tripwork:orchestrator` (which routes to `export-artifact` only on pass). |

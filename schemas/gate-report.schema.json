@@ -8,5 +8,16 @@
       "type": "object", "required": ["name", "passed"],
       "properties": {"name": {"type": "string"}, "passed": {"type": "boolean"}}}},
     "failures": {"type": "array", "items": {"type": "string"}}
-  }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "pass"}}},
+      "then": {
+        "properties": {
+          "failures": {"maxItems": 0},
+          "checks": {"minItems": 1}
+        }
+      }
+    }
+  ]
 }

@@ -35,12 +35,19 @@ def _poi_cell(poi, text):
         parts.append(escaped)
     return " ".join(parts)
 
-def render_day_table(day):
+def render_day_table(day, poi_map):
+    """Render one canonical itinerary.yaml day -> markdown table.
+
+    Args:
+        day:      {label, rows:[{time, slot, poi_id, text}]}
+        poi_map:  {poi_id: verified-poi dict} for resolving row poi_id -> link.
+    """
     lines = [f"### {md_escape(day.get('label', ''))}", "", "| 時段 | 行程 |", "|---|---|"]
     for row in day.get("rows", []):
         time = md_escape(row.get("time", ""))
         text = row.get("text", "")
-        poi = row.get("poi")
+        pid = row.get("poi_id")
+        poi = poi_map.get(pid) if pid else None
         cell = _poi_cell(poi, text) if poi else md_escape(text)
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"

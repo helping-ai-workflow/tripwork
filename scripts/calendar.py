@@ -49,12 +49,13 @@ def poi_closed_on(poi, iso_date, calendar=None):
     Synthesis hard-avoids scheduling a POI on a day this returns closed=True;
     if a must_do POI is closed on every feasible trip day, stop and ask the user.
     """
-    closed_days = poi.get("closed_days", []) or []
+    raw = poi.get("closed_days", []) or []
+    closed_days = [str(x).strip().lower() for x in raw]
     wd = weekday_of(iso_date)
 
     if wd in closed_days:
         return True, f"closed on {wd}s"
-    if iso_date in closed_days:
+    if iso_date.lower() in closed_days:
         return True, f"closed on {iso_date}"
     if "public_holiday" in closed_days:
         h = holiday_on(iso_date, calendar)

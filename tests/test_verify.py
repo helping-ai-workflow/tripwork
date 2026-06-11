@@ -4,6 +4,17 @@ from scripts.verify import classify_candidate
 def _cand(sources, langs):
     return {"id": "x", "sources": [{"url": u, "lang": l} for u, l in zip(sources, langs)]}
 
+def test_defunct_poi_rejected():   # TW-005
+    c = _cand(["a", "b"], ["ko", "zh"])
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True, operating=False)
+    assert status == "rejected"
+    assert "closed" in note.lower() or "defunct" in note.lower()
+
+def test_operating_defaults_true_keeps_verified():   # TW-005 default path
+    c = _cand(["a", "b"], ["ko", "zh"])
+    status, _ = classify_candidate(c, geocoded=True, in_claimed_region=True)
+    assert status == "verified"
+
 def test_single_source_is_unverified():
     c = _cand(["a"], ["ko"])
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
