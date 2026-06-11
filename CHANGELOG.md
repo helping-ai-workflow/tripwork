@@ -1,5 +1,35 @@
 # Changelog
 
+## 0.12.0 — 2026-06-11
+
+Iron-rule mechanization (Wave 1 of the 2026-06-11 agentic-robustness audit) — 14
+defects closed. The itinerary becomes a canonical structured artifact so the gate
+validates an artifact instead of an LLM-reconstructed dict, and travel-advisory
+moves before synthesis so banned/restricted regulations shape the plan.
+
+- **Keystone — canonical `itinerary.yaml`** (`schemas/itinerary.schema.json`, new).
+  `itinerary-synthesis` now emits `itinerary.yaml` (`days[].rows[]` with `poi_id`,
+  `slot`, `time`, `text` + optional `checklist`) as the single source of truth;
+  `itinerary.md`, LINE and Maps exports all render from it. `scripts/gate.py::run_gate`
+  consumes the structured itinerary, not a reconstructed days list. (TW-003, TW-017)
+- **itinerary-gate now checks verification status.** A `conflicting`/`unverified`
+  POI with a geocode no longer passes; `geocode: null` is caught. New checks:
+  `referenced_pois_verified`, `no_closed_day_violation`, `must_do_covered`,
+  `advisory_items_surfaced`. (TW-002, TW-018, TW-038, TW-034)
+- **travel-advisory runs before itinerary-synthesis.** advisory.yaml now feeds the
+  synthesis checklist and the gate; banned/restricted items must be surfaced.
+  README §2 mermaid + step table reordered. (TW-028, TW-034)
+- **source-verify Gate 0 (operating status).** A permanently/temporarily closed
+  (defunct) POI is `rejected` instead of passing as `verified`. (TW-005)
+- **Schema strictness:** `verified-pois` requires `geocode` + ≥2 sources only when
+  `verify_status: verified` (non-verified require a non-empty `status_reason`);
+  `closed_days` constrained to canonical weekday / ISO-date / `public_holiday`
+  tokens, normalized in `poi_closed_on`; `gate-report` rejects `status: pass` with
+  failures or empty checks. (TW-012, TW-001, TW-009)
+- **export-gate** fails an empty or too-few-days deliverable; the `official` source
+  flag is now authored by source-verify so the bookable-link check is enforceable.
+  (TW-015, TW-016)
+
 ## 0.11.2 — 2026-06-09
 
 Docs — wrap README pipeline mermaid node labels to stop GitHub CJK clipping.
