@@ -86,6 +86,9 @@
               },
               "additionalProperties": false
             }
+          },
+          "provisional": {
+            "type": "boolean"
           }
         },
         "additionalProperties": false

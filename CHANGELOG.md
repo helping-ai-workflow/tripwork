@@ -1,5 +1,34 @@
 # Changelog
 
+## 0.15.0 — 2026-06-11
+
+Research discipline + script robustness + adapter fidelity (Wave 4, final wave of the
+2026-06-11 agentic-robustness audit) — 25 defects closed.
+
+- **Script edge-cases:** `cost.sum_costs` raises on a non-numeric `amount` (no silent
+  zero); `hours.to_minutes` rejects a non-`HH:MM` value (no crash deep in scheduling)
+  and `closing_status` handles overnight (past-midnight) windows; `legs.misses_last_service`
+  handles a small-hours last service; `geocode.resolve_place` rejects an empty name;
+  `season.approx_sunset` accepts `lng`+`utc_offset_hours` for a civil-time correction.
+  (TW-014, TW-020, TW-047, TW-021, TW-045, TW-050)
+- **Cache integrity:** `geocode_cache.load_cache` tolerates a corrupt/non-dict file
+  (renames to `.corrupt`, returns `{}`), `save_cache` is atomic (temp + `os.replace`),
+  and `resolve_place` validates a cache hit's shape/source before trusting it. (TW-046,
+  TW-019)
+- **Export-adapter fidelity:** link labels escape `]`/`|`/`$`, source URLs percent-encode
+  `)`; Google-Maps links are coordinate-pinned (or district-disambiguated); export-gate's
+  bookable check scans table rows (not a heading) across all of a POI's rows; LINE output
+  chunks at day boundaries under the 5000-char cap. (TW-022, TW-048, TW-044, TW-049)
+- **Research discipline:** source independence is by distinct domain (`verify.py`);
+  "no search, no fact" halts a research stage when WebSearch is unavailable; conflict and
+  independence are defined operationally; hours carry an `as_of` recency; calendar requires
+  trip-year coverage (`provisional` field); hotel centroid-fallback needs an existence
+  proof; Gate 3 resolves the claimed-district centroid; negative-cache entries are
+  invalidated on manual re-verify; Notion write-back runs only post-gate. (TW-023, TW-024,
+  TW-032, TW-033, TW-052, TW-051, TW-058, TW-057, TW-025, TW-039, TW-061)
+- **Tests:** a cross-stage closure fixture (verify→gate→render→export-gate) and README
+  mermaid stage-coverage/order guards. (TW-059, TW-060)
+
 ## 0.14.0 — 2026-06-11
 
 Flow + skill-contract hardening (Wave 3 of the 2026-06-11 agentic-robustness audit) —

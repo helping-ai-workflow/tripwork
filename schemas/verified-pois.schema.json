@@ -93,7 +93,8 @@
                 }
               },
               "additionalProperties": false
-            }
+            },
+            "uniqueItems": true
           },
           "verify_status": {
             "type": "string",
@@ -146,6 +147,10 @@
               },
               "typical_visit_mins": {
                 "type": "integer"
+              },
+              "as_of": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
               }
             },
             "additionalProperties": false

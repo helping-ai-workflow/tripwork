@@ -24,3 +24,11 @@ def test_approx_sunset_is_noon_plus_half_daylight():
 def test_after_dark_compares_to_sunset():
     assert after_dark("18:00", "2026-07-15", -44.0) is True
     assert after_dark("15:00", "2026-07-15", -44.0) is False
+
+
+def test_approx_sunset_civil_correction():   # TW-050
+    from scripts.season import approx_sunset
+    # Tokyo (lng 139.7, UTC+9): solar-only sunset is ~24 min earlier than civil.
+    solar = approx_sunset("2026-06-21", 35.68)
+    civil = approx_sunset("2026-06-21", 35.68, lng=139.7, utc_offset_hours=9)
+    assert solar != civil   # correction applied when lng+offset given

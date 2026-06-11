@@ -60,6 +60,12 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
 
 Accept a free-text brief, or — if the user points at a Notion page — read it via the consumer's Notion MCP and extract the fields. Do not invent values; ask for anything missing that the pipeline needs.
 
+## Cache lifecycle on re-brief
+
+When re-writing `trip-brief.yaml` for an existing `<slug>` whose **destination or dates
+changed**, delete `work/<slug>/geocode-cache/` first — it is rebuildable by definition, and
+a cache keyed on the old destination would otherwise hand stale coordinates to the re-run.
+
 ## Output
 
 Write `trips/<slug>/trip-brief.yaml`, validate against the schema, then return to `tripwork:orchestrator`.

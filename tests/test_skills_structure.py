@@ -245,3 +245,51 @@ def test_tw037_using_tripwork_pipeline_full_order():
     positions = [block.find(n) for n in order]
     assert all(p >= 0 for p in positions), f"missing stages: {[n for n,p in zip(order,positions) if p<0]}"
     assert positions == sorted(positions), "using-tripwork pipeline order diverges from orchestrator"
+
+
+# ---- Wave 4 (v0.15.0) research-discipline + adapter prose guards ----
+
+def _skill(name):
+    return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
+
+def test_tw024_websearch_unavailable_halts():
+    t = _skill("using-tripwork")
+    assert "WebSearch" in t and "HALT" in t and "never substitute model memory" in t
+
+def test_tw025_notion_runs_post_gate():
+    t = _skill("export-artifact")
+    assert "post-gate" in t.lower() or "after `export-gate-report.yaml` status is `pass`" in t
+    assert ".notion-page-id" in t  # update existing page, not recreate
+
+def test_tw032_independent_and_conflict_defined():
+    t = _skill("source-verify")
+    assert "root domain" in t and "material factual disagreement" in t
+
+def test_tw033_hours_recency_as_of():
+    t = _skill("source-verify")
+    assert "hours.as_of" in t and ("12 months" in t or "recency" in t.lower())
+
+def test_tw051_centroid_existence_proof():
+    t = _skill("accommodation-research")
+    assert "existence proof" in t and "official" in t
+
+def test_tw052_calendar_trip_year_provisional():
+    t = _skill("calendar-check")
+    assert "trip year" in t and "provisional" in t
+
+def test_tw057_cache_invalidation_on_reverify():
+    t = _skill("source-verify")
+    assert "cache_key" in t and "re-verif" in t.lower()
+
+def test_tw058_gate3_district_centroid():
+    t = _skill("source-verify")
+    assert "claimed district once" in t and "in_region" in t
+
+def test_tw061_calendar_no_same_rigor():
+    t = _skill("calendar-check")
+    assert "same rigor" not in t
+    assert "corroborating source" in t
+
+def test_tw039_trip_brief_cache_lifecycle():
+    t = _skill("trip-brief")
+    assert "geocode-cache" in t and "destination or dates" in t and "rebuildable" in t
