@@ -569,3 +569,19 @@ def test_tw010_legs_mode_enum_and_drive_duration():
     for bad in (bad_mode, drive_no_dur):
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(bad, schema)
+
+
+# ---- Wave 3 (v0.14.0) ----
+
+def test_stage_state_schema_validates_fixture():   # TW-055
+    schema = _load_schema("stage-state.schema.json")
+    data = _load_yaml(FIX / "stage-state.sample.yaml")
+    jsonschema.validate(data, schema)
+    bad = {"decisions": [{"stage": "x", "flag": "far"}]}   # missing subject/decision/decided_at
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_verified_pois_booking_lead_time_days():   # TW-030
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(booking={"required": True, "lead_time": "1 week", "lead_time_days": 7})
+    jsonschema.validate(doc, schema)   # must not raise

@@ -161,6 +161,10 @@
               },
               "hours": {
                 "type": "string"
+              },
+              "lead_time_days": {
+                "type": "integer",
+                "minimum": 0
               }
             },
             "additionalProperties": false
