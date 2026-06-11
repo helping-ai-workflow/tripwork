@@ -1,9 +1,16 @@
 ---
 name: trip-brief
-description: Use when a new travel request arrives and the trip parameters must be captured before research begins. Produces trip-brief.yaml.
+description: Use when the tripwork orchestrator has routed a new travel request and the trip parameters must be captured before research begins. Produces trip-brief.yaml.
 ---
 
 # trip-brief
+
+> **Step 0 — preflight + slug guard (before writing anything).** If
+> `work/.preflight-completed` is absent, invoke `tripwork:workspace-shape-preflight` first and
+> write **no** files. Then bind `<slug>`: derive it as `<yyyy-mm>-<destination>` (e.g.
+> `2026-06-seoul`) from the trip dates + destination, and **confirm it with the user**. If the
+> derived `trips/<slug>/` already exists, stop and ask (resume that trip, or pick a new slug) —
+> never reuse or overwrite another trip's directory.
 
 Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brief.schema.json`).
 

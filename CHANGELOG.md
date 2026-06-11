@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.14.0 — 2026-06-11
+
+Flow + skill-contract hardening (Wave 3 of the 2026-06-11 agentic-robustness audit) —
+12 defects closed. Makes the orchestrator's routing predicates explicit and gives
+every halt condition an owning, testable stage.
+
+- **Orchestrator routing made explicit:** `stale` (rule 3) and `ready` are now defined
+  predicates (`scripts/orchestration.py::candidates_stale`); stage names are
+  `tripwork:`-namespaced (no paperwork collision); a fail-routing rule (13.5) maps
+  gate failure classes to owning stages; rule 13 re-runs the gate when itinerary is
+  newer; a terminal rule declares the pipeline complete on export-gate pass. (TW-053,
+  TW-054, TW-029)
+- **Slug binding (rule 0.5):** a new trip allocates an unused `<slug>`; a resume names
+  one existing `trips/<slug>/`; file-existence rules never apply across trips.
+  trip-brief derives `<yyyy-mm>-<destination>` and stops on collision. (TW-027)
+- **Halt list synced with what stages emit:** adds reception-after-close (no late
+  check-in), scopes the regulation halt to `banned` only, and adds a stage-state
+  read-back rule so a recorded decision is not re-asked. (TW-031, TW-055)
+- **stage-state.yaml schema** (`schemas/stage-state.schema.json`) — decisions are now a
+  validated, re-readable record. (TW-055)
+- **Owned halts:** `booking lead-time missed` is owned by itinerary-synthesis via
+  `scripts/booking.py::lead_time_missed`; `missed_last_service` is re-checked at
+  synthesis once the departure is known (no longer suppressed). (TW-030, TW-026)
+- **Hop plausibility floor:** `scripts/distance.py::min_plausible_mins` flags an
+  `implausible` hop estimate below a physical speed floor (urban transit ≈ 15 km/h);
+  routing-audit re-estimates rather than trusting a too-fast guess. (TW-056)
+- **travel-advisory standalone mode** must not overwrite the pipeline `advisory.yaml`
+  (writes `work/<slug>/advisory-adhoc.yaml`); orchestrator rule 11 treats a stale
+  advisory as re-runnable. (TW-035)
+- **trip-brief** is orchestrator-routed, guards on the preflight stamp before writing,
+  and **using-tripwork** regenerates the full 17-stage pipeline tree. (TW-036, TW-037)
+
 ## 0.13.0 — 2026-06-11
 
 Schema strictness (Wave 2 of the 2026-06-11 agentic-robustness audit) — 10 defects

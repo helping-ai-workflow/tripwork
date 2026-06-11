@@ -172,3 +172,76 @@ def test_synthesis_documents_transit():
 def test_orchestrator_wires_transit_detail():
     text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "transit-detail" in text
+
+
+# ---- Wave 3 (v0.14.0) flow + contract guards ----
+
+def _orch():
+    return (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+
+def test_tw054_orchestrator_namespaces_skill_names():
+    text = _orch()
+    dirnames = {p.name for p in SKILLS.iterdir() if p.is_dir()}
+    bare = [n for n in dirnames if re.search(r"(?<!:)`" + re.escape(n) + r"`", text)]
+    assert not bare, f"bare (un-namespaced) skill names in orchestrator: {bare}"
+
+def test_tw053_orchestrator_defines_stale_and_ready():
+    text = _orch()
+    assert "candidate id" in text and "absent from" in text  # stale predicate
+    assert re.search(r"\*\*ready\*\*", text)                  # ready defined once
+
+def test_tw027_slug_binding_before_trip_brief():
+    text = _orch()
+    bind = text.find("Bind `<slug>`")
+    first_rule = text.find("No trip-brief.yaml")
+    assert 0 <= bind < first_rule, "slug-binding rule must precede the trip-brief rule"
+    tb = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    assert "<yyyy-mm>-<destination>" in tb and "already exists" in tb
+
+def test_tw029_orchestrator_fail_routing_and_terminal():
+    text = _orch()
+    assert "status==fail" in text and "itinerary-synthesis" in text and "accommodation-research" in text
+    assert "newer than gate-report.yaml" in text
+    assert "pipeline complete" in text
+
+def test_tw031_halt_list_reception_and_banned_only():
+    text = _orch()
+    assert re.search(r"reception", text) and re.search(r"late check.?in", text)
+    assert "`banned`" in text
+    assert "regulation risk" not in text
+
+def test_tw055_orchestrator_readback_rule():
+    text = _orch()
+    assert "stage-state.yaml" in text and "decision" in text
+    assert "before" in text.lower() and "re-ask" in text.lower().replace("re-asking", "re-ask")
+
+def test_tw035_travel_advisory_standalone_no_write():
+    text = (SKILLS / "travel-advisory" / "SKILL.md").read_text(encoding="utf-8")
+    assert "Standalone" in text and "advisory-adhoc.yaml" in text
+    assert _orch().find("stale relative to itinerary.md") > 0
+
+def test_tw036_trip_brief_preflight_guard_before_write():
+    text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
+    guard = text.find("preflight-completed")
+    write = text.find("trips/<slug>/trip-brief.yaml")
+    assert 0 <= guard < write, "preflight guard must precede the first write"
+    fm = _frontmatter(text)
+    assert "orchestrator has routed" in fm
+    assert "when a new travel request arrives" not in fm
+
+def test_tw026_synthesis_rechecks_missed_last_service():
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    # the blanket prohibition must be gone for missed_last_service; re-check instructed
+    assert "MUST be re-checked here" in text
+    assert "classify_leg" in text or "misses_last_service" in text
+
+def test_tw037_using_tripwork_pipeline_full_order():
+    text = (SKILLS / "using-tripwork" / "SKILL.md").read_text(encoding="utf-8")
+    block = re.search(r"```\n(.*?)```", text, re.DOTALL).group(1)
+    order = ["trip-brief", "destination-research", "source-verify", "routing-audit",
+             "accommodation-research", "inter-stop-legs", "calendar-check",
+             "seasonal-advisory", "transit-detail", "cost-rollup", "travel-advisory",
+             "itinerary-synthesis", "itinerary-gate", "export-artifact", "export-gate"]
+    positions = [block.find(n) for n in order]
+    assert all(p >= 0 for p in positions), f"missing stages: {[n for n,p in zip(order,positions) if p<0]}"
+    assert positions == sorted(positions), "using-tripwork pipeline order diverges from orchestrator"

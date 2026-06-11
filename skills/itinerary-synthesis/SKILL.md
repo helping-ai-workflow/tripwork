@@ -57,8 +57,12 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   drive → the `duration_mins`. Do not bury the move inside a generic note.
 - Push `reserved`-seat reminders, `pass_advice`, and `last_service` notes into the
   **Pre-trip checklist / Contingency**.
-- `drive_too_long` / `missed_last_service` legs are already resolved (stop-on-confirmation
-  in `inter-stop-legs`) before synthesis runs; do not re-judge them here.
+- `drive_too_long` is depart-independent and already resolved in `inter-stop-legs`; do not
+  re-judge it. **`missed_last_service` MUST be re-checked here**, because the planned
+  departure is only known at scheduling time: when you place each travel-day transit move,
+  set its now-known `depart` on the leg and re-run `scripts/legs.py::classify_leg` (or
+  `misses_last_service`). A `missed_last_service` result at synthesis time is a
+  stop-on-confirmation — depart earlier, move to the next day, or change mode.
 
 ## Seasonal awareness (reads `seasonal.yaml`)
 
@@ -95,7 +99,7 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
 ## Required derived sections
 
 1. **備案 / Contingency** — for each fragile point (booking-required restaurant, outdoor activity), a fallback. Derived inline; not a separate skill.
-2. **Pre-trip checklist** — auto-extract from verified-pois `booking.required==true` (with `lead_time`) plus passport/visa basics. List every booking that needs advance action.
+2. **Pre-trip checklist** — auto-extract from verified-pois `booking.required==true` (with `lead_time` / `lead_time_days`) plus passport/visa basics. List every booking that needs advance action. For each booking carrying `lead_time_days`, run `scripts/booking.py::lead_time_missed(today, trip-brief.dates.start, lead_time_days)`; a `True` (the trip is too soon to still book in time) is a **booking lead-time missed** stop-on-confirmation.
 
 ## Output
 
@@ -116,7 +120,7 @@ Return to `tripwork:orchestrator`.
 |---|---|
 | Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty list if single-base) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml` + `trips/<slug>/transit.yaml` + `trips/<slug>/cost.yaml` + `trips/<slug>/advisory.yaml`. |
 | Output | `trips/<slug>/itinerary.yaml` (canonical) + `trips/<slug>/itinerary.md` (rendered: day tables + contingency + checklist sections). |
-| Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot → ask user. |
+| Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot; a booking whose **lead-time missed** (`lead_time_missed` True); or a travel-day move that re-checks `missed_last_service` at its now-known departure → ask user. |
 | Next stage | `tripwork:orchestrator`. |
 
 ## Common Mistakes

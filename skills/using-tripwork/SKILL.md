@@ -15,6 +15,8 @@ Example paths throughout these skills (`trips/<slug>/`, `work/<slug>/`) reflect 
 
 ## Pipeline
 
+The orchestrator's Stage Selection is canonical for order and predicates; this tree mirrors it.
+
 ```
 workspace-shape-preflight  (entry gate — first invocation only)
   └─ orchestrator
@@ -22,11 +24,17 @@ workspace-shape-preflight  (entry gate — first invocation only)
        ├─ destination-research  → candidates.yaml (untrusted pool)
        ├─ source-verify  (gate) → verified-pois.yaml
        ├─ routing-audit         → routing.yaml
+       ├─ accommodation-research→ accommodations.yaml
+       ├─ inter-stop-legs       → legs.yaml (city-to-city feasibility)
        ├─ calendar-check        → calendar.yaml (public holidays in trip range)
-       ├─ itinerary-synthesis   → itinerary.md (+ contingency + checklist sections)
-       ├─ travel-advisory (gate)→ advisory.yaml
+       ├─ seasonal-advisory     → seasonal.yaml (weather/daylight hazards)
+       ├─ transit-detail        → transit.yaml (peak windows / IC card / walks)
+       ├─ cost-rollup           → cost.yaml (estimate vs budget)
+       ├─ travel-advisory (gate)→ advisory.yaml (entry/customs/battery)
+       ├─ itinerary-synthesis   → itinerary.yaml (canonical) + itinerary.md
        ├─ itinerary-gate        → gate-report.yaml (pass)
-       └─ export-artifact       → exports/ (md / gmaps / line / notion)
+       ├─ export-artifact       → exports/<slug>-itinerary.md (md / gmaps / line / notion)
+       └─ export-gate           → export-gate-report.yaml (pass = pipeline complete)
 ```
 
 ## Iron Rules
@@ -52,11 +60,17 @@ workspace-shape-preflight  (entry gate — first invocation only)
 | Gather candidate POIs | `tripwork:destination-research` |
 | Verify candidates | `tripwork:source-verify` |
 | Check cross-region feasibility | `tripwork:routing-audit` |
+| Pick lodging for overnight stops | `tripwork:accommodation-research` |
+| Check city-to-city legs | `tripwork:inter-stop-legs` |
 | Establish trip-range public holidays | `tripwork:calendar-check` |
-| Build day-by-day plan | `tripwork:itinerary-synthesis` |
+| Check seasonal/weather hazards | `tripwork:seasonal-advisory` |
+| Establish intra-city transit comfort | `tripwork:transit-detail` |
+| Roll up cost vs budget | `tripwork:cost-rollup` |
 | Check entry/customs/battery rules | `tripwork:travel-advisory` |
+| Build day-by-day plan | `tripwork:itinerary-synthesis` |
 | Validate structure before export | `tripwork:itinerary-gate` |
 | Render deliverables | `tripwork:export-artifact` |
+| Validate the rendered deliverable | `tripwork:export-gate` |
 
 ## Workspace
 

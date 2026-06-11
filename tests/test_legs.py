@@ -41,3 +41,8 @@ def test_classify_drive_leg_without_duration_raises():   # TW-010
         classify_leg({"mode": "drive", "from": "Tekapo", "to": "Te Anau"}, 300)
     with pytest.raises(ValueError):
         classify_leg({"mode": "drive", "duration_mins": None}, 300)
+
+
+def test_classify_transit_mode_misses_last_service():   # TW-026
+    status, _ = classify_leg({"mode": "transit", "depart": "21:45", "last_service": "21:30"})
+    assert status == "missed_last_service"
