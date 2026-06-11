@@ -74,3 +74,15 @@ def test_poi_no_closed_days_always_open():
     poi = {"id": "park"}
     closed, _ = poi_closed_on(poi, "2026-05-26", CAL)
     assert closed is False
+
+
+def test_closed_days_case_insensitive():   # TW-001
+    poi = {"id": "x", "closed_days": ["Tuesday"]}
+    closed, _ = poi_closed_on(poi, "2026-05-26", CAL)   # Tuesday
+    assert closed is True
+
+
+def test_closed_days_whitespace_tolerated():   # TW-001
+    poi = {"id": "x", "closed_days": [" tuesday "]}
+    closed, _ = poi_closed_on(poi, "2026-05-26", CAL)
+    assert closed is True
