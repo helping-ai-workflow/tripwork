@@ -143,6 +143,40 @@ def test_verified_pois_closed_days_allowed():
     jsonschema.validate(ok, schema)
 
 
+def _vp_item(**over):
+    base = {"id": "x", "name_local": "x", "name_display": "x",
+            "category": "restaurant", "district": "x",
+            "geocode": {"lat": 1.0, "lng": 2.0},
+            "sources": [{"url": "a", "lang": "ko"}, {"url": "b", "lang": "zh"}],
+            "verify_status": "verified"}
+    base.update(over)
+    return {"pois": [base]}
+
+def test_verified_pois_unverified_without_geocode_validates():  # TW-012
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(verify_status="unverified", status_reason="geocode unresolved",
+                   sources=[{"url": "a", "lang": "ko"}])
+    del doc["pois"][0]["geocode"]
+    jsonschema.validate(doc, schema)  # must NOT raise
+
+def test_verified_pois_unverified_missing_status_reason_rejected():  # TW-012
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(verify_status="unverified", sources=[{"url": "a", "lang": "ko"}])
+    del doc["pois"][0]["geocode"]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(doc, schema)
+
+def test_verified_pois_closed_days_noncanonical_rejected():  # TW-001
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(closed_days=["Tuesday"])  # capitalized, non-canonical
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(doc, schema)
+
+def test_verified_pois_closed_days_canonical_accepted():  # TW-001
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(closed_days=["tuesday", "2026-06-13", "public_holiday"])
+    jsonschema.validate(doc, schema)  # must NOT raise
+
 def test_verified_pois_hours_allowed():
     schema = _load_schema("verified-pois.schema.json")
     ok = {"pois": [{"id": "x", "name_local": "店", "name_display": "Shop",

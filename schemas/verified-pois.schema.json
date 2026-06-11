@@ -8,7 +8,7 @@
       "items": {
         "type": "object",
         "required": ["id", "name_local", "name_display", "category",
-                     "geocode", "district", "sources", "verify_status"],
+                     "district", "sources", "verify_status"],
         "properties": {
           "id": {"type": "string"},
           "name_local": {"type": "string"},
@@ -16,6 +16,7 @@
           "name_roman": {"type": "string"},
           "category": {"type": "string"},
           "district": {"type": "string"},
+          "status_reason": {"type": "string", "minLength": 1},
           "geocode": {
             "type": "object",
             "required": ["lat", "lng"],
@@ -24,7 +25,7 @@
           },
           "sources": {
             "type": "array",
-            "minItems": 2,
+            "minItems": 1,
             "items": {
               "type": "object",
               "required": ["url", "lang"],
@@ -35,8 +36,13 @@
           "conflict_note": {"type": "string"},
           "closed_days": {
             "type": "array",
-            "items": {"type": "string"},
-            "description": "Weekday names ('tuesday'), ISO dates ('2026-05-25'), or the token 'public_holiday'. Consumed by scripts/calendar.py::poi_closed_on."
+            "items": {
+              "oneOf": [
+                {"enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "public_holiday"]},
+                {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+              ]
+            },
+            "description": "Canonical lowercase weekday names, ISO dates, or 'public_holiday'. Matched by scripts/calendar.py::poi_closed_on."
           },
           "hours": {
             "type": "object",
@@ -56,7 +62,19 @@
               "hours": {"type": "string"}
             }
           }
-        }
+        },
+        "allOf": [
+          {
+            "if": {"properties": {"verify_status": {"const": "verified"}}},
+            "then": {
+              "required": ["geocode"],
+              "properties": {"sources": {"minItems": 2}}
+            },
+            "else": {
+              "required": ["status_reason"]
+            }
+          }
+        ]
       }
     }
   }
