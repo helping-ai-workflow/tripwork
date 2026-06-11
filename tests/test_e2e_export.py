@@ -18,9 +18,9 @@ BOOKABLE = {
 
 def test_rendered_day_passes_export_gate():
     day = {"label": "Day 1", "rows": [
-        {"time": "09:00", "text": "郵輪 $120", "poi": BOOKABLE},
+        {"time": "09:00", "slot": "activity", "poi_id": "milford", "text": "郵輪 $120"},
     ]}
-    md = render_day_table(day)
+    md = render_day_table(day, {"milford": BOOKABLE})
     report = run_export_gate(md, [BOOKABLE])
     assert report["status"] == "pass", report["failures"]
     # name is the maps link, official source appended, price escaped
