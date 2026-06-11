@@ -14,15 +14,15 @@ Everything is **advisory** — this stage never stops the pipeline.
 Use the consumer harness `WebSearch`; prefer local-language / operator sources.
 
 - **peak_windows** — the commuter rush-hour windows (e.g. ~07:30–09:30 and ~17:30–19:30).
-  Record `label`, `start`, `end`, optional `note`. Synthesis flags moves that fall in these
-  via `scripts/transit.py::in_peak`.
+  Record `label`, `start`, `end`, optional `note`, and ≥ 1 `sources` (operator/official).
+  Synthesis flags moves that fall in these via `scripts/transit.py::in_peak`.
 - **ic_card** — the destination's stored-value card (Suica / ICOCA / PASMO / T-money /
   Octopus / EZ-Link / …): `name`, `where_to_buy`, `top_up`, `covers`, optional `note`, and
   ≥ 1 `sources` (operator site or a reputable guide). Omit `ic_card` for a cash-only destination.
 - **walks** — for each transit-reached POI in `verified-pois.yaml`, the nearest `station`
-  and the `mins` on foot (the "last 500 m"), optional `note`. Research from maps / official
-  station info; never invent a distance. Synthesis flags long walks via
-  `scripts/transit.py::walk_too_far`.
+  (required) and the `mins` on foot (the "last 500 m"), optional `note`, and ≥ 1 `sources`.
+  Research from maps / official station info; never invent a distance or an unsourced walk.
+  Synthesis flags long walks via `scripts/transit.py::walk_too_far`.
 
 ## Output
 

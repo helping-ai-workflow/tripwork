@@ -31,7 +31,11 @@ def classify_leg(leg, max_single_drive_mins=300):
     last-service check (returns 'ok').
     """
     if leg.get("mode") == "drive":
-        dur = leg.get("duration_mins", 0)
+        dur = leg.get("duration_mins")
+        if dur is None or dur == 0:
+            raise ValueError(
+                f"drive leg {leg.get('from','?')}->{leg.get('to','?')} has no measured "
+                "duration_mins; cannot classify feasibility (never default to 0)")
         if drive_too_long(dur, max_single_drive_mins):
             return "drive_too_long", (
                 f"drive leg {dur} min exceeds max {max_single_drive_mins} min for one day")

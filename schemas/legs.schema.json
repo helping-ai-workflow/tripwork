@@ -1,35 +1,165 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["legs"],
+  "required": [
+    "legs"
+  ],
   "properties": {
-    "legs": {"type": "array", "items": {
+    "legs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "mode",
+          "status",
+          "sources"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "drive",
+              "rail",
+              "bus",
+              "flight",
+              "ferry"
+            ]
+          },
+          "duration_mins": {
+            "type": "number"
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "drive_too_long",
+              "missed_last_service"
+            ]
+          },
+          "service": {
+            "type": "string"
+          },
+          "reserved": {
+            "type": "boolean"
+          },
+          "transfers": {
+            "type": "integer"
+          },
+          "depart": {
+            "type": "string"
+          },
+          "last_service": {
+            "type": "string"
+          },
+          "pass_advice": {
+            "type": "string"
+          },
+          "fare": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              },
+              "currency": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "additionalProperties": false
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "contains": {
+              "type": "object",
+              "required": [
+                "official"
+              ],
+              "properties": {
+                "official": {
+                  "const": true
+                }
+              }
+            },
+            "items": {
+              "type": "object",
+              "required": [
+                "url",
+                "official"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "official": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "mode": {
+                  "const": "drive"
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "duration_mins"
+              ]
+            }
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pass": {
       "type": "object",
-      "required": ["from", "to", "mode", "status", "sources"],
       "properties": {
-        "from": {"type": "string"},
-        "to": {"type": "string"},
-        "mode": {"type": "string"},
-        "duration_mins": {"type": "number"},
-        "status": {"enum": ["ok", "drive_too_long", "missed_last_service"]},
-        "service": {"type": "string"},
-        "reserved": {"type": "boolean"},
-        "transfers": {"type": "integer"},
-        "depart": {"type": "string"},
-        "last_service": {"type": "string"},
-        "pass_advice": {"type": "string"},
-        "fare": {"type": "object", "properties": {"amount": {"type": "number"}, "currency": {"type": "string"}}},
-        "sources": {
-          "type": "array", "minItems": 1,
-          "contains": {"type": "object", "required": ["official"],
-            "properties": {"official": {"const": true}}},
-          "items": {"type": "object", "required": ["url", "official"],
-            "properties": {"url": {"type": "string"}, "official": {"type": "boolean"}}}
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ],
+          "additionalProperties": false
+        },
+        "covers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
         }
-      }}},
-    "pass": {"type": "object", "properties": {
-      "name": {"type": "string"},
-      "price": {"type": "object", "properties": {"amount": {"type": "number"}, "currency": {"type": "string"}}},
-      "covers": {"type": "array", "items": {"type": "string"}}}}
-  }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
 }

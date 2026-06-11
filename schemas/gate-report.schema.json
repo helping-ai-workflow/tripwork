@@ -1,23 +1,65 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["status", "checks", "failures"],
+  "required": [
+    "status",
+    "checks",
+    "failures"
+  ],
   "properties": {
-    "status": {"type": "string", "enum": ["pass", "fail"]},
-    "checks": {"type": "array", "items": {
-      "type": "object", "required": ["name", "passed"],
-      "properties": {"name": {"type": "string"}, "passed": {"type": "boolean"}}}},
-    "failures": {"type": "array", "items": {"type": "string"}}
+    "status": {
+      "type": "string",
+      "enum": [
+        "pass",
+        "fail"
+      ]
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "passed"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "passed": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
   },
   "allOf": [
     {
-      "if": {"properties": {"status": {"const": "pass"}}},
+      "if": {
+        "properties": {
+          "status": {
+            "const": "pass"
+          }
+        }
+      },
       "then": {
         "properties": {
-          "failures": {"maxItems": 0},
-          "checks": {"minItems": 1}
+          "failures": {
+            "maxItems": 0
+          },
+          "checks": {
+            "minItems": 1
+          }
         }
       }
     }
-  ]
+  ],
+  "additionalProperties": false
 }

@@ -1,45 +1,132 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["pois"],
+  "required": [
+    "pois"
+  ],
   "properties": {
     "pois": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["id", "name_local", "name_display", "category",
-                     "district", "sources", "verify_status"],
+        "required": [
+          "id",
+          "name_local",
+          "name_display",
+          "category",
+          "district",
+          "sources",
+          "verify_status"
+        ],
         "properties": {
-          "id": {"type": "string"},
-          "name_local": {"type": "string"},
-          "name_display": {"type": "string"},
-          "name_roman": {"type": "string"},
-          "category": {"type": "string"},
-          "district": {"type": "string"},
-          "status_reason": {"type": "string", "minLength": 1},
+          "id": {
+            "type": "string"
+          },
+          "name_local": {
+            "type": "string"
+          },
+          "name_display": {
+            "type": "string"
+          },
+          "name_roman": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "district": {
+            "type": "string"
+          },
+          "status_reason": {
+            "type": "string",
+            "minLength": 1
+          },
           "geocode": {
             "type": "object",
-            "required": ["lat", "lng"],
-            "properties": {"lat": {"type": "number"}, "lng": {"type": "number"},
-              "geocode_source": {"enum": ["nominatim", "nominatim_structured", "cluster_fallback"]}}
+            "required": [
+              "lat",
+              "lng"
+            ],
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "lng": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              },
+              "geocode_source": {
+                "enum": [
+                  "nominatim",
+                  "nominatim_structured",
+                  "cluster_fallback"
+                ]
+              }
+            },
+            "additionalProperties": false
           },
           "sources": {
             "type": "array",
             "minItems": 1,
             "items": {
               "type": "object",
-              "required": ["url", "lang"],
-              "properties": {"url": {"type": "string"}, "lang": {"type": "string"}, "note": {"type": "string"}, "official": {"type": "boolean"}}
+              "required": [
+                "url",
+                "lang"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "lang": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "official": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
             }
           },
-          "verify_status": {"type": "string", "enum": ["verified", "conflicting", "rejected", "unverified"]},
-          "conflict_note": {"type": "string"},
+          "verify_status": {
+            "type": "string",
+            "enum": [
+              "verified",
+              "conflicting",
+              "rejected",
+              "unverified"
+            ]
+          },
+          "conflict_note": {
+            "type": "string"
+          },
           "closed_days": {
             "type": "array",
             "items": {
               "oneOf": [
-                {"enum": ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday", "public_holiday"]},
-                {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+                {
+                  "enum": [
+                    "monday",
+                    "tuesday",
+                    "wednesday",
+                    "thursday",
+                    "friday",
+                    "saturday",
+                    "sunday",
+                    "public_holiday"
+                  ]
+                },
+                {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                }
               ]
             },
             "description": "Canonical lowercase weekday names, ISO dates, or 'public_holiday'. Matched by scripts/calendar.py::poi_closed_on."
@@ -48,34 +135,66 @@
             "type": "object",
             "description": "Intra-day closing window, consumed by scripts/hours.py::closing_status.",
             "properties": {
-              "close": {"type": "string"},
-              "last_order": {"type": "string"},
-              "last_entry": {"type": "string"},
-              "typical_visit_mins": {"type": "integer"}
-            }
+              "close": {
+                "type": "string"
+              },
+              "last_order": {
+                "type": "string"
+              },
+              "last_entry": {
+                "type": "string"
+              },
+              "typical_visit_mins": {
+                "type": "integer"
+              }
+            },
+            "additionalProperties": false
           },
           "booking": {
             "type": "object",
             "properties": {
-              "required": {"type": "boolean"},
-              "lead_time": {"type": "string"},
-              "hours": {"type": "string"}
-            }
+              "required": {
+                "type": "boolean"
+              },
+              "lead_time": {
+                "type": "string"
+              },
+              "hours": {
+                "type": "string"
+              }
+            },
+            "additionalProperties": false
           }
         },
         "allOf": [
           {
-            "if": {"properties": {"verify_status": {"const": "verified"}}},
+            "if": {
+              "properties": {
+                "verify_status": {
+                  "const": "verified"
+                }
+              }
+            },
             "then": {
-              "required": ["geocode"],
-              "properties": {"sources": {"minItems": 2}}
+              "required": [
+                "geocode"
+              ],
+              "properties": {
+                "sources": {
+                  "minItems": 2
+                }
+              }
             },
             "else": {
-              "required": ["status_reason"]
+              "required": [
+                "status_reason"
+              ]
             }
           }
-        ]
+        ],
+        "additionalProperties": false
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

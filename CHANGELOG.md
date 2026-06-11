@@ -1,5 +1,31 @@
 # Changelog
 
+## 0.13.0 — 2026-06-11
+
+Schema strictness (Wave 2 of the 2026-06-11 agentic-robustness audit) — 10 defects
+closed. Tightens every artifact schema so a hallucinating agent's malformed output
+is rejected at validation instead of flowing downstream silently.
+
+- **`additionalProperties: false`** on every object schema across the 13 files — a
+  typo'd key (e.g. `close_days` for `closed_days`) is now rejected instead of
+  silently vanishing. (TW-013)
+- **Source URLs** must match `^https?://` everywhere a `url` field appears; a bare
+  token like `"airline"` no longer validates. (TW-008)
+- **Coordinates** bounded: `lat ∈ [-90, 90]`, `lng ∈ [-180, 180]` in verified-pois /
+  accommodations / routing — swapped or placeholder coordinates rejected. (TW-043)
+- **ISO date pattern** (`^\d{4}-\d{2}-\d{2}$`) on calendar / trip-brief / seasonal
+  date fields, so non-ISO dates can't silently disable date-equality logic. (TW-007)
+- **advisory** requires `risk` and ≥2 sources; **calendar** holiday requires `impact`
+  with `crowds`/`closures`; **cost** requires `as_of` + `estimate_note` (adds
+  `fx_as_of`/`fx_source`); **legs** `fare`/`pass.price` require `amount`+`currency`;
+  **transit** walks/peak_windows require sources (walk requires `station`). (TW-006,
+  TW-040, TW-041, TW-042)
+- **legs.mode** constrained to `drive|rail|bus|flight|ferry`; a `drive` leg requires
+  `duration_mins` (schema if/then) and `scripts/legs.py::classify_leg` raises instead
+  of defaulting an unmeasured drive to feasible. (TW-010)
+- **trip-brief** requires a `destination` object (`country`/`city`/`local_lang`) and
+  an optional `airline`, consumed by source-verify and travel-advisory. (TW-011)
+
 ## 0.12.0 — 2026-06-11
 
 Iron-rule mechanization (Wave 1 of the 2026-06-11 agentic-robustness audit) — 14

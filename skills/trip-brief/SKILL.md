@@ -9,7 +9,10 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
 
 ## Capture
 
-- `dates.start` / `dates.end`
+- `destination` (required: `{country, city, local_lang}`) — `local_lang` (ISO-639) drives
+  source-verify's local-language gate; `country`/`city` anchor geocoding and advisory lookup.
+- `airline` (optional) — needed by travel-advisory for carrier-specific battery/baggage rules.
+- `dates.start` / `dates.end` (ISO `YYYY-MM-DD`)
 - `members` (note elderly/children for downstream energy considerations)
 - `base` (lodging name + district — the routing baseline)
 - `must_do` (named experiences the user requires)

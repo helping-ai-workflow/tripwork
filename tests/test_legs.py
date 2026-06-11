@@ -33,3 +33,11 @@ def test_classify_transit_leg():
 
 def test_classify_transit_without_times_is_ok():
     assert classify_leg({"mode": "rail"})[0] == "ok"
+
+
+def test_classify_drive_leg_without_duration_raises():   # TW-010
+    import pytest
+    with pytest.raises(ValueError):
+        classify_leg({"mode": "drive", "from": "Tekapo", "to": "Te Anau"}, 300)
+    with pytest.raises(ValueError):
+        classify_leg({"mode": "drive", "duration_mins": None}, 300)
