@@ -27,17 +27,35 @@ def cache_put(cache, key, value):
 
 
 def load_cache(path):
-    """Read the JSON cache dict from `path`; {} if the file is absent."""
+    """Read the JSON cache dict from `path`; {} if absent, corrupt, or not a dict.
+
+    A corrupt file is renamed to `<path>.corrupt` so an interrupted-write artifact is
+    kept as evidence instead of crashing the next run or being silently overwritten. (TW-046)
+    """
     if not os.path.exists(path):
         return {}
-    with open(path, encoding="utf-8") as f:
-        return json.load(f)
+    try:
+        with open(path, encoding="utf-8") as f:
+            data = json.load(f)
+    except (json.JSONDecodeError, OSError, UnicodeDecodeError):
+        try:
+            os.replace(path, path + ".corrupt")
+        except OSError:
+            pass
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def save_cache(path, cache):
-    """Write the cache dict to `path` as JSON, creating parent dirs."""
+    """Atomically write the cache dict to `path` as JSON, creating parent dirs.
+
+    Writes a temp file then `os.replace`s it into place, so an interrupted write cannot
+    leave a half-written (corrupt) cache. (TW-046)
+    """
     parent = os.path.dirname(path)
     if parent:
         os.makedirs(parent, exist_ok=True)
-    with open(path, "w", encoding="utf-8") as f:
+    tmp = path + ".tmp"
+    with open(tmp, "w", encoding="utf-8") as f:
         json.dump(cache, f, ensure_ascii=False, indent=2)
+    os.replace(tmp, path)

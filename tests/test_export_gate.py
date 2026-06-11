@@ -72,3 +72,15 @@ def test_bookable_missing_official_source_fails():
     r = run_export_gate(dirty, [BOOKABLE])
     assert r["status"] == "fail"
     assert _names("bookable_has_official_source", r) is False
+
+
+def test_find_row_ignores_heading_uses_table_row():   # TW-044
+    bookable = {"id": "milford", "name_local": "Milford Sound", "name_display": "Milford Sound",
+                "verify_status": "verified", "booking": {"required": True},
+                "sources": [{"url": "https://milford.example", "official": True}]}
+    # heading names the POI (no link); the actual TABLE row lacks the official link
+    md = ("### Day 1 — Milford Sound\n\n| 時段 | 行程 |\n|---|---|\n"
+          "| 09:00 | [Milford Sound](https://www.google.com/maps/search/?api=1&query=Milford) 郵輪 |\n")
+    r = run_export_gate(md, [bookable])
+    assert r["status"] == "fail"
+    assert any("official source link" in f for f in r["failures"])

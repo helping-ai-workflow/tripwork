@@ -28,3 +28,12 @@ def test_line_short_move_row_has_no_poi():
         {"time": "09:00", "slot": "move", "text": "KTX 首爾→釜山"}]}]}
     out = render_line_short(itin)
     assert "🚆 KTX 首爾→釜山" in out
+
+
+def test_chunk_line_messages_splits_over_limit():   # TW-049
+    from scripts.render.line_short import chunk_line_messages
+    days = [{"label": f"Day {i}", "rows": [{"time": "09:00", "slot": "visit", "text": "X" * 400}]}
+            for i in range(40)]
+    chunks = chunk_line_messages({"title": "big trip", "days": days}, limit=5000)
+    assert isinstance(chunks, list) and len(chunks) >= 2
+    assert all(len(c) <= 5000 for c in chunks)
