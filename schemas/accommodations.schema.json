@@ -1,42 +1,193 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["stops"],
+  "required": [
+    "stops"
+  ],
   "properties": {
-    "stops": {"type": "array", "items": {
-      "type": "object",
-      "required": ["district", "nights", "candidates", "chosen"],
-      "properties": {
-        "district": {"type": "string"},
-        "nights": {"type": "integer"},
-        "chosen": {"type": ["string", "null"]},
-        "candidates": {"type": "array", "items": {
-          "type": "object",
-          "required": ["id", "name_local", "name_display", "facilities", "geocode", "sources", "verify_status"],
-          "properties": {
-            "id": {"type": "string"},
-            "name_local": {"type": "string"},
-            "name_display": {"type": "string"},
-            "name_roman": {"type": "string"},
-            "price_band": {"type": "string"},
-            "cost": {"type": "object", "properties": {"amount": {"type": "number"}, "currency": {"type": "string"}, "basis": {"enum": ["per_night", "total"]}}},
-            "facilities": {"type": "array", "items": {"type": "string"}},
-            "rating_source": {"type": "string"},
-            "gmaps": {"type": "string"},
-            "reception": {"type": "object", "properties": {
-              "close": {"type": "string"}, "late_checkin": {"type": "boolean"}}},
-            "geocode": {"type": "object", "required": ["lat", "lng"], "properties": {
-              "lat": {"type": "number"}, "lng": {"type": "number"},
-              "geocode_source": {"enum": ["nominatim", "nominatim_structured", "cluster_fallback"]}}},
-            "booking": {"type": "object", "properties": {
-              "required": {"type": "boolean"}, "lead_time": {"type": "string"}, "url": {"type": "string"}}},
-            "sources": {"type": "array", "minItems": 2, "items": {
-              "type": "object", "required": ["url", "lang"], "properties": {
-                "url": {"type": "string"}, "lang": {"type": "string"},
-                "official": {"type": "boolean"}, "note": {"type": "string"}}}},
-            "verify_status": {"enum": ["verified", "conflicting", "rejected", "unverified"]},
-            "conflict_note": {"type": "string"}
-          }}}
-      }}}
-  }
+    "stops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "district",
+          "nights",
+          "candidates",
+          "chosen"
+        ],
+        "properties": {
+          "district": {
+            "type": "string"
+          },
+          "nights": {
+            "type": "integer"
+          },
+          "chosen": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "candidates": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "name_local",
+                "name_display",
+                "facilities",
+                "geocode",
+                "sources",
+                "verify_status"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string"
+                },
+                "name_local": {
+                  "type": "string"
+                },
+                "name_display": {
+                  "type": "string"
+                },
+                "name_roman": {
+                  "type": "string"
+                },
+                "price_band": {
+                  "type": "string"
+                },
+                "cost": {
+                  "type": "object",
+                  "properties": {
+                    "amount": {
+                      "type": "number"
+                    },
+                    "currency": {
+                      "type": "string"
+                    },
+                    "basis": {
+                      "enum": [
+                        "per_night",
+                        "total"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "facilities": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "rating_source": {
+                  "type": "string"
+                },
+                "gmaps": {
+                  "type": "string"
+                },
+                "reception": {
+                  "type": "object",
+                  "properties": {
+                    "close": {
+                      "type": "string"
+                    },
+                    "late_checkin": {
+                      "type": "boolean"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "geocode": {
+                  "type": "object",
+                  "required": [
+                    "lat",
+                    "lng"
+                  ],
+                  "properties": {
+                    "lat": {
+                      "type": "number",
+                      "minimum": -90,
+                      "maximum": 90
+                    },
+                    "lng": {
+                      "type": "number",
+                      "minimum": -180,
+                      "maximum": 180
+                    },
+                    "geocode_source": {
+                      "enum": [
+                        "nominatim",
+                        "nominatim_structured",
+                        "cluster_fallback"
+                      ]
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "booking": {
+                  "type": "object",
+                  "properties": {
+                    "required": {
+                      "type": "boolean"
+                    },
+                    "lead_time": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "pattern": "^https?://"
+                    }
+                  },
+                  "additionalProperties": false
+                },
+                "sources": {
+                  "type": "array",
+                  "minItems": 2,
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "url",
+                      "lang"
+                    ],
+                    "properties": {
+                      "url": {
+                        "type": "string",
+                        "pattern": "^https?://"
+                      },
+                      "lang": {
+                        "type": "string"
+                      },
+                      "official": {
+                        "type": "boolean"
+                      },
+                      "note": {
+                        "type": "string"
+                      }
+                    },
+                    "additionalProperties": false
+                  }
+                },
+                "verify_status": {
+                  "enum": [
+                    "verified",
+                    "conflicting",
+                    "rejected",
+                    "unverified"
+                  ]
+                },
+                "conflict_note": {
+                  "type": "string"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
 }

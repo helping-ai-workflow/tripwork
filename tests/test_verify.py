@@ -2,7 +2,10 @@
 from scripts.verify import classify_candidate
 
 def _cand(sources, langs):
-    return {"id": "x", "sources": [{"url": u, "lang": l} for u, l in zip(sources, langs)]}
+    # bare tokens -> distinct https domains so independence (distinct netloc) holds
+    def _u(s):
+        return s if str(s).startswith("http") else f"https://{s}.example"
+    return {"id": "x", "sources": [{"url": _u(u), "lang": l} for u, l in zip(sources, langs)]}
 
 def test_defunct_poi_rejected():   # TW-005
     c = _cand(["a", "b"], ["ko", "zh"])
@@ -66,3 +69,11 @@ def test_cross_source_conflict_is_conflicting():
     assert "cross-source" in note.lower() or "disagreement" in note.lower(), (
         f"Expected note mentioning cross-source/disagreement, got: {note!r}"
     )
+
+
+def test_same_domain_sources_not_independent():   # TW-023
+    c = {"sources": [{"url": "https://tripadvisor.com/a", "lang": "ko"},
+                     {"url": "https://tripadvisor.com/b", "lang": "en"}]}
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
+    assert status == "unverified"
+    assert "independent" in note.lower() or "domain" in note.lower()

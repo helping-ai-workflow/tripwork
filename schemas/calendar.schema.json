@@ -1,42 +1,99 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["holidays"],
+  "required": [
+    "holidays"
+  ],
   "properties": {
     "holidays": {
       "type": "array",
       "items": {
         "type": "object",
-        "required": ["date", "name_local", "name_display", "sources"],
+        "required": [
+          "date",
+          "name_local",
+          "name_display",
+          "sources",
+          "impact"
+        ],
         "properties": {
-          "date": {"type": "string"},
-          "name_local": {"type": "string"},
-          "name_display": {"type": "string"},
-          "type": {"type": "string", "enum": ["national", "substitute", "festival", "observance"]},
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "name_local": {
+            "type": "string"
+          },
+          "name_display": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "national",
+              "substitute",
+              "festival",
+              "observance"
+            ]
+          },
           "impact": {
             "type": "object",
             "properties": {
-              "crowds": {"type": "boolean"},
-              "closures": {"type": "boolean"}
-            }
+              "crowds": {
+                "type": "boolean"
+              },
+              "closures": {
+                "type": "boolean"
+              }
+            },
+            "required": [
+              "crowds",
+              "closures"
+            ],
+            "additionalProperties": false
           },
-          "note": {"type": "string"},
+          "note": {
+            "type": "string"
+          },
           "sources": {
             "type": "array",
             "minItems": 1,
             "contains": {
               "type": "object",
-              "required": ["official"],
-              "properties": {"official": {"const": true}}
+              "required": [
+                "official"
+              ],
+              "properties": {
+                "official": {
+                  "const": true
+                }
+              }
             },
             "items": {
               "type": "object",
-              "required": ["url", "official"],
-              "properties": {"url": {"type": "string"}, "official": {"type": "boolean"}}
+              "required": [
+                "url",
+                "official"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "official": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
             }
+          },
+          "provisional": {
+            "type": "boolean"
           }
-        }
+        },
+        "additionalProperties": false
       }
     }
-  }
+  },
+  "additionalProperties": false
 }

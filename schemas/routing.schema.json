@@ -1,22 +1,97 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["clusters", "hops", "warnings"],
+  "required": [
+    "clusters",
+    "hops",
+    "warnings"
+  ],
   "properties": {
-    "clusters": {"type": "array", "items": {
-      "type": "object", "required": ["district", "pois"],
-      "properties": {
-        "district": {"type": "string"},
-        "is_base": {"type": "boolean"},
-        "centroid": {"type": "object", "required": ["lat", "lng"],
-          "properties": {"lat": {"type": "number"}, "lng": {"type": "number"}}},
-        "pois": {"type": "array", "items": {"type": "string"}}}}},
-    "hops": {"type": "array", "items": {
-      "type": "object", "required": ["from", "to", "mins", "flag"],
-      "properties": {
-        "from": {"type": "string"}, "to": {"type": "string"},
-        "mode": {"type": "string"}, "mins": {"type": "number"},
-        "flag": {"type": "string", "enum": ["ok", "far"]}}}},
-    "warnings": {"type": "array", "items": {"type": "string"}}
-  }
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "district",
+          "pois"
+        ],
+        "properties": {
+          "district": {
+            "type": "string"
+          },
+          "is_base": {
+            "type": "boolean"
+          },
+          "centroid": {
+            "type": "object",
+            "required": [
+              "lat",
+              "lng"
+            ],
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "lng": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              }
+            },
+            "additionalProperties": false
+          },
+          "pois": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "hops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "mins",
+          "flag"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string"
+          },
+          "mins": {
+            "type": "number"
+          },
+          "flag": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "far"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
 }

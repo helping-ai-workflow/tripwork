@@ -8,8 +8,9 @@ from scripts.transit import in_peak, walk_too_far
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
-PEAKS = [{"label": "morning", "start": "07:30", "end": "09:30"},
-         {"label": "evening", "start": "17:30", "end": "19:30"}]
+_SRC = [{"url": "https://www.jreast.co.jp/multi/en/"}]
+PEAKS = [{"label": "morning", "start": "07:30", "end": "09:30", "sources": _SRC},
+         {"label": "evening", "start": "17:30", "end": "19:30", "sources": _SRC}]
 
 def test_morning_move_is_flagged_in_peak():
     assert in_peak("08:00", PEAKS) is True
@@ -33,8 +34,8 @@ def test_transit_yaml_fixture_is_schema_valid():
                     "top_up": "cash at machines / convenience stores",
                     "covers": "trains, buses, conbini",
                     "sources": [{"url": "https://www.jreast.co.jp/multi/en/pass/suica.html"}]},
-        "walks": [{"poi_id": "sensoji", "station": "Asakusa", "mins": 5},
-                  {"poi_id": "teamlab", "station": "Toyosu", "mins": 20, "note": "long walk"}],
+        "walks": [{"poi_id": "sensoji", "station": "Asakusa", "mins": 5, "sources": _SRC},
+                  {"poi_id": "teamlab", "station": "Toyosu", "mins": 20, "note": "long walk", "sources": _SRC}],
     }
     jsonschema.validate(doc, schema)  # must not raise
     flagged = [w for w in doc["walks"] if walk_too_far(w["mins"], 15)]

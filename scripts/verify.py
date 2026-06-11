@@ -5,6 +5,14 @@ The geocode + region results are computed by the skill (using geocode.py) and
 passed in; this function holds the decision logic so it is unit-testable.
 """
 
+from urllib.parse import urlsplit
+
+
+def _distinct_netlocs(sources):
+    """Set of distinct lower-cased domains across a candidate's source urls."""
+    return {urlsplit(s.get("url", "")).netloc.lower() for s in sources if s.get("url")}
+
+
 def classify_candidate(candidate, geocoded, in_claimed_region,
                         local_lang=None, conflict_detected=False, operating=True):
     """Return (verify_status, note).
@@ -36,9 +44,10 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     if not operating:
         return "rejected", "permanently/temporarily closed (defunct)"
 
-    # Gate 1a: must have >= 2 independent sources
-    if len(sources) < 2:
-        return "unverified", "needs >=2 independent sources"
+    # Gate 1a: must have >= 2 INDEPENDENT sources. Independence is by distinct domain —
+    # two pages of the same site are one source, not two. (TW-023)
+    if len(_distinct_netlocs(sources)) < 2:
+        return "unverified", "needs >=2 independent sources (distinct domains)"
 
     # Gate 1b: at least one source in destination's local language
     if local_lang is not None and local_lang not in langs:

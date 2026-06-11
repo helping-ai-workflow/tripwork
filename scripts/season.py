@@ -28,19 +28,24 @@ def daylight_hours(date_iso, lat):
     return 2.0 * half_arc_deg / 15.0               # 15 deg of rotation per hour
 
 
-def approx_sunset(date_iso, lat):
-    """Approximate local-solar sunset 'HH:MM' = 12:00 + daylight_hours/2.
+def approx_sunset(date_iso, lat, lng=None, utc_offset_hours=None):
+    """Approximate sunset 'HH:MM' = solar 12:00 + daylight_hours/2.
 
-    Advisory only (~±15-20 min vs civil sunset). Clamps to 23:59 for polar day.
+    With `lng` + `utc_offset_hours`, convert local-solar to **civil** clock time:
+    `civil = solar + (utc_offset*15 - lng)/15` hours, correcting longitude-within-timezone
+    (the dominant tens-of-minutes error). Without them, returns local-solar time as before.
+    Advisory only (~±15-20 min); clamps to [00:00, 23:59]. (TW-050)
     """
-    total_min = round((12.0 + daylight_hours(date_iso, lat) / 2.0) * 60)
-    total_min = min(total_min, 23 * 60 + 59)
+    solar_min = (12.0 + daylight_hours(date_iso, lat) / 2.0) * 60
+    if lng is not None and utc_offset_hours is not None:
+        solar_min += (utc_offset_hours * 15.0 - lng) / 15.0 * 60.0
+    total_min = max(0, min(round(solar_min), 23 * 60 + 59))
     hh, mm = divmod(total_min, 60)
     return f"{hh:02d}:{mm:02d}"
 
 
-def after_dark(arrival_hhmm, date_iso, lat):
-    """True if `arrival_hhmm` ('HH:MM') is later than the approximate sunset."""
+def after_dark(arrival_hhmm, date_iso, lat, lng=None, utc_offset_hours=None):
+    """True if `arrival_hhmm` ('HH:MM') is later than the approximate (civil) sunset."""
     ah, am = (int(x) for x in arrival_hhmm.split(":"))
-    sh, sm = (int(x) for x in approx_sunset(date_iso, lat).split(":"))
+    sh, sm = (int(x) for x in approx_sunset(date_iso, lat, lng, utc_offset_hours).split(":"))
     return (ah * 60 + am) > (sh * 60 + sm)

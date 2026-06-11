@@ -43,7 +43,7 @@ def test_laundry_coverage_within_cadence():
 def test_small_hotel_centroid_fallback_stays_verified():
     # The Godley Hotel can't geocode on Nominatim; cluster-centroid fallback means
     # geocoded=True, in-region=True -> verified (D7 enables D1).
-    cand = {"id": "godley", "sources": [{"url": "a", "lang": "en"}, {"url": "b", "lang": "en"}]}
+    cand = {"id": "godley", "sources": [{"url": "https://a.example", "lang": "en"}, {"url": "https://b.example", "lang": "en"}]}
     status, _ = classify_candidate(cand, geocoded=True, in_claimed_region=True, local_lang="en")
     assert status == "verified"
 

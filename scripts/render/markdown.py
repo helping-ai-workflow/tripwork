@@ -8,7 +8,7 @@ from scripts.render.gmaps_links import link_markdown
 
 # Chars with markdown / KaTeX meaning in free text. `|` would also break a table
 # cell. Backslash is escaped first so the escapes we add are not re-escaped.
-_ESCAPE = ["\\", "`", "*", "_", "<", "|", "$"]
+_ESCAPE = ["\\", "`", "*", "_", "<", "|", "$", "[", "]"]
 
 def md_escape(text):
     """Backslash-escape markdown/KaTeX-active chars in free text."""
@@ -25,11 +25,15 @@ def _primary_source_url(poi):
             return s.get("url")
     return sources[0].get("url") if sources else None
 
+def _safe_url(url):
+    """Percent-encode the two chars that would break a markdown link target. (TW-022)"""
+    return url.replace(")", "%29").replace(" ", "%20")
+
 def _poi_cell(poi, text):
     parts = [link_markdown(poi)]
     url = _primary_source_url(poi)
     if url:
-        parts.append(f"· [官網]({url})")
+        parts.append(f"· [官網]({_safe_url(url)})")
     escaped = md_escape(text)
     if escaped:
         parts.append(escaped)

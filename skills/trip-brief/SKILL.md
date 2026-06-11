@@ -1,15 +1,25 @@
 ---
 name: trip-brief
-description: Use when a new travel request arrives and the trip parameters must be captured before research begins. Produces trip-brief.yaml.
+description: Use when the tripwork orchestrator has routed a new travel request and the trip parameters must be captured before research begins. Produces trip-brief.yaml.
 ---
 
 # trip-brief
+
+> **Step 0 — preflight + slug guard (before writing anything).** If
+> `work/.preflight-completed` is absent, invoke `tripwork:workspace-shape-preflight` first and
+> write **no** files. Then bind `<slug>`: derive it as `<yyyy-mm>-<destination>` (e.g.
+> `2026-06-seoul`) from the trip dates + destination, and **confirm it with the user**. If the
+> derived `trips/<slug>/` already exists, stop and ask (resume that trip, or pick a new slug) —
+> never reuse or overwrite another trip's directory.
 
 Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brief.schema.json`).
 
 ## Capture
 
-- `dates.start` / `dates.end`
+- `destination` (required: `{country, city, local_lang}`) — `local_lang` (ISO-639) drives
+  source-verify's local-language gate; `country`/`city` anchor geocoding and advisory lookup.
+- `airline` (optional) — needed by travel-advisory for carrier-specific battery/baggage rules.
+- `dates.start` / `dates.end` (ISO `YYYY-MM-DD`)
 - `members` (note elderly/children for downstream energy considerations)
 - `base` (lodging name + district — the routing baseline)
 - `must_do` (named experiences the user requires)
@@ -49,6 +59,12 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
 ## Ingest sources
 
 Accept a free-text brief, or — if the user points at a Notion page — read it via the consumer's Notion MCP and extract the fields. Do not invent values; ask for anything missing that the pipeline needs.
+
+## Cache lifecycle on re-brief
+
+When re-writing `trip-brief.yaml` for an existing `<slug>` whose **destination or dates
+changed**, delete `work/<slug>/geocode-cache/` first — it is rebuildable by definition, and
+a cache keyed on the old destination would otherwise hand stale coordinates to the re-run.
 
 ## Output
 

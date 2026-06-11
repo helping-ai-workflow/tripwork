@@ -59,3 +59,12 @@ def test_day_table_unresolvable_poi_id_renders_text_only():
     md = render_day_table(day, {})
     assert "午餐" in md
     assert "官網" not in md
+
+
+def test_poi_cell_source_url_escapes_paren():   # TW-022
+    from scripts.render.markdown import render_day_table
+    day = {"label": "D", "rows": [{"time": "12:00", "slot": "meal", "poi_id": "x", "text": "t"}]}
+    poi_map = {"x": {"name_local": "x", "name_display": "x",
+                     "sources": [{"url": "https://e.example/a(b)c", "official": True}]}}
+    md = render_day_table(day, poi_map)
+    assert "(b)" not in md.split("官網")[1][:40]   # ')' in url must not break the link

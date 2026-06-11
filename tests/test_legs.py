@@ -33,3 +33,24 @@ def test_classify_transit_leg():
 
 def test_classify_transit_without_times_is_ok():
     assert classify_leg({"mode": "rail"})[0] == "ok"
+
+
+def test_classify_drive_leg_without_duration_raises():   # TW-010
+    import pytest
+    with pytest.raises(ValueError):
+        classify_leg({"mode": "drive", "from": "Tekapo", "to": "Te Anau"}, 300)
+    with pytest.raises(ValueError):
+        classify_leg({"mode": "drive", "duration_mins": None}, 300)
+
+
+def test_classify_transit_mode_misses_last_service():   # TW-026
+    status, _ = classify_leg({"mode": "transit", "depart": "21:45", "last_service": "21:30"})
+    assert status == "missed_last_service"
+
+
+def test_misses_last_service_after_midnight():   # TW-021
+    from scripts.legs import misses_last_service
+    # last service 00:30 (next-day small hours), planned depart 23:50 -> still catches it
+    assert misses_last_service("23:50", "00:30") is False
+    # planned depart 01:00 after a 00:30 last service -> missed
+    assert misses_last_service("01:00", "00:30") is True

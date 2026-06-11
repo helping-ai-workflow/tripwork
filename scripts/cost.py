@@ -12,7 +12,13 @@ def sum_costs(line_items):
     by_category = {}
     for item in line_items:
         cat = item.get("category", "other")
-        by_category[cat] = by_category.get(cat, 0) + item.get("amount", 0)
+        amount = item.get("amount")
+        if not isinstance(amount, (int, float)) or isinstance(amount, bool):
+            raise ValueError(
+                f"line item '{item.get('label') or cat}' has no numeric 'amount' "
+                "(record unknown costs as an explicit estimate or exclude with an "
+                "estimate_note — never silently zero them)")
+        by_category[cat] = by_category.get(cat, 0) + amount
     return {"by_category": by_category, "total": sum(by_category.values())}
 
 

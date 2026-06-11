@@ -13,8 +13,18 @@ def drive_too_long(duration_mins, max_single_drive_mins=300):
 
 
 def misses_last_service(planned_depart_hhmm, last_service_hhmm):
-    """True if a planned same-day departure is later than the last service."""
-    return to_minutes(planned_depart_hhmm) > to_minutes(last_service_hhmm)
+    """True if a planned departure is later than the last service.
+
+    Handles a small-hours last service (e.g. 00:30) as next-day: it is later than an
+    evening departure, not earlier. (TW-021)
+    """
+    depart = to_minutes(planned_depart_hhmm)
+    last = to_minutes(last_service_hhmm)
+    # A small-hours last service paired with an EVENING departure is next-day (later than
+    # the departure). Two small-hours times are the same night -> compare directly. (TW-021)
+    if last < depart and last <= 5 * 60 and depart > 5 * 60:
+        last += 24 * 60
+    return depart > last
 
 
 def classify_leg(leg, max_single_drive_mins=300):
@@ -31,7 +41,11 @@ def classify_leg(leg, max_single_drive_mins=300):
     last-service check (returns 'ok').
     """
     if leg.get("mode") == "drive":
-        dur = leg.get("duration_mins", 0)
+        dur = leg.get("duration_mins")
+        if dur is None or dur == 0:
+            raise ValueError(
+                f"drive leg {leg.get('from','?')}->{leg.get('to','?')} has no measured "
+                "duration_mins; cannot classify feasibility (never default to 0)")
         if drive_too_long(dur, max_single_drive_mins):
             return "drive_too_long", (
                 f"drive leg {dur} min exceeds max {max_single_drive_mins} min for one day")

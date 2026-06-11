@@ -21,7 +21,7 @@ def test_verified_pois_missing_geocode_rejected():
     bad = {"pois": [{
         "id": "x", "name_local": "x", "name_display": "x",
         "category": "restaurant", "district": "x",
-        "sources": [{"url": "a", "lang": "ko"}, {"url": "b", "lang": "zh"}],
+        "sources": [{"url": "https://a.example", "lang": "ko"}, {"url": "https://b.example", "lang": "zh"}],
         "verify_status": "verified"
     }]}
     with pytest.raises(jsonschema.ValidationError):
@@ -33,7 +33,7 @@ def test_verified_pois_single_source_rejected():
         "id": "x", "name_local": "x", "name_display": "x",
         "category": "restaurant", "district": "x",
         "geocode": {"lat": 1.0, "lng": 2.0},
-        "sources": [{"url": "a", "lang": "ko"}],
+        "sources": [{"url": "https://a.example", "lang": "ko"}],
         "verify_status": "verified"
     }]}
     with pytest.raises(jsonschema.ValidationError):
@@ -44,14 +44,14 @@ def test_trip_brief_minimal_valid():
     data = {"slug": "2026-korea-maple", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
             "members": [{"name": "mom", "notes": "elderly"}],
             "base": {"name": "Lotte Hotel World", "district": "잠실"},
-            "must_do": ["maplestory park"], "constraints": [], "preferences": {}}
+            "must_do": ["maplestory park"], "constraints": [], "preferences": {}, "destination": {"country": "KR", "city": "Seoul", "local_lang": "ko"}}
     jsonschema.validate(data, schema)
 
 def test_trip_brief_max_hop_override_allowed():
     schema = _load_schema("trip-brief.schema.json")
     data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
             "members": [], "base": {"name": "h", "district": "d"},
-            "must_do": [], "constraints": [], "preferences": {},
+            "must_do": [], "constraints": [], "preferences": {}, "destination": {"country": "KR", "city": "Seoul", "local_lang": "ko"},
             "routing": {"max_hop_mins": 45}}
     jsonschema.validate(data, schema)
 
@@ -63,7 +63,7 @@ def test_routing_sample_valid():
 def test_advisory_requires_effective_date():
     schema = _load_schema("advisory.schema.json")
     bad = {"items": [{"topic": "battery", "rule": "no overhead bin",
-                      "sources": [{"url": "a", "official": True}]}]}  # no effective_date
+                      "sources": [{"url": "https://a.example", "official": True}]}]}  # no effective_date
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
 
@@ -77,7 +77,7 @@ def test_candidate_with_name_local_and_sources_valid():
     schema = _load_schema("candidates.schema.json")
     ok = {"candidates": [{"id": "x", "name_local": "엑스", "name_display": "X",
                           "category": "restaurant",
-                          "sources": [{"url": "a", "lang": "ko"}]}]}
+                          "sources": [{"url": "https://a.example", "lang": "ko"}]}]}
     jsonschema.validate(ok, schema)
 
 def test_candidate_empty_sources_rejected():
@@ -91,16 +91,16 @@ def test_advisory_requires_at_least_one_official_source():
     schema = _load_schema("advisory.schema.json")
     bad = {"items": [{"topic": "battery", "rule": "no overhead bin",
                       "effective_date": "2026-01-26",
-                      "sources": [{"url": "blog", "official": False}]}]}
+                      "sources": [{"url": "https://blog.example", "official": False}]}]}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
 
 def test_advisory_one_official_source_passes():
     schema = _load_schema("advisory.schema.json")
     ok = {"items": [{"topic": "battery", "rule": "no overhead bin",
-                     "effective_date": "2026-01-26",
-                     "sources": [{"url": "airline", "official": True},
-                                 {"url": "blog", "official": False}]}]}
+                     "effective_date": "2026-01-26", "risk": "restricted",
+                     "sources": [{"url": "https://airline.example", "official": True},
+                                 {"url": "https://blog.example", "official": False}]}]}
     jsonschema.validate(ok, schema)
 
 def test_gate_report_valid():
@@ -137,7 +137,7 @@ def test_calendar_sample_valid():
 def test_calendar_requires_official_source():
     schema = _load_schema("calendar.schema.json")
     bad = {"holidays": [{"date": "2026-05-25", "name_local": "x", "name_display": "x",
-                         "sources": [{"url": "blog", "official": False}]}]}
+                         "sources": [{"url": "https://blog.example", "official": False}]}]}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
 
@@ -145,7 +145,7 @@ def test_calendar_requires_official_source():
 def test_calendar_requires_date():
     schema = _load_schema("calendar.schema.json")
     bad = {"holidays": [{"name_local": "x", "name_display": "x",
-                         "sources": [{"url": "gov", "official": True}]}]}
+                         "sources": [{"url": "https://gov.example", "official": True}]}]}
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
 
@@ -155,7 +155,7 @@ def test_verified_pois_closed_days_allowed():
     ok = {"pois": [{"id": "x", "name_local": "경복궁", "name_display": "Gyeongbokgung",
                     "category": "sight", "district": "종로",
                     "geocode": {"lat": 37.5796, "lng": 126.977},
-                    "sources": [{"url": "a", "lang": "ko"}, {"url": "b", "lang": "zh"}],
+                    "sources": [{"url": "https://a.example", "lang": "ko"}, {"url": "https://b.example", "lang": "zh"}],
                     "verify_status": "verified", "closed_days": ["tuesday"]}]}
     jsonschema.validate(ok, schema)
 
@@ -199,7 +199,7 @@ def _vp_item(**over):
     base = {"id": "x", "name_local": "x", "name_display": "x",
             "category": "restaurant", "district": "x",
             "geocode": {"lat": 1.0, "lng": 2.0},
-            "sources": [{"url": "a", "lang": "ko"}, {"url": "b", "lang": "zh"}],
+            "sources": [{"url": "https://a.example", "lang": "ko"}, {"url": "https://b.example", "lang": "zh"}],
             "verify_status": "verified"}
     base.update(over)
     return {"pois": [base]}
@@ -207,13 +207,13 @@ def _vp_item(**over):
 def test_verified_pois_unverified_without_geocode_validates():  # TW-012
     schema = _load_schema("verified-pois.schema.json")
     doc = _vp_item(verify_status="unverified", status_reason="geocode unresolved",
-                   sources=[{"url": "a", "lang": "ko"}])
+                   sources=[{"url": "https://a.example", "lang": "ko"}])
     del doc["pois"][0]["geocode"]
     jsonschema.validate(doc, schema)  # must NOT raise
 
 def test_verified_pois_unverified_missing_status_reason_rejected():  # TW-012
     schema = _load_schema("verified-pois.schema.json")
-    doc = _vp_item(verify_status="unverified", sources=[{"url": "a", "lang": "ko"}])
+    doc = _vp_item(verify_status="unverified", sources=[{"url": "https://a.example", "lang": "ko"}])
     del doc["pois"][0]["geocode"]
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(doc, schema)
@@ -234,7 +234,7 @@ def test_verified_pois_hours_allowed():
     ok = {"pois": [{"id": "x", "name_local": "店", "name_display": "Shop",
                     "category": "restaurant", "district": "中区",
                     "geocode": {"lat": 1.0, "lng": 2.0},
-                    "sources": [{"url": "a", "lang": "ja"}, {"url": "b", "lang": "zh"}],
+                    "sources": [{"url": "https://a.example", "lang": "ja"}, {"url": "https://b.example", "lang": "zh"}],
                     "verify_status": "verified",
                     "hours": {"close": "21:30", "last_order": "20:30", "typical_visit_mins": 60}}]}
     jsonschema.validate(ok, schema)
@@ -244,7 +244,7 @@ def test_trip_brief_scheduling_override_allowed():
     schema = _load_schema("trip-brief.schema.json")
     data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
             "members": [], "base": {"name": "h", "district": "d"},
-            "must_do": [], "constraints": [], "preferences": {},
+            "must_do": [], "constraints": [], "preferences": {}, "destination": {"country": "KR", "city": "Seoul", "local_lang": "ko"},
             "scheduling": {"min_buffer_mins": 30, "default_visit_mins": 60}}
     jsonschema.validate(data, schema)
 
@@ -253,7 +253,7 @@ def test_trip_brief_region_radius_override_allowed():
     schema = _load_schema("trip-brief.schema.json")
     data = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
             "members": [], "base": {"name": "h", "district": "d"},
-            "must_do": [], "constraints": [], "preferences": {},
+            "must_do": [], "constraints": [], "preferences": {}, "destination": {"country": "KR", "city": "Seoul", "local_lang": "ko"},
             "routing": {"max_hop_mins": 60, "region_radius_km": 3.0}}
     jsonschema.validate(data, schema)
 
@@ -436,11 +436,13 @@ def test_transit_schema_validates_a_doc():
     schema = json.load(open(root / "schemas" / "transit.schema.json"))
     doc = {
         "peak_windows": [{"label": "morning", "start": "07:30", "end": "09:30",
-                          "note": "commuter crush"}],
+                          "note": "commuter crush",
+                          "sources": [{"url": "https://jreast.example"}]}],
         "ic_card": {"name": "Suica", "where_to_buy": "any JR machine", "top_up": "cash at machines",
                     "covers": "trains + buses + convenience stores",
                     "sources": [{"url": "https://www.jreast.co.jp/suica"}]},
-        "walks": [{"poi_id": "sensoji", "station": "Asakusa", "mins": 5, "note": "flat"}],
+        "walks": [{"poi_id": "sensoji", "station": "Asakusa", "mins": 5, "note": "flat",
+                   "sources": [{"url": "https://jreast.example"}]}],
     }
     jsonschema.validate(doc, schema)  # must not raise
 
@@ -464,3 +466,122 @@ def test_trip_brief_routing_declares_max_walk_mins():
     root = pathlib.Path(__file__).resolve().parent.parent
     props = json.load(open(root / "schemas" / "trip-brief.schema.json"))["properties"]
     assert "max_walk_mins" in props["routing"]["properties"]
+
+
+# ---- Wave 2 (v0.13.0) schema-strictness acceptance guards ----
+
+def _vp_verified(**over):
+    base = {"id": "x", "name_local": "x", "name_display": "x", "category": "c",
+            "district": "d", "geocode": {"lat": 37.5, "lng": 127.0},
+            "sources": [{"url": "https://a.example", "lang": "ko"},
+                        {"url": "https://b.example", "lang": "en"}],
+            "verify_status": "verified"}
+    base.update(over)
+    return {"pois": [base]}
+
+def test_tw013_additionalproperties_rejects_typo_key():
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(close_days=["monday"])   # typo of closed_days
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(doc, schema)
+
+def test_tw043_swapped_coords_rejected_everywhere():
+    for name, build in [
+        ("verified-pois.schema.json", lambda: _vp_verified(geocode={"lat": 126.98, "lng": 37.58})),
+        ("accommodations.schema.json", lambda: {"stops": [{"district": "d", "nights": 1, "chosen": None,
+            "candidates": [{"id": "h", "name_local": "h", "name_display": "h", "facilities": [],
+                "geocode": {"lat": 126.98, "lng": 37.58},
+                "sources": [{"url": "https://a.example", "lang": "en"}, {"url": "https://b.example", "lang": "en"}],
+                "verify_status": "verified"}]}]}),
+        ("routing.schema.json", lambda: {"clusters": [{"district": "d", "pois": [],
+            "centroid": {"lat": 126.98, "lng": 37.58}}], "hops": [], "warnings": []}),
+    ]:
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(build(), _load_schema(name))
+
+def test_tw008_source_url_must_be_http():
+    schema = _load_schema("advisory.schema.json")
+    bad = {"items": [{"topic": "battery", "rule": "x", "effective_date": "2026-01-01", "risk": "info",
+                      "sources": [{"url": "airline", "official": True}, {"url": "https://b.example", "official": False}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_tw006_advisory_requires_risk_and_two_sources():
+    schema = _load_schema("advisory.schema.json")
+    no_risk = {"items": [{"topic": "t", "rule": "r", "effective_date": "2026-01-01",
+                          "sources": [{"url": "https://a.example", "official": True},
+                                      {"url": "https://b.example", "official": False}]}]}
+    one_src = {"items": [{"topic": "t", "rule": "r", "effective_date": "2026-01-01", "risk": "info",
+                          "sources": [{"url": "https://a.example", "official": True}]}]}
+    for bad in (no_risk, one_src):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(bad, schema)
+
+def test_tw007_non_iso_dates_rejected():
+    cal = _load_schema("calendar.schema.json")
+    bad_cal = {"holidays": [{"date": "2026/05/25", "name_local": "x", "name_display": "x",
+                             "impact": {"crowds": True, "closures": False},
+                             "sources": [{"url": "https://gov.example", "official": True}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad_cal, cal)
+
+def test_tw040_calendar_impact_required():
+    cal = _load_schema("calendar.schema.json")
+    bad = {"holidays": [{"date": "2026-05-25", "name_local": "x", "name_display": "x",
+                         "sources": [{"url": "https://gov.example", "official": True}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, cal)
+
+def test_tw041_cost_requires_as_of_and_leg_fare_currency():
+    cost = _load_schema("cost.schema.json")
+    bad_cost = {"currency": "JPY", "line_items": [{"category": "x", "label": "y", "amount": 1}],
+                "total": 1, "estimate_note": "e"}   # no as_of
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad_cost, cost)
+    legs = _load_schema("legs.schema.json")
+    bad_leg = {"legs": [{"from": "a", "to": "b", "mode": "rail", "status": "ok",
+                         "fare": {"amount": 15000},
+                         "sources": [{"url": "https://jr.example", "official": True}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad_leg, legs)
+
+def test_tw042_transit_walk_requires_sources():
+    schema = _load_schema("transit.schema.json")
+    bad = {"peak_windows": [], "walks": [{"poi_id": "p", "station": "s", "mins": 5}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_tw011_trip_brief_requires_destination_local_lang():
+    schema = _load_schema("trip-brief.schema.json")
+    bad = {"slug": "x", "dates": {"start": "2026-05-24", "end": "2026-05-28"},
+           "members": [], "base": {"name": "h", "district": "d"},
+           "must_do": [], "constraints": [], "preferences": {},
+           "destination": {"country": "KR", "city": "Seoul"}}   # missing local_lang
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_tw010_legs_mode_enum_and_drive_duration():
+    schema = _load_schema("legs.schema.json")
+    bad_mode = {"legs": [{"from": "a", "to": "b", "mode": "self_drive", "status": "ok",
+                          "sources": [{"url": "https://x.example", "official": True}]}]}
+    drive_no_dur = {"legs": [{"from": "a", "to": "b", "mode": "drive", "status": "ok",
+                              "sources": [{"url": "https://x.example", "official": True}]}]}
+    for bad in (bad_mode, drive_no_dur):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(bad, schema)
+
+
+# ---- Wave 3 (v0.14.0) ----
+
+def test_stage_state_schema_validates_fixture():   # TW-055
+    schema = _load_schema("stage-state.schema.json")
+    data = _load_yaml(FIX / "stage-state.sample.yaml")
+    jsonschema.validate(data, schema)
+    bad = {"decisions": [{"stage": "x", "flag": "far"}]}   # missing subject/decision/decided_at
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_verified_pois_booking_lead_time_days():   # TW-030
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(booking={"required": True, "lead_time": "1 week", "lead_time_days": 7})
+    jsonschema.validate(doc, schema)   # must not raise

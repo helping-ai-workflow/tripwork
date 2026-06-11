@@ -36,3 +36,29 @@ def test_calendar_check_in_pipeline_diagram():
     # The calendar-awareness stage must be visible in the workflow section,
     # not only in the step table — guards against the mermaid drifting.
     assert "calendar-check" in README
+
+
+import re
+
+def _mermaid_block():
+    m = re.search(r"```mermaid\n(.*?)```", README, re.DOTALL)
+    assert m, "README has no ```mermaid block"
+    return m.group(1)
+
+# Canonical pipeline order (mirrors test_skills_structure.EXPECTED minus meta skills).
+_PIPELINE_ORDER = [
+    "trip-brief", "destination-research", "source-verify", "routing-audit",
+    "accommodation-research", "inter-stop-legs", "calendar-check", "seasonal-advisory",
+    "transit-detail", "cost-rollup", "travel-advisory", "itinerary-synthesis",
+    "itinerary-gate", "export-artifact", "export-gate",
+]
+
+def test_tw060_every_stage_in_mermaid_block():
+    block = _mermaid_block()
+    missing = [s for s in _PIPELINE_ORDER if s not in block]
+    assert not missing, f"§2 mermaid is missing stage(s): {missing}"
+
+def test_tw060_mermaid_stage_order_matches_pipeline():
+    block = _mermaid_block()
+    positions = [block.find(s) for s in _PIPELINE_ORDER]
+    assert positions == sorted(positions), "§2 mermaid stage order diverges from the pipeline order"

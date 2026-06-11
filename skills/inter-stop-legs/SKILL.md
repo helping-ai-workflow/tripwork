@@ -20,8 +20,11 @@ public mode and note the assumption.
 ## Research (no timetable API)
 
 Use the consumer harness `WebSearch`; prefer **official** local-language sources (rail
-operator timetable e.g. JR / Korail, intercity bus operator, road authority). Record
-`duration_mins`, and per mode:
+operator timetable e.g. JR / Korail, intercity bus operator, road authority). `mode` is one
+of `drive | rail | bus | flight | ferry` (schema-enforced enum — never a freeform label like
+"self_drive"). A `drive` leg MUST carry a measured `duration_mins` (the schema requires it and
+`scripts/legs.py::classify_leg` raises rather than defaulting an unmeasured drive to feasible).
+Record `duration_mins`, and per mode:
 - **transit** (rail/bus/flight) — `service` (e.g. "Nozomi 21"), `reserved` (seat needed/
   recommended), `transfers`, `depart` (planned same-day departure, when a same-day move is
   scheduled), `last_service` (last train/bus), and a text `pass_advice` (is a rail/regional

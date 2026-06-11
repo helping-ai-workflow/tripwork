@@ -17,7 +17,13 @@ Two closure axes feed synthesis. This stage owns the **trip-wide** axis (public 
 - For each holiday record `date`, `name_local`, `name_display`, `type`, and `impact`:
   - `crowds: true` — major attractions/markets are packed (treat like a weekend).
   - `closures: true` — government offices, banks, or many small shops shut.
-- Each holiday needs >= 1 **official** source (date facts; same rigor as `travel-advisory`).
+- Each holiday needs >= 1 **official** source. For date facts one official source suffices;
+  `travel-advisory`'s regulation items additionally need a corroborating source — do not
+  conflate the two bars.
+- **Trip-year coverage.** The official source must explicitly state the **trip year's**
+  dates — last year's calendar is not evidence for this year. If the trip-year calendar is
+  not yet published, mark affected entries `provisional: true` (schema field) and surface
+  them to the user as a re-check-before-travel item.
 
 ## Output
 

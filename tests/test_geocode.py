@@ -107,3 +107,12 @@ def test_resolve_place_populates_cache_on_miss(mocker):
     r, source = resolve_place("Ghost Inn", district="D", country="C", cache=cache)
     assert r is None and source is None
     assert cache[cache_key("Ghost Inn", "D", "C")] is None    # negative cached
+
+
+def test_resolve_place_rejects_empty_name():   # TW-045
+    import pytest
+    from scripts.geocode import resolve_place
+    with pytest.raises(ValueError):
+        resolve_place("", district="Gangnam")
+    with pytest.raises(ValueError):
+        resolve_place(None)

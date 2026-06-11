@@ -17,3 +17,20 @@ def test_link_markdown_format():
     md = link_markdown(poi)
     assert md.startswith("[明洞](https://www.google.com/maps/search/?api=1&query=")
     assert md.endswith(")")
+
+
+def test_maps_url_pins_coordinates_when_geocode_present():   # TW-048
+    poi = {"name_local": "x", "name_display": "X", "geocode": {"lat": 37.5, "lng": 127.0}}
+    url = maps_url(poi)
+    assert "37.5" in url and "127.0" in url   # coordinate-pinned, not name-only
+
+def test_maps_url_adds_district_when_no_geocode():   # TW-048
+    poi = {"name_local": "스타벅스", "name_display": "Starbucks", "district": "Gangnam"}
+    url = maps_url(poi)
+    assert "Gangnam" in url   # disambiguated by district
+
+def test_link_markdown_escapes_label():   # TW-022
+    poi = {"name_display": "A]B|C$D", "name_local": "x", "geocode": {"lat": 1, "lng": 2}}
+    md = link_markdown(poi)
+    label = md[1:md.index("](")]
+    assert "\\]" in label and "\\|" in label and "\\$" in label

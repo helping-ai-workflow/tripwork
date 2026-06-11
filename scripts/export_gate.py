@@ -54,10 +54,10 @@ def run_export_gate(md_text, pois, min_days=None):
             (s.get("url") for s in (p.get("sources") or []) if s.get("official")), None
         )
         names = [n for n in (p.get("name_display"), p.get("name_local")) if n]
-        row = _find_row(md_text, names)
-        if row is None:
+        rows = _find_rows(md_text, names)
+        if not rows:
             continue  # POI not scheduled into this deliverable; not this gate's concern
-        if not official or official not in row:
+        if not official or not any(official in r for r in rows):
             failures.append(
                 f"bookable POI '{p.get('id')}' row missing official source link"
             )
@@ -77,9 +77,12 @@ def run_export_gate(md_text, pois, min_days=None):
     return {"status": "pass" if not failures else "fail",
             "checks": checks, "failures": failures}
 
-def _find_row(md_text, names):
-    """First markdown line containing any of the POI names, else None."""
-    for line in md_text.splitlines():
-        if any(name and name in line for name in names):
-            return line
-    return None
+def _find_rows(md_text, names):
+    """All markdown TABLE rows (lines starting '|') containing any POI name.
+
+    Restricting to table rows means a `### Day` heading that merely names the POI no
+    longer shadows the real scheduled row; collecting ALL matching rows means a POI
+    appearing on several days passes if any of its rows carries the official link. (TW-044)
+    """
+    return [line for line in md_text.splitlines()
+            if line.lstrip().startswith("|") and any(name and name in line for name in names)]

@@ -49,3 +49,18 @@ def test_sight_last_entry_buffer():
     # museum closes 17:00, last entry 16:30, arrive 16:50 -> after last entry
     status, _ = closing_status("16:50", "17:00", last_call="16:30", need_mins=20)
     assert status == "after_last_call"
+
+
+def test_to_minutes_rejects_bad_string():   # TW-020
+    import pytest
+    from scripts.hours import to_minutes
+    with pytest.raises(ValueError):
+        to_minutes("nine")
+    assert to_minutes("21:30") == 1290
+    assert to_minutes(1290) == 1290           # PyYAML sexagesimal already in minutes
+
+def test_closing_status_handles_overnight():   # TW-047
+    from scripts.hours import closing_status
+    # bar open till 02:00 (past midnight); a 23:00 arrival is NOT closed
+    status, _ = closing_status("23:00", "02:00", need_mins=30)
+    assert status in ("ok", "tight")

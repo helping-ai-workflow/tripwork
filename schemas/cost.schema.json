@@ -1,28 +1,100 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["currency", "line_items", "total"],
+  "required": [
+    "currency",
+    "line_items",
+    "total",
+    "as_of",
+    "estimate_note"
+  ],
   "properties": {
-    "currency": {"type": "string"},
-    "line_items": {"type": "array", "items": {
+    "currency": {
+      "type": "string"
+    },
+    "line_items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "category",
+          "label",
+          "amount"
+        ],
+        "properties": {
+          "category": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "amount": {
+            "type": "number"
+          },
+          "source_currency": {
+            "type": "string"
+          },
+          "fx_rate": {
+            "type": "number"
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "total": {
+      "type": "number"
+    },
+    "budget": {
       "type": "object",
-      "required": ["category", "label", "amount"],
       "properties": {
-        "category": {"type": "string"},
-        "label": {"type": "string"},
-        "amount": {"type": "number"},
-        "source_currency": {"type": "string"},
-        "fx_rate": {"type": "number"}
-      }}},
-    "total": {"type": "number"},
-    "budget": {"type": "object", "properties": {
-      "amount": {"type": "number"}, "over": {"type": "boolean"}, "delta": {"type": "number"}}},
-    "pass_break_even": {"type": "object", "properties": {
-      "name": {"type": "string"}, "pass_price": {"type": "number"},
-      "individual_total": {"type": "number"}, "use_pass": {"type": "boolean"},
-      "saving": {"type": "number"}}},
-    "fx_note": {"type": "string"},
-    "as_of": {"type": "string"},
-    "estimate_note": {"type": "string"}
-  }
+        "amount": {
+          "type": "number"
+        },
+        "over": {
+          "type": "boolean"
+        },
+        "delta": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "pass_break_even": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "pass_price": {
+          "type": "number"
+        },
+        "individual_total": {
+          "type": "number"
+        },
+        "use_pass": {
+          "type": "boolean"
+        },
+        "saving": {
+          "type": "number"
+        }
+      },
+      "additionalProperties": false
+    },
+    "fx_note": {
+      "type": "string"
+    },
+    "as_of": {
+      "type": "string"
+    },
+    "estimate_note": {
+      "type": "string"
+    },
+    "fx_as_of": {
+      "type": "string"
+    },
+    "fx_source": {
+      "type": "string"
+    }
+  },
+  "additionalProperties": false
 }

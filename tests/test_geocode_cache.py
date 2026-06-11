@@ -36,3 +36,26 @@ def test_save_creates_parent_dirs(tmp_path):
     path = str(tmp_path / "a" / "b" / "geocode.json")
     save_cache(path, {})
     assert load_cache(path) == {}
+
+
+def test_load_cache_corrupt_returns_empty(tmp_path):   # TW-046
+    from scripts.geocode_cache import load_cache
+    p = tmp_path / "geocode.json"
+    p.write_text("{not valid json", encoding="utf-8")
+    assert load_cache(str(p)) == {}
+    # the corrupt file is preserved as evidence, not silently overwritten
+    assert (tmp_path / "geocode.json.corrupt").exists()
+
+def test_load_cache_non_dict_returns_empty(tmp_path):   # TW-046
+    from scripts.geocode_cache import load_cache
+    p = tmp_path / "geocode.json"
+    p.write_text("[1, 2, 3]", encoding="utf-8")
+    assert load_cache(str(p)) == {}
+
+def test_save_cache_atomic_no_partial_on_existing(tmp_path):   # TW-046
+    from scripts.geocode_cache import save_cache, load_cache
+    p = str(tmp_path / "geocode.json")
+    save_cache(p, {"a|b|c": {"lat": 1, "lng": 2, "source": "nominatim"}})
+    assert load_cache(p) == {"a|b|c": {"lat": 1, "lng": 2, "source": "nominatim"}}
+    # no leftover temp file
+    assert not list(tmp_path.glob("*.tmp"))

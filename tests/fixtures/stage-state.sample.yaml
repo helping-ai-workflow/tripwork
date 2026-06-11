@@ -1,0 +1,7 @@
+decisions:
+  - stage: routing-audit
+    flag: far
+    subject: "Lotte World -> Nami Island"
+    question: "Hop flagged far (78 min > 60). Keep on one day?"
+    decision: "user accepted: keep as a day trip with early start"
+    decided_at: "2026-06-11"

@@ -1,24 +1,141 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
   "type": "object",
-  "required": ["peak_windows", "walks"],
+  "required": [
+    "peak_windows",
+    "walks"
+  ],
   "properties": {
-    "peak_windows": {"type": "array", "items": {
+    "peak_windows": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "label",
+          "start",
+          "end",
+          "sources"
+        ],
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "start": {
+            "type": "string"
+          },
+          "end": {
+            "type": "string"
+          },
+          "note": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "url"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "ic_card": {
       "type": "object",
-      "required": ["label", "start", "end"],
-      "properties": {"label": {"type": "string"}, "start": {"type": "string"},
-                     "end": {"type": "string"}, "note": {"type": "string"}}}},
-    "ic_card": {"type": "object",
-      "required": ["name", "sources"],
+      "required": [
+        "name",
+        "sources"
+      ],
       "properties": {
-        "name": {"type": "string"}, "where_to_buy": {"type": "string"},
-        "top_up": {"type": "string"}, "covers": {"type": "string"}, "note": {"type": "string"},
-        "sources": {"type": "array", "minItems": 1, "items": {
-          "type": "object", "required": ["url"], "properties": {"url": {"type": "string"}}}}}},
-    "walks": {"type": "array", "items": {
-      "type": "object",
-      "required": ["poi_id", "mins"],
-      "properties": {"poi_id": {"type": "string"}, "station": {"type": "string"},
-                     "mins": {"type": "number"}, "note": {"type": "string"}}}}
-  }
+        "name": {
+          "type": "string"
+        },
+        "where_to_buy": {
+          "type": "string"
+        },
+        "top_up": {
+          "type": "string"
+        },
+        "covers": {
+          "type": "string"
+        },
+        "note": {
+          "type": "string"
+        },
+        "sources": {
+          "type": "array",
+          "minItems": 1,
+          "items": {
+            "type": "object",
+            "required": [
+              "url"
+            ],
+            "properties": {
+              "url": {
+                "type": "string",
+                "pattern": "^https?://"
+              }
+            },
+            "additionalProperties": false
+          }
+        }
+      },
+      "additionalProperties": false
+    },
+    "walks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "poi_id",
+          "mins",
+          "station",
+          "sources"
+        ],
+        "properties": {
+          "poi_id": {
+            "type": "string"
+          },
+          "station": {
+            "type": "string"
+          },
+          "mins": {
+            "type": "number"
+          },
+          "note": {
+            "type": "string"
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "url"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
 }
