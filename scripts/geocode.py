@@ -67,14 +67,22 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None):
     Returns (GeocodeResult, source) where source is 'nominatim_structured' or
     'nominatim'; (None, None) if neither resolves. `cache=None` is the original behaviour.
     """
+    if not name or not str(name).strip():
+        raise ValueError("resolve_place requires a non-empty place name "
+                         "(a blank name_local would silently geocode the city itself)")
     key = cache_key(name, district, country) if cache is not None else None
     if cache is not None:
         hit, value = cache_get(cache, key)
         if hit:
+            # TW-019: trust a cache hit only if it is well-formed and from a real
+            # geocoder; otherwise treat as a miss and re-query.
             if value is None:
                 return None, None
-            return (GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")),
-                    value["source"])
+            if (isinstance(value.get("lat"), (int, float))
+                    and isinstance(value.get("lng"), (int, float))
+                    and value.get("source") in ("nominatim", "nominatim_structured")):
+                return (GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")),
+                        value["source"])
 
     result = geocode_structured(name, city=district, country=country, timeout=timeout)
     source = "nominatim_structured"

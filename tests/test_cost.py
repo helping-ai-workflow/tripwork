@@ -36,3 +36,12 @@ def test_over_budget():
     assert over_budget(180, 150) is True
     assert over_budget(150, 150) is False
     assert over_budget(100, 150) is False
+
+
+def test_sum_costs_raises_on_missing_amount():   # TW-014
+    import pytest
+    from scripts.cost import sum_costs
+    with pytest.raises(ValueError):
+        sum_costs([{"category": "transport", "label": "KTX", "amount": None}])
+    with pytest.raises(ValueError):
+        sum_costs([{"category": "food", "label": "lunch"}])   # no amount key
