@@ -19,6 +19,12 @@ content correctness is guaranteed upstream by `source-verify`.
   is the link.
 - `bookable_has_official_source` — every `booking.required` verified POI present in
   the file carries an official source link on its row.
+- `japanese_glossed` — a kana run on a line must carry a （中文）gloss; an inline
+  Japanese term left untranslated for the reader is a hard fail.
+
+The html deliverable `exports/<slug>-itinerary.html` is validated by
+`scripts/export_gate.py::run_html_gate` (structure/format only: non-empty, at least
+`min_days` day-cards, every `href` an `http(s)://` URL, no raw `<script>`).
 
 ## Output
 

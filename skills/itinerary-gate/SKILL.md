@@ -17,6 +17,11 @@ assembled plan obeys the iron rules. Call
   fails the gate even though it has a geocode.
 - `referenced_pois_geocoded` — every referenced POI has a non-null `geocode`.
 - `days_have_meals` — every day has at least one `slot: meal` row.
+- `overnight_days_have_lodging` — **ALWAYS-ON**, derived from `itinerary.yaml` alone
+  (independent of accommodations.yaml): every non-final day must resolve a place to
+  sleep — either a day-level `lodging` field or a `slot: "lodging"` row. A genuinely
+  lodging-less night (e.g. an overnight transit) is expressed as a `slot: "lodging"`
+  row describing the transit, so the night-transit case still satisfies the floor.
 - `no_closed_day_violation` (when `calendar` passed) — no POI is scheduled on a day it is
   closed (`scripts/calendar.py::poi_closed_on`).
 - `must_do_covered` (when `must_do` passed) — every `trip-brief` must_do id is scheduled.

@@ -38,6 +38,16 @@ def test_calendar_check_in_pipeline_diagram():
     assert "calendar-check" in README
 
 
+def test_html_one_pager_deliverable_mentioned():
+    # D4 added the self-contained one-page HTML deliverable
+    # (exports/<slug>-itinerary.html). §3 deliverables / §2 step table must
+    # mention it so the README does not drift behind the export adapters.
+    assert "itinerary.html" in README or "一頁式" in README, (
+        "README does not mention the HTML one-pager deliverable "
+        "('itinerary.html' or '一頁式'). Update README in the same PR."
+    )
+
+
 import re
 
 def _mermaid_block():
