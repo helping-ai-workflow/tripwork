@@ -89,6 +89,39 @@ def run_export_gate(md_text, pois, min_days=None):
     return {"status": "pass" if not failures else "fail",
             "checks": checks, "failures": failures}
 
+_HREF = re.compile(r'href="([^"]*)"')
+_DAY_CARD = re.compile(r'class="day-card"')
+
+def run_html_gate(html_text, pois, min_days=None):
+    """Validate a rendered one-page HTML deliverable. Structure/format only:
+    non-empty, >= min_days day-cards, every href is http(s), no raw <script>.
+    Output shape matches run_export_gate. (dogfood D4)
+    """
+    failures = []
+    stripped = (html_text or "").strip()
+    if not stripped:
+        failures.append("deliverable is empty")
+    else:
+        n_days = len(_DAY_CARD.findall(html_text))
+        if min_days is not None and n_days < min_days:
+            failures.append(f"too few day cards: {n_days} < {min_days}")
+        for href in _HREF.findall(html_text):
+            if not re.match(r"https?://", href):
+                failures.append(f"non-http href in deliverable: '{href}'")
+        if "<script" in html_text.lower():
+            failures.append("raw <script> in deliverable (data not escaped)")
+    checks = [
+        {"name": "deliverable_has_content",
+         "passed": not any("empty" in f or "too few day" in f for f in failures)},
+        {"name": "links_well_formed",
+         "passed": not any("href" in f for f in failures)},
+        {"name": "no_raw_script",
+         "passed": not any("<script>" in f for f in failures)},
+    ]
+    return {"status": "pass" if not failures else "fail",
+            "checks": checks, "failures": failures}
+
+
 def _find_rows(md_text, names):
     """All markdown TABLE rows (lines starting '|') containing any POI name.
 
