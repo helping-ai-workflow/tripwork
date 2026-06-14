@@ -64,6 +64,10 @@
                   "nominatim_structured",
                   "cluster_fallback"
                 ]
+              },
+              "pin_exact": {
+                "type": "boolean",
+                "description": "When true, gmaps_links pins exact coords instead of name search. Reserve for precise venues with a known name collision. (dogfood D1)"
               }
             },
             "additionalProperties": false
