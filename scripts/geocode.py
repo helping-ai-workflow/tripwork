@@ -104,3 +104,23 @@ def cluster_centroid(points):
         return None
     n = len(points)
     return (sum(p[0] for p in points) / n, sum(p[1] for p in points) / n)
+
+def normalize_geocode_keys(geocode):
+    """Canonicalise legacy longitude keys ('lon'/'long') to 'lng'.
+
+    Returns a new dict (input not mutated); None passes through. Raises ValueError
+    if a legacy key and 'lng' are both present AND disagree — a silent mismatch
+    would corrupt routing/distance/links (dogfood D1).
+    """
+    if geocode is None:
+        return None
+    out = dict(geocode)
+    legacy = out.pop("lon", None)
+    if "long" in out:
+        legacy = out.pop("long")
+    if legacy is not None:
+        if "lng" in out and out["lng"] != legacy:
+            raise ValueError(
+                f"conflicting longitude: legacy={legacy} vs lng={out['lng']}")
+        out["lng"] = legacy
+    return out
