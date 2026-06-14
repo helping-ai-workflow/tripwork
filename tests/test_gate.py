@@ -177,8 +177,9 @@ def test_floor_non_final_day_with_lodging_field_passes():
         ("2026-06-12", [_meal("a")], "hotel1"),  # non-final, lodging field set
         ("2026-06-13", [_meal("a")], None),       # final day
     ])
-    r = run_gate(pois, itin)
+    r = run_gate(pois, itin, advisory={"items": []})
     assert not any("no resolved lodging" in f for f in r["failures"])
+    assert all("advisory absent" not in f for f in r["failures"])
 
 
 def test_floor_non_final_day_with_slot_lodging_row_passes():
@@ -189,8 +190,9 @@ def test_floor_non_final_day_with_slot_lodging_row_passes():
         ("2026-06-12", [_meal("a"), lodging_row], None),  # non-final, slot:lodging row
         ("2026-06-13", [_meal("a")], None),               # final day
     ])
-    r = run_gate(pois, itin)
+    r = run_gate(pois, itin, advisory={"items": []})
     assert not any("no resolved lodging" in f for f in r["failures"])
+    assert all("advisory absent" not in f for f in r["failures"])
 
 
 def test_floor_final_day_without_lodging_no_failure():
@@ -200,8 +202,9 @@ def test_floor_final_day_without_lodging_no_failure():
         ("2026-06-12", [_meal("a")], "hotel1"),  # non-final, has lodging
         ("2026-06-13", [_meal("a")], None),       # final, no lodging -> OK
     ])
-    r = run_gate(pois, itin)
+    r = run_gate(pois, itin, advisory={"items": []})
     assert not any("2026-06-13" in f and "no resolved lodging" in f for f in r["failures"])
+    assert all("advisory absent" not in f for f in r["failures"])
 
 
 def test_floor_single_day_trip_passes():
@@ -210,8 +213,9 @@ def test_floor_single_day_trip_passes():
     itin = _itin_multi([
         ("2026-06-12", [_meal("a")], None),  # only day = final day, no overnight
     ])
-    r = run_gate(pois, itin)
+    r = run_gate(pois, itin, advisory={"items": []})
     assert not any("no resolved lodging" in f for f in r["failures"])
+    assert all("advisory absent" not in f for f in r["failures"])
 
 
 def test_floor_check_entry_always_present():
