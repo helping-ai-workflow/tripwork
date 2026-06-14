@@ -109,18 +109,20 @@ def normalize_geocode_keys(geocode):
     """Canonicalise legacy longitude keys ('lon'/'long') to 'lng'.
 
     Returns a new dict (input not mutated); None passes through. Raises ValueError
-    if a legacy key and 'lng' are both present AND disagree — a silent mismatch
+    if any two of {lon, long, lng} are present AND disagree — a silent mismatch
     would corrupt routing/distance/links (dogfood D1).
+
+    Agreeing duplicates (same value) collapse cleanly to 'lng'.
     """
     if geocode is None:
         return None
     out = dict(geocode)
-    legacy = out.pop("lon", None)
-    if "long" in out:
-        legacy = out.pop("long")
-    if legacy is not None:
-        if "lng" in out and out["lng"] != legacy:
-            raise ValueError(
-                f"conflicting longitude: legacy={legacy} vs lng={out['lng']}")
-        out["lng"] = legacy
+    # Collect all longitude values present across the three possible keys.
+    lng_values = {k: out.pop(k) for k in ("lon", "long", "lng") if k in out}
+    distinct = set(lng_values.values())
+    if len(distinct) > 1:
+        raise ValueError(
+            f"conflicting longitude keys: {lng_values!r}")
+    if distinct:
+        out["lng"] = distinct.pop()
     return out
