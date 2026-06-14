@@ -22,7 +22,7 @@ def _meal(pid): return {"time": "12:00", "slot": "meal", "poi_id": pid, "text": 
 def _act(pid):  return {"time": "14:00", "slot": "activity", "poi_id": pid, "text": "see"}
 
 def test_gate_pass_when_all_verified_geocoded_with_meal():
-    r = run_gate([_poi("a")], _itin([_meal("a")]))
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     assert r["status"] == "pass"
     assert r["failures"] == []
 
@@ -34,7 +34,7 @@ def test_gate_fail_referenced_conflicting_poi_with_geocode():   # TW-002 core
     assert {"name": "referenced_pois_verified", "passed": False} in r["checks"]
 
 def test_gate_pass_marks_verified_check_true():
-    r = run_gate([_poi("a")], _itin([_meal("a")]))
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     assert {"name": "referenced_pois_verified", "passed": True} in r["checks"]
 
 def test_gate_fail_geocode_null():   # TW-002 same-point: None must fail
@@ -62,7 +62,7 @@ def test_gate_fail_closed_day_violation():   # TW-018  (2026-06-12 is a Friday)
     assert {"name": "no_closed_day_violation", "passed": False} in r["checks"]
 
 def test_gate_closed_day_check_absent_without_calendar():
-    r = run_gate([_poi("a")], _itin([_meal("a")]))
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     assert all(c["name"] != "no_closed_day_violation" for c in r["checks"])
 
 def test_gate_fail_must_do_not_covered():   # TW-038
@@ -72,7 +72,7 @@ def test_gate_fail_must_do_not_covered():   # TW-038
     assert {"name": "must_do_covered", "passed": False} in r["checks"]
 
 def test_gate_pass_must_do_covered():
-    r = run_gate([_poi("a")], _itin([_meal("a")]), must_do=["a"])
+    r = run_gate([_poi("a")], _itin([_meal("a")]), must_do=["a"], advisory={"items": []})
     assert {"name": "must_do_covered", "passed": True} in r["checks"]
 
 def test_gate_lodging_poi_is_referenced():
@@ -107,7 +107,7 @@ def test_gate_info_advisory_need_not_surface():
     assert {"name": "advisory_items_surfaced", "passed": True} in r["checks"]
 
 def test_gate_invariant_pass_implies_all_checks_passed():
-    r = run_gate([_poi("a")], _itin([_meal("a")]))
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     if r["status"] == "pass":
         assert all(c["passed"] for c in r["checks"])
         assert r["failures"] == []
@@ -119,24 +119,24 @@ def _accom(chosen, facilities):
                        "candidates": [{"id": "godley", "facilities": facilities}]}]}
 
 def test_gate_skips_accommodation_when_absent():
-    r = run_gate([_poi("a")], _itin([_meal("a")]))
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     assert all(c["name"] not in ("overnight_stops_have_lodging", "required_facilities_met")
                for c in r["checks"])
 
 def test_gate_fails_stop_without_chosen_lodging():
-    r = run_gate([_poi("a")], _itin([_meal("a")]),
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
                  accommodations=_accom(None, []), facility_needs={"required": []})
     assert r["status"] == "fail"
     assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging") is False
 
 def test_gate_fails_missing_required_facility():
-    r = run_gate([_poi("a")], _itin([_meal("a")]),
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
                  accommodations=_accom("godley", ["wifi"]), facility_needs={"required": ["parking"]})
     assert r["status"] == "fail"
     assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met") is False
 
 def test_gate_passes_lodging_with_required_facility():
-    r = run_gate([_poi("a")], _itin([_meal("a")]),
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
                  accommodations=_accom("godley", ["parking", "wifi"]), facility_needs={"required": ["parking"]})
     assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging") is True
     assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met") is True
@@ -224,3 +224,45 @@ def test_floor_check_entry_always_present():
     r = run_gate(pois, itin)
     names = [c["name"] for c in r["checks"]]
     assert "overnight_days_have_lodging" in names
+
+
+# --- advisory_present floor (D2-class: absent advisory FAILS the safety gate) ---
+
+def test_gate_fail_advisory_absent():
+    """advisory omitted (None) -> status fail with an 'advisory absent' failure."""
+    r = run_gate([_poi("a")], _itin([_meal("a")]))  # advisory defaults to None
+    assert r["status"] == "fail"
+    assert any("advisory absent" in f for f in r["failures"])
+
+
+def test_gate_advisory_present_check_always_in_report_when_absent():
+    """The 'advisory_present' check entry is present even when advisory is absent."""
+    r = run_gate([_poi("a")], _itin([_meal("a")]))
+    assert {"name": "advisory_present", "passed": False} in r["checks"]
+
+
+def test_gate_advisory_present_check_always_in_report_when_present():
+    """The 'advisory_present' check entry is present (passed) when advisory is given."""
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    assert {"name": "advisory_present", "passed": True} in r["checks"]
+
+
+def test_gate_pass_with_empty_advisory():
+    """advisory={"items": []} -> no 'advisory absent' failure; otherwise-valid plan passes."""
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    assert not any("advisory absent" in f for f in r["failures"])
+    assert r["status"] == "pass"
+    assert r["failures"] == []
+
+
+def test_gate_banned_item_not_surfaced_still_fails_with_present_advisory():
+    """advisory present with an unsurfaced banned item still fails advisory_items_surfaced
+    (existing per-item surfacing behaviour intact; advisory_present passes)."""
+    adv = {"items": [{"topic": "spare lithium battery", "rule": "carry-on only",
+                      "effective_date": "2026-01-01", "risk": "banned",
+                      "sources": [{"url": "https://airline", "official": True}]}]}
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory=adv)
+    assert r["status"] == "fail"
+    assert any("spare lithium battery" in f and "surface" in f.lower() for f in r["failures"])
+    assert {"name": "advisory_items_surfaced", "passed": False} in r["checks"]
+    assert {"name": "advisory_present", "passed": True} in r["checks"]

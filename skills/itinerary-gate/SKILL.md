@@ -25,13 +25,20 @@ assembled plan obeys the iron rules. Call
 - `no_closed_day_violation` (when `calendar` passed) — no POI is scheduled on a day it is
   closed (`scripts/calendar.py::poi_closed_on`).
 - `must_do_covered` (when `must_do` passed) — every `trip-brief` must_do id is scheduled.
-- `advisory_items_surfaced` (when `advisory` passed) — every `risk: banned`/`restricted`
-  advisory `topic` appears in the itinerary `checklist` or a row text.
+- `advisory_present` — **ALWAYS-ON** safety floor: `advisory` is a **mandatory** input.
+  An absent advisory **fails the gate** ("advisory absent — …"). Because the
+  banned/restricted list lives only inside `advisory.yaml`, a missing advisory means the
+  gate cannot verify those items are surfaced, so it must not silently pass. An advisory
+  that ran but flagged nothing is passed as `{"items": []}` and clears this floor.
+- `advisory_items_surfaced` (when `advisory` present) — every `risk: banned`/`restricted`
+  advisory `topic` appears in the itinerary `checklist` or a row text. (Reached only once
+  `advisory_present` confirms an advisory exists.)
 - `overnight_stops_have_lodging` / `required_facilities_met` (when `accommodations` passed) —
   every overnight stop has a `chosen` lodging meeting `trip-brief.facility_needs.required`.
 
 (Periodic-facility coverage is advisory and surfaced by `itinerary-synthesis`, not gated
-here. The accommodation/calendar/advisory/must_do checks run only when their input is present.)
+here. The accommodation/calendar/must_do checks run only when their input is present;
+`advisory` is the exception — it is mandatory and its absence is a gate failure.)
 
 ## Output
 

@@ -28,11 +28,21 @@ audit of the false-pass shape that produced two of them.
   self-contained, offline, elder-friendly one-page `exports/<slug>-itinerary.html`
   (inline CSS, mobile RWD, Maps links inheriting the D1 name-search fix),
   validated by the new `run_html_gate`.
+- **D2-class advisory fix 🔴 itinerary-gate — advisory presence enforced.** New
+  always-on `advisory_present` safety floor: `advisory` is now a **mandatory**
+  gate input. An absent advisory **fails the gate** ("advisory absent — …")
+  instead of silently skipping the banned/restricted surfacing check. Unlike the
+  D2 lodging floor (derivable from `itinerary.yaml`), the banned/restricted list
+  lives *only* inside `advisory.yaml`, so absence cannot be reconstructed — the
+  only safe response is failure. An advisory that ran but flagged nothing passes
+  as `{"items": []}`. The per-item `advisory_items_surfaced` loop is unchanged
+  and now runs only once `advisory_present` confirms an advisory exists. This
+  closes the D2-class false-pass hole for the 🔴 safety gate.
 - **Cross-cutting audit.** The "optional-input → skipped-check" false-pass shape
-  (root of D1+D2) was swept across `scripts/`. Three out-of-scope sibling
-  instances in `gate.py` — the calendar, advisory, and must_do checks, each
-  gated behind their optional arg — are flagged for **v0.17.0 follow-up**, NOT
-  fixed here.
+  (root of D1+D2) was swept across `scripts/`. The advisory sibling is fixed
+  above; the remaining two out-of-scope instances in `gate.py` — the **calendar
+  and must_do** checks, each gated behind their optional arg — are flagged for
+  **v0.17.0 follow-up**, NOT fixed here.
 
 ## 0.15.0 — 2026-06-11
 

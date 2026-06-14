@@ -26,7 +26,7 @@ def test_d1_town_name_rejected():
 def test_d2_five_lodgingless_nights_fail():
     days = [{"date": f"2026-07-0{i}", "rows": [{"slot": "meal", "text": "m"}]} for i in range(1, 7)]
     days.append({"date": "2026-07-07", "rows": [{"slot": "meal", "text": "m"}]})  # final day
-    rep = run_gate([], {"days": days}, accommodations=None)
+    rep = run_gate([], {"days": days}, accommodations=None, advisory={"items": []})
     assert rep["status"] == "fail"
     assert sum("no resolved lodging" in f for f in rep["failures"]) == 6  # days 1-6 overnight
 
