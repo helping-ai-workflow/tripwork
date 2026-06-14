@@ -14,6 +14,10 @@ _NAKED_DOLLAR = re.compile(r"(?<!\\)\$")
 _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 # Standalone map-token labels that mean the POI name was left as dead text.
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
+# Hiragana (U+3040-309F) + Katakana (U+30A0-30FF): scripts a Chinese reader
+# cannot read. Han is excluded — it overlaps JP/ZH and would false-positive.
+_KANA = re.compile(r"[぀-ヿ]+")
+_HAS_PAREN = re.compile(r"[（(][^（()）]*[）)]")
 
 def run_export_gate(md_text, pois, min_days=None):
     """Return {status, checks, failures} for a rendered itinerary markdown.
@@ -45,6 +49,12 @@ def run_export_gate(md_text, pois, min_days=None):
         if label.strip() in _MAP_TOKENS:
             failures.append(f"standalone map token '[{label}]'; POI name must be the link")
 
+    for line in md_text.splitlines():
+        if _KANA.search(line) and not _HAS_PAREN.search(line):
+            term = _KANA.search(line).group(0)
+            failures.append(
+                f"untranslated Japanese '{term}' has no （中文）gloss on its line")
+
     for p in pois:
         if p.get("verify_status") != "verified":
             continue
@@ -73,6 +83,8 @@ def run_export_gate(md_text, pois, min_days=None):
          "passed": not any("standalone map token" in f for f in failures)},
         {"name": "bookable_has_official_source",
          "passed": not any("official source link" in f for f in failures)},
+        {"name": "japanese_glossed",
+         "passed": not any("no （中文）gloss" in f for f in failures)},
     ]
     return {"status": "pass" if not failures else "fail",
             "checks": checks, "failures": failures}
