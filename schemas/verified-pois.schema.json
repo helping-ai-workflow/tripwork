@@ -31,6 +31,10 @@
           "name_roman": {
             "type": "string"
           },
+          "name_zh": {
+            "type": "string",
+            "description": "Chinese gloss of the in-language name; render layer shows name_display（name_zh）. (dogfood D3)"
+          },
           "category": {
             "type": "string"
           },

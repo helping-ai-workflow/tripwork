@@ -41,7 +41,9 @@ def maps_url(poi):
     return BASE + quote(query)
 
 def link_markdown(poi):
-    """Markdown link: [display name](maps url). Label is escaped so a scraped name
-    containing `]`/`|`/`$` cannot break the markdown. (TW-022)"""
-    label = poi.get("name_display") or poi.get("name_local") or poi.get("id", "")
+    """Markdown link: [display name（中文）](maps url). Label escaped so a scraped
+    name containing `]`/`|`/`$` cannot break the markdown. (TW-022, dogfood D3)"""
+    base = poi.get("name_display") or poi.get("name_local") or poi.get("id", "")
+    zh = poi.get("name_zh")
+    label = f"{base}（{zh}）" if zh and zh != base else base
     return f"[{_esc_label(label)}]({maps_url(poi)})"

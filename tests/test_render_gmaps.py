@@ -86,3 +86,35 @@ def test_link_markdown_escapes_label():   # TW-022
     md = link_markdown(poi)
     label = md[1:md.index("](")]
     assert "\\]" in label and "\\|" in label and "\\$" in label
+
+
+# --- dogfood D3: name_zh Chinese gloss ---
+
+def test_link_markdown_with_name_zh_shows_gloss():
+    """POI with name_zh -> label is 'name_display（name_zh）'. (dogfood D3)"""
+    poi = {
+        "name_display": "ジンギスカン だるま",
+        "name_local": "ジンギスカン だるま",
+        "name_zh": "成吉思汗烤羊肉",
+        "district": "Sapporo",
+    }
+    md = link_markdown(poi)
+    label = md[1:md.index("](")]
+    assert "成吉思汗烤羊肉" in label
+    assert "ジンギスカン だるま" in label
+    assert label == "ジンギスカン だるま（成吉思汗烤羊肉）"
+
+def test_link_markdown_no_name_zh_plain_label():
+    """POI without name_zh -> no gloss, no '（' in label. (dogfood D3)"""
+    poi = {"name_display": "Clock Tower", "name_local": "Clock Tower"}
+    md = link_markdown(poi)
+    label = md[1:md.index("](")]
+    assert "（" not in label
+
+def test_link_markdown_name_zh_same_as_display_no_redundant_gloss():
+    """POI where name_zh == name_display -> no redundant gloss appended. (dogfood D3)"""
+    poi = {"name_display": "大通公園", "name_local": "大通公園", "name_zh": "大通公園"}
+    md = link_markdown(poi)
+    label = md[1:md.index("](")]
+    assert label == "大通公園"
+    assert "（" not in label
