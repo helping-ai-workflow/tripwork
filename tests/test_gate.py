@@ -140,3 +140,87 @@ def test_gate_passes_lodging_with_required_facility():
                  accommodations=_accom("godley", ["parking", "wifi"]), facility_needs={"required": ["parking"]})
     assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging") is True
     assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met") is True
+
+
+# --- overnight_days_have_lodging floor (always-on, independent of accommodations.yaml) ---
+
+def _itin_multi(days_spec):
+    """Build a multi-day itinerary from a list of (date, rows, lodging) tuples.
+    lodging=None means field absent; lodging="" means field absent (same as None).
+    Pass lodging=<str> to set the lodging field.
+    """
+    days = []
+    for date, rows, lodging in days_spec:
+        day = {"date": date, "label": f"Day {date}", "rows": rows}
+        if lodging:
+            day["lodging"] = lodging
+        days.append(day)
+    return {"title": "t", "days": days}
+
+
+def test_floor_non_final_day_without_lodging_fails():
+    """Non-final day with no lodging field and no slot:lodging row -> status fail."""
+    pois = [_poi("a")]
+    itin = _itin_multi([
+        ("2026-06-12", [_meal("a")], None),   # non-final, no lodging
+        ("2026-06-13", [_meal("a")], None),   # final day, no lodging needed
+    ])
+    r = run_gate(pois, itin)
+    assert r["status"] == "fail"
+    assert any("no resolved lodging" in f and "2026-06-12" in f for f in r["failures"])
+
+
+def test_floor_non_final_day_with_lodging_field_passes():
+    """Non-final day with lodging field set -> no 'no resolved lodging' failure."""
+    pois = [_poi("a"), _poi("hotel1")]
+    itin = _itin_multi([
+        ("2026-06-12", [_meal("a")], "hotel1"),  # non-final, lodging field set
+        ("2026-06-13", [_meal("a")], None),       # final day
+    ])
+    r = run_gate(pois, itin)
+    assert not any("no resolved lodging" in f for f in r["failures"])
+
+
+def test_floor_non_final_day_with_slot_lodging_row_passes():
+    """Non-final day with a row slot=='lodging' -> no 'no resolved lodging' failure."""
+    pois = [_poi("a")]
+    lodging_row = {"time": "22:00", "slot": "lodging", "text": "Check in"}
+    itin = _itin_multi([
+        ("2026-06-12", [_meal("a"), lodging_row], None),  # non-final, slot:lodging row
+        ("2026-06-13", [_meal("a")], None),               # final day
+    ])
+    r = run_gate(pois, itin)
+    assert not any("no resolved lodging" in f for f in r["failures"])
+
+
+def test_floor_final_day_without_lodging_no_failure():
+    """Final day has no lodging -> date NOT in any failure (departure day, no overnight)."""
+    pois = [_poi("a"), _poi("hotel1")]
+    itin = _itin_multi([
+        ("2026-06-12", [_meal("a")], "hotel1"),  # non-final, has lodging
+        ("2026-06-13", [_meal("a")], None),       # final, no lodging -> OK
+    ])
+    r = run_gate(pois, itin)
+    assert not any("2026-06-13" in f and "no resolved lodging" in f for f in r["failures"])
+
+
+def test_floor_single_day_trip_passes():
+    """Single-day trip -> no overnight days -> vacuous pass (no lodging floor fires)."""
+    pois = [_poi("a")]
+    itin = _itin_multi([
+        ("2026-06-12", [_meal("a")], None),  # only day = final day, no overnight
+    ])
+    r = run_gate(pois, itin)
+    assert not any("no resolved lodging" in f for f in r["failures"])
+
+
+def test_floor_check_entry_always_present():
+    """Gate report always contains a check named 'overnight_days_have_lodging'."""
+    pois = [_poi("a")]
+    itin = _itin_multi([
+        ("2026-06-12", [_meal("a")], None),
+        ("2026-06-13", [_meal("a")], None),
+    ])
+    r = run_gate(pois, itin)
+    names = [c["name"] for c in r["checks"]]
+    assert "overnight_days_have_lodging" in names

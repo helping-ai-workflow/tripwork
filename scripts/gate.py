@@ -23,6 +23,12 @@ def _referenced_ids(days):
 def _day_has_meal(day):
     return any(r.get("slot") == "meal" for r in day.get("rows", []))
 
+def _day_has_lodging(day):
+    """Return True if the day has a non-empty lodging field OR a row with slot=='lodging'."""
+    if day.get("lodging"):
+        return True
+    return any(r.get("slot") == "lodging" for r in day.get("rows", []))
+
 def _itinerary_text(itinerary):
     """All free text an advisory topic could be surfaced in: checklist + row texts."""
     parts = list(itinerary.get("checklist", []))
@@ -61,6 +67,12 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     for d in days:
         if not _day_has_meal(d):
             failures.append(f"day {d.get('date', '?')} has no meal")
+
+    # Always-on lodging floor: every non-final day must have resolved lodging.
+    # Final day = departure day, no overnight needed.
+    for d in days[:-1]:
+        if not _day_has_lodging(d):
+            failures.append(f"day {d.get('date', '?')} has no resolved lodging")
 
     closed_check = calendar is not None
     if closed_check:
@@ -114,6 +126,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
          "passed": not any("missing geocode" in f or "unknown POI" in f for f in failures)},
         {"name": "days_have_meals",
          "passed": not any("no meal" in f for f in failures)},
+        {"name": "overnight_days_have_lodging",
+         "passed": not any("no resolved lodging" in f for f in failures)},
     ]
     if closed_check:
         checks.append({"name": "no_closed_day_violation",
