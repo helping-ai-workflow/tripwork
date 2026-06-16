@@ -74,6 +74,37 @@ def test_bookable_missing_official_source_fails():
     assert _names("bookable_has_official_source", r) is False
 
 
+# ── D3: japanese_glossed ──────────────────────────────────────────────────────
+
+# Minimal valid skeleton: has a "### " heading so deliverable_has_content passes.
+_KANA_BASE = "### Day 1\n\n| 時段 | 行程 |\n|---|---|\n"
+
+def test_kana_no_gloss_fails():
+    """Katakana on a line without a （...）paren must hard-fail."""
+    md = _KANA_BASE + "| 12:00 | ジンギスカン 好吃 |\n"
+    r = run_export_gate(md, [])
+    assert r["status"] == "fail", r["failures"]
+    assert any("gloss" in f or "japanese" in f.lower() for f in r["failures"]), r["failures"]
+
+def test_kana_with_fullwidth_paren_passes():
+    """Katakana + （中文 gloss）on same line → no gloss failure."""
+    md = _KANA_BASE + "| 12:00 | ジンギスカン（成吉思汗烤羊肉）好吃 |\n"
+    r = run_export_gate(md, [])
+    assert not any("gloss" in f or "japanese" in f.lower() for f in r["failures"]), r["failures"]
+
+def test_han_only_no_false_positive():
+    """Pure Han/Chinese characters must NOT trigger the gloss check."""
+    md = _KANA_BASE + "| 12:00 | 午餐 |\n"
+    r = run_export_gate(md, [])
+    assert not any("gloss" in f or "japanese" in f.lower() for f in r["failures"]), r["failures"]
+
+def test_japanese_glossed_check_present():
+    """A check named 'japanese_glossed' must always appear in the report."""
+    md = _KANA_BASE + "| 12:00 | 午餐 |\n"
+    r = run_export_gate(md, [])
+    names = [c["name"] for c in r["checks"]]
+    assert "japanese_glossed" in names
+
 def test_find_row_ignores_heading_uses_table_row():   # TW-044
     bookable = {"id": "milford", "name_local": "Milford Sound", "name_display": "Milford Sound",
                 "verify_status": "verified", "booking": {"required": True},

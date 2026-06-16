@@ -6,6 +6,7 @@ passed in; this function holds the decision logic so it is unit-testable.
 """
 
 from urllib.parse import urlsplit
+from scripts.geocode import normalize_geocode_keys
 
 
 def _distinct_netlocs(sources):
@@ -66,3 +67,46 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
         return "conflicting", "geocoded coordinates fall outside the claimed region"
 
     return "verified", ""
+
+
+def normalize_and_validate_poi(poi):
+    """Canonicalise geocode keys and enforce name_local discipline before a POI
+    is treated as verified. Returns (poi, reason); reason None when clean. (dogfood D1)
+
+    Two checks:
+    (a) If the POI has a geocode dict, run it through normalize_geocode_keys to
+        rename legacy 'lon'/'long' keys to 'lng'. The input dict is NOT mutated.
+    (b) If name_local is non-empty and equals district, the POI is flagged —
+        name_local must be the venue's real name, not the area
+        (cluster_fallback town-name bug, dogfood D1).
+    """
+    out = dict(poi)
+    if out.get("geocode") is not None:
+        out["geocode"] = normalize_geocode_keys(out["geocode"])
+    name_local = (out.get("name_local") or "").strip()
+    district = (out.get("district") or "").strip()
+    if name_local and name_local == district:
+        return out, (f"name_local '{name_local}' equals district — must be the POI's "
+                     f"real name, not the area (cluster_fallback town-name bug)")
+    return out, None
+
+
+def verify_poi(poi, geocoded, in_claimed_region,
+               local_lang=None, conflict_detected=False, operating=True):
+    """Normalise a POI and classify it in one call.
+
+    Runs normalize_and_validate_poi first (geocode key fix + name_local discipline).
+    A non-None reason from the pre-check flips the result to ('rejected', reason)
+    immediately, using the same verify_status vocabulary as classify_candidate.
+    Otherwise delegates to classify_candidate with the normalised POI.
+
+    Returns (normalised_poi, verify_status, note).
+    """
+    normalised, reason = normalize_and_validate_poi(poi)
+    if reason is not None:
+        return normalised, "rejected", reason
+    status, note = classify_candidate(
+        normalised, geocoded=geocoded, in_claimed_region=in_claimed_region,
+        local_lang=local_lang, conflict_detected=conflict_detected, operating=operating,
+    )
+    return normalised, status, note

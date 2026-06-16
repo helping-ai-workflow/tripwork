@@ -116,3 +116,47 @@ def test_resolve_place_rejects_empty_name():   # TW-045
         resolve_place("", district="Gangnam")
     with pytest.raises(ValueError):
         resolve_place(None)
+
+
+# --- normalize_geocode_keys (D1 dogfood fix) ---
+
+def test_normalize_lon_to_lng():
+    from scripts.geocode import normalize_geocode_keys
+    result = normalize_geocode_keys({"lat": 42.0, "lon": 140.0})
+    assert result == {"lat": 42.0, "lng": 140.0}
+
+def test_normalize_long_to_lng():
+    from scripts.geocode import normalize_geocode_keys
+    result = normalize_geocode_keys({"lat": 42.0, "long": 140.0})
+    assert result == {"lat": 42.0, "lng": 140.0}
+
+def test_normalize_lng_passthrough():
+    from scripts.geocode import normalize_geocode_keys
+    result = normalize_geocode_keys({"lat": 42.0, "lng": 140.0})
+    assert result == {"lat": 42.0, "lng": 140.0}
+
+def test_normalize_conflict_raises_value_error():
+    from scripts.geocode import normalize_geocode_keys
+    with pytest.raises(ValueError):
+        normalize_geocode_keys({"lat": 42.0, "lon": 140.0, "lng": 141.0})
+
+def test_normalize_lon_lng_agree_collapses():
+    from scripts.geocode import normalize_geocode_keys
+    result = normalize_geocode_keys({"lat": 42.0, "lon": 140.0, "lng": 140.0})
+    assert result == {"lat": 42.0, "lng": 140.0}
+
+def test_normalize_none_returns_none():
+    from scripts.geocode import normalize_geocode_keys
+    assert normalize_geocode_keys(None) is None
+
+def test_normalize_lon_long_disagree_raises():
+    """lon and long both present but different values — must raise ValueError (D1)."""
+    from scripts.geocode import normalize_geocode_keys
+    with pytest.raises(ValueError):
+        normalize_geocode_keys({"lat": 42.0, "lon": 140.0, "long": 141.0})
+
+def test_normalize_lon_long_agree_collapses():
+    """lon and long both present with same value — must collapse to lng cleanly."""
+    from scripts.geocode import normalize_geocode_keys
+    result = normalize_geocode_keys({"lat": 42.0, "lon": 140.0, "long": 140.0})
+    assert result == {"lat": 42.0, "lng": 140.0}

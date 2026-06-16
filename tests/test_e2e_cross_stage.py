@@ -21,7 +21,7 @@ def test_cross_stage_verify_gate_render_export():
     itin = {"title": "t", "checklist": [],
             "days": [{"date": "2026-06-12", "label": "D1",
                       "rows": [{"time": "12:00", "slot": "meal", "poi_id": "odari", "text": "lunch"}]}]}
-    g = run_gate([poi], itin)
+    g = run_gate([poi], itin, advisory={"items": []})
     assert g["status"] == "pass", g["failures"]
     # 3) render the day from the canonical itinerary + poi map
     md = "### D1\n\n| 時段 | 行程 |\n|---|---|\n" + \

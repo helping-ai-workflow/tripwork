@@ -23,6 +23,12 @@ def _referenced_ids(days):
 def _day_has_meal(day):
     return any(r.get("slot") == "meal" for r in day.get("rows", []))
 
+def _day_has_lodging(day):
+    """Return True if the day has a non-empty lodging field OR a row with slot=='lodging'."""
+    if day.get("lodging"):
+        return True
+    return any(r.get("slot") == "lodging" for r in day.get("rows", []))
+
 def _itinerary_text(itinerary):
     """All free text an advisory topic could be surfaced in: checklist + row texts."""
     parts = list(itinerary.get("checklist", []))
@@ -62,6 +68,12 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         if not _day_has_meal(d):
             failures.append(f"day {d.get('date', '?')} has no meal")
 
+    # Always-on lodging floor: every non-final day must have resolved lodging.
+    # Final day = departure day, no overnight needed.
+    for d in days[:-1]:
+        if not _day_has_lodging(d):
+            failures.append(f"day {d.get('date', '?')} has no resolved lodging")
+
     closed_check = calendar is not None
     if closed_check:
         for d in days:
@@ -81,7 +93,15 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
             if pid not in referenced:
                 failures.append(f"must_do POI '{pid}' not scheduled in any day")
 
+    # Mandatory-safety-artifact-presence floor (D2-class): an absent advisory is a
+    # GATE FAILURE, not a skip. The banned/restricted list lives ONLY inside
+    # advisory.yaml — if it is absent we cannot derive what is banned, so the gate
+    # cannot verify banned/restricted items are surfaced. Treat as a safety fail.
     advisory_check = advisory is not None
+    if not advisory_check:
+        failures.append(
+            "advisory absent — mandatory safety gate cannot verify "
+            "banned/restricted items are surfaced")
     if advisory_check:
         text = _itinerary_text(itinerary)
         for item in advisory.get("items", []):
@@ -114,6 +134,10 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
          "passed": not any("missing geocode" in f or "unknown POI" in f for f in failures)},
         {"name": "days_have_meals",
          "passed": not any("no meal" in f for f in failures)},
+        {"name": "overnight_days_have_lodging",
+         "passed": not any("no resolved lodging" in f for f in failures)},
+        {"name": "advisory_present",
+         "passed": not any("advisory absent" in f for f in failures)},
     ]
     if closed_check:
         checks.append({"name": "no_closed_day_violation",

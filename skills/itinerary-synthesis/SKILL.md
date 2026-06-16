@@ -12,6 +12,10 @@ Compose the canonical `trips/<slug>/itinerary.yaml` from verified POIs and routi
 - Use ONLY `verify_status: verified` POIs. Pulling a non-verified POI is a gate violation.
 - Keep cross-region hops within `max_hop_mins`; cluster base-district days together to conserve energy when members include elderly/children.
 - Each day: a table of time-slot rows. Each restaurant/POI row carries its POI id so export can attach a maps link.
+- **Japanese gloss discipline.** Any inline Japanese term in a row text or checklist
+  item MUST be written as `日文（中文）` — keep the original for source-verify
+  traceability, add a Chinese gloss for the reader. This is what satisfies
+  `export-gate`'s `japanese_glossed` check (an unglossed kana run is a hard fail).
 
 ## Calendar-awareness (reads `calendar.yaml` + each POI's `closed_days`)
 

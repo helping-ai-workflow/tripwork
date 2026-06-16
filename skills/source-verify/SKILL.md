@@ -9,6 +9,17 @@ This is an iron-rule gate. Apply the **Source-Verified-First** discipline to eve
 
 ## Gates (logic in `scripts/verify.py::classify_candidate`)
 
+Call `scripts/verify.py::verify_poi(...)` as the one-call entrypoint: it runs
+`normalize_and_validate_poi` first (geocode key fix + name_local discipline below),
+then delegates to `classify_candidate`. The normalisation step (a) renames legacy
+geocode keys `lon`/`long` to `lng`, and (b) **rejects** a POI whose `name_local`
+equals its `district` — `name_local` must be the venue's real name, not the area
+(this catches the cluster_fallback town-name bug). A rejecting pre-check flips the
+result to `rejected` before the gates below run.
+
+Optionally capture a `name_zh` (Chinese gloss) on the POI here; the render layer
+shows it as `name_display（name_zh）` so the deliverable stays reader-friendly.
+
 Gates are evaluated in strict order — Gate 0 fires before Gate 1, Gate 1 before Gate 2, Gate 2 before Gate 3.
 
 0. **Operating** (Gate 0, checked first) — the place must still be open for business. A permanently/temporarily closed (defunct) venue -> `rejected`. Determine it from Google Maps ('永久停業' / 'Permanently closed' / 'Temporarily closed') or an official-site 404, and pass `operating=False` to `classify_candidate`. A defunct POI that has two sources and geocodes would otherwise sail through as `verified` — Gate 0 stops that.

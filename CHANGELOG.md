@@ -1,5 +1,49 @@
 # Changelog
 
+## 0.16.0 — hokkaido-7d dogfood defects (D1-D4)
+
+Four defects surfaced by a real Hokkaido 7-day dogfood run, plus a cross-cutting
+audit of the false-pass shape that produced two of them.
+
+- **D1 🔴 Google Maps links — name-search-first.** `maps_url` now returns
+  `query=<name_local> <district>` so Google resolves a labelled place card,
+  reversing the TW-048 coord-first default that produced unnamed pins for area
+  POIs (onsen districts, parks, markets). Coordinate pinning is now opt-in via
+  `geocode.pin_exact: true`. Source-verify gained `normalize_and_validate_poi`,
+  which normalises legacy `lon`/`long` geocode keys to `lng` and **rejects**
+  `name_local == district` (the `cluster_fallback` town-name bug, where a POI's
+  name was silently overwritten by its area).
+- **D2 🟠 itinerary-gate false-pass — overnight lodging floor.** New always-on
+  `overnight_days_have_lodging` check derived from `itinerary.yaml`: every
+  non-final day must resolve lodging (a `lodging` field or a `slot:"lodging"`
+  row), independent of whether `accommodations.yaml` was passed. Previously the
+  lodging check was gated behind the optional `accommodations` arg, so an
+  itinerary with no overnight rows passed silently.
+- **D3 🟡 Japanese gloss.** New optional `name_zh` schema field and render label
+  `name_display（name_zh）`; new hard-fail export-gate `japanese_glossed` — any
+  line carrying kana (hiragana/katakana) without a `（中文）` gloss fails
+  (Han is excluded to avoid ZH/JP false-positives). Itinerary-synthesis must
+  author inline Japanese terms as `日文（中文）`.
+- **D4 🟡 HTML export adapter.** New `scripts/render/html_page.py` renders a
+  self-contained, offline, elder-friendly one-page `exports/<slug>-itinerary.html`
+  (inline CSS, mobile RWD, Maps links inheriting the D1 name-search fix),
+  validated by the new `run_html_gate`.
+- **D2-class advisory fix 🔴 itinerary-gate — advisory presence enforced.** New
+  always-on `advisory_present` safety floor: `advisory` is now a **mandatory**
+  gate input. An absent advisory **fails the gate** ("advisory absent — …")
+  instead of silently skipping the banned/restricted surfacing check. Unlike the
+  D2 lodging floor (derivable from `itinerary.yaml`), the banned/restricted list
+  lives *only* inside `advisory.yaml`, so absence cannot be reconstructed — the
+  only safe response is failure. An advisory that ran but flagged nothing passes
+  as `{"items": []}`. The per-item `advisory_items_surfaced` loop is unchanged
+  and now runs only once `advisory_present` confirms an advisory exists. This
+  closes the D2-class false-pass hole for the 🔴 safety gate.
+- **Cross-cutting audit.** The "optional-input → skipped-check" false-pass shape
+  (root of D1+D2) was swept across `scripts/`. The advisory sibling is fixed
+  above; the remaining two out-of-scope instances in `gate.py` — the **calendar
+  and must_do** checks, each gated behind their optional arg — are flagged for
+  **v0.17.0 follow-up**, NOT fixed here.
+
 ## 0.15.0 — 2026-06-11
 
 Research discipline + script robustness + adapter fidelity (Wave 4, final wave of the

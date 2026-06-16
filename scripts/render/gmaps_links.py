@@ -19,13 +19,21 @@ def _query_name(poi):
 def maps_url(poi):
     """Build a Google Maps query URL.
 
-    Prefers the verified coordinates (coordinate-pinned: `query=lat,lng`) so a
-    name-collision can't land the user on the wrong place; falls back to
-    `name_local + district` (district disambiguates), then bare name. (TW-048)
+    Name-search-first: returns ``query=<name_local> <district>`` so Google
+    resolves a labelled place card for area POIs (onsen districts, parks,
+    markets, canals) rather than an unnamed coordinate pin.
+
+    Coord-pin opt-in: set ``geocode.pin_exact: true`` on a POI to force
+    ``query=lat,lng`` — reserve for precise venues where the name alone
+    creates an ambiguous match.
+
+    This deliberately REVERSES the TW-048 coord-first default (dogfood D1):
+    coordinate pins produced unnamed map markers for area POIs and silently
+    masked data-quality issues when geocode values were corrupt.
     """
     geo = poi.get("geocode") or {}
     lat, lng = geo.get("lat"), geo.get("lng")
-    if isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
+    if geo.get("pin_exact") and isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
         return BASE + quote(f"{lat},{lng}")
     name = _query_name(poi)
     district = poi.get("district")
@@ -33,7 +41,9 @@ def maps_url(poi):
     return BASE + quote(query)
 
 def link_markdown(poi):
-    """Markdown link: [display name](maps url). Label is escaped so a scraped name
-    containing `]`/`|`/`$` cannot break the markdown. (TW-022)"""
-    label = poi.get("name_display") or poi.get("name_local") or poi.get("id", "")
+    """Markdown link: [display name（中文）](maps url). Label escaped so a scraped
+    name containing `]`/`|`/`$` cannot break the markdown. (TW-022, dogfood D3)"""
+    base = poi.get("name_display") or poi.get("name_local") or poi.get("id", "")
+    zh = poi.get("name_zh")
+    label = f"{base}（{zh}）" if zh and zh != base else base
     return f"[{_esc_label(label)}]({maps_url(poi)})"
