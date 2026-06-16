@@ -181,3 +181,300 @@ class TestRenderHtmlPageNoChecklist:
         itin_no_cl = {**ITIN, "checklist": []}
         html = render_html_page(itin_no_cl, POI_MAP)
         assert "行前清單" not in html
+
+
+# ---------------------------------------------------------------------------
+# Card-style upgrade (v0.17.0) — hero, overview, legend, lodge, alt, slot color
+# ---------------------------------------------------------------------------
+# Rich fixture: lodging that resolves, an alt (▸) row, every slot kind, 2 days.
+
+POI_LODGE = {
+    "id": "h1",
+    "name_display": "京王プラザ",
+    "name_zh": "京王廣場",
+    "geocode": {"lat": 43.06, "lng": 141.34},
+}
+
+RICH_ITIN = {
+    "title": "北海道行程 & 溫泉",
+    "checklist": ["護照"],
+    "days": [
+        {
+            "date": "2026-11-01",
+            "label": "Day 1｜札幌",
+            "lodging": "h1",
+            "rows": [
+                {"slot": "move", "text": "新千歲機場 → 札幌"},
+                {"time": "12:00", "slot": "meal", "poi_id": "p1", "text": "午餐 & 海鮮"},
+                {"time": "16:30", "slot": "lodging", "text": "check-in"},
+                {"slot": "activity", "text": "▸ 備案｜雨天改室內逛街"},
+            ],
+        },
+        {
+            "date": "2026-11-02",
+            "label": "Day 2｜小樽",
+            "lodging": "h1",
+            "rows": [
+                {"time": "09:00", "slot": "visit", "poi_id": "p1", "text": "小樽運河"},
+            ],
+        },
+    ],
+}
+
+RICH_MAP = {"p1": POI_P1, "h1": POI_LODGE}
+
+
+class TestCardStyleScaffold:
+    def setup_method(self):
+        self.html = render_html_page(RICH_ITIN, RICH_MAP)
+
+    def test_wrap_container(self):
+        assert 'class="wrap"' in self.html
+
+    def test_hero_present_with_title(self):
+        assert 'class="hero"' in self.html
+        # escaped title lives inside the hero h1
+        assert "北海道行程 &amp; 溫泉" in self.html
+
+    def test_hero_meta_date_span(self):
+        # date span derived from days[].date — honest, not invented
+        assert 'class="meta"' in self.html
+        assert "2026/11/01" in self.html
+        assert "2026/11/02" in self.html
+
+    def test_footer_present(self):
+        assert "<footer" in self.html
+
+    def test_rwd_media_query_present(self):
+        assert "@media" in self.html
+
+
+class TestCardStyleDayCards:
+    def setup_method(self):
+        self.html = render_html_page(RICH_ITIN, RICH_MAP)
+
+    def test_day_card_is_section(self):
+        assert '<section class="day-card"' in self.html
+
+    def test_day_card_count_unchanged(self):
+        # gate-critical: one class="day-card" per day, nowhere else
+        assert self.html.count('class="day-card"') == 2
+
+    def test_day_number_badge(self):
+        assert self.html.count('class="dnum"') == 2
+
+    def test_rows_use_li_with_slot_class(self):
+        assert 'class="rows"' in self.html
+        assert "slot-meal" in self.html
+        assert "slot-move" in self.html
+        assert "slot-visit" in self.html
+
+
+class TestCardStyleLodge:
+    def test_lodge_line_present_and_linked_when_resolves(self):
+        html = render_html_page(RICH_ITIN, RICH_MAP)
+        # both days carry lodging h1 → two lodge lines
+        assert html.count('class="lodge"') == 2
+        # lodge name is a maps link (href first, https) so the gate accepts it
+        assert '<a href="https://www.google.com/maps/search/' in html
+        assert "京王" in html
+
+    def test_lodge_line_absent_when_no_lodging(self):
+        # ITIN days carry no lodging field → no lodge line at all
+        html = render_html_page(ITIN, POI_MAP)
+        assert 'class="lodge"' not in html
+
+    def test_lodge_line_skipped_when_unresolved(self):
+        # lodging id not in poi_map → skip silently, never emit empty href
+        itin = {
+            "title": "x",
+            "days": [{"date": "2026-11-01", "label": "D1", "lodging": "ghost", "rows": []}],
+        }
+        html = render_html_page(itin, {})
+        assert 'class="lodge"' not in html
+        assert 'href=""' not in html
+
+
+class TestCardStyleOverview:
+    def setup_method(self):
+        self.html = render_html_page(RICH_ITIN, RICH_MAP)
+
+    def test_overview_table_present(self):
+        assert 'class="ov"' in self.html
+
+    def test_overview_one_row_per_day(self):
+        # one D-cell per day
+        assert self.html.count('class="d"') == 2
+        assert "D1" in self.html
+        assert "D2" in self.html
+
+
+class TestCardStyleLegendAndAlt:
+    def setup_method(self):
+        self.html = render_html_page(RICH_ITIN, RICH_MAP)
+
+    def test_legend_present_with_emoji(self):
+        assert 'class="legend"' in self.html
+        for emoji in ("🍽", "📍", "🎯", "🚆", "🏨"):
+            assert emoji in self.html
+        assert "備案" in self.html
+
+    def test_alt_row_orange_box(self):
+        # a row whose text starts with ▸ becomes an alt (orange-bordered) row
+        assert "row alt" in self.html
+        assert self.html.count("row alt") == 1
+
+
+class TestCardStyleSlotEmoji:
+    def test_each_slot_maps_to_emoji(self):
+        html = render_html_page(RICH_ITIN, RICH_MAP)
+        for emoji in ("🚆", "🍽", "🏨", "🎯", "📍"):
+            assert emoji in html
+
+    def test_unknown_slot_renders_gracefully(self):
+        # ITIN fixture uses slot="lunch" (not in schema enum) — must not crash,
+        # must still render the row body text
+        html = render_html_page(ITIN, POI_MAP)
+        assert "必吃 &amp; 推薦" in html
+
+
+class TestCardStyleGateRoundTrip:
+    def test_rich_page_passes_html_gate(self):
+        from scripts.export_gate import run_html_gate
+
+        html = render_html_page(RICH_ITIN, RICH_MAP)
+        result = run_html_gate(html, pois=list(RICH_MAP.values()), min_days=2)
+        assert result["status"] == "pass", result["failures"]
+        assert result["failures"] == []
+
+
+# ---------------------------------------------------------------------------
+# Mobile RWD fail-safe (v0.17.0): long JP map labels must never force a
+# horizontal overflow. flex children default to min-width:auto (won't shrink),
+# so a long unbreakable link blows out page width and the page shifts left on
+# phones. The body cell must shrink+wrap, the map chip must wrap, and the page
+# clips any residual horizontal overflow as a backstop.
+# ---------------------------------------------------------------------------
+
+class TestRwdFailSafe:
+    def setup_method(self):
+        self.html = render_html_page(RICH_ITIN, RICH_MAP)
+
+    def test_flex_body_can_shrink_and_wrap(self):
+        assert "min-width:0" in self.html
+        assert "overflow-wrap:anywhere" in self.html
+
+    def test_map_link_wraps_not_nowrap(self):
+        import re
+
+        m = re.search(r"a\.map\{([^}]*)\}", self.html)
+        assert m, "a.map CSS rule missing"
+        rule = m.group(1)
+        assert "white-space:nowrap" not in rule  # nowrap would overflow on mobile
+        assert "word-break:break-word" in rule
+        assert "max-width:100%" in rule
+
+    def test_page_clips_horizontal_overflow(self):
+        assert "overflow-x:hidden" in self.html
+
+    def test_overview_cells_break_long_tokens(self):
+        # the overview table sits OUTSIDE the .bd min-width:0 flex fix, so a long
+        # space-free token in a 行程/住宿 cell could overflow — cells must wrap.
+        import re
+
+        m = re.search(r"table\.ov th,table\.ov td\{([^}]*)\}", self.html)
+        assert m, "table.ov cell rule missing"
+        assert "word-break:break-word" in m.group(1)
+
+
+# ---------------------------------------------------------------------------
+# Security: every interpolation point escaped, incl. the hero date-span sink.
+# run_html_gate only catches a literal <script>, so an <img onerror=> smuggled
+# through an unescaped field would pass the gate — the renderer is the only
+# defence. (adversarial-verify finding #1, HIGH)
+# ---------------------------------------------------------------------------
+
+class TestCardStyleSecurity:
+    def test_hero_date_span_escaped(self):
+        itin = {
+            "title": "T",
+            "days": [
+                {"date": "<img src=x onerror=alert(1)>", "label": "D1", "rows": []},
+                {"date": "2026-11-07", "label": "D7", "rows": []},
+            ],
+        }
+        html = render_html_page(itin, {})
+        assert "<img src=x onerror=" not in html          # raw tag must not survive
+        assert "&lt;img src=x onerror=" in html           # escaped form present
+
+    def test_legit_date_span_unchanged_by_escaping(self):
+        itin = {
+            "title": "T",
+            "days": [
+                {"date": "2026-11-01", "label": "D1", "rows": []},
+                {"date": "2026-11-07", "label": "D7", "rows": []},
+            ],
+        }
+        html = render_html_page(itin, {})
+        assert "2026/11/01–2026/11/07" in html
+
+
+# ---------------------------------------------------------------------------
+# Coverage round-out (adversarial-verify findings #3–#9)
+# ---------------------------------------------------------------------------
+
+POI_LODGE2 = {"id": "h2", "name_display": "乃の風", "name_zh": "乃之風",
+              "geocode": {"lat": 42.55, "lng": 140.78}}
+
+
+class TestCardStyleCoverage:
+    def test_missing_title_defaults(self):
+        html = render_html_page({"days": [{"date": "2026-11-01", "label": "D1", "rows": []}]}, {})
+        assert "<title>行程</title>" in html
+
+    def test_lodging_flow_collapses_with_count(self):
+        itin = {"title": "T", "days": [
+            {"date": "2026-11-01", "label": "D1", "lodging": "h1", "rows": []},
+            {"date": "2026-11-02", "label": "D2", "lodging": "h1", "rows": []},
+            {"date": "2026-11-03", "label": "D3", "lodging": "h2", "rows": []},
+        ]}
+        html = render_html_page(itin, {"h1": POI_LODGE, "h2": POI_LODGE2})
+        assert 'class="flow"' in html
+        assert "×2" in html and "×1" in html
+        assert "→" in html
+
+    def test_overview_lodging_dash_when_absent(self):
+        # ITIN days carry no lodging → overview 住宿 cell shows —
+        html = render_html_page(ITIN, POI_MAP)
+        assert "<td>—</td>" in html
+
+    def test_date_span_single_day(self):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1", "rows": []}]}
+        html = render_html_page(itin, {})
+        assert "📅 2026/11/01</span>" in html   # single date, no range dash
+
+    def test_alt_row_with_poi_gets_box_and_chip(self):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1", "rows": [
+            {"slot": "activity", "poi_id": "p1", "text": "▸ 備案｜改去這裡"},
+        ]}]}
+        html = render_html_page(itin, POI_MAP)
+        assert "row alt" in html
+        assert 'class="map"' in html              # chip rendered even on an alt row
+
+    def test_lodging_name_special_chars_escaped(self):
+        evil = {"id": "h", "name_display": "Hotel <b>", "name_zh": "飯店&",
+                "geocode": {"lat": 43.0, "lng": 141.0}}
+        itin = {"title": "T", "days": [
+            {"date": "2026-11-01", "label": "D1", "lodging": "h", "rows": []},
+        ]}
+        html = render_html_page(itin, {"h": evil})
+        assert "<b>" not in html                  # no raw tag (lodge line + flow + overview)
+        assert "&lt;b&gt;" in html
+        assert "飯店&amp;" in html                 # ampersand escaped everywhere it appears
+
+    def test_row_without_time_emits_empty_t(self):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1", "rows": [
+            {"slot": "move", "text": "go"},
+        ]}]}
+        html = render_html_page(itin, {})
+        assert '<span class="t empty"></span>' in html

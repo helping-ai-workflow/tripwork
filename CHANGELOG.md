@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.17.0 — card-style HTML one-pager + mobile RWD fail-safe + XSS hardening
+
+The `html` export adapter (`scripts/render/html_page.py`) is rewritten from a
+plain card list into a magazine-style one-pager, modelled on the hokkaido-7d
+dogfood deliverable. Everything new is derived strictly from `itinerary.yaml`
+fields — nothing is fabricated (Source-Verified-First): the advisory `warn`
+box from the hand-authored reference is intentionally omitted because that data
+is not in the itinerary dict.
+
+- **🎨 Card-style layout.** Gradient hero with a date-span (from `days[].date`)
+  and a 🏨 lodging-flow line (distinct consecutive overnight stays with ×count,
+  resolved from per-day `lodging`); a per-day overview table (日 / 行程 / 住宿);
+  an emoji legend; rounded shadowed `.day-card`s with a day-number badge and a
+  lodging maps link; per-slot row colouring (meal / visit / activity / move /
+  lodging); and orange-bordered inline 備案 rows (a row whose `text` starts `▸`).
+  The `lodging` field — previously ignored by every renderer — is now surfaced
+  as a maps-linked line and in the overview/hero (HTML adapter only).
+- **📱 Mobile RWD fail-safe.** Flex rows default to `min-width:auto` and will not
+  shrink, so a long Japanese map label forced a horizontal page overflow on
+  phones. Fixed with `html,body{overflow-x:hidden}` (backstop),
+  `.bd{min-width:0;overflow-wrap:anywhere}`, an `a.map` that wraps
+  (`word-break:break-word;max-width:100%`, no more `white-space:nowrap`), and
+  `word-break:break-word` on overview table cells (the one long-content element
+  outside the flex fix).
+- **🔒 XSS hardening.** `_date_span` was the sole interpolation point left
+  unescaped; a crafted `day.date` (e.g. `<img src=x onerror=…>`) reached the
+  hero verbatim **and passed `run_html_gate`**, whose only markup guard is a
+  literal `<script>` substring check. `_date_span` now escapes, matching the
+  discipline applied to every other field. (Surfaced by an adversarial review.)
+- **Gate compatibility unchanged.** Every emitted `href` is an https Maps URL
+  (href-first attribute order) and exactly one `class="day-card"` is emitted per
+  day, so `export-gate` / `run_html_gate` still pass; the markdown / gmaps /
+  line / Notion adapters are untouched. README §3 deliverable copy updated.
+
 ## 0.16.0 — hokkaido-7d dogfood defects (D1-D4)
 
 Four defects surfaced by a real Hokkaido 7-day dogfood run, plus a cross-cutting
