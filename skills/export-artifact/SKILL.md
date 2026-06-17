@@ -20,6 +20,21 @@ Render the verified itinerary into deliverables under `trips/<slug>/exports/`. R
    creating a duplicate. Driven by this skill, not a bundled script (the plugin core never
    imports an MCP client).
 
+## Photo enrichment (optional)
+
+When `trips/<slug>/verified-pois-media.yaml` exists (written by the photo adapter under
+backend `wiki`/`google`; absent under the default backend `none`), overlay it onto the
+poi_map **before any `render_*` call**:
+
+`apply_media(poi_map, load_media("trips/<slug>/verified-pois-media.yaml"))` from
+`scripts/media_merge.py`.
+
+This merges `photo` / `photo_attribution` / `photo_source` onto each POI by `poi_id`. It
+is a render-time overlay only — **never write media back into canonical
+`verified-pois.yaml`**, which `source-verify` wholesale-rewrites on every run and would
+clobber it. A photo without attribution, an unsafe `<img src>`, or `photo_source: google`
+is rejected by `export-gate`.
+
 ## Notion graceful skip
 
 If the Notion MCP is not available in the session, log that Notion write-back was skipped and that all other exports completed; do NOT fail the export stage. Record the page id in `exports/.notion-page-id` on success.
@@ -30,7 +45,7 @@ Return to `tripwork:orchestrator`.
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/itinerary.yaml` (canonical) + `verified-pois.yaml` + `gate-report.yaml` (status pass). All adapters render from `itinerary.yaml`; Notion runs only after `export-gate` passes. |
+| Input | `trips/<slug>/itinerary.yaml` (canonical) + `verified-pois.yaml` + optional `verified-pois-media.yaml` (photo side-file) + `gate-report.yaml` (status pass). All adapters render from `itinerary.yaml`; the photo side-file, when present, is overlaid onto the poi_map via `scripts/media_merge.py` before render; Notion runs only after `export-gate` passes. |
 | Output | `trips/<slug>/exports/<slug>-itinerary.md` (+ line-short.txt + `<slug>-itinerary.html`; optional Notion page). |
 | Stop condition | `gate-report` status != pass → do not export; return upstream. |
 | Next stage | `tripwork:orchestrator` (which routes to `export-gate`). |

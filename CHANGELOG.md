@@ -1,5 +1,69 @@
 # Changelog
 
+## 0.18.0 — opt-in CC photo enrichment + place_id deep-link + img-src/attribution gate
+
+Adds **optional, license-clean, attributed POI photos** to the HTML one-pager (plus
+a Google-Maps `place_id` deep-link upgrade), behind a pluggable photo adapter whose
+**default backend is `none`** — nothing changes for existing trips. Photos are
+provenanced, CC-whitelisted, durable across re-verify (stored in a side-file, never
+in the wholesale-rewritten canonical yaml), and gate-enforced. Delivered as a delta
+on 0.17.0 under the 8-step pre-ship gate (TDD red→green, full pytest green, a single
+cross-defect e2e fixture, an 8-agent adversarial matrix re-review).
+
+**Boundary principle (ToS safety):** the *mechanism* (adapter dispatch, license
+whitelist, base64 encode, gate) ships in-plugin and is generic; the *data* (a
+licensed image, an API key) is supplied at runtime by the operator who owns the ToS
+relationship. `backend=none` ships enabled; `backend=wiki` is CC-only and safe to
+distribute; `backend=google` is BLOCKED (no display-surface ToS clearance / no
+personal-cache exception) **and** its output is marked non-distributable by the gate.
+
+- **🗺️ Maps `place_id` deep-link.** `scripts/render/gmaps_links.py::maps_url` appends
+  `&query_place_id=<id>` (fully percent-encoded, `safe=''`) when a POI carries the new
+  optional `gmaps_place_id`, in both the name-search and `pin_exact` branches — the
+  visible `query` (name or coords) is left intact. Both markdown + HTML adapters inherit
+  it from the shared builder.
+- **🖼️ Photo schema fields.** `schemas/verified-pois.schema.json` gains optional
+  `gmaps_place_id`, `photo` (`{url|data, width?, height?, thumb?}`; `url` pinned
+  `^https://`, `data` pinned `^data:image/`), `photo_attribution`
+  (`{author, license, source_url}`, all required + non-empty when present), and
+  `photo_source` (enum `{wikimedia, openverse, google}`). A new `allOf` conditional
+  enforces **photo ⇒ photo_attribution**. None are added to `required`; the line-330
+  POI seal still rejects typo keys.
+- **🗄️ Durable side-file + render-time merge.** A new
+  `schemas/verified-pois-media.schema.json` governs `trips/<slug>/verified-pois-media.yaml`
+  (keyed by `poi_id`, own `additionalProperties:false` seal). `scripts/media_merge.py`
+  overlays it onto the poi_map at export (`apply_media` is a pure, non-mutating, key-
+  whitelisted overlay; `load_media` degrades to `{}` on absent/corrupt/non-dict). Media
+  is **never** written into canonical `verified-pois.yaml` (source-verify rewrites it
+  wholesale). `export-artifact` SKILL prose wires the overlay in before render.
+- **📷 Photo render: thumb + pure-CSS lightbox + mandatory caption.**
+  `scripts/render/html_page.py` renders a `data:`/`https` thumbnail, a **pure-CSS
+  checkbox-hack lightbox** (no `<script>`, no `href`/`#anchor` toggle), and a
+  **mandatory, `_html_escape`'d attribution caption** (author / license + source link).
+  Checkbox ids are unique per call site (a POI can be both a row and the day's lodging).
+- **🚦 Export-gate hardening (`scripts/export_gate.py`).** `run_html_gate` adds an
+  `<img src>` whitelist (`data:image/` or `https://` only — the gate was previously
+  `href`-only and structurally blind to `src=`). Both gates add **photo ⇒ non-empty
+  (stripped) attribution** and **`photo_source=google` ⇒ non-distributable** checks
+  (`img_src_safe`, `photo_has_attribution`, `no_nondistributable_photo_source`), so
+  the distributability guard ships even though no google backend exists yet.
+- **🧩 Pluggable CC photo adapter (`scripts/photo_adapter.py`, `backend=wiki`).**
+  Wikimedia Commons + Openverse client; **hard license whitelist** `{CC0, PD, CC-BY,
+  CC-BY-SA}` rejecting NC/ND; 2-size base64 (thumb + full); descriptive User-Agent on
+  every request; caller-supplied per-source `RateLimiter` (mirrors the Nominatim
+  ≤1 req/s discipline); per-trip cache; `name_local`-first query + geocode location-
+  match; landmark-only. CC-BY-SA is kept (share-alike binds the image, not the MIT
+  plugin code; the rendered caption + source link satisfy its terms).
+- **Adversarial-review hardening (step 8).** Stripped whitespace-only attribution
+  before the gate truthiness test; `load_media` now guards non-dict YAML + broadens
+  its `except` to `OSError`/`UnicodeDecodeError` (mirroring `geocode_cache`);
+  `apply_media` ignores a non-dict media entry.
+
+README: §3 deliverables gains a plain-language photo bullet; the §2 step-table
+`export-artifact` row notes the optional photo overlay; the 開發者資訊 `<details>`
+documents the adapter/side-file/schema/gate. No new pipeline stage → §2 mermaid
+unchanged (render-time, in-stage feature).
+
 ## 0.17.0 — card-style HTML one-pager + mobile RWD fail-safe + XSS hardening
 
 The `html` export adapter (`scripts/render/html_page.py`) is rewritten from a

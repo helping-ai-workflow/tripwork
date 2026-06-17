@@ -181,6 +181,112 @@
               }
             },
             "additionalProperties": false
+          },
+          "gmaps_place_id": {
+            "type": "string",
+            "description": "Google Maps place_id; deep-links maps_url via &query_place_id. May be re-emitted by source-verify so it survives re-verify on the canonical row."
+          },
+          "photo": {
+            "type": "object",
+            "description": "Render-time POI photo (post side-file merge). Canonical verified-pois.yaml on disk never carries this — it is overlaid from verified-pois-media.yaml at export. src MUST be https or a data:image/ URI (also gate-enforced).",
+            "properties": {
+              "url": {
+                "type": "string",
+                "pattern": "^https://"
+              },
+              "data": {
+                "type": "string",
+                "pattern": "^data:image/"
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "thumb": {
+                "type": "object",
+                "description": "Optional smaller inline thumbnail; the lightbox shows the full photo. Same src discipline.",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "pattern": "^https://"
+                  },
+                  "data": {
+                    "type": "string",
+                    "pattern": "^data:image/"
+                  },
+                  "width": {
+                    "type": "integer",
+                    "minimum": 1
+                  },
+                  "height": {
+                    "type": "integer",
+                    "minimum": 1
+                  }
+                },
+                "anyOf": [
+                  {
+                    "required": [
+                      "url"
+                    ]
+                  },
+                  {
+                    "required": [
+                      "data"
+                    ]
+                  }
+                ],
+                "additionalProperties": false
+              }
+            },
+            "anyOf": [
+              {
+                "required": [
+                  "url"
+                ]
+              },
+              {
+                "required": [
+                  "data"
+                ]
+              }
+            ],
+            "additionalProperties": false
+          },
+          "photo_attribution": {
+            "type": "object",
+            "description": "Mandatory provenance whenever photo is present (enforced by the allOf below + the export gate). Rendered as a visible caption.",
+            "required": [
+              "author",
+              "license",
+              "source_url"
+            ],
+            "properties": {
+              "author": {
+                "type": "string",
+                "minLength": 1
+              },
+              "license": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_url": {
+                "type": "string",
+                "pattern": "^https://"
+              }
+            },
+            "additionalProperties": false
+          },
+          "photo_source": {
+            "description": "Photo provenance. wikimedia/openverse are distributable; google is marked non-distributable by the export gate. Backend selector names {none,wiki,google} map to sources as: wiki -> {wikimedia, openverse}, google -> google.",
+            "enum": [
+              "wikimedia",
+              "openverse",
+              "google"
+            ]
           }
         },
         "allOf": [
@@ -205,6 +311,18 @@
             "else": {
               "required": [
                 "status_reason"
+              ]
+            }
+          },
+          {
+            "if": {
+              "required": [
+                "photo"
+              ]
+            },
+            "then": {
+              "required": [
+                "photo_attribution"
               ]
             }
           }

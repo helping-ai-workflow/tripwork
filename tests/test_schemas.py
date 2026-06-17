@@ -585,3 +585,144 @@ def test_verified_pois_booking_lead_time_days():   # TW-030
     schema = _load_schema("verified-pois.schema.json")
     doc = _vp_verified(booking={"required": True, "lead_time": "1 week", "lead_time_days": 7})
     jsonschema.validate(doc, schema)   # must not raise
+
+
+# ---- Photo-enrichment: gmaps_place_id + photo + attribution + side-file (PR1) ----
+
+def test_poi_gmaps_place_id_accepted():   # PR1
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(gmaps_place_id="ChIJN1t_tDeuEmsRUsoyG83frY4")
+    jsonschema.validate(doc, schema)   # must not raise
+
+def test_poi_photo_with_attribution_valid():   # PR1
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(
+        photo={"data": "data:image/jpeg;base64,/9j/AAAA", "width": 640, "height": 480,
+               "thumb": {"data": "data:image/jpeg;base64,/9j/BBBB", "width": 160, "height": 120}},
+        photo_attribution={"author": "Jane Doe", "license": "CC-BY-SA",
+                           "source_url": "https://commons.wikimedia.org/wiki/File:X.jpg"},
+        photo_source="wikimedia",
+    )
+    jsonschema.validate(doc, schema)   # must not raise
+
+def test_poi_photo_https_url_valid():   # PR1
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(
+        photo={"url": "https://upload.wikimedia.org/x.jpg"},
+        photo_attribution={"author": "A", "license": "CC0", "source_url": "https://a.example"},
+        photo_source="openverse",
+    )
+    jsonschema.validate(doc, schema)   # must not raise
+
+def test_poi_photo_without_attribution_rejected():   # PR1 — conditional photo => attribution
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(photo={"data": "data:image/png;base64,iVBORw0AAA"})
+    with pytest.raises(jsonschema.ValidationError) as exc:
+        jsonschema.validate(doc, schema)
+    # Must fail for the RIGHT reason (missing photo_attribution), NOT merely because
+    # `photo` is an un-whitelisted key — that would be a surprise-green masking the bug.
+    assert "photo_attribution" in str(exc.value)
+
+def test_poi_photo_attribution_requires_author_license_source():   # PR1
+    schema = _load_schema("verified-pois.schema.json")
+    cases = [
+        {"license": "CC0", "source_url": "https://a.example"},                 # no author
+        {"author": "A", "source_url": "https://a.example"},                    # no license
+        {"author": "A", "license": "CC0"},                                     # no source_url
+        {"author": "", "license": "CC0", "source_url": "https://a.example"},   # empty author
+    ]
+    for bad_attr in cases:
+        doc = _vp_verified(photo={"url": "https://upload.wikimedia.org/x.jpg"},
+                           photo_attribution=bad_attr, photo_source="wikimedia")
+        with pytest.raises(jsonschema.ValidationError) as exc:
+            jsonschema.validate(doc, schema)
+        # right reason: a constraint INSIDE photo_attribution, not the POI-level seal
+        assert exc.value.validator in ("required", "minLength")
+
+def test_poi_photo_data_must_be_image():   # PR1 — F1 scheme guard at schema layer
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(
+        photo={"data": "data:text/html;base64,PHNjcmlwdD4="},
+        photo_attribution={"author": "A", "license": "CC0", "source_url": "https://a.example"},
+        photo_source="wikimedia",
+    )
+    with pytest.raises(jsonschema.ValidationError) as exc:
+        jsonschema.validate(doc, schema)
+    assert exc.value.validator == "pattern"   # right reason, not additionalProperties
+
+def test_poi_photo_url_must_be_https():   # PR1 — F1 scheme guard at schema layer
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(
+        photo={"url": "http://insecure.example/x.jpg"},
+        photo_attribution={"author": "A", "license": "CC0", "source_url": "https://a.example"},
+        photo_source="wikimedia",
+    )
+    with pytest.raises(jsonschema.ValidationError) as exc:
+        jsonschema.validate(doc, schema)
+    assert exc.value.validator == "pattern"
+
+def test_poi_photo_source_enum_rejects_unknown():   # PR1
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(
+        photo={"url": "https://upload.wikimedia.org/x.jpg"},
+        photo_attribution={"author": "A", "license": "CC0", "source_url": "https://a.example"},
+        photo_source="flickr",
+    )
+    with pytest.raises(jsonschema.ValidationError) as exc:
+        jsonschema.validate(doc, schema)
+    assert exc.value.validator == "enum"   # right reason, not additionalProperties
+
+def test_canonical_yaml_still_rejects_photo_typo_key():   # PR1 — seal stays honest
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_verified(photoo={"url": "https://x.example"})   # typo of photo
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(doc, schema)
+
+
+# ---- Photo side-file schema (verified-pois-media.schema.json) (PR1) ----
+
+def _media_doc(**entry_over):
+    entry = {
+        "photo": {"data": "data:image/jpeg;base64,/9j/AAAA", "width": 640, "height": 480},
+        "photo_attribution": {"author": "Jane Doe", "license": "CC-BY-SA",
+                              "source_url": "https://commons.wikimedia.org/wiki/File:X.jpg"},
+        "photo_source": "wikimedia",
+    }
+    entry.update(entry_over)
+    return {"media": {"poi-001": entry}}
+
+def test_media_sidefile_sample_valid():   # PR1
+    schema = _load_schema("verified-pois-media.schema.json")
+    data = _load_yaml(FIX / "verified-pois-media.sample.yaml")
+    jsonschema.validate(data, schema)   # must not raise
+
+def test_media_sidefile_entry_valid():   # PR1
+    schema = _load_schema("verified-pois-media.schema.json")
+    jsonschema.validate(_media_doc(), schema)   # must not raise
+
+def test_media_sidefile_entry_requires_attribution():   # PR1
+    schema = _load_schema("verified-pois-media.schema.json")
+    bad = _media_doc()
+    del bad["media"]["poi-001"]["photo_attribution"]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_media_sidefile_entry_requires_photo_source():   # PR1
+    schema = _load_schema("verified-pois-media.schema.json")
+    bad = _media_doc()
+    del bad["media"]["poi-001"]["photo_source"]
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_media_sidefile_unknown_photo_source_rejected():   # PR1
+    schema = _load_schema("verified-pois-media.schema.json")
+    bad = _media_doc(photo_source="flickr")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
+def test_media_sidefile_rejects_unknown_top_key():   # PR1 — own seal (matrix OOS-4)
+    schema = _load_schema("verified-pois-media.schema.json")
+    bad = _media_doc()
+    bad["unexpected"] = 1
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)

@@ -101,6 +101,23 @@ _STYLE = (
     "box-shadow:0 2px 10px rgba(0,0,0,.05)}"
     ".chk li{margin:6px 0}"
     "footer{text-align:center;color:var(--mut);font-size:.78em;margin-top:30px}"
+    # POI photo: inline thumb + pure-CSS checkbox-hack lightbox + attribution caption.
+    # The hidden checkbox + label[for] toggle the overlay (no <script>, no #anchor).
+    ".ph{display:block;margin:6px 0 2px}"
+    ".phck{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}"
+    ".thumbwrap{display:inline-block;cursor:zoom-in}"
+    "img.thumb{max-width:168px;max-height:120px;border-radius:8px;"
+    "border:1px solid var(--line);display:block}"
+    ".phcap{font-size:.72em;color:var(--mut);margin:3px 0 0;overflow-wrap:anywhere}"
+    ".phcap a{color:var(--accent2)}"
+    ".lb{display:none}"
+    ".phck:checked~.lb{display:flex;position:fixed;inset:0;z-index:50;"
+    "background:rgba(0,0,0,.82);align-items:center;justify-content:center;"
+    "padding:24px;cursor:zoom-out}"
+    ".lbbox{max-width:94vw;max-height:94vh;text-align:center}"
+    ".lbbox img{max-width:94vw;max-height:80vh;border-radius:8px}"
+    ".lbcap{color:#fff;font-size:.82em;margin:8px 0 0;overflow-wrap:anywhere}"
+    ".lbcap a{color:#7dd3fc}"
     "@media(max-width:480px){body{font-size:17px}.wrap{padding:14px 12px 40px}"
     "header.hero{padding:18px 16px}.t{width:46px}}"
 )
@@ -137,6 +154,62 @@ def _map_link(poi: dict, label: str) -> str:
     that run_html_gate's href check accepts and the maps-link assertion still matches."""
     url = _html_escape(maps_url(poi))  # already percent-encoded by maps_url
     return f'<a href="{url}" class="map" target="_blank">{label}</a>'
+
+
+def _attribution_caption(poi: dict) -> str:
+    """Visible, escaped photo attribution — author / license + a source link.
+    Mandatory whenever a photo is shown (the schema photo=>attribution rule and the
+    export gate both enforce its presence; this is what renders it)."""
+    attr = poi.get("photo_attribution") or {}
+    author = _html_escape(attr.get("author", ""))
+    lic = _html_escape(attr.get("license", ""))
+    bits = f"📷 {author}".rstrip()
+    if lic:
+        bits += f" / {lic}"
+    src = attr.get("source_url")
+    if src:
+        bits += f' · <a href="{_html_escape(src)}" target="_blank">來源</a>'
+    return bits
+
+
+def _photo_src(obj: dict) -> str:
+    """A photo / thumb dict -> its src: inline base64 (data:) preferred, else https url."""
+    return obj.get("data") or obj.get("url") or ""
+
+
+def _photo_html(poi: dict, uid: str) -> str:
+    """POI photo: inline thumb + pure-CSS checkbox-hack lightbox + visible attribution
+    caption. Returns "" when the POI has no photo.
+
+    Pure CSS: a labelled ``<input type=checkbox>`` drives the lightbox — NO ``<script>``,
+    NO ``href``/``#anchor`` toggle — so run_html_gate's no-raw-script + href checks stay
+    satisfied. Every ``<img src>`` is a ``data:image/`` or ``https`` URL (gate img-src
+    whitelist) and ALL caption text is ``_html_escape``'d: the gate only catches a literal
+    ``<script>``, so escaping at the render layer is the real XSS defence. ``uid`` makes the
+    checkbox id unique per call site (one POI can be both a row and the day's lodging)."""
+    photo = poi.get("photo")
+    if not photo:
+        return ""
+    full = _photo_src(photo)
+    if not full:
+        return ""
+    thumb = _photo_src(photo.get("thumb") or {}) or full
+    alt = _html_escape(_poi_label(poi))
+    cap = _attribution_caption(poi)
+    cb = "ph-" + _html_escape(str(uid))
+    full_e = _html_escape(full)
+    thumb_e = _html_escape(thumb)
+    return (
+        f'<span class="ph">'
+        f'<input type="checkbox" id="{cb}" class="phck" aria-hidden="true">'
+        f'<label class="thumbwrap" for="{cb}">'
+        f'<img class="thumb" src="{thumb_e}" alt="{alt}" loading="lazy"></label>'
+        f'<label class="lb" for="{cb}"><span class="lbbox">'
+        f'<img class="lbimg" src="{full_e}" alt="{alt}">'
+        f'<span class="lbcap">{cap}</span></span></label>'
+        f'<span class="phcap">{cap}</span>'
+        f'</span>'
+    )
 
 
 def _date_span(days: list) -> str:
@@ -214,7 +287,7 @@ _LEGEND = (
 )
 
 
-def _row_html(row: dict, poi_map: dict) -> str:
+def _row_html(row: dict, poi_map: dict, uid: str = "") -> str:
     slot = row.get("slot", "")
     text_raw = row.get("text", "")
     alt = _is_alt(text_raw)
@@ -228,7 +301,7 @@ def _row_html(row: dict, poi_map: dict) -> str:
     poi = poi_map.get(pid) if pid else None
     if poi:
         chip = _map_link(poi, f"🗺️ {_html_escape(_poi_label(poi))}")
-        body = f"{text} {chip}".strip()
+        body = f"{text} {chip}".strip() + _photo_html(poi, uid)
     else:
         body = text
 
@@ -247,9 +320,11 @@ def _day_html(day: dict, poi_map: dict, idx: int) -> str:
     poi = poi_map.get(pid) if pid else None
     if poi:
         link = _map_link(poi, _html_escape(_poi_label(poi)))
-        lodge = f'<div class="lodge">🏨 住宿：{link}</div>'
+        lodge = f'<div class="lodge">🏨 住宿：{link}</div>' + _photo_html(poi, f"d{idx}-lodge")
 
-    rows = "".join(_row_html(r, poi_map) for r in day.get("rows", []))
+    rows = "".join(
+        _row_html(r, poi_map, f"d{idx}-r{j}") for j, r in enumerate(day.get("rows", []))
+    )
     return (
         f'<section class="day-card"><h2><span class="dnum">{idx}</span>{label}</h2>'
         f'{lodge}<ul class="rows">{rows}</ul></section>'

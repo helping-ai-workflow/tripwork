@@ -19,6 +19,32 @@ _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
 _KANA = re.compile(r"[぀-ヿ]+")
 _HAS_PAREN = re.compile(r"[（(][^（()）]*[）)]")
 
+def _photo_failures(pois):
+    """Data-level photo checks shared by BOTH gates (cross-axis matrix F4 + F5):
+
+    F4 attribution-presence — a POI carrying a `photo` MUST also carry a non-empty
+       `photo_attribution` (author + license + source_url).
+    F5 distributability     — `photo_source == "google"` may never reach a
+       distributable export (Google has no personal-cache/display exception); this
+       guard ships regardless of whether any google backend exists yet.
+
+    Returns a list of failure strings (empty when clean).
+    """
+    out = []
+    for p in (pois or []):
+        if p.get("photo"):
+            attr = p.get("photo_attribution") or {}
+            # strip() before the truthiness test: a whitespace-only field is
+            # effectively blank and must not satisfy the mandatory-attribution guard.
+            if not (str(attr.get("author") or "").strip()
+                    and str(attr.get("license") or "").strip()
+                    and str(attr.get("source_url") or "").strip()):
+                out.append(f"photo POI '{p.get('id')}' missing attribution")
+        if p.get("photo_source") == "google":
+            out.append(f"non-distributable photo_source 'google' on POI '{p.get('id')}'")
+    return out
+
+
 def run_export_gate(md_text, pois, min_days=None):
     """Return {status, checks, failures} for a rendered itinerary markdown.
 
@@ -72,6 +98,8 @@ def run_export_gate(md_text, pois, min_days=None):
                 f"bookable POI '{p.get('id')}' row missing official source link"
             )
 
+    failures.extend(_photo_failures(pois))
+
     checks = [
         {"name": "deliverable_has_content",
          "passed": not any("empty" in f or "too few day" in f for f in failures)},
@@ -85,12 +113,24 @@ def run_export_gate(md_text, pois, min_days=None):
          "passed": not any("official source link" in f for f in failures)},
         {"name": "japanese_glossed",
          "passed": not any("no （中文）gloss" in f for f in failures)},
+        {"name": "photo_has_attribution",
+         "passed": not any("missing attribution" in f for f in failures)},
+        {"name": "no_nondistributable_photo_source",
+         "passed": not any("non-distributable photo_source" in f for f in failures)},
     ]
     return {"status": "pass" if not failures else "fail",
             "checks": checks, "failures": failures}
 
 _HREF = re.compile(r'href="([^"]*)"')
 _DAY_CARD = re.compile(r'class="day-card"')
+# <img ... src="..."> — captures the src so the gate can whitelist its scheme.
+# run_html_gate's _HREF inspector is href-only and structurally blind to src=
+# (cross-axis matrix OOS-1), so a dedicated matcher is required. Double-quoted
+# to match the renderer's attribute style.
+_IMG_SRC = re.compile(r'<img\b[^>]*\bsrc="([^"]*)"', re.IGNORECASE)
+# An <img src> is safe only as an inline base64 image or an https URL — no http,
+# no javascript:, no data: of a non-image type. (security #6)
+_SAFE_IMG_SRC = re.compile(r'(?i)^(data:image/|https://)')
 
 def run_html_gate(html_text, pois, min_days=None):
     """Validate a rendered one-page HTML deliverable. Structure/format only:
@@ -110,6 +150,10 @@ def run_html_gate(html_text, pois, min_days=None):
                 failures.append(f"non-http href in deliverable: '{href}'")
         if "<script" in html_text.lower():
             failures.append("raw <script> in deliverable (data not escaped)")
+        for src in _IMG_SRC.findall(html_text):
+            if not _SAFE_IMG_SRC.match(src):
+                failures.append(f"unsafe <img src>: '{src}'")
+    failures.extend(_photo_failures(pois))
     checks = [
         {"name": "deliverable_has_content",
          "passed": not any("empty" in f or "too few day" in f for f in failures)},
@@ -117,6 +161,12 @@ def run_html_gate(html_text, pois, min_days=None):
          "passed": not any("href" in f for f in failures)},
         {"name": "no_raw_script",
          "passed": not any("<script>" in f for f in failures)},
+        {"name": "img_src_safe",
+         "passed": not any("unsafe <img src>" in f for f in failures)},
+        {"name": "photo_has_attribution",
+         "passed": not any("missing attribution" in f for f in failures)},
+        {"name": "no_nondistributable_photo_source",
+         "passed": not any("non-distributable photo_source" in f for f in failures)},
     ]
     return {"status": "pass" if not failures else "fail",
             "checks": checks, "failures": failures}

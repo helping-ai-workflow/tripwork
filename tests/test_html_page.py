@@ -478,3 +478,95 @@ class TestCardStyleCoverage:
         ]}]}
         html = render_html_page(itin, {})
         assert '<span class="t empty"></span>' in html
+
+
+# ---------------------------------------------------------------------------
+# PR3: POI photo slot + pure-CSS checkbox-hack lightbox + attribution caption.
+# Separate fixture (POI_MAP above is deliberately photo-less so the
+# no-external-src / gate-round-trip tests stay asset-free).
+# ---------------------------------------------------------------------------
+
+POI_PHOTO = {
+    "id": "pp",
+    "name_display": "登別温泉",
+    "name_zh": "登別溫泉",
+    "geocode": {"lat": 42.49, "lng": 141.15},
+    "photo": {
+        "data": "data:image/jpeg;base64,/9j/FULLDATA",
+        "width": 640, "height": 480,
+        "thumb": {"data": "data:image/jpeg;base64,/9j/THUMB", "width": 160, "height": 120},
+    },
+    "photo_attribution": {
+        "author": "Commons User <evil>",
+        "license": "CC-BY-SA-4.0",
+        "source_url": "https://commons.wikimedia.org/wiki/File:X.jpg",
+    },
+    "photo_source": "wikimedia",
+}
+
+PHOTO_ITIN = {
+    "title": "溫泉行",
+    "days": [{"date": "2026-11-01", "label": "D1", "rows": [
+        {"time": "10:00", "slot": "visit", "poi_id": "pp", "text": "泡湯"},
+    ]}],
+}
+PHOTO_MAP = {"pp": POI_PHOTO}
+
+
+class TestPhotoRender:
+    def setup_method(self):
+        self.html = render_html_page(PHOTO_ITIN, PHOTO_MAP)
+
+    def test_thumb_img_emitted(self):
+        assert 'class="thumb"' in self.html
+        assert "data:image/jpeg;base64,/9j/THUMB" in self.html      # thumbnail src
+
+    def test_lightbox_full_image_emitted(self):
+        assert "data:image/jpeg;base64,/9j/FULLDATA" in self.html   # full src
+
+    def test_lightbox_is_pure_css_no_script_no_anchor(self):
+        assert 'type="checkbox"' in self.html
+        assert "<script" not in self.html.lower()
+        assert 'href="#' not in self.html                            # no #anchor toggle
+
+    def test_attribution_caption_visible_and_escaped(self):
+        assert "CC-BY-SA-4.0" in self.html
+        assert "Commons User &lt;evil&gt;" in self.html              # author escaped
+        assert "<evil>" not in self.html                             # raw tag gone
+        assert 'href="https://commons.wikimedia.org/wiki/File:X.jpg"' in self.html
+
+    def test_photo_img_src_is_safe_scheme(self):
+        srcs = re.findall(r'<img[^>]*\bsrc="([^"]*)"', self.html)
+        assert srcs
+        for s in srcs:
+            assert s.startswith("data:image/") or s.startswith("https://")
+
+    def test_no_photo_no_img(self):
+        html = render_html_page(ITIN, POI_MAP)
+        assert "<img" not in html
+
+    def test_photo_render_passes_html_gate(self):
+        from scripts.export_gate import run_html_gate
+        result = run_html_gate(self.html, pois=list(PHOTO_MAP.values()), min_days=1)
+        assert result["status"] == "pass", result["failures"]
+        assert result["failures"] == []
+
+    def test_https_url_photo_rendered(self):
+        poi = {"id": "u", "name_display": "X",
+               "photo": {"url": "https://upload.wikimedia.org/x.jpg"},
+               "photo_attribution": {"author": "A", "license": "CC0",
+                                     "source_url": "https://a.example"},
+               "photo_source": "openverse"}
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
+                "rows": [{"slot": "visit", "poi_id": "u", "text": "x"}]}]}
+        html = render_html_page(itin, {"u": poi})
+        assert 'src="https://upload.wikimedia.org/x.jpg"' in html
+
+    def test_unique_checkbox_id_when_poi_is_row_and_lodging(self):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
+                "lodging": "pp", "rows": [
+                    {"slot": "visit", "poi_id": "pp", "text": "x"}]}]}
+        html = render_html_page(itin, PHOTO_MAP)
+        ids = re.findall(r'<input[^>]*id="(ph-[^"]*)"', html)
+        assert len(ids) == 2
+        assert len(set(ids)) == 2                                    # no duplicate id

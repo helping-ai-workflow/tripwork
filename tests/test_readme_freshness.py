@@ -48,6 +48,16 @@ def test_html_one_pager_deliverable_mentioned():
     )
 
 
+def test_photo_enrichment_deliverable_mentioned():
+    # v0.18.0 added opt-in CC POI photos + attribution caption (HTML one-pager).
+    # §3 deliverables / dev <details> must mention it so the README does not drift
+    # behind the photo adapter / export-gate img-src + attribution checks.
+    assert "照片" in README, (
+        "README does not mention the opt-in POI photo deliverable ('照片'). "
+        "Update README in the same PR."
+    )
+
+
 import re
 
 def _mermaid_block():
