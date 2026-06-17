@@ -30,15 +30,21 @@ def maps_url(poi):
     This deliberately REVERSES the TW-048 coord-first default (dogfood D1):
     coordinate pins produced unnamed map markers for area POIs and silently
     masked data-quality issues when geocode values were corrupt.
+
+    Place-id deep-link: when ``gmaps_place_id`` is present, ``&query_place_id``
+    is appended so Maps resolves the exact place. The visible ``query`` (name or
+    coords) is left intact in BOTH branches — place_id only refines the match.
     """
+    place_id = poi.get("gmaps_place_id")
+    suffix = "&query_place_id=" + quote(str(place_id), safe="") if place_id else ""
     geo = poi.get("geocode") or {}
     lat, lng = geo.get("lat"), geo.get("lng")
     if geo.get("pin_exact") and isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
-        return BASE + quote(f"{lat},{lng}")
+        return BASE + quote(f"{lat},{lng}") + suffix
     name = _query_name(poi)
     district = poi.get("district")
     query = f"{name} {district}" if district else name
-    return BASE + quote(query)
+    return BASE + quote(query) + suffix
 
 def link_markdown(poi):
     """Markdown link: [display name（中文）](maps url). Label escaped so a scraped

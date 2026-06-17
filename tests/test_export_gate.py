@@ -105,6 +105,47 @@ def test_japanese_glossed_check_present():
     names = [c["name"] for c in r["checks"]]
     assert "japanese_glossed" in names
 
+# ── PR4: photo attribution presence + distributability (markdown gate) ──
+
+def _photo_poi(over=None):
+    p = {"id": "p1", "photo": {"url": "https://upload.wikimedia.org/x.jpg"},
+         "photo_attribution": {"author": "A", "license": "CC0", "source_url": "https://a.example"},
+         "photo_source": "wikimedia"}
+    if over:
+        p.update(over)
+    return p
+
+def test_md_photo_without_attribution_fails():
+    pois = [{"id": "p1", "photo": {"data": "data:image/png;base64,iVB"}}]
+    r = run_export_gate(CLEAN, pois)
+    assert r["status"] == "fail"
+    assert _names("photo_has_attribution", r) is False
+
+def test_md_photo_with_attribution_passes():
+    r = run_export_gate(CLEAN, [_photo_poi()])
+    assert _names("photo_has_attribution", r) is True
+    assert _names("no_nondistributable_photo_source", r) is True
+
+def test_md_whitespace_attribution_fails():   # step-8 hardening: bare truthiness bypass
+    pois = [{"id": "p1", "photo": {"url": "https://x/y.jpg"},
+             "photo_attribution": {"author": "  ", "license": "\t", "source_url": " "},
+             "photo_source": "wikimedia"}]
+    r = run_export_gate(CLEAN, pois)
+    assert r["status"] == "fail"
+    assert _names("photo_has_attribution", r) is False
+
+def test_md_google_photo_source_non_distributable_fails():
+    r = run_export_gate(CLEAN, [_photo_poi({"photo_source": "google"})])
+    assert r["status"] == "fail"
+    assert _names("no_nondistributable_photo_source", r) is False
+
+def test_md_photo_checks_present():
+    r = run_export_gate(CLEAN, [])
+    names = [c["name"] for c in r["checks"]]
+    assert "photo_has_attribution" in names
+    assert "no_nondistributable_photo_source" in names
+
+
 def test_find_row_ignores_heading_uses_table_row():   # TW-044
     bookable = {"id": "milford", "name_local": "Milford Sound", "name_display": "Milford Sound",
                 "verify_status": "verified", "booking": {"required": True},

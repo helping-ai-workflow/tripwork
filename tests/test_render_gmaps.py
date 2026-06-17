@@ -88,6 +88,41 @@ def test_link_markdown_escapes_label():   # TW-022
     assert "\\]" in label and "\\|" in label and "\\$" in label
 
 
+# --- PR2: &query_place_id deep-link append ---
+
+def test_maps_url_appends_query_place_id_when_present():
+    """gmaps_place_id present -> &query_place_id appended; query stays the NAME."""
+    poi = {"name_local": "登別温泉", "district": "Noboribetsu",
+           "gmaps_place_id": "ChIJ_abc-123"}
+    url = maps_url(poi)
+    assert "&query_place_id=ChIJ_abc-123" in url
+    query = unquote(url.split("query=", 1)[1].split("&query_place_id=", 1)[0])
+    assert query == "登別温泉 Noboribetsu"   # NOT coord-pinned
+    assert "42." not in url
+
+def test_maps_url_place_id_appended_on_pin_exact_too():
+    """place_id refines the pin_exact (coord) branch as well."""
+    poi = {"name_local": "x", "district": "d",
+           "geocode": {"lat": 42.47, "lng": 141.1, "pin_exact": True},
+           "gmaps_place_id": "PLACE123"}
+    url = maps_url(poi)
+    assert "&query_place_id=PLACE123" in url
+    query = unquote(url.split("query=", 1)[1].split("&query_place_id=", 1)[0])
+    assert query == "42.47,141.1"
+
+def test_maps_url_no_place_id_no_query_place_id_param():
+    """No gmaps_place_id -> URL unchanged, no query_place_id param. (regression)"""
+    poi = {"name_local": "大通公園"}
+    url = maps_url(poi)
+    assert "query_place_id" not in url
+
+def test_maps_url_place_id_is_fully_url_quoted():
+    """place_id special chars are percent-encoded (safe='')."""
+    poi = {"name_local": "x", "gmaps_place_id": "a b/c+d"}
+    url = maps_url(poi)
+    assert "&query_place_id=a%20b%2Fc%2Bd" in url
+
+
 # --- dogfood D3: name_zh Chinese gloss ---
 
 def test_link_markdown_with_name_zh_shows_gloss():

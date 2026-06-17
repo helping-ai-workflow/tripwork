@@ -83,3 +83,73 @@ class TestRunHtmlGate:
         result = run_html_gate(bad_html, pois=[], min_days=1)
         assert result["status"] == "fail"
         assert any("script" in f.lower() for f in result["failures"])
+
+
+# ---------------------------------------------------------------------------
+# PR4: <img src> whitelist + attribution presence + distributability
+# Injected AFTER the rendered html so the day-card count stays 1.
+# ---------------------------------------------------------------------------
+
+def _photo_poi(over=None):
+    p = {"id": "p1", "photo": {"data": "data:image/png;base64,iVBORw0KGgo="},
+         "photo_attribution": {"author": "A", "license": "CC0", "source_url": "https://a.example"},
+         "photo_source": "wikimedia"}
+    if over:
+        p.update(over)
+    return p
+
+
+class TestRunHtmlGatePhoto:
+
+    def _html(self, extra=""):
+        return render_html_page(ITIN, POI_MAP) + extra
+
+    def test_img_data_image_src_passes(self):
+        html = self._html('<img src="data:image/png;base64,iVBORw0KGgo=" alt="x">')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "pass", r["failures"]
+
+    def test_img_https_src_passes(self):
+        html = self._html('<img src="https://upload.wikimedia.org/x.jpg" alt="x">')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "pass", r["failures"]
+
+    def test_img_http_src_fails(self):
+        html = self._html('<img src="http://insecure.example/x.jpg">')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "fail"
+        assert any("unsafe <img src>" in f for f in r["failures"])
+
+    def test_img_javascript_src_fails(self):
+        html = self._html('<img src="javascript:alert(1)">')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "fail"
+        assert any("unsafe <img src>" in f for f in r["failures"])
+
+    def test_img_data_non_image_src_fails(self):
+        html = self._html('<img src="data:text/html;base64,PHNjcmlwdD4=">')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "fail"
+        assert any("unsafe <img src>" in f for f in r["failures"])
+
+    def test_photo_without_attribution_fails(self):
+        pois = [{"id": "p1", "photo": {"data": "data:image/png;base64,iVB"}}]
+        r = run_html_gate(self._html(), pois=pois, min_days=1)
+        assert r["status"] == "fail"
+        assert any("missing attribution" in f for f in r["failures"])
+
+    def test_photo_with_attribution_passes(self):
+        r = run_html_gate(self._html(), pois=[_photo_poi()], min_days=1)
+        assert r["status"] == "pass", r["failures"]
+
+    def test_google_photo_source_non_distributable_fails(self):
+        pois = [_photo_poi({"photo_source": "google"})]
+        r = run_html_gate(self._html(), pois=pois, min_days=1)
+        assert r["status"] == "fail"
+        assert any("non-distributable photo_source" in f for f in r["failures"])
+
+    def test_new_check_names_present(self):
+        r = run_html_gate(self._html(), pois=[], min_days=1)
+        names = {c["name"] for c in r["checks"]}
+        assert {"img_src_safe", "photo_has_attribution",
+                "no_nondistributable_photo_source"} <= names
