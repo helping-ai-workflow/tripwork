@@ -562,6 +562,17 @@ class TestPhotoRender:
         html = render_html_page(itin, {"u": poi})
         assert 'src="https://upload.wikimedia.org/x.jpg"' in html
 
+    def test_row_phcap_removed(self):   # D9: no duplicate row caption blowing the column
+        assert 'class="phcap"' not in self.html
+
+    def test_thumb_has_title_attribution(self):   # D9: 署名 moves to title/hover
+        assert 'title="📷 Commons User &lt;evil&gt; / CC-BY-SA-4.0"' in self.html
+
+    def test_lightbox_caption_centered_column(self):   # D9: lbcap centered under image
+        assert "flex-direction:column;align-items:center}" in self.html   # .lbbox
+        assert ".lbimg{display:block" in self.html
+        assert ".lbcap{" in self.html and "text-align:center" in self.html
+
     def test_thumb_is_sibling_after_bd_not_nested(self):   # D8: right-aligned thumb
         # .ph is now the last flex child of <li class="row">, a SIBLING after .bd,
         # not nested inside it — so margin-left:auto can push it to the right edge.

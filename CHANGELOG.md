@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.18.2 — D9 photo caption layout: thumb-title attribution + centred lightbox caption
+
+Pure CSS/markup polish on the photo caption (`scripts/render/html_page.py`); no gate
+or schema change.
+
+- **Row caption removed.** `_photo_html` no longer emits a `<span class="phcap">` under
+  the thumbnail. The duplicate caption (already shown in the lightbox) was stretching
+  the 60px thumb's column to ~170px. Attribution now rides on the thumbnail's **`title`
+  attribute** (visible on hover, plain-text `📷 author / license`, `_html_escape`'d) plus
+  the lightbox caption — so CC attribution stays reachable without occupying the row.
+- **Lightbox caption centred.** `.lbbox` is now a vertical flex column
+  (`display:flex;flex-direction:column;align-items:center`) and `.lbimg` is
+  `display:block`, so `.lbcap` sits centred directly under the image. Previously
+  `text-align:center` on an inline image/caption pushed a landscape image's caption to
+  the right.
+
 ## 0.18.1 — D8 photo polish: right-aligned thumbnail + gate-on-merged-pois
 
 Visual + correctness polish on the 0.18.0 photo enrichment.

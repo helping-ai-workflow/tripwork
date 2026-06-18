@@ -101,26 +101,26 @@ _STYLE = (
     "box-shadow:0 2px 10px rgba(0,0,0,.05)}"
     ".chk li{margin:6px 0}"
     "footer{text-align:center;color:var(--mut);font-size:.78em;margin-top:30px}"
-    # POI photo: right-aligned small square thumb + pure-CSS checkbox-hack lightbox +
-    # attribution caption. .ph is the last flex child of li.row (margin-left:auto pushes
-    # it to the right edge); thumb is a 60px square. The hidden checkbox + label[for]
-    # toggle the overlay (no <script>, no #anchor). (D8)
-    ".ph{flex:none;align-self:flex-start;margin-left:auto;display:flex;"
-    "flex-direction:column;align-items:flex-end;max-width:170px}"
+    # POI photo: right-aligned 60px square thumb + pure-CSS checkbox-hack lightbox.
+    # .ph is the last flex child of li.row (margin-left:auto pins it to the right edge).
+    # Attribution = thumb title (hover) + lightbox caption — no row caption. The hidden
+    # checkbox + label[for] toggle the overlay (no <script>, no #anchor). (D8/D9)
+    ".ph{flex:none;align-self:flex-start;margin-left:auto}"
     ".phck{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}"
     ".thumbwrap{cursor:zoom-in;margin-left:auto}"
     "img.thumb{width:60px;height:60px;object-fit:cover;border-radius:8px;"
     "border:1px solid var(--line);display:block}"
-    ".phcap{font-size:.72em;color:var(--mut);margin:3px 0 0;overflow-wrap:anywhere;"
-    "text-align:right}"
-    ".phcap a{color:var(--accent2)}"
     ".lb{display:none}"
     ".phck:checked~.lb{display:flex;position:fixed;inset:0;z-index:50;"
     "background:rgba(0,0,0,.82);align-items:center;justify-content:center;"
     "padding:24px;cursor:zoom-out}"
-    ".lbbox{max-width:94vw;max-height:94vh;text-align:center}"
-    ".lbbox img{max-width:94vw;max-height:80vh;border-radius:8px}"
-    ".lbcap{color:#fff;font-size:.82em;margin:8px 0 0;overflow-wrap:anywhere}"
+    # lightbox: vertical column so the caption is always centred directly under the
+    # image (a landscape .lbimg otherwise drifted the inline caption to the right). (D9)
+    ".lbbox{max-width:94vw;max-height:94vh;display:flex;flex-direction:column;"
+    "align-items:center}"
+    ".lbimg{display:block;max-width:94vw;max-height:80vh;border-radius:8px}"
+    ".lbcap{color:#fff;font-size:.82em;margin:8px 0 0;overflow-wrap:anywhere;"
+    "text-align:center}"
     ".lbcap a{color:#7dd3fc}"
     "@media(max-width:480px){body{font-size:17px}.wrap{padding:14px 12px 40px}"
     "header.hero{padding:18px 16px}.t{width:46px}}"
@@ -176,14 +176,25 @@ def _attribution_caption(poi: dict) -> str:
     return bits
 
 
+def _attribution_text(poi: dict) -> str:
+    """Plain-text attribution (author / license) for the thumb's title/hover — NO
+    markup (a title attribute can't carry a link; the clickable 來源 lives in the
+    lightbox caption). Keeps CC attribution reachable without a row caption that
+    blows the 60px thumb's column."""
+    attr = poi.get("photo_attribution") or {}
+    parts = [p for p in (attr.get("author"), attr.get("license")) if p]
+    return "📷 " + " / ".join(parts) if parts else "📷"
+
+
 def _photo_src(obj: dict) -> str:
     """A photo / thumb dict -> its src: inline base64 (data:) preferred, else https url."""
     return obj.get("data") or obj.get("url") or ""
 
 
 def _photo_html(poi: dict, uid: str) -> str:
-    """POI photo: inline thumb + pure-CSS checkbox-hack lightbox + visible attribution
-    caption. Returns "" when the POI has no photo.
+    """POI photo: right-aligned 60px thumb + pure-CSS checkbox-hack lightbox. Attribution
+    is on the thumb ``title`` (hover) and in the lightbox caption — no row caption.
+    Returns "" when the POI has no photo.
 
     Pure CSS: a labelled ``<input type=checkbox>`` drives the lightbox — NO ``<script>``,
     NO ``href``/``#anchor`` toggle — so run_html_gate's no-raw-script + href checks stay
@@ -203,15 +214,15 @@ def _photo_html(poi: dict, uid: str) -> str:
     cb = "ph-" + _html_escape(str(uid))
     full_e = _html_escape(full)
     thumb_e = _html_escape(thumb)
+    title = _html_escape(_attribution_text(poi))
     return (
         f'<span class="ph">'
         f'<input type="checkbox" id="{cb}" class="phck" aria-hidden="true">'
         f'<label class="thumbwrap" for="{cb}">'
-        f'<img class="thumb" src="{thumb_e}" alt="{alt}" loading="lazy"></label>'
+        f'<img class="thumb" src="{thumb_e}" alt="{alt}" title="{title}" loading="lazy"></label>'
         f'<label class="lb" for="{cb}"><span class="lbbox">'
         f'<img class="lbimg" src="{full_e}" alt="{alt}">'
         f'<span class="lbcap">{cap}</span></span></label>'
-        f'<span class="phcap">{cap}</span>'
         f'</span>'
     )
 
