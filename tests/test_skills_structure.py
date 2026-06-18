@@ -37,6 +37,15 @@ def test_stage_skill_has_stage_contract(name):
     for field in ("Input", "Output", "Stop condition", "Next stage"):
         assert field in text, f"{name} Stage Contract missing '{field}'"
 
+def test_export_gate_runs_on_merged_pois():   # D8: photo checks need post-apply_media pois
+    # The gate's photo_has_attribution + no_nondistributable_photo_source checks see a
+    # `photo`/`photo_source` only on the MERGED pois (apply_media output). Feeding it the
+    # canonical verified-pois.yaml (which never carries photos, per PR6) makes those
+    # checks spin. The SKILL must document the media overlay before the gate.
+    text = (SKILLS / "export-gate" / "SKILL.md").read_text(encoding="utf-8")
+    assert "verified-pois-media" in text
+    assert "apply_media" in text or "media_merge" in text
+
 def test_entry_skill_has_iron_rules_and_quick_reference():
     text = (SKILLS / "using-tripwork" / "SKILL.md").read_text(encoding="utf-8")
     assert "## Iron Rules" in text

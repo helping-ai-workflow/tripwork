@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.18.1 — D8 photo polish: right-aligned thumbnail + gate-on-merged-pois
+
+Visual + correctness polish on the 0.18.0 photo enrichment.
+
+- **🖼️ Right-aligned thumbnail (`scripts/render/html_page.py`).** The POI photo was a
+  168×120 block stacked under each row's text. It is now a **60×60 square thumbnail
+  (`object-fit:cover`) pinned to the right edge of the row**: `_row_html` emits the
+  `.ph` block as the last flex child of `<li class="row">` (a sibling **after** `.bd`,
+  not nested inside it) and `.ph`/`.thumbwrap` carry `margin-left:auto`. The pure-CSS
+  checkbox lightbox and the mandatory attribution caption are unchanged.
+- **🚦 Export-gate runs on the MERGED pois (`skills/export-gate/SKILL.md`).** The gate's
+  `photo_has_attribution` + `no_nondistributable_photo_source` checks only see a
+  `photo`/`photo_source` on the side-file-merged pois. The Stage Contract previously fed
+  the gate the canonical `verified-pois.yaml` (which never carries photos, by design),
+  so those checks spun against nothing. The contract now requires overlaying
+  `verified-pois-media.yaml` via `scripts/media_merge.py::apply_media` (the same overlay
+  `export-artifact` applies before render) before invoking the gate; the photo checks
+  and the `<img src>` whitelist are now documented in the Checks list.
+
 ## 0.18.0 — opt-in CC photo enrichment + place_id deep-link + img-src/attribution gate
 
 Adds **optional, license-clean, attributed POI photos** to the HTML one-pager (plus

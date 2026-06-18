@@ -101,14 +101,18 @@ _STYLE = (
     "box-shadow:0 2px 10px rgba(0,0,0,.05)}"
     ".chk li{margin:6px 0}"
     "footer{text-align:center;color:var(--mut);font-size:.78em;margin-top:30px}"
-    # POI photo: inline thumb + pure-CSS checkbox-hack lightbox + attribution caption.
-    # The hidden checkbox + label[for] toggle the overlay (no <script>, no #anchor).
-    ".ph{display:block;margin:6px 0 2px}"
+    # POI photo: right-aligned small square thumb + pure-CSS checkbox-hack lightbox +
+    # attribution caption. .ph is the last flex child of li.row (margin-left:auto pushes
+    # it to the right edge); thumb is a 60px square. The hidden checkbox + label[for]
+    # toggle the overlay (no <script>, no #anchor). (D8)
+    ".ph{flex:none;align-self:flex-start;margin-left:auto;display:flex;"
+    "flex-direction:column;align-items:flex-end;max-width:170px}"
     ".phck{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}"
-    ".thumbwrap{display:inline-block;cursor:zoom-in}"
-    "img.thumb{max-width:168px;max-height:120px;border-radius:8px;"
+    ".thumbwrap{cursor:zoom-in;margin-left:auto}"
+    "img.thumb{width:60px;height:60px;object-fit:cover;border-radius:8px;"
     "border:1px solid var(--line);display:block}"
-    ".phcap{font-size:.72em;color:var(--mut);margin:3px 0 0;overflow-wrap:anywhere}"
+    ".phcap{font-size:.72em;color:var(--mut);margin:3px 0 0;overflow-wrap:anywhere;"
+    "text-align:right}"
     ".phcap a{color:var(--accent2)}"
     ".lb{display:none}"
     ".phck:checked~.lb{display:flex;position:fixed;inset:0;z-index:50;"
@@ -301,14 +305,16 @@ def _row_html(row: dict, poi_map: dict, uid: str = "") -> str:
     poi = poi_map.get(pid) if pid else None
     if poi:
         chip = _map_link(poi, f"🗺️ {_html_escape(_poi_label(poi))}")
-        body = f"{text} {chip}".strip() + _photo_html(poi, uid)
+        body = f"{text} {chip}".strip()
+        photo = _photo_html(poi, uid)   # right-aligned thumb: a sibling AFTER .bd
     else:
         body = text
+        photo = ""
 
     cls = "row alt" if alt else f"row slot-{_html_escape(slot)}"
     return (
         f'<li class="{cls}">{t}<span class="emo">{emoji}</span>'
-        f'<span class="bd">{body}</span></li>'
+        f'<span class="bd">{body}</span>{photo}</li>'
     )
 
 
