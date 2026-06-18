@@ -427,6 +427,44 @@ POI_LODGE2 = {"id": "h2", "name_display": "乃の風", "name_zh": "乃之風",
               "geocode": {"lat": 42.55, "lng": 140.78}}
 
 
+class TestAltAttach:
+    """D11: slot-level 備案 (▸ alt) bound to the row it replaces.
+    A maximal alt-run is 'attached' iff it is sandwiched between a real row before AND
+    after (mid-day slot fallback). A trailing run (day-tail 本日備案) or a leading run
+    stays an independent orange box."""
+
+    def _html(self, rows):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
+                "rows": [{"slot": s, "text": t} for s, t in rows]}]}
+        return render_html_page(itin, {})
+
+    def test_alt_attached_when_sandwiched(self):
+        h = self._html([("visit", "看夜景"), ("activity", "▸ 備案｜改五稜郭"), ("meal", "晚餐")])
+        assert "row alt attached" in h
+        assert "has-alt" in h            # the preceding real row drops its dashed border
+
+    def test_trailing_alt_independent(self):
+        h = self._html([("meal", "蟹会席"), ("activity", "▸ 備案｜乃の風訂不到改登別")])
+        assert "row alt" in h
+        assert "row alt attached" not in h   # day-tail -> independent 本日備案
+
+    def test_leading_alt_independent(self):
+        h = self._html([("activity", "▸ 開場備案"), ("visit", "看夜景")])
+        assert "row alt attached" not in h
+
+    def test_consecutive_alts_share_parent(self):
+        h = self._html([("visit", "有珠山"), ("activity", "▸ 備案 A"),
+                        ("activity", "▸ 備案 B"), ("move", "送迎")])
+        assert h.count("row alt attached") == 2
+
+    def test_attached_css_connector(self):
+        h = self._html([("visit", "x"), ("activity", "▸ 備案"), ("meal", "y")])
+        assert ".row.alt.attached{" in h
+        assert "margin-left:62px" in h
+        assert "border-top:none" in h
+        assert "↳" in h                 # ↳ connector glyph (CSS ::before content)
+
+
 class TestCardStyleCoverage:
     def test_missing_title_defaults(self):
         html = render_html_page({"days": [{"date": "2026-11-01", "label": "D1", "rows": []}]}, {})

@@ -98,6 +98,14 @@ _STYLE = (
     "li.row.alt{background:var(--alt);border:1px solid var(--altline);border-radius:10px;"
     "padding:8px 12px;margin:6px 0}"
     "li.row.alt .bd{font-size:.92em;color:#9a3412}"
+    # slot-level 備案: attach the alt box to the slot it replaces — flush under the real
+    # row (no top border/gap, square top corners), indented to the .bd column, with a ↳
+    # connector. The real row above drops its dashed separator. (D11)
+    ".row.has-alt{border-bottom:none}"
+    ".row.alt.attached{margin-top:0;margin-left:62px;border-top:none;"
+    "border-top-left-radius:0;border-top-right-radius:0;position:relative}"
+    ".row.alt.attached::before{content:'↳';position:absolute;left:-18px;"
+    "color:var(--altline);font-weight:700}"
     ".chk{background:var(--card);border-radius:14px;padding:16px 20px 16px 40px;"
     "box-shadow:0 2px 10px rgba(0,0,0,.05)}"
     ".chk li{margin:6px 0}"
@@ -303,7 +311,31 @@ _LEGEND = (
 )
 
 
-def _row_html(row: dict, poi_map: dict, uid: str = "") -> str:
+def _attached_flags(is_alt: list) -> list:
+    """Per-row 'attached' flag for slot-level 備案 binding. A maximal run of alt rows
+    is attached (a fallback for the preceding slot) iff it is sandwiched between a real
+    row BOTH before and after. A trailing run (day-tail 本日備案) or a leading run stays
+    independent. Consecutive alts in an attached run all bind to the same parent."""
+    n = len(is_alt)
+    attached = [False] * n
+    i = 0
+    while i < n:
+        if not is_alt[i]:
+            i += 1
+            continue
+        j = i
+        while j < n and is_alt[j]:
+            j += 1
+        # run is [i, j-1]; maximal, so row i-1 (if any) and row j (if any) are real.
+        if i - 1 >= 0 and j < n:        # real row before AND after -> mid-day fallback
+            for k in range(i, j):
+                attached[k] = True
+        i = j
+    return attached
+
+
+def _row_html(row: dict, poi_map: dict, uid: str = "", *,
+              attached: bool = False, has_alt: bool = False) -> str:
     slot = row.get("slot", "")
     text_raw = row.get("text", "")
     alt = _is_alt(text_raw)
@@ -323,7 +355,10 @@ def _row_html(row: dict, poi_map: dict, uid: str = "") -> str:
         body = text
         photo = ""
 
-    cls = "row alt" if alt else f"row slot-{_html_escape(slot)}"
+    if alt:
+        cls = "row alt attached" if attached else "row alt"
+    else:
+        cls = f"row slot-{_html_escape(slot)}" + (" has-alt" if has_alt else "")
     return (
         f'<li class="{cls}">{t}<span class="emo">{emoji}</span>'
         f'<span class="bd">{body}</span>{photo}</li>'
@@ -342,8 +377,17 @@ def _day_html(day: dict, poi_map: dict, idx: int) -> str:
         # thumb to the right, consistent with row thumbs. (D10)
         lodge = f'<div class="lodge">🏨 住宿：{link}{_photo_html(poi, f"d{idx}-lodge")}</div>'
 
+    rows_data = day.get("rows", [])
+    n = len(rows_data)
+    is_alt = [_is_alt(r.get("text", "")) for r in rows_data]
+    attached = _attached_flags(is_alt)
     rows = "".join(
-        _row_html(r, poi_map, f"d{idx}-r{j}") for j, r in enumerate(day.get("rows", []))
+        _row_html(
+            r, poi_map, f"d{idx}-r{j}",
+            attached=attached[j],
+            has_alt=(not is_alt[j] and j + 1 < n and attached[j + 1]),
+        )
+        for j, r in enumerate(rows_data)
     )
     return (
         f'<section class="day-card"><h2><span class="dnum">{idx}</span>{label}</h2>'

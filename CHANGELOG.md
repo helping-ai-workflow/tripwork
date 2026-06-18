@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.18.4 — D11 slot-level 備案 visually bound to the slot it replaces
+
+Pure CSS/markup polish (`scripts/render/html_page.py`); no gate or schema change.
+
+A `▸` alternative (備案) row used to render as a standalone orange box separated by the
+same dashed border as every other row, so it was unclear which slot it replaced. Now a
+**mid-day** alt-run is attached to the slot above it.
+
+- **Attach rule (`_attached_flags` + `_day_html`).** A maximal run of consecutive alt
+  rows is *attached* iff it is sandwiched between a real row **both before and after**
+  (a fallback for the preceding slot). The attached alt gets `class="row alt attached"`
+  and the real row above gets `has-alt`; a **trailing** run (day-tail 本日備案, e.g.
+  「備案(乃の風訂不到)」) or a **leading** run stays an independent box. Consecutive alts
+  bind to the same parent.
+- **Connector styling (`_STYLE`).** `.row.alt.attached` drops its top border + top
+  radius, indents to the `.bd` column (`margin-left:62px`), and shows a `↳` `::before`
+  connector; the parent real row drops its dashed separator (`.row.has-alt`) so the pair
+  reads as “↳ if … then …”.
+
+Note: the slot-vs-day distinction is positional only — a mid-itinerary day-level note
+(e.g. a luggage-transfer line) still attaches to the row above it; cleanly separating
+those would need a synthesis-level day-scope marker (out of this render-only scope).
+
 ## 0.18.3 — D10 lodging thumbnail alignment
 
 Pure CSS/markup polish (`scripts/render/html_page.py`); no gate or schema change.
