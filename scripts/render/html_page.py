@@ -74,7 +74,8 @@ _STYLE = (
     ".day-card h2{margin:0 0 10px;font-size:1.1em;display:flex;align-items:center;gap:10px}"
     ".dnum{background:var(--accent);color:#fff;width:30px;height:30px;border-radius:50%;"
     "display:inline-flex;align-items:center;justify-content:center;font-size:.8em;flex:none}"
-    ".lodge{font-size:.82em;color:var(--accent2);margin:-2px 0 10px;font-weight:600}"
+    ".lodge{font-size:.82em;color:var(--accent2);margin:-2px 0 10px;font-weight:600;"
+    "display:flex;align-items:center;flex-wrap:wrap;gap:6px}"
     ".lodge a{color:var(--accent2)}"
     "ul.rows{list-style:none;margin:0;padding:0}"
     "li.row{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);"
@@ -337,7 +338,9 @@ def _day_html(day: dict, poi_map: dict, idx: int) -> str:
     poi = poi_map.get(pid) if pid else None
     if poi:
         link = _map_link(poi, _html_escape(_poi_label(poi)))
-        lodge = f'<div class="lodge">🏨 住宿：{link}</div>' + _photo_html(poi, f"d{idx}-lodge")
+        # photo goes INSIDE .lodge (a flex container) so .ph{margin-left:auto} pins the
+        # thumb to the right, consistent with row thumbs. (D10)
+        lodge = f'<div class="lodge">🏨 住宿：{link}{_photo_html(poi, f"d{idx}-lodge")}</div>'
 
     rows = "".join(
         _row_html(r, poi_map, f"d{idx}-r{j}") for j, r in enumerate(day.get("rows", []))
