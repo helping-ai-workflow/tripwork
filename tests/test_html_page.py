@@ -562,6 +562,16 @@ class TestPhotoRender:
         html = render_html_page(itin, {"u": poi})
         assert 'src="https://upload.wikimedia.org/x.jpg"' in html
 
+    def test_thumb_is_sibling_after_bd_not_nested(self):   # D8: right-aligned thumb
+        # .ph is now the last flex child of <li class="row">, a SIBLING after .bd,
+        # not nested inside it — so margin-left:auto can push it to the right edge.
+        assert '</span><span class="ph">' in self.html
+
+    def test_thumb_css_small_square_right_aligned(self):   # D8
+        assert "width:60px;height:60px" in self.html
+        assert "object-fit:cover" in self.html
+        assert "margin-left:auto" in self.html
+
     def test_unique_checkbox_id_when_poi_is_row_and_lodging(self):
         itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
                 "lodging": "pp", "rows": [
