@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.18.3 — D10 lodging thumbnail alignment
+
+Pure CSS/markup polish (`scripts/render/html_page.py`); no gate or schema change.
+
+- **Lodging thumbnail right-aligned, consistent with row thumbs.** `_day_html` previously
+  emitted the lodging `_photo_html` as a sibling **after** the `.lodge` `</div>`, landing
+  in the non-flex `.day-card` where `.ph{margin-left:auto}` was a no-op — so the lodging
+  thumb hung at the left while every row thumb sat at the right. The photo is now nested
+  **inside** the `.lodge` div, and `.lodge` is a flex row
+  (`display:flex;align-items:center;flex-wrap:wrap;gap:6px`), so its thumb pins to the
+  right edge like the rest.
+
 ## 0.18.2 — D9 photo caption layout: thumb-title attribution + centred lightbox caption
 
 Pure CSS/markup polish on the photo caption (`scripts/render/html_page.py`); no gate

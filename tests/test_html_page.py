@@ -562,6 +562,20 @@ class TestPhotoRender:
         html = render_html_page(itin, {"u": poi})
         assert 'src="https://upload.wikimedia.org/x.jpg"' in html
 
+    def test_lodging_photo_inside_lodge_div(self):   # D10: lodging thumb right-aligned
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
+                "lodging": "pp", "rows": []}]}
+        html = render_html_page(itin, PHOTO_MAP)   # pp = POI_PHOTO (has photo)
+        # the photo .ph is nested INSIDE the .lodge div (a flex child, so
+        # margin-left:auto right-aligns it), not a sibling after </div>.
+        lodge_seg = html.split('class="lodge"', 1)[1].split("</div>", 1)[0]
+        assert 'class="ph"' in lodge_seg
+
+    def test_lodge_css_is_flex(self):   # D10
+        import re
+        m = re.search(r"\.lodge\{([^}]*)\}", self.html)
+        assert m and "display:flex" in m.group(1) and "align-items:center" in m.group(1)
+
     def test_row_phcap_removed(self):   # D9: no duplicate row caption blowing the column
         assert 'class="phcap"' not in self.html
 
