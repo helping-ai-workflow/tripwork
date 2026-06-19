@@ -19,7 +19,7 @@
 - 想要一份**可信、不踩雷**的行程，而不是一堆過期的部落格連結
 - 帶**長輩或小孩**，需要把同一區的景點排在一起、少拉車
 - 不想自己一個個查**營業時間、要不要訂位、海關／行動電源規定**
-- 想直接拿到 **Google Maps 連結**、給長輩看的 **LINE 純文字行程**，或寫回 **Notion**
+- 想直接拿到 **Google Maps 連結**、給長輩看的 **LINE 純文字行程**，或貼進 **Notion**
 
 ---
 
@@ -33,7 +33,7 @@
 | 排到當地紅字假日，人爆多或店家沒開 | 自動查出旅遊期間的**當地國定假日（含補假）**：閉館日不排那個點、假期/週末日標人潮提示並建議提早出門、錯開脆弱小店 |
 | 排太晚到，撲空或被趕（過了 L.O./最後入場）| 每個排定時段都對**閉店/最後點餐/最後入場**算 buffer：來不及的時段不排、buffer 太緊會提醒提早，必去點塞不下會**停下來問你** |
 | 行動電源、入境規定看不懂、又怕過期 | 規定一律找**官方來源**、標註生效日期，被禁的項目會醒目提醒並要你確認 |
-| 排好的行程要分享給家人很麻煩 | 一鍵輸出 Markdown（含地圖連結）、LINE 短文、離線可看的一頁式 HTML、Notion |
+| 排好的行程要分享給家人很麻煩 | 一鍵輸出 Markdown（含地圖連結）、LINE 短文、離線可看的一頁式 HTML（可貼進 Notion）|
 | 多點自駕每晚換鎮，住宿全空殼 | 每個過夜鎮都研究＋查證住宿（已訂的補料、沒訂的推薦你挑），顧到自駕車位、洗衣節奏、晚到 vs 櫃台關門 |
 | 冬天自駕遇到道路封閉、雪鏈、天黑得早 | 用官方來源查季節/天氣危害：會擋路的（道路封閉）停下來問你，雪鏈／保暖寫進清單；自動算各鎮日落，摸黑開車的路段提醒你提早出發 |
 | 多城行不知道搭哪班車、會不會趕不上末班車、Pass 划不划算 | 每段城際交通都查官方時刻：哪班車、要不要劃位、末班車幾點、Pass 划不划算；自駕單日開太久或趕不上末班車會停下來問你 |
@@ -116,7 +116,7 @@ flowchart TB
     COST --> ADV["travel-advisory ⛔ 關卡<br/>入境／海關<br/>／行動電源規定<br/>（官方來源）"]
     ADV --> SYN["itinerary-synthesis<br/>排出逐日行程<br/>+ 備案 + 行前清單<br/>（閉館日不排、<br/>假期標人潮）"]
     SYN --> GATE["itinerary-gate<br/>輸出前的結構檢查"]
-    GATE --> EXP["export-artifact<br/>Markdown / Maps<br/>HTML / LINE<br/>Notion"]
+    GATE --> EXP["export-artifact<br/>Markdown / Maps<br/>HTML / LINE"]
     EXP --> EGATE["export-gate ⛔ 關卡<br/>檢查成品連結<br/>格式可正常顯示"]
 ```
 
@@ -137,7 +137,7 @@ flowchart TB
 | **travel-advisory** ⛔ | 查入境、海關、行動電源等**硬規定**，一律要官方來源並標生效日期；被禁項目醒目提醒並寫進行前清單（在排行程前先確認，禁帶品不會排進行程） |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單** |
 | **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點） |
-| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、離線可看的一頁式 HTML（`exports/<slug>-itinerary.html`，**可選擇為景點疊上授權照片**）、可選 Notion |
+| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、離線可看的一頁式 HTML（`exports/<slug>-itinerary.html`，**可選擇為景點疊上授權照片**；可把 Markdown 貼進 Notion）|
 | **export-gate** | 對輸出的 Markdown 成品做最後機械檢查：每個地點名稱本身是可點連結、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；有問題就退回重產 |
 
 ---
@@ -154,7 +154,7 @@ flowchart TB
 - **市內交通提醒**——尖峰時段錯峰建議、站到景點步行時間（太遠提醒改計程車）、IC 卡怎麼買怎麼儲值，整理進行前清單。
 - **行前清單**——所有需要提前訂位／辦理的事項，含前置天數；以及該季節要帶的東西（雪鏈、保暖）與摸黑開車提醒。
 - **備案**——每個易出包的點（要訂位的餐廳、戶外活動）都附一個 plan B。
-- **Notion（選用）**——若你的環境接了 Notion，會把行程寫回指定頁面；沒接也不會報錯，自動略過。
+- **貼進 Notion（選用）**——想放 Notion 的話，把產好的 Markdown 行程貼進 Notion 頁面即可（透過你環境的 Notion MCP）；內容就是那份已驗證的 Markdown，不是另一個獨立輸出。
 
 ---
 
@@ -238,8 +238,8 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 任何地方都可以——只要該地點在網路上有 ≥2 個來源、且地圖查得到座標。會自動用
 當地語言搜尋，所以日本、韓國、東南亞等地的在地小店也涵蓋得到。
 
-**Notion 沒接會怎樣？**
-其他輸出（Markdown／LINE）照常產生，Notion 那一步自動略過、不會讓整個流程失敗。
+**怎麼放進 Notion？**
+把產好的 Markdown 行程貼進 Notion 頁面就好（透過你環境的 Notion MCP）。Notion 不是獨立的輸出步驟，貼的就是那份已驗證的 Markdown。
 
 **我可以中途改需求嗎？**
 可以。每個階段的產物都是檔案，調度中心會從你改動的地方接續往下跑，不用整個重來。
@@ -260,7 +260,8 @@ pytest                 # 599 個測試
 - 純邏輯（查證三關、路線分類、距離、各種 render）在 `scripts/`，皆有單元測試。
 - Schema 定義在 `schemas/`；端到端 fixture 在 `tests/`。
 - **景點照片（選用）：** 可插拔 photo adapter（`scripts/photo_adapter.py`，backend `none`（預設）／`wiki`／`google`）抓開放授權景點照，硬性 license 白名單 `{CC0, PD, CC-BY, CC-BY-SA}`（拒 NC／ND）、附描述性 User-Agent 與每來源節流。照片存在側檔 `verified-pois-media.yaml`（schema `schemas/verified-pois-media.schema.json`），輸出時由 `scripts/media_merge.py` 疊回 poi_map，**不寫進** canonical `verified-pois.yaml`（source-verify 會整檔覆寫）。`export-gate` 會擋掉不安全的 `<img src>`（只允許 `data:image/` 或 `https://`）、沒有署名的照片、以及 `photo_source=google` 這種不可散布來源。`google` backend 因 ToS（無非 Google 介面顯示授權、無個人快取例外）**BLOCKED**。POI schema 的 `gmaps_place_id` 讓 Maps 連結可用 `&query_place_id` 深連到指定地點。
-- **移動列路線導航 + 內容衛生 gate（v0.19.0）：** itinerary schema 的 row 可選帶 `from`/`to`（移動列端點，向後相容；`additionalProperties:false` 仍擋未知 key），`scripts/render/gmaps_links.py:dir_url` 產生 `maps/dir/?api=1&origin=…&destination=…`（**不帶** `travelmode`，由使用者選開車／大眾運輸），HTML／Markdown 的地圖 chip 都移到說明開頭（slot emoji + 名稱／A→B）。`export-gate` 新增 `no_internal_jargon` 檢查，擋掉漏進使用者文案的內部 `(poi-id)` token 與 `must_do`（依權威 id 集合比對 → 零誤報；連 Markdown 的 `\_` 跳脫也照抓）。**已知待辦：** `scripts/render/line_short.py` 目前無 gate，其 `must_do`／`(poi-id)` 洩漏需另開 `run_line_gate`，列為獨立工項。
+- **移動列路線導航 + 內容衛生 gate（v0.19.0）：** itinerary schema 的 row 可選帶 `from`/`to`（移動列端點，向後相容；`additionalProperties:false` 仍擋未知 key），`scripts/render/gmaps_links.py:dir_url` 產生 `maps/dir/?api=1&origin=…&destination=…`（**不帶** `travelmode`，由使用者選開車／大眾運輸），HTML／Markdown 的地圖 chip 都移到說明開頭（slot emoji + 名稱／A→B）。`export-gate` 新增 `no_internal_jargon` 檢查，擋掉漏進使用者文案的內部 `(poi-id)` token 與 `must_do`（依權威 id 集合比對 → 零誤報；連 Markdown 的 `\_` 跳脫也照抓）。
+- **內容衛生移到 canonical 層（v0.20.0）：** jargon（`(poi-id)`／`must_do`）+ 日文 kana-gloss 兩個檢查移進 `scripts/gate.py::run_gate`（掃 `_itinerary_text`＝checklist＋每列 row text），共用 `scripts/text_hygiene.py`。這是**主**防線：在 canonical 層擋掉，md／html／LINE／貼進 Notion 的 md 全在源頭乾淨（含本來無 gate 的 `line_short.py`）——解掉 v0.19.0 列的 line_short 待辦。`export-gate` 的 md／html 檢查保留為 defense-in-depth。Notion 不再是獨立 adapter（貼已驗證的 md 即可）。
 
 **地圖座標用量限制：** 使用 OSM Nominatim（免 API key），請遵守其使用政策
 （≤ 1 req/s、帶 User-Agent）。`scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流。

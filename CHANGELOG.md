@@ -1,5 +1,45 @@
 # Changelog
 
+## 0.20.0 — canonical content-hygiene gate (protects every renderer) + Notion de-adapted
+
+0.19.0 added the `no_internal_jargon` check to the md + html export gates but left
+`line_short.py` un-gated and `run_html_gate` without a kana-gloss check — a cross-axis gap
+(the same content checks lived per-renderer and were missed for two of three text
+deliverables). This release moves the **format-agnostic** content checks to the canonical
+layer so a leak is blocked at the source, before any renderer runs.
+
+- **Canonical content hygiene (`scripts/gate.py::run_gate`).** `no_internal_jargon` +
+  `japanese_glossed` now run (always-on) over `_itinerary_text` (the unescaped `checklist` +
+  every row `text`). Blocking a leak here keeps **every** renderer clean by construction —
+  md, html, line-short.txt (which has no gate of its own), and a Notion page pasted from the
+  md — and future renderers too. This is the PRIMARY guard; the `export-gate` md/html copies
+  stay as render-layer defense-in-depth.
+- **Shared `scripts/text_hygiene.py`.** `jargon_failures(text, pois)` + `kana_gloss_failures
+  (text)` lifted into one module imported by both `gate.py` and `export_gate.py` (imports
+  only `re` → no cycle); single implementation, no drift. Behaviour identical (messages
+  unchanged); the jargon scan keeps the backslash-stripped probe so md-escaped leaks
+  (`must\_do`, `(hak-yam\_yakei)`) are still caught render-side.
+- **`line_short.py` gap closed at the source.** It keeps its deterministic
+  `chunk_line_messages` (LINE 5000-char cap, day-boundary split) + no-URL discipline and
+  needs no gate of its own — the canonical guard guarantees its input is clean. (Resolves
+  the v0.19.0 "line_short follow-up".)
+- **Notion de-adapted.** `export-artifact` no longer documents a Notion write-back adapter /
+  graceful-skip / page-id bookkeeping. To put the itinerary in Notion, paste the gated
+  `exports/<slug>-itinerary.md` via the consumer's Notion MCP — content = md = already
+  validated. No code referenced a Notion path (it was always skill-only).
+
+Scope note (deliberately deferred): `run_html_gate` still has no `bookable_has_official_
+source` check — the HTML renderer emits no official-source links to check (only maps chips),
+so gating it would require adding official-link *rendering* to the one-pager (a different
+check family — link-completeness, not content-hygiene; md already enforces it). Tracked as a
+separate future item, not bundled here.
+
+Migration note: the canonical kana check is stricter than the old md-only check (which a
+POI-link's `（gloss）` on the same line could mask), so an existing `itinerary.yaml` with
+ungloss kana in a **checklist** item or row `text` will now fail `itinerary-gate` until the
+synthesis author adds the （中文）gloss — the documented gloss discipline, now enforced at
+the source. (e.g. the dogfood `hokkaido-7d` checklist `かに将軍` / `ラビスタ函館ベイ` need glossing.)
+
 ## 0.19.0 — 3-col grid itinerary layout + move directions links + content-hygiene gate
 
 The native HTML/markdown renderer adopts the consumer's hand-built one-pager layout
