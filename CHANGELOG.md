@@ -9,11 +9,15 @@ deliverables). This release moves the **format-agnostic** content checks to the 
 layer so a leak is blocked at the source, before any renderer runs.
 
 - **Canonical content hygiene (`scripts/gate.py::run_gate`).** `no_internal_jargon` +
-  `japanese_glossed` now run (always-on) over `_itinerary_text` (the unescaped `checklist` +
-  every row `text`). Blocking a leak here keeps **every** renderer clean by construction —
-  md, html, line-short.txt (which has no gate of its own), and a Notion page pasted from the
-  md — and future renderers too. This is the PRIMARY guard; the `export-gate` md/html copies
-  stay as render-layer defense-in-depth.
+  `japanese_glossed` now run (always-on) over `_itinerary_text`, which is a **superset of
+  every authored free-text field a renderer surfaces** — `title` + each day `label` +
+  `checklist` + each row `text` + each move row's `from`/`to` endpoints (all unescaped).
+  Blocking a leak here keeps **every** renderer clean by construction — md, html,
+  line-short.txt (which has no gate of its own and renders the title + labels verbatim), and
+  a Notion page pasted from the md — and future renderers too. This is the PRIMARY guard;
+  the `export-gate` md/html copies stay as render-layer defense-in-depth. (An adversarial
+  review caught that an earlier draft scanned only `checklist` + row `text`, so a leak in
+  the title/label/endpoints would have shipped to line-short ungated — now closed.)
 - **Shared `scripts/text_hygiene.py`.** `jargon_failures(text, pois)` + `kana_gloss_failures
   (text)` lifted into one module imported by both `gate.py` and `export_gate.py` (imports
   only `re` → no cycle); single implementation, no drift. Behaviour identical (messages
@@ -28,11 +32,17 @@ layer so a leak is blocked at the source, before any renderer runs.
   `exports/<slug>-itinerary.md` via the consumer's Notion MCP — content = md = already
   validated. No code referenced a Notion path (it was always skill-only).
 
-Scope note (deliberately deferred): `run_html_gate` still has no `bookable_has_official_
-source` check — the HTML renderer emits no official-source links to check (only maps chips),
-so gating it would require adding official-link *rendering* to the one-pager (a different
-check family — link-completeness, not content-hygiene; md already enforces it). Tracked as a
-separate future item, not bundled here.
+Scope notes (deliberately deferred to separate future items, not bundled here):
+- `run_html_gate` still has no `bookable_has_official_source` check — the HTML renderer emits
+  no official-source links to check (only maps chips), so gating it would require adding
+  official-link *rendering* to the one-pager (a different check family — link-completeness,
+  not content-hygiene; md already enforces it).
+- The kana-gloss check is per-LINE, not per-RUN: a line that already carries one `（…）`
+  paren (a glossed term, or a rendered maps-link target) masks a *second* ungloss kana run
+  on the same line. Tightening it to per-run is a kana-heuristic redesign with its own
+  false-positive edge cases (kana nested inside a gloss paren; bare-kana POI link labels for
+  the ~9 dogfood POIs that lack `name_zh`) and consumer re-gloss impact, so it is tracked
+  separately rather than rushed into this release.
 
 Migration note: the canonical kana check is stricter than the old md-only check (which a
 POI-link's `（gloss）` on the same line could mask), so an existing `itinerary.yaml` with

@@ -145,6 +145,42 @@ def test_gate_jargon_no_false_positive_on_romaji_paren():
     r = run_gate(pois, itin, advisory={"items": []})
     assert {"name": "no_internal_jargon", "passed": True} in r["checks"]
 
+# canonical hygiene must scan EVERY authored free-text field a renderer surfaces — title,
+# day label, and move endpoints (from/to) — not only row text/checklist. line-short renders
+# title + label verbatim and has no gate of its own, so a leak there would otherwise ship.
+
+def test_gate_fails_on_jargon_in_title():
+    itin = {"title": "北海道 must_do 行程",
+            "days": [{"date": "2026-06-12", "label": "D1", "rows": [_meal("a")]}]}
+    r = run_gate([_poi("a")], itin, advisory={"items": []})
+    assert {"name": "no_internal_jargon", "passed": False} in r["checks"]
+
+def test_gate_fails_on_kana_in_day_label():
+    itin = _itin([_meal("a")])
+    itin["days"][0]["label"] = "D1 すすきの"          # ungloss kana day header → line-short banner
+    r = run_gate([_poi("a")], itin, advisory={"items": []})
+    assert {"name": "japanese_glossed", "passed": False} in r["checks"]
+
+def test_gate_fails_on_jargon_in_day_label():
+    itin = _itin([_meal("a")])
+    itin["days"][0]["label"] = "D1 (hak-x)"
+    r = run_gate([_poi("a"), _poi("hak-x")], itin, advisory={"items": []})
+    assert {"name": "no_internal_jargon", "passed": False} in r["checks"]
+
+def test_gate_fails_on_kana_in_move_endpoint():
+    rows = [_meal("a"), {"slot": "move", "text": "移動", "from": "すすきの", "to": "小樽"}]
+    r = run_gate([_poi("a")], _itin(rows), advisory={"items": []})
+    assert {"name": "japanese_glossed", "passed": False} in r["checks"]
+
+def test_gate_passes_clean_title_label_endpoints():
+    rows = [_meal("a"), {"slot": "move", "text": "移動", "from": "すすきの（薄野）", "to": "小樽"}]
+    itin = _itin(rows)
+    itin["title"] = "北海道家庭遊"
+    itin["days"][0]["label"] = "D1｜函館"
+    r = run_gate([_poi("a")], itin, advisory={"items": []})
+    assert {"name": "no_internal_jargon", "passed": True} in r["checks"]
+    assert {"name": "japanese_glossed", "passed": True} in r["checks"]
+
 
 def test_gate_invariant_pass_implies_all_checks_passed():
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})

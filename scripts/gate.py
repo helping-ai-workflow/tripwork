@@ -31,12 +31,22 @@ def _day_has_lodging(day):
     return any(r.get("slot") == "lodging" for r in day.get("rows", []))
 
 def _itinerary_text(itinerary):
-    """All free text an advisory topic could be surfaced in: checklist + row texts."""
-    parts = list(itinerary.get("checklist", []))
+    """Every authored free-text field a renderer surfaces: title + checklist + each day
+    label + each row text + each move row's from/to endpoints. Kept a SUPERSET of what the
+    renderers emit so the canonical hygiene scan (and the advisory-topic surfacing check)
+    sees everything — line-short renders the title + labels verbatim and has no gate of its
+    own, and from/to endpoints render into md/html, so omitting any of these would let a
+    leak there ship unchecked. Parts are newline-joined so the per-line kana scan treats
+    each field independently."""
+    parts = [itinerary.get("title", "")]
+    parts.extend(itinerary.get("checklist", []))
     for d in itinerary.get("days", []):
+        parts.append(d.get("label", ""))
         for row in d.get("rows", []):
             parts.append(row.get("text", ""))
-    return " \n ".join(parts)
+            parts.append(row.get("from", ""))
+            parts.append(row.get("to", ""))
+    return " \n ".join(p for p in parts if p)
 
 def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
              calendar=None, advisory=None, must_do=None):
