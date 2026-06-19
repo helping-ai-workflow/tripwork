@@ -96,3 +96,40 @@ def test_d5_grid_layout_e2e():
     assert "dashed" not in classes[3]         # meal→last
     # whole page still passes the export gate
     assert run_html_gate(html, list(pmap.values()), min_days=1)["status"] == "pass"
+
+
+def test_d6_jargon_gate_e2e():
+    """G6 closure: a deliverable carrying ALL the confirmed Hokkaido internal-jargon
+    leaks ((hak-goryokaku), (lodge-toya-nonokaze), (sap-keio-plaza), must_do) is rejected
+    by BOTH the markdown and HTML gates via no_internal_jargon; a clean one passes both."""
+    from scripts.render.markdown import render_day_table
+
+    def _jargon_passed(rep):
+        return next(c["passed"] for c in rep["checks"] if c["name"] == "no_internal_jargon")
+
+    pois = [{"id": "hak-goryokaku"}, {"id": "lodge-toya-nonokaze"}, {"id": "sap-keio-plaza"}]
+    leaks = ("hak-goryokaku", "lodge-toya-nonokaze", "sap-keio-plaza", "must_do")
+    dirty_day = {"label": "D1｜函館", "rows": [
+        {"slot": "visit", "text": "改五稜郭タワー（五稜郭塔）(hak-goryokaku) 展望夜景"},
+        {"slot": "lodging", "text": "投宿 乃の風（乃之風）(lodge-toya-nonokaze)"},
+        {"slot": "meal", "text": "蟹会席（螃蟹會席）must_do"},
+        {"slot": "visit", "text": "京王廣場(sap-keio-plaza)"},
+    ]}
+
+    md = render_day_table(dirty_day, {})
+    md_rep = run_export_gate(md, pois)
+    assert md_rep["status"] == "fail" and _jargon_passed(md_rep) is False
+    for tok in leaks:
+        assert any(tok in f and "leaked" in f for f in md_rep["failures"]), f"md {tok}"
+
+    html = render_html_page({"title": "北海道", "days": [{"date": "2026-07-01", **dirty_day}]}, {})
+    html_rep = run_html_gate(html, pois, min_days=1)
+    assert html_rep["status"] == "fail" and _jargon_passed(html_rep) is False
+    for tok in leaks:
+        assert any(tok in f and "leaked" in f for f in html_rep["failures"]), f"html {tok}"
+
+    # a clean deliverable (no id tokens, no must_do) passes both gates' jargon check.
+    clean_day = {"label": "D1", "rows": [{"slot": "meal", "text": "蟹會席 至少一晚溫泉旅館"}]}
+    assert _jargon_passed(run_export_gate(render_day_table(clean_day, {}), pois)) is True
+    clean_html = render_html_page({"title": "T", "days": [{"date": "2026-07-01", **clean_day}]}, {})
+    assert _jargon_passed(run_html_gate(clean_html, pois, min_days=1)) is True

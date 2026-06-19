@@ -16,6 +16,12 @@ Compose the canonical `trips/<slug>/itinerary.yaml` from verified POIs and routi
   item MUST be written as `日文（中文）` — keep the original for source-verify
   traceability, add a Chinese gloss for the reader. This is what satisfies
   `export-gate`'s `japanese_glossed` check (an unglossed kana run is a hard fail).
+- **Content hygiene.** Row text and checklist items are user-facing prose. NEVER embed
+  an internal `poi_id` token (e.g. `(hak-goryokaku)`) — the `poi_id` belongs in the
+  structured `row.poi_id` field only, which export uses to build the maps link. NEVER
+  write the literal `must_do` in user-facing text; express it as plain prose (e.g.
+  至少一晚溫泉旅館含會席). This is what satisfies `export-gate`'s `no_internal_jargon`
+  check (a leaked id token or `must_do` is a hard fail).
 
 ## Calendar-awareness (reads `calendar.yaml` + each POI's `closed_days`)
 
