@@ -57,10 +57,13 @@ def test_iron_rule_skills_state_source_verified_first():
         text = (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
         assert "Source-Verified-First" in text, f"{name} must state the iron rule"
 
-def test_export_skill_documents_notion_graceful_skip():
+def test_export_skill_documents_notion_as_md_paste_not_adapter():
+    # 0.20.0: Notion is no longer a tracked adapter/deliverable — the agent pastes the
+    # gated md via MCP, so it inherits export-gate hygiene with no separate gate.
     text = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
-    assert "graceful" in text.lower() or "skip" in text.lower()
     assert "Notion" in text
+    assert "not a tracked adapter" in text
+    assert "MCP" in text
 
 def test_synthesis_documents_move_from_to():   # G2 — authoring contract must drive the feature
     # G2 added optional row.from/row.to that the renderers turn into an A→B directions chip.
@@ -273,10 +276,12 @@ def test_tw024_websearch_unavailable_halts():
     t = _skill("using-tripwork")
     assert "WebSearch" in t and "HALT" in t and "never substitute model memory" in t
 
-def test_tw025_notion_runs_post_gate():
+def test_tw025_notion_is_gated_md_paste_not_adapter():
+    # 0.20.0: Notion is no longer a post-gate write-back adapter. The itinerary reaches
+    # Notion by pasting the already-gated md via MCP — no page-id bookkeeping, no adapter.
     t = _skill("export-artifact")
-    assert "post-gate" in t.lower() or "after `export-gate-report.yaml` status is `pass`" in t
-    assert ".notion-page-id" in t  # update existing page, not recreate
+    assert "gated" in t and "Notion" in t and "MCP" in t
+    assert ".notion-page-id" not in t   # the old adapter bookkeeping is gone
 
 def test_tw032_independent_and_conflict_defined():
     t = _skill("source-verify")

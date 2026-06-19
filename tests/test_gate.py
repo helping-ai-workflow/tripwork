@@ -106,6 +106,46 @@ def test_gate_info_advisory_need_not_surface():
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory=adv)
     assert {"name": "advisory_items_surfaced", "passed": True} in r["checks"]
 
+# --- canonical content hygiene (jargon + kana-gloss): the PRIMARY guard that protects
+#     every renderer (md / html / line-short / notion-via-md) at the source (0.20.0) ---
+
+def _visit(pid, text): return {"time": "14:00", "slot": "visit", "poi_id": pid, "text": text}
+
+def test_gate_fails_on_leaked_poi_id_in_row_text():
+    pois = [_poi("hak-goryokaku")]
+    itin = _itin([_meal("hak-goryokaku"), _visit("hak-goryokaku", "夜景(hak-goryokaku)好看")])
+    r = run_gate(pois, itin, advisory={"items": []})
+    assert r["status"] == "fail"
+    assert {"name": "no_internal_jargon", "passed": False} in r["checks"]
+    assert any("hak-goryokaku" in f and "leaked" in f for f in r["failures"])
+
+def test_gate_fails_on_must_do_in_checklist():
+    itin = _itin([_meal("a")], checklist=["訂 蟹会席 must_do"])
+    r = run_gate([_poi("a")], itin, advisory={"items": []})
+    assert r["status"] == "fail"
+    assert {"name": "no_internal_jargon", "passed": False} in r["checks"]
+    assert any("must_do" in f for f in r["failures"])
+
+def test_gate_fails_on_ungloss_kana_in_row_text():
+    itin = _itin([_meal("a"), _visit("a", "ジンギスカン 好吃")])
+    r = run_gate([_poi("a")], itin, advisory={"items": []})
+    assert r["status"] == "fail"
+    assert {"name": "japanese_glossed", "passed": False} in r["checks"]
+    assert any("gloss" in f for f in r["failures"])
+
+def test_gate_passes_glossed_kana_and_clean_text():
+    itin = _itin([_meal("a"), _visit("a", "ジンギスカン（成吉思汗）好吃")], checklist=["護照"])
+    r = run_gate([_poi("a")], itin, advisory={"items": []})
+    assert {"name": "no_internal_jargon", "passed": True} in r["checks"]
+    assert {"name": "japanese_glossed", "passed": True} in r["checks"]
+
+def test_gate_jargon_no_false_positive_on_romaji_paren():
+    pois = [_poi("hak-goryokaku")]
+    itin = _itin([_meal("hak-goryokaku"), _visit("hak-goryokaku", "烤肉(grilled-lamb)讚")])
+    r = run_gate(pois, itin, advisory={"items": []})
+    assert {"name": "no_internal_jargon", "passed": True} in r["checks"]
+
+
 def test_gate_invariant_pass_implies_all_checks_passed():
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     if r["status"] == "pass":

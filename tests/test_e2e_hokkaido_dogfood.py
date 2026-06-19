@@ -135,6 +135,34 @@ def test_d6_jargon_gate_e2e():
     assert _jargon_passed(run_html_gate(clean_html, pois, min_days=1)) is True
 
 
+def test_d8_canonical_hygiene_protects_all_renderers_e2e():
+    """0.20.0: content hygiene (jargon + kana-gloss) now runs at the CANONICAL gate
+    (run_gate), so a leak is blocked BEFORE any renderer runs — line-short.txt (which has
+    no gate of its own) is clean by construction. A dirty canonical itinerary fails
+    run_gate on both checks; the cleaned one passes and line_short renders clean."""
+    from scripts.gate import run_gate
+    from scripts.render.line_short import render_line_short
+
+    pois = [{"id": "hak-goryokaku", "verify_status": "verified", "geocode": {"lat": 41.8, "lng": 140.7}}]
+    dirty = {"title": "北海道", "days": [{"date": "2026-07-01", "label": "D1", "rows": [
+        {"slot": "meal", "poi_id": "hak-goryokaku", "text": "午餐(hak-goryokaku) must_do"},   # jargon
+        {"slot": "visit", "poi_id": "hak-goryokaku", "text": "スタバ 喝咖啡"},                  # ungloss kana (paren-free line)
+    ]}]}
+    r = run_gate(pois, dirty, advisory={"items": []})
+    assert r["status"] == "fail"
+    assert {"name": "no_internal_jargon", "passed": False} in r["checks"]
+    assert {"name": "japanese_glossed", "passed": False} in r["checks"]
+
+    clean = {"title": "北海道", "days": [{"date": "2026-07-01", "label": "D1", "rows": [
+        {"slot": "meal", "poi_id": "hak-goryokaku", "text": "午餐"},
+        {"slot": "visit", "poi_id": "hak-goryokaku", "text": "夜景 スターバックス（星巴克）"},
+    ]}]}
+    rc = run_gate(pois, clean, advisory={"items": []})
+    assert rc["status"] == "pass", rc["failures"]
+    line = render_line_short(clean)
+    assert "(hak-goryokaku)" not in line and "must_do" not in line   # line-short clean by construction
+
+
 def test_d7_move_directions_e2e():
     """G2 closure: a move row with from/to renders an A→B directions chip in BOTH the
     HTML and the markdown deliverables (no &travelmode), both pass their gates; a move

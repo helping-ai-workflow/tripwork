@@ -8,19 +8,17 @@ source link. Output shape matches itinerary-gate: {status, checks, failures}
 """
 import re
 
+# Format-agnostic content hygiene (jargon / kana-gloss) lives in scripts.text_hygiene so
+# the canonical itinerary-gate and these render gates share ONE implementation. These
+# calls are render-layer defense-in-depth; the canonical gate is the primary guard.
+from scripts.text_hygiene import jargon_failures, kana_gloss_failures
+
 # A $ NOT immediately preceded by a backslash (i.e. not already escaped as \$).
 _NAKED_DOLLAR = re.compile(r"(?<!\\)\$")
 # Markdown link: [label](target)
 _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 # Standalone map-token labels that mean the POI name was left as dead text.
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
-# Hiragana (U+3040-309F) + Katakana (U+30A0-30FF): scripts a Chinese reader
-# cannot read. Han is excluded — it overlaps JP/ZH and would false-positive.
-_KANA = re.compile(r"[぀-ヿ]+")
-_HAS_PAREN = re.compile(r"[（(][^（()）]*[）)]")
-# Internal token that must never reach user-facing prose (G6). A literal substring is
-# enough — synthesis sometimes copies the structured `must_do` flag name into row text.
-_MUST_DO = re.compile(r"must_do")
 
 def _photo_failures(pois):
     """Data-level photo checks shared by BOTH gates (cross-axis matrix F4 + F5):
@@ -45,29 +43,6 @@ def _photo_failures(pois):
                 out.append(f"photo POI '{p.get('id')}' missing attribution")
         if p.get("photo_source") == "google":
             out.append(f"non-distributable photo_source 'google' on POI '{p.get('id')}'")
-    return out
-
-
-def _jargon_failures(text, pois):
-    """Internal-jargon leak guard (G6) shared by both gates: row text / checklist items
-    are user-facing prose, so an internal poi_id token like ``(hak-goryokaku)`` or the
-    literal ``must_do`` must never reach a rendered deliverable. Keyed off the
-    AUTHORITATIVE poi id set — a loose ``\\(\\w+-\\w+\\)`` pattern would false-positive on
-    legitimate romaji parentheticals, so only ``(<id>)`` for an id that actually exists
-    is flagged (zero false positive). Returns a list of failure strings (empty = clean).
-
-    The scan runs over a backslash-stripped probe: ``markdown.md_escape`` turns ``_`` into
-    ``\\_``, so a leaked ``must_do`` or an underscore-bearing id (``hak-yam_yakei``) ships
-    in the md deliverable as ``must\\_do`` / ``(hak-yam\\_yakei)``. Undoing the escaping
-    makes the same literal-id check fire on both the md and html deliverables.
-    """
-    out = []
-    probe = (text or "").replace("\\", "")
-    for pid in [p.get("id") for p in (pois or []) if p.get("id")]:
-        if f"({pid})" in probe:
-            out.append(f"internal poi-id token ({pid}) leaked into user-facing text")
-    if _MUST_DO.search(probe):
-        out.append("internal token must_do leaked into user-facing text")
     return out
 
 
@@ -101,13 +76,8 @@ def run_export_gate(md_text, pois, min_days=None):
         if label.strip() in _MAP_TOKENS:
             failures.append(f"standalone map token '[{label}]'; POI name must be the link")
 
-    for line in md_text.splitlines():
-        if _KANA.search(line) and not _HAS_PAREN.search(line):
-            term = _KANA.search(line).group(0)
-            failures.append(
-                f"untranslated Japanese '{term}' has no （中文）gloss on its line")
-
-    failures.extend(_jargon_failures(md_text, pois))
+    failures.extend(kana_gloss_failures(md_text))
+    failures.extend(jargon_failures(md_text, pois))
 
     for p in pois:
         if p.get("verify_status") != "verified":
@@ -183,7 +153,7 @@ def run_html_gate(html_text, pois, min_days=None):
         for src in _IMG_SRC.findall(html_text):
             if not _SAFE_IMG_SRC.match(src):
                 failures.append(f"unsafe <img src>: '{src}'")
-        failures.extend(_jargon_failures(html_text, pois))
+        failures.extend(jargon_failures(html_text, pois))
     failures.extend(_photo_failures(pois))
     checks = [
         {"name": "deliverable_has_content",

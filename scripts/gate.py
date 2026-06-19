@@ -8,6 +8,7 @@ sources themselves is source-verify's job; this gate checks the assembled plan.
 """
 from scripts.facilities import stop_meets_required
 from scripts.calendar import poi_closed_on
+from scripts.text_hygiene import jargon_failures, kana_gloss_failures
 
 def _referenced_ids(days):
     ids = set()
@@ -127,6 +128,16 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
             if not ok:
                 failures.append(f"chosen lodging at '{where}' missing required facility: {', '.join(missing)}")
 
+    # Canonical content hygiene (always-on): the PRIMARY guard against an internal
+    # (poi-id)/must_do token or an ungloss kana run leaking into user-facing text. Runs on
+    # the unescaped canonical text (checklist + every row text), so blocking it here keeps
+    # EVERY downstream renderer — md / html / line-short / notion-via-md — clean at the
+    # source, including renderers that have no gate of their own. (defense-in-depth copies
+    # also live in export_gate for the rendered md/html.)
+    hygiene_text = _itinerary_text(itinerary)
+    failures.extend(jargon_failures(hygiene_text, pois))
+    failures.extend(kana_gloss_failures(hygiene_text))
+
     checks = [
         {"name": "referenced_pois_verified",
          "passed": not any("non-verified POI" in f or "unknown POI" in f for f in failures)},
@@ -138,6 +149,10 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
          "passed": not any("no resolved lodging" in f for f in failures)},
         {"name": "advisory_present",
          "passed": not any("advisory absent" in f for f in failures)},
+        {"name": "no_internal_jargon",
+         "passed": not any("leaked into user-facing" in f for f in failures)},
+        {"name": "japanese_glossed",
+         "passed": not any("no （中文）gloss" in f for f in failures)},
     ]
     if closed_check:
         checks.append({"name": "no_closed_day_violation",
