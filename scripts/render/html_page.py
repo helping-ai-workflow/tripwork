@@ -74,19 +74,26 @@ _STYLE = (
     ".day-card h2{margin:0 0 10px;font-size:1.1em;display:flex;align-items:center;gap:10px}"
     ".dnum{background:var(--accent);color:#fff;width:30px;height:30px;border-radius:50%;"
     "display:inline-flex;align-items:center;justify-content:center;font-size:.8em;flex:none}"
-    ".lodge{font-size:.82em;color:var(--accent2);margin:-2px 0 10px;font-weight:600;"
-    "display:flex;align-items:center;flex-wrap:wrap;gap:6px}"
+    # G5: lodging line is a distinct light-blue rounded box; its thumb (when present)
+    # is right-aligned via .lodge .thumb{margin-left:auto}.
+    ".lodge{font-size:.82em;color:var(--accent2);font-weight:600;display:flex;"
+    "align-items:center;flex-wrap:wrap;gap:8px;background:#f0f9fb;"
+    "border:1px solid #cdeaf0;border-radius:10px;padding:8px 12px;margin:0 0 12px}"
     ".lodge a{color:var(--accent2)}"
+    ".lodge .thumb{margin-left:auto}"
     "ul.rows{list-style:none;margin:0;padding:0}"
-    "li.row{display:flex;gap:10px;padding:8px 0;border-bottom:1px dashed var(--line);"
-    "align-items:baseline}"
-    "li.row:last-child{border-bottom:none}"
-    ".t{flex:none;width:52px;font-weight:700;color:var(--accent2);font-size:.82em}"
-    ".emo{flex:none;width:22px;text-align:center}"
-    # flex children default to min-width:auto and will not shrink — a long JP map
-    # label would force horizontal page overflow on phones. min-width:0 + wrapping
-    # lets the body shrink and break instead.
-    ".bd{flex:1;min-width:0;overflow-wrap:anywhere}"
+    # 3-column grid (G1): 時間 48 | 說明 1fr | 縮圖 64. Every row reserves all three
+    # tracks so photo-less rows still column-align. The dashed separator is opt-in per
+    # the G4 look-ahead grouping rule, NOT a blanket border.
+    "li.row,li.altrow{display:grid;grid-template-columns:48px 1fr 64px;column-gap:10px;"
+    "align-items:center;padding:8px 0}"
+    "li.altrow{align-items:start;padding:2px 0 8px}"
+    "li.row.dashed,li.altrow.dashed{border-bottom:1px dashed var(--line)}"
+    ".t{font-weight:700;color:var(--accent2);font-size:.82em}"
+    # the 說明 grid track owns its width; min-width:0 lets a long JP map label shrink
+    # and wrap instead of forcing horizontal page overflow on phones.
+    ".bd{min-width:0;overflow-wrap:anywhere}"
+    ".thcol{display:flex;justify-content:center}"
     "a.map{display:inline-block;background:#ecfeff;color:#0e7490;border:1px solid #a5f3fc;"
     "border-radius:7px;padding:1px 7px;font-size:.78em;text-decoration:none;"
     "word-break:break-word;max-width:100%;margin-left:4px}"
@@ -95,29 +102,25 @@ _STYLE = (
     ".row.slot-activity .t{color:#7c3aed}"
     ".row.slot-move .t{color:#2563eb}"
     ".row.slot-lodging .t{color:#059669}"
-    "li.row.alt{background:var(--alt);border:1px solid var(--altline);border-radius:10px;"
-    "padding:8px 12px;margin:6px 0}"
-    "li.row.alt .bd{font-size:.92em;color:#9a3412}"
-    # slot-level 備案: attach the alt box to the slot it replaces — flush under the real
-    # row (no top border/gap, square top corners), indented to the .bd column, with a ↳
-    # connector. The real row above drops its dashed separator. (D11)
-    ".row.has-alt{border-bottom:none}"
-    ".row.alt.attached{margin-top:0;margin-left:62px;border-top:none;"
-    "border-top-left-radius:0;border-top-right-radius:0;position:relative}"
-    ".row.alt.attached::before{content:'↳';position:absolute;left:-18px;"
-    "color:var(--altline);font-weight:700}"
+    # 備案 (G3): a full-width orange card INSIDE the 說明 cell only — never the whole
+    # <li>. The alt row's time + thumb cells stay empty. Visual binding to the slot it
+    # replaces is carried by the G4 dashed-grouping rule (supersedes D11's ↳ connector).
+    ".altbox{display:block;background:var(--alt);border:1px solid var(--altline);"
+    "border-radius:10px;padding:6px 12px;font-size:.92em;color:#9a3412;"
+    "overflow-wrap:anywhere}"
+    ".altbox a.map{background:#fff;border-color:#fdba74;color:#9a3412}"
     ".chk{background:var(--card);border-radius:14px;padding:16px 20px 16px 40px;"
     "box-shadow:0 2px 10px rgba(0,0,0,.05)}"
     ".chk li{margin:6px 0}"
     "footer{text-align:center;color:var(--mut);font-size:.78em;margin-top:30px}"
-    # POI photo: right-aligned 60px square thumb + pure-CSS checkbox-hack lightbox.
-    # .ph is the last flex child of li.row (margin-left:auto pins it to the right edge).
-    # Attribution = thumb title (hover) + lightbox caption — no row caption. The hidden
-    # checkbox + label[for] toggle the overlay (no <script>, no #anchor). (D8/D9)
-    ".ph{flex:none;align-self:flex-start;margin-left:auto}"
+    # POI photo: 60px square thumb + pure-CSS checkbox-hack lightbox. The thumb lives in
+    # the reserved .thcol grid cell (rows) or right-aligned inside .lodge (lodging) — no
+    # margin-left:auto sibling. Attribution = thumb title (hover) + lightbox caption — no
+    # row caption. The hidden checkbox + label[for] toggle the overlay (no <script>, no
+    # #anchor). (D8/D9, regridded G1)
     ".phck{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}"
-    ".thumbwrap{cursor:zoom-in;margin-left:auto}"
-    "img.thumb{width:60px;height:60px;object-fit:cover;border-radius:8px;"
+    ".thumb{cursor:zoom-in;display:inline-block}"
+    ".thumb img{width:60px;height:60px;object-fit:cover;border-radius:8px;"
     "border:1px solid var(--line);display:block}"
     ".lb{display:none}"
     ".phck:checked~.lb{display:flex;position:fixed;inset:0;z-index:50;"
@@ -132,7 +135,7 @@ _STYLE = (
     "text-align:center}"
     ".lbcap a{color:#7dd3fc}"
     "@media(max-width:480px){body{font-size:17px}.wrap{padding:14px 12px 40px}"
-    "header.hero{padding:18px 16px}.t{width:46px}}"
+    "header.hero{padding:18px 16px}}"
 )
 
 
@@ -201,8 +204,9 @@ def _photo_src(obj: dict) -> str:
 
 
 def _photo_html(poi: dict, uid: str) -> str:
-    """POI photo: right-aligned 60px thumb + pure-CSS checkbox-hack lightbox. Attribution
-    is on the thumb ``title`` (hover) and in the lightbox caption — no row caption.
+    """POI photo: a 60px thumb + pure-CSS checkbox-hack lightbox; the caller places the
+    returned markup into the row's reserved .thcol grid cell or into the .lodge line.
+    Attribution is on the thumb ``title`` (hover) and in the lightbox caption — no row caption.
     Returns "" when the POI has no photo.
 
     Pure CSS: a labelled ``<input type=checkbox>`` drives the lightbox — NO ``<script>``,
@@ -225,14 +229,12 @@ def _photo_html(poi: dict, uid: str) -> str:
     thumb_e = _html_escape(thumb)
     title = _html_escape(_attribution_text(poi))
     return (
-        f'<span class="ph">'
         f'<input type="checkbox" id="{cb}" class="phck" aria-hidden="true">'
-        f'<label class="thumbwrap" for="{cb}">'
-        f'<img class="thumb" src="{thumb_e}" alt="{alt}" title="{title}" loading="lazy"></label>'
+        f'<label class="thumb" for="{cb}">'
+        f'<img src="{thumb_e}" alt="{alt}" title="{title}" loading="lazy"></label>'
         f'<label class="lb" for="{cb}"><span class="lbbox">'
         f'<img class="lbimg" src="{full_e}" alt="{alt}">'
         f'<span class="lbcap">{cap}</span></span></label>'
-        f'</span>'
     )
 
 
@@ -311,57 +313,39 @@ _LEGEND = (
 )
 
 
-def _attached_flags(is_alt: list) -> list:
-    """Per-row 'attached' flag for slot-level 備案 binding. A maximal run of alt rows
-    is attached (a fallback for the preceding slot) iff it is sandwiched between a real
-    row BOTH before and after. A trailing run (day-tail 本日備案) or a leading run stays
-    independent. Consecutive alts in an attached run all bind to the same parent."""
-    n = len(is_alt)
-    attached = [False] * n
-    i = 0
-    while i < n:
-        if not is_alt[i]:
-            i += 1
-            continue
-        j = i
-        while j < n and is_alt[j]:
-            j += 1
-        # run is [i, j-1]; maximal, so row i-1 (if any) and row j (if any) are real.
-        if i - 1 >= 0 and j < n:        # real row before AND after -> mid-day fallback
-            for k in range(i, j):
-                attached[k] = True
-        i = j
-    return attached
-
-
-def _row_html(row: dict, poi_map: dict, uid: str = "", *,
-              attached: bool = False, has_alt: bool = False) -> str:
+def _row_html(row: dict, poi_map: dict, uid: str = "", *, dashed: bool = False) -> str:
     slot = row.get("slot", "")
     text_raw = row.get("text", "")
     alt = _is_alt(text_raw)
     emoji = _slot_emoji(slot)
-
-    time = _html_escape(row.get("time", ""))
-    t = f'<span class="t">{time}</span>' if time else '<span class="t empty"></span>'
-
     text = _html_escape(text_raw)
+
     pid = row.get("poi_id")
     poi = poi_map.get(pid) if pid else None
-    if poi:
-        chip = _map_link(poi, f"🗺️ {_html_escape(_poi_label(poi))}")
-        body = f"{text} {chip}".strip()
-        photo = _photo_html(poi, uid)   # right-aligned thumb: a sibling AFTER .bd
-    else:
-        body = text
-        photo = ""
+    chip = _map_link(poi, f"🗺️ {_html_escape(_poi_label(poi))}") if poi else ""
+
+    # 說明 cell leads with the slot emoji; the maps chip (when present) trails the text.
+    # (G2/PR3 folds the emoji into a start-of-cell chip.)
+    body = " ".join(p for p in (emoji, text, chip) if p).strip()
+    dashed_cls = " dashed" if dashed else ""
 
     if alt:
-        cls = "row alt attached" if attached else "row alt"
-    else:
-        cls = f"row slot-{_html_escape(slot)}" + (" has-alt" if has_alt else "")
+        # G3: 備案 is a full-width .altbox inside the 說明 cell. Empty time + thumb cells;
+        # never a thumbnail, even when the poi carries a photo.
+        return (
+            f'<li class="altrow{dashed_cls}"><span class="t"></span>'
+            f'<span class="bd"><span class="altbox">{body}</span></span>'
+            f'<span class="thcol"></span></li>'
+        )
+
+    time = _html_escape(row.get("time", ""))
+    t = f'<span class="t">{time}</span>' if time else '<span class="t"></span>'
+    photo = _photo_html(poi, uid) if poi else ""
+    cls = f"row slot-{_html_escape(slot)}{dashed_cls}"
     return (
-        f'<li class="{cls}">{t}<span class="emo">{emoji}</span>'
-        f'<span class="bd">{body}</span>{photo}</li>'
+        f'<li class="{cls}">{t}'
+        f'<span class="bd">{body}</span>'
+        f'<span class="thcol">{photo}</span></li>'
     )
 
 
@@ -373,22 +357,23 @@ def _day_html(day: dict, poi_map: dict, idx: int) -> str:
     poi = poi_map.get(pid) if pid else None
     if poi:
         link = _map_link(poi, _html_escape(_poi_label(poi)))
-        # photo goes INSIDE .lodge (a flex container) so .ph{margin-left:auto} pins the
-        # thumb to the right, consistent with row thumbs. (D10)
+        # photo goes INSIDE .lodge (a flex container) so .lodge .thumb{margin-left:auto}
+        # right-aligns the thumb, consistent with row thumbs. (D10/G5)
         lodge = f'<div class="lodge">🏨 住宿：{link}{_photo_html(poi, f"d{idx}-lodge")}</div>'
 
     rows_data = day.get("rows", [])
     n = len(rows_data)
     is_alt = [_is_alt(r.get("text", "")) for r in rows_data]
-    attached = _attached_flags(is_alt)
-    rows = "".join(
-        _row_html(
-            r, poi_map, f"d{idx}-r{j}",
-            attached=attached[j],
-            has_alt=(not is_alt[j] and j + 1 < n and attached[j + 1]),
-        )
-        for j, r in enumerate(rows_data)
-    )
+    parts = []
+    for j, r in enumerate(rows_data):
+        is_last = j == n - 1
+        next_is_alt = (not is_last) and is_alt[j + 1]
+        # G4 look-ahead grouping: a row carries a dashed bottom border UNLESS it is the
+        # day's last row or the next row is a 備案 (which visually attaches above it):
+        # real→alt none, alt→alt none, alt→real dashed, real→real dashed, *→last none.
+        dashed = (not is_last) and not next_is_alt
+        parts.append(_row_html(r, poi_map, f"d{idx}-r{j}", dashed=dashed))
+    rows = "".join(parts)
     return (
         f'<section class="day-card"><h2><span class="dnum">{idx}</span>{label}</h2>'
         f'{lodge}<ul class="rows">{rows}</ul></section>'

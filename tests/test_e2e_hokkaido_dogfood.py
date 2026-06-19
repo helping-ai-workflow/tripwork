@@ -49,3 +49,50 @@ def test_d4_html_export_round_trips_gate():
                   "name_zh": "達摩", "district": "札幌", "geocode": {"lat": 43.0, "lng": 141.3}}}
     html = render_html_page(itin, pmap)
     assert run_html_gate(html, list(pmap.values()), min_days=1)["status"] == "pass"
+
+
+def test_d5_grid_layout_e2e():
+    """G1/G3/G4/G5 closure: one day exercising the grid, the in-cell .altbox 備案
+    (with NO thumbnail even though its poi has a photo), the look-ahead dashed grouping,
+    and the boxed lodging line — and the whole page still round-trips run_html_gate."""
+    import re
+    photo = {"data": "data:image/jpeg;base64,/9j/FULL",
+             "thumb": {"data": "data:image/jpeg;base64,/9j/TH"}}
+    attr = {"author": "A", "license": "CC0", "source_url": "https://a.example"}
+    visit = {"id": "v", "name_display": "五稜郭", "name_zh": "五稜郭",
+             "geocode": {"lat": 41.79, "lng": 140.75}, "photo": photo,
+             "photo_attribution": attr, "photo_source": "wikimedia"}
+    lodge = {"id": "lo", "name_display": "乃の風", "name_zh": "乃之風",
+             "geocode": {"lat": 42.55, "lng": 140.78}, "photo": photo,
+             "photo_attribution": attr, "photo_source": "wikimedia"}
+    pmap = {"v": visit, "lo": lodge}
+    itin = {"title": "北海道", "days": [{
+        "date": "2026-07-01", "label": "D1｜函館", "lodging": "lo",
+        "rows": [
+            {"slot": "move", "text": "機場 → 函館"},
+            {"time": "10:00", "slot": "visit", "poi_id": "v", "text": "五稜郭塔"},
+            {"slot": "activity", "poi_id": "v", "text": "▸ 備案｜強風改五稜郭夜景"},
+            {"slot": "meal", "text": "晚餐｜海鮮"},
+        ]}]}
+    html = render_html_page(itin, pmap)
+
+    # G1 grid + no emoji column
+    assert "grid-template-columns:48px 1fr 64px" in html
+    assert 'class="emo"' not in html
+    # G5 boxed lodging + right-aligned lodge thumb
+    assert "background:#f0f9fb" in html
+    lodge_seg = html.split('class="lodge"', 1)[1].split("</div>", 1)[0]
+    assert 'class="thumb"' in lodge_seg
+    # G3 in-cell altbox 備案 with empty thumb cell and NO <img> in that <li>
+    alt_li = re.search(r'<li class="altrow[^"]*">.*?</li>', html, re.S).group(0)
+    assert '<span class="bd"><span class="altbox">' in alt_li
+    assert alt_li.endswith('<span class="thcol"></span></li>')
+    assert "<img" not in alt_li               # alt row never gets a thumbnail
+    # G4 dashed grouping over [move, visit, alt, meal]
+    classes = re.findall(r'<li class="([^"]*)">', html)
+    assert "dashed" in classes[0]             # move→visit  (real→real)
+    assert "dashed" not in classes[1]         # visit→alt   (real→alt)
+    assert "dashed" in classes[2]             # alt→meal    (alt→real)
+    assert "dashed" not in classes[3]         # meal→last
+    # whole page still passes the export gate
+    assert run_html_gate(html, list(pmap.values()), min_days=1)["status"] == "pass"
