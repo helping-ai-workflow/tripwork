@@ -1,5 +1,51 @@
 # Changelog
 
+## 0.19.0 — 3-col grid itinerary layout + move directions links + content-hygiene gate
+
+The native HTML/markdown renderer adopts the consumer's hand-built one-pager layout
+(G1–G5), adds structured move-row directions links (G2), and grows a mechanical gate that
+stops internal jargon from reaching user-facing deliverables (G6). Verified to reproduce
+the visual baseline (`trips/hokkaido-7d/exports/hokkaido-7d-itinerary.html`) structurally
+on real data. Backward-compatible: trips without `from`/`to` render exactly as before.
+
+- **G1 — 3-column grid (`_STYLE`, `_row_html`, `_photo_html`).** Rows render as a CSS grid
+  `48px 1fr 64px` (時間 | 說明 | 縮圖) with an always-present reserved `.thcol` thumb cell,
+  so photo-less rows still column-align. The separate `.emo` column is gone (the slot emoji
+  folds into the 說明 cell); the thumb lives in `.thcol` / `.lodge` instead of a
+  `margin-left:auto` flex sibling.
+- **G2 — move directions chip + chip-at-start (`gmaps_links.dir_url`, `_row_chip_body`,
+  `markdown._move_cell`).** New optional `row.from`/`row.to` schema fields
+  (`additionalProperties:false` intact, keyword-safe via `row.get()`); `dir_url` builds
+  `maps/dir/?api=1&origin=…&destination=…` with **no** `&travelmode` (user picks
+  car/transit). The maps chip moves to the START of the 說明 cell with the slot emoji
+  (dropping the literal 🗺️); a move row with endpoints leads with an A→B directions chip in
+  both HTML and markdown. A move row without `from`/`to` is unchanged (no fabricated link).
+  A move row that *also* carries a `poi_id` keeps the POI maps link + official source after
+  the directions chip (so a bookable POI on a move row still satisfies the export-gate
+  bookable-official-source check) and suppresses the now-mismatched thumbnail. The
+  `itinerary-synthesis` SKILL output contract documents the `from`/`to` row fields so the
+  synthesis author actually populates them.
+- **G3 — 備案 as in-cell `.altbox` (`_STYLE`, `_row_html`).** A `▸` 備案 row is a full-width
+  orange `.altbox` INSIDE the 說明 cell with an empty time cell and an empty thumb cell
+  (never a thumbnail, even when its POI carries a photo) — superseding 0.18.4's whole-row
+  `li.row.alt` box.
+- **G4 — look-ahead dashed grouping (`_day_html`).** The dashed row separator is opt-in per
+  `dashed = (not last) and not next_is_alt`: real→alt none, alt→alt none, alt→real dashed,
+  real→real dashed, *→last none. This carries 0.18.4's 備案-binds-to-slot intent forward
+  (the `↳` attach connector + `_attached_flags` + `.row.alt.attached` are removed).
+- **G5 — lodging box (`_STYLE`).** The `.lodge` line is a light-blue rounded card
+  (`background:#f0f9fb`); its thumb is right-aligned via `.lodge .thumb{margin-left:auto}`.
+- **G6 — `no_internal_jargon` gate (`export_gate._jargon_failures`, `itinerary-synthesis`
+  SKILL).** `run_export_gate` (md) and `run_html_gate` (html) hard-fail on a leaked internal
+  `(poi-id)` token or the literal `must_do`, keyed off the authoritative POI id set (literal
+  `(<id>)` match → zero false positive on legitimate romaji parentheticals). The scan runs
+  over a backslash-stripped probe so a markdown-escaped leak (`must\_do`, `(hak-yam\_yakei)`)
+  is still caught. Authoring rule documented in the synthesis skill.
+
+Known follow-up (out of scope): `scripts/render/line_short.py` has no gate, so a `must_do` /
+`(poi-id)` leak in `line-short.txt` still ships — closing it needs a new `run_line_gate`
+(`run_export_gate` is md/html-only).
+
 ## 0.18.4 — D11 slot-level 備案 visually bound to the slot it replaces
 
 Pure CSS/markup polish (`scripts/render/html_page.py`); no gate or schema change.
