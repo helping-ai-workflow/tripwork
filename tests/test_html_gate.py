@@ -153,3 +153,34 @@ class TestRunHtmlGatePhoto:
         names = {c["name"] for c in r["checks"]}
         assert {"img_src_safe", "photo_has_attribution",
                 "no_nondistributable_photo_source"} <= names
+
+
+# ---------------------------------------------------------------------------
+# G6: no internal jargon (poi-id tokens / must_do) in user-facing HTML
+# Injected AFTER the rendered html so the day-card count stays 1.
+# ---------------------------------------------------------------------------
+
+class TestRunHtmlGateJargon:
+
+    def _html(self, extra=""):
+        return render_html_page(ITIN, POI_MAP) + extra
+
+    def test_html_gate_fails_on_leaked_poi_id(self):
+        html = self._html("<div>改五稜郭(hak-goryokaku)夜景</div>")
+        r = run_html_gate(html, pois=[{"id": "hak-goryokaku"}], min_days=1)
+        assert r["status"] == "fail"
+        assert any("hak-goryokaku" in f and "leaked" in f for f in r["failures"])
+
+    def test_html_gate_fails_on_must_do(self):
+        html = self._html("<div>蟹会席 must_do</div>")
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "fail"
+        assert any("must_do" in f for f in r["failures"])
+
+    def test_html_gate_clean_passes_jargon(self):
+        r = run_html_gate(self._html(), pois=[{"id": "hak-goryokaku"}], min_days=1)
+        assert any(c["name"] == "no_internal_jargon" and c["passed"] for c in r["checks"])
+
+    def test_html_gate_jargon_check_present(self):
+        r = run_html_gate(self._html(), pois=[], min_days=1)
+        assert "no_internal_jargon" in [c["name"] for c in r["checks"]]

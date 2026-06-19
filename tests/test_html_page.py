@@ -319,10 +319,11 @@ class TestCardStyleLegendAndAlt:
             assert emoji in self.html
         assert "備案" in self.html
 
-    def test_alt_row_orange_box(self):
-        # a row whose text starts with ▸ becomes an alt (orange-bordered) row
-        assert "row alt" in self.html
-        assert self.html.count("row alt") == 1
+    def test_alt_row_is_altbox(self):
+        # a row whose text starts with ▸ becomes an .altrow whose body is a full-width
+        # .altbox card inside the 說明 cell (G3) — not a whole-row orange <li>.
+        assert "altrow" in self.html
+        assert self.html.count('class="altbox"') == 1
 
 
 class TestCardStyleSlotEmoji:
@@ -427,42 +428,171 @@ POI_LODGE2 = {"id": "h2", "name_display": "乃の風", "name_zh": "乃之風",
               "geocode": {"lat": 42.55, "lng": 140.78}}
 
 
-class TestAltAttach:
-    """D11: slot-level 備案 (▸ alt) bound to the row it replaces.
-    A maximal alt-run is 'attached' iff it is sandwiched between a real row before AND
-    after (mid-day slot fallback). A trailing run (day-tail 本日備案) or a leading run
-    stays an independent orange box."""
+class TestGridLayout:
+    """G1: 3-column CSS grid (時間 48 | 說明 1fr | 縮圖 64), reserved thumb cell,
+    no separate emoji column."""
 
-    def _html(self, rows):
+    def setup_method(self):
+        self.html = render_html_page(RICH_ITIN, RICH_MAP)
+
+    def test_grid_template_present(self):
+        assert "grid-template-columns:48px 1fr 64px" in self.html
+
+    def test_no_emoji_span(self):
+        # the slot emoji folds into the 說明 cell; the dedicated .emo column is gone.
+        assert 'class="emo"' not in self.html
+
+    def test_row_emits_three_grid_cells(self):
+        # every real <li class="row…"> carries exactly one .t, .bd and .thcol cell.
+        for li in re.findall(r'<li class="row[^"]*">.*?</li>', self.html, re.S):
+            assert li.count('<span class="t">') == 1, li
+            assert li.count('<span class="bd"') == 1, li
+            assert li.count('<span class="thcol"') == 1, li
+
+    def test_photoless_row_has_empty_thcol(self):
+        # RICH_ITIN rows carry no photos → every reserved thumb cell is empty.
+        assert '<span class="thcol"></span>' in self.html
+        assert "<img" not in self.html
+
+    def test_t_track_has_no_fixed_width(self):
+        # the grid track owns the time-column width; .t must not re-declare width.
+        m = re.search(r"\.t\{([^}]*)\}", self.html)
+        assert m and "width:" not in m.group(1)
+
+
+class TestAltBox:
+    """G3: 備案 rows render as a full-width .altbox INSIDE the 說明 cell only —
+    empty .t, empty .thcol, never a thumbnail."""
+
+    def _html(self, rows, pmap=None):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
+                "rows": [dict(r) for r in rows]}]}
+        return render_html_page(itin, pmap or {})
+
+    def test_alt_row_is_altbox_in_cell(self):
+        h = self._html([{"slot": "activity", "text": "▸ 備案｜改室內"}])
+        assert 'class="altrow' in h
+        assert '<span class="bd"><span class="altbox">' in h
+        assert '<span class="t"></span>' in h         # empty time cell
+        assert '<span class="thcol"></span>' in h     # empty reserved thumb cell
+        assert "li.row.alt{" not in h                 # superseded whole-row <li> gone
+        assert "row alt attached" not in h            # D11 attach machinery gone
+
+    def test_alt_row_with_poi_no_thumbnail(self):
+        # an alt row whose poi carries a photo emits NO <img> for that row (G3).
+        h = self._html([{"slot": "visit", "poi_id": "pp", "text": "▸ 備案｜改泡湯"}],
+                       {"pp": POI_PHOTO})
+        assert 'class="altrow' in h
+        assert "<img" not in h
+
+    def test_alt_row_with_poi_still_gets_chip(self):
+        h = self._html([{"slot": "activity", "poi_id": "p1", "text": "▸ 備案｜改去這裡"}],
+                       POI_MAP)
+        assert 'class="altrow' in h
+        assert 'class="altbox"' in h
+        assert 'class="map"' in h                      # chip rendered even on an alt row
+
+
+class TestDashedGrouping:
+    """G4: the dashed bottom border is opt-in per a look-ahead rule that visually
+    binds a 備案 to the slot it follows (superseding D11's ↳ attach connector).
+
+      real→alt  : NO dashed  (備案 attaches to the slot above)
+      alt →real : dashed     (group ends)
+      alt →alt  : NO dashed  (consecutive 備案 stay grouped)
+      real→real : dashed
+      *  →last  : NO dashed
+    """
+
+    def _classes(self, rows):
         itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
                 "rows": [{"slot": s, "text": t} for s, t in rows]}]}
-        return render_html_page(itin, {})
+        html = render_html_page(itin, {})
+        return re.findall(r'<li class="([^"]*)">', html)
 
-    def test_alt_attached_when_sandwiched(self):
-        h = self._html([("visit", "看夜景"), ("activity", "▸ 備案｜改五稜郭"), ("meal", "晚餐")])
-        assert "row alt attached" in h
-        assert "has-alt" in h            # the preceding real row drops its dashed border
+    def test_real_then_alt_no_dashed(self):
+        cls = self._classes([("visit", "看夜景"), ("activity", "▸ 備案"), ("meal", "晚餐")])
+        assert "dashed" not in cls[0]      # real→alt
+        assert "dashed" in cls[1]          # alt→real
 
-    def test_trailing_alt_independent(self):
-        h = self._html([("meal", "蟹会席"), ("activity", "▸ 備案｜乃の風訂不到改登別")])
-        assert "row alt" in h
-        assert "row alt attached" not in h   # day-tail -> independent 本日備案
+    def test_alt_then_alt_no_dashed(self):
+        cls = self._classes([("visit", "x"), ("activity", "▸ A"),
+                             ("activity", "▸ B"), ("move", "送迎")])
+        assert "dashed" not in cls[0]      # real→alt
+        assert "dashed" not in cls[1]      # alt→alt
+        assert "dashed" in cls[2]          # alt→real
 
-    def test_leading_alt_independent(self):
-        h = self._html([("activity", "▸ 開場備案"), ("visit", "看夜景")])
-        assert "row alt attached" not in h
+    def test_real_then_real_dashed(self):
+        cls = self._classes([("visit", "a"), ("meal", "b"), ("move", "c")])
+        assert "dashed" in cls[0] and "dashed" in cls[1]   # real→real
 
-    def test_consecutive_alts_share_parent(self):
-        h = self._html([("visit", "有珠山"), ("activity", "▸ 備案 A"),
-                        ("activity", "▸ 備案 B"), ("move", "送迎")])
-        assert h.count("row alt attached") == 2
+    def test_last_row_never_dashed(self):
+        cls = self._classes([("visit", "a"), ("meal", "b")])
+        assert "dashed" not in cls[-1]                     # *→last
+        cls2 = self._classes([("visit", "a"), ("activity", "▸ tail")])
+        assert "dashed" not in cls2[-1]                    # trailing alt is also last
 
-    def test_attached_css_connector(self):
-        h = self._html([("visit", "x"), ("activity", "▸ 備案"), ("meal", "y")])
-        assert ".row.alt.attached{" in h
-        assert "margin-left:62px" in h
-        assert "border-top:none" in h
-        assert "↳" in h                 # ↳ connector glyph (CSS ::before content)
+
+class TestMoveDirectionsChip:
+    """G2: chip leads the 說明 cell. A move row with from/to gets a directions chip
+    (slot-emoji + A→B, maps/dir, no travelmode); a point row gets a slot-emoji maps
+    chip (no 🗺️); a move row without from/to falls back to a plain emoji prefix."""
+
+    def _html(self, row, pmap=None):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1", "rows": [row]}]}
+        return render_html_page(itin, pmap or {})
+
+    def test_move_row_directions_chip_at_start(self):
+        h = self._html({"slot": "move", "text": "午後抵達", "from": "函館空港", "to": "函館駅"})
+        # chip (href-first, per _map_link convention) leads the .bd cell
+        assert '<span class="bd"><a href="https://www.google.com/maps/dir/' in h
+        assert "maps/dir/?api=1&amp;origin=" in h              # directions url (escaped &)
+        assert "🚆 函館空港→函館駅" in h                         # slot emoji + A→B
+        assert "travelmode" not in h
+        assert "🗺️" not in h
+
+    def test_point_chip_at_start_slot_emoji(self):
+        h = self._html({"time": "10:00", "slot": "visit", "poi_id": "p1", "text": "小樽運河"}, POI_MAP)
+        assert '<span class="bd"><a href="https://www.google.com/maps/search/' in h  # chip leads
+        assert "📍 " in h                                       # visit slot emoji inside the chip
+        assert "🗺️" not in h                                    # literal map glyph dropped
+
+    def test_move_row_without_from_to_fallback(self):
+        h = self._html({"slot": "move", "text": "機場接駁"})
+        assert "maps/dir" not in h                             # no fabricated directions link
+        assert "🚆 機場接駁" in h                                # plain emoji prefix (backward-compat)
+
+    def test_move_chip_href_passes_html_gate(self):
+        from scripts.export_gate import run_html_gate
+        h = self._html({"slot": "move", "text": "go", "from": "A", "to": "B"})
+        assert "maps/dir" in h
+        r = run_html_gate(h, pois=[], min_days=1)
+        assert r["status"] == "pass", r["failures"]
+
+    def test_move_row_with_poi_suppresses_thumbnail(self):   # review finding-1
+        # a move row carrying BOTH from/to AND a poi with a photo: the dir chip wins, the
+        # poi is still named (its maps chip), but NO thumbnail — a thumb would point at a
+        # different target than the A→B chip. The reserved .thcol cell stays empty.
+        h = self._html({"slot": "move", "poi_id": "pp", "text": "go", "from": "A", "to": "B"},
+                       {"pp": POI_PHOTO})
+        assert "maps/dir" in h                                # directions chip leads
+        assert "<img" not in h                                # NO thumbnail on the move row
+        assert '<span class="thcol"></span>' in h             # reserved cell empty
+        assert "登別" in h                                     # poi still named in the cell
+
+
+class TestLodgeBox:
+    """G5: the lodging line is a distinct light-blue rounded box."""
+
+    def test_lodge_is_box(self):
+        html = render_html_page(RICH_ITIN, RICH_MAP)
+        m = re.search(r"\.lodge\{([^}]*)\}", html)
+        assert m, "lodge rule missing"
+        rule = m.group(1)
+        assert "background:#f0f9fb" in rule
+        assert "border:1px solid #cdeaf0" in rule
+        assert "border-radius:10px" in rule
+        assert "padding:8px 12px" in rule
 
 
 class TestCardStyleCoverage:
@@ -496,7 +626,8 @@ class TestCardStyleCoverage:
             {"slot": "activity", "poi_id": "p1", "text": "▸ 備案｜改去這裡"},
         ]}]}
         html = render_html_page(itin, POI_MAP)
-        assert "row alt" in html
+        assert 'class="altrow' in html            # full-width 備案 row (G3)
+        assert 'class="altbox"' in html
         assert 'class="map"' in html              # chip rendered even on an alt row
 
     def test_lodging_name_special_chars_escaped(self):
@@ -511,11 +642,12 @@ class TestCardStyleCoverage:
         assert "飯店&amp;" in html                 # ampersand escaped everywhere it appears
 
     def test_row_without_time_emits_empty_t(self):
+        # a timeless row still emits its .t grid cell (empty) so columns stay aligned.
         itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1", "rows": [
             {"slot": "move", "text": "go"},
         ]}]}
         html = render_html_page(itin, {})
-        assert '<span class="t empty"></span>' in html
+        assert '<span class="t"></span>' in html
 
 
 # ---------------------------------------------------------------------------
@@ -600,14 +732,14 @@ class TestPhotoRender:
         html = render_html_page(itin, {"u": poi})
         assert 'src="https://upload.wikimedia.org/x.jpg"' in html
 
-    def test_lodging_photo_inside_lodge_div(self):   # D10: lodging thumb right-aligned
+    def test_lodging_photo_inside_lodge_div(self):   # D10/G1: lodging thumb right-aligned
         itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",
                 "lodging": "pp", "rows": []}]}
         html = render_html_page(itin, PHOTO_MAP)   # pp = POI_PHOTO (has photo)
-        # the photo .ph is nested INSIDE the .lodge div (a flex child, so
-        # margin-left:auto right-aligns it), not a sibling after </div>.
+        # the photo thumb is nested INSIDE the .lodge div (a flex child, so
+        # .lodge .thumb{margin-left:auto} right-aligns it), not a sibling after </div>.
         lodge_seg = html.split('class="lodge"', 1)[1].split("</div>", 1)[0]
-        assert 'class="ph"' in lodge_seg
+        assert 'class="thumb"' in lodge_seg
 
     def test_lodge_css_is_flex(self):   # D10
         import re
@@ -625,15 +757,15 @@ class TestPhotoRender:
         assert ".lbimg{display:block" in self.html
         assert ".lbcap{" in self.html and "text-align:center" in self.html
 
-    def test_thumb_is_sibling_after_bd_not_nested(self):   # D8: right-aligned thumb
-        # .ph is now the last flex child of <li class="row">, a SIBLING after .bd,
-        # not nested inside it — so margin-left:auto can push it to the right edge.
-        assert '</span><span class="ph">' in self.html
+    def test_thumb_in_reserved_thcol_cell(self):   # D8/G1: thumb lives in the grid cell
+        # the thumb occupies the reserved .thcol grid cell — the last of the three
+        # row cells, immediately after .bd — instead of a margin-left:auto flex sibling.
+        assert '</span><span class="thcol">' in self.html
 
-    def test_thumb_css_small_square_right_aligned(self):   # D8
+    def test_thumb_css_small_square(self):   # D8/G1
         assert "width:60px;height:60px" in self.html
         assert "object-fit:cover" in self.html
-        assert "margin-left:auto" in self.html
+        assert "margin-left:auto" in self.html   # .lodge .thumb right-align (G5)
 
     def test_unique_checkbox_id_when_poi_is_row_and_lodging(self):
         itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1",

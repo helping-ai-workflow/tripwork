@@ -61,6 +61,40 @@ def test_day_table_unresolvable_poi_id_renders_text_only():
     assert "官網" not in md
 
 
+def test_markdown_move_row_directions_link():   # G2
+    day = {"label": "D1", "rows": [
+        {"slot": "move", "text": "午後抵達", "from": "函館空港", "to": "函館駅"},
+    ]}
+    md = render_day_table(day, {})
+    assert "[🚆 函館空港→函館駅](https://www.google.com/maps/dir/?api=1&origin=" in md
+    assert "travelmode" not in md
+    assert "午後抵達" in md
+
+def test_markdown_move_row_without_from_to_plain():   # G2 backward-compat
+    day = {"label": "D1", "rows": [{"slot": "move", "text": "機場接駁"}]}
+    md = render_day_table(day, {})
+    assert "maps/dir" not in md
+    assert "機場接駁" in md
+
+def test_markdown_move_row_poi_still_links_poi():   # G2 — move w/o endpoints but w/ poi → poi link
+    day = {"label": "D1", "rows": [{"slot": "move", "poi_id": "p", "text": "搭巴士"}]}
+    md = render_day_table(day, {"p": {"name_local": "JR函館駅", "name_display": "JR函館駅"}})
+    assert "maps/dir" not in md
+    assert "[JR函館駅](https://www.google.com/maps/search/" in md
+
+def test_markdown_move_row_with_poi_shows_poi_link_and_official():   # review finding-2
+    # a move row with from/to AND a poi_id must STILL surface the poi name + official
+    # source, so the export-gate bookable check can locate the row (no silent evasion).
+    day = {"label": "D1", "rows": [
+        {"slot": "move", "poi_id": "stn", "text": "搭特急", "from": "札幌", "to": "函館"}]}
+    poi = {"name_local": "JR函館駅", "name_display": "JR函館駅",
+           "sources": [{"url": "https://jrhokkaido.co.jp", "official": True}]}
+    md = render_day_table(day, {"stn": poi})
+    assert "[🚆 札幌→函館](https://www.google.com/maps/dir/" in md   # directions chip still leads
+    assert "JR函館駅" in md                                          # poi name present
+    assert "· [官網](https://jrhokkaido.co.jp)" in md               # official source link present
+
+
 def test_poi_cell_source_url_escapes_paren():   # TW-022
     from scripts.render.markdown import render_day_table
     day = {"label": "D", "rows": [{"time": "12:00", "slot": "meal", "poi_id": "x", "text": "t"}]}

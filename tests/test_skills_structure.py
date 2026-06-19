@@ -62,6 +62,14 @@ def test_export_skill_documents_notion_graceful_skip():
     assert "graceful" in text.lower() or "skip" in text.lower()
     assert "Notion" in text
 
+def test_synthesis_documents_move_from_to():   # G2 — authoring contract must drive the feature
+    # G2 added optional row.from/row.to that the renderers turn into an A→B directions chip.
+    # The synthesis SKILL must instruct the author to populate them on move rows, else the
+    # chip never fires on real data (feature dead-on-arrival).
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "from" in text and "to" in text
+    assert "move" in text and "directions" in text.lower()
+
 def test_source_verify_geocode_uses_name_local():
     # Gate 2 geocode query must use name_local: live Nominatim mis-resolves
     # English descriptor suffixes (e.g. "Togetsukyo Bridge" -> no result while

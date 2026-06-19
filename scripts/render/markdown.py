@@ -4,7 +4,7 @@ All free text passes through md_escape so a price like $180 cannot trigger KaTeX
 math mode in a markdown preview, and a stray | cannot break the table cell.
 Generated link markup ([name](url)) is never escaped — only free text is.
 """
-from scripts.render.gmaps_links import link_markdown
+from scripts.render.gmaps_links import link_markdown, dir_url
 
 # Chars with markdown / KaTeX meaning in free text. `|` would also break a table
 # cell. Backslash is escaped first so the escapes we add are not re-escaped.
@@ -39,6 +39,23 @@ def _poi_cell(poi, text):
         parts.append(escaped)
     return " ".join(parts)
 
+def _move_cell(frm, to, text, poi=None):
+    """Move row with endpoints: a directions link LEADS the cell (mirrors _poi_cell's
+    link-first ordering). When the row ALSO resolves a poi, the poi maps link + official
+    source follow — so a bookable poi scheduled on a move row still surfaces its name and
+    official link for the export gate's bookable check (no silent evasion). Then the text.
+    Labels are escaped free text; generated link targets (dir_url / maps_url) are not. (G2)"""
+    parts = [f"[🚆 {md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
+    if poi:
+        parts.append(link_markdown(poi))
+        url = _primary_source_url(poi)
+        if url:
+            parts.append(f"· [官網]({_safe_url(url)})")
+    escaped = md_escape(text)
+    if escaped:
+        parts.append(escaped)
+    return " ".join(parts)
+
 def render_day_table(day, poi_map):
     """Render one canonical itinerary.yaml day -> markdown table.
 
@@ -52,6 +69,12 @@ def render_day_table(day, poi_map):
         text = row.get("text", "")
         pid = row.get("poi_id")
         poi = poi_map.get(pid) if pid else None
-        cell = _poi_cell(poi, text) if poi else md_escape(text)
+        frm, to = row.get("from"), row.get("to")
+        if row.get("slot") == "move" and frm and to:
+            cell = _move_cell(frm, to, text, poi)   # G2: directions link at cell start
+        elif poi:
+            cell = _poi_cell(poi, text)
+        else:
+            cell = md_escape(text)
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"
