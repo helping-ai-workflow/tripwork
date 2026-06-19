@@ -33,6 +33,12 @@ assembled plan obeys the iron rules. Call
 - `advisory_items_surfaced` (when `advisory` present) — every `risk: banned`/`restricted`
   advisory `topic` appears in the itinerary `checklist` or a row text. (Reached only once
   `advisory_present` confirms an advisory exists.)
+- `no_internal_jargon` / `japanese_glossed` — **ALWAYS-ON content hygiene** over the
+  canonical text (`checklist` + every row `text`): no internal `(poi-id)` token or literal
+  `must_do` may leak, and every inline kana run must carry a （中文）gloss. This is the
+  PRIMARY content guard — blocking a leak here keeps every renderer (md / html / line-short /
+  Notion-via-md) clean at the source, including renderers with no gate of their own. The
+  same checks also run render-side in `export-gate` (md/html) as defense-in-depth.
 - `overnight_stops_have_lodging` / `required_facilities_met` (when `accommodations` passed) —
   every overnight stop has a `chosen` lodging meeting `trip-brief.facility_needs.required`.
 

@@ -21,6 +21,10 @@ content correctness is guaranteed upstream by `source-verify`.
   the file carries an official source link on its row.
 - `japanese_glossed` — a kana run on a line must carry a （中文）gloss; an inline
   Japanese term left untranslated for the reader is a hard fail.
+- `no_internal_jargon` — no internal `(poi-id)` token or literal `must_do` in the rendered
+  text. **Content hygiene (`japanese_glossed` + `no_internal_jargon`) is primarily enforced
+  at the canonical layer in `itinerary-gate`** (over the unescaped row text/checklist, so it
+  protects every renderer); these render-side copies are defense-in-depth.
 - `photo_has_attribution` — any POI carrying a `photo` must also carry a non-empty
   `photo_attribution` (author + license + source_url).
 - `no_nondistributable_photo_source` — no POI may carry `photo_source: google`
