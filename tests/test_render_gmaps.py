@@ -153,3 +153,27 @@ def test_link_markdown_name_zh_same_as_display_no_redundant_gloss():
     label = md[1:md.index("](")]
     assert label == "大通公園"
     assert "（" not in label
+
+
+# --- G2: directions URL helper (no &travelmode → user picks car/transit) ---
+
+def test_dir_url_shape():
+    from scripts.render.gmaps_links import dir_url
+    assert dir_url("A", "B") == "https://www.google.com/maps/dir/?api=1&origin=A&destination=B"
+
+def test_dir_url_no_travelmode():
+    from scripts.render.gmaps_links import dir_url
+    assert "travelmode" not in dir_url("函館空港", "函館駅")
+
+def test_dir_url_encodes_endpoints():
+    from scripts.render.gmaps_links import dir_url
+    url = dir_url("函館空港", "函館駅")
+    o = url.split("origin=", 1)[1].split("&destination=", 1)[0]
+    d = url.split("&destination=", 1)[1]
+    assert unquote(o) == "函館空港" and unquote(d) == "函館駅"
+
+def test_dir_url_encodes_space_and_parens():
+    from scripts.render.gmaps_links import dir_url
+    url = dir_url("New York", "A(B)")
+    assert "origin=New%20York" in url       # space percent-encoded (safe="")
+    assert "destination=A%28B%29" in url     # ')' encoded so a markdown link target is safe

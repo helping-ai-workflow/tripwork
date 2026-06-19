@@ -2,6 +2,7 @@
 from urllib.parse import quote
 
 BASE = "https://www.google.com/maps/search/?api=1&query="
+DIR_BASE = "https://www.google.com/maps/dir/?api=1"
 
 # Chars with markdown meaning inside a [label]; backslash first so added escapes
 # are not re-escaped.
@@ -45,6 +46,15 @@ def maps_url(poi):
     district = poi.get("district")
     query = f"{name} {district}" if district else name
     return BASE + quote(query) + suffix
+
+def dir_url(origin, destination):
+    """A→B Google Maps DIRECTIONS url. No ``&travelmode`` → the user picks car / transit
+    (G2). Endpoints are percent-encoded with ``safe=""`` (mirroring ``maps_url``) so the
+    result is a well-formed https URL the export gate's href / link-target checks accept,
+    and any ``)`` is encoded so a markdown ``](…)`` target cannot break."""
+    return (DIR_BASE
+            + "&origin=" + quote(str(origin), safe="")
+            + "&destination=" + quote(str(destination), safe=""))
 
 def link_markdown(poi):
     """Markdown link: [display name（中文）](maps url). Label escaped so a scraped

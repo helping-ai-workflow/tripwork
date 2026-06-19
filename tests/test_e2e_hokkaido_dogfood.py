@@ -133,3 +133,33 @@ def test_d6_jargon_gate_e2e():
     assert _jargon_passed(run_export_gate(render_day_table(clean_day, {}), pois)) is True
     clean_html = render_html_page({"title": "T", "days": [{"date": "2026-07-01", **clean_day}]}, {})
     assert _jargon_passed(run_html_gate(clean_html, pois, min_days=1)) is True
+
+
+def test_d7_move_directions_e2e():
+    """G2 closure: a move row with from/to renders an A→B directions chip in BOTH the
+    HTML and the markdown deliverables (no &travelmode), both pass their gates; a move
+    row WITHOUT from/to falls back to plain text (backward-compat, no fabricated link)."""
+    from scripts.render.markdown import render_day_table
+
+    poi = {"id": "v", "name_display": "五稜郭", "name_zh": "五稜郭", "name_local": "五稜郭",
+           "geocode": {"lat": 41.79, "lng": 140.75}}
+    day = {"date": "2026-07-01", "label": "D1｜函館", "rows": [
+        {"slot": "move", "text": "午後抵達", "from": "函館空港", "to": "函館駅"},
+        {"time": "10:00", "slot": "visit", "poi_id": "v", "text": "五稜郭塔"},
+        {"slot": "move", "text": "步行接駁"},                 # no from/to → fallback
+    ]}
+    pmap = {"v": poi}
+
+    html = render_html_page({"title": "北海道", "days": [day]}, pmap)
+    assert '<span class="bd"><a href="https://www.google.com/maps/dir/' in html   # dir chip leads
+    assert "🚆 函館空港→函館駅" in html
+    assert "travelmode" not in html
+    assert "🚆 步行接駁" in html                              # fallback: emoji prefix, no link
+    assert run_html_gate(html, list(pmap.values()), min_days=1)["status"] == "pass"
+
+    md = render_day_table(day, pmap)
+    assert "[🚆 函館空港→函館駅](https://www.google.com/maps/dir/?api=1&origin=" in md
+    assert "[五稜郭（五稜郭）](https://www.google.com/maps/search/" not in md  # zh==display: no gloss
+    assert "[五稜郭](https://www.google.com/maps/search/" in md               # point poi link
+    assert "步行接駁" in md and "travelmode" not in md
+    assert run_export_gate(md, list(pmap.values()))["status"] == "pass"

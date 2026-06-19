@@ -8,7 +8,7 @@ name-search fix). Every emitted href is an https Maps URL so run_html_gate accep
 it; nothing is invented — hero meta / overview / lodging-flow are derived only from
 fields present in itinerary.yaml (Source-Verified-First). (dogfood D4)
 """
-from scripts.render.gmaps_links import maps_url
+from scripts.render.gmaps_links import maps_url, dir_url
 
 # Security: all five HTML-significant chars are escaped.
 # Ampersand MUST be replaced first so the entity suffixes we add (&lt; etc.)
@@ -313,20 +313,36 @@ _LEGEND = (
 )
 
 
-def _row_html(row: dict, poi_map: dict, uid: str = "", *, dashed: bool = False) -> str:
-    slot = row.get("slot", "")
-    text_raw = row.get("text", "")
-    alt = _is_alt(text_raw)
-    emoji = _slot_emoji(slot)
-    text = _html_escape(text_raw)
+def _row_chip_body(row: dict, poi_map: dict) -> str:
+    """Build the 說明-cell inner HTML (G2): a chip LEADS the cell, then the text.
 
+    - move row with both ``from``/``to`` → a directions chip ``{slot-emoji} A→B`` linking
+      ``dir_url(A, B)`` (Source-Verified-First: no chip is fabricated without endpoints);
+    - otherwise a POI row → a maps chip ``{slot-emoji} {label}`` (slot emoji replaces the
+      old literal 🗺️);
+    - otherwise (no link) → a plain ``{slot-emoji} {text}`` prefix.
+    """
+    slot = row.get("slot", "")
+    emoji = _slot_emoji(slot)
+    text = _html_escape(row.get("text", ""))
+    frm, to = row.get("from"), row.get("to")
     pid = row.get("poi_id")
     poi = poi_map.get(pid) if pid else None
-    chip = _map_link(poi, f"🗺️ {_html_escape(_poi_label(poi))}") if poi else ""
 
-    # 說明 cell leads with the slot emoji; the maps chip (when present) trails the text.
-    # (G2/PR3 folds the emoji into a start-of-cell chip.)
-    body = " ".join(p for p in (emoji, text, chip) if p).strip()
+    if slot == "move" and frm and to:
+        href = _html_escape(dir_url(frm, to))
+        label = f"{emoji} {_html_escape(frm)}→{_html_escape(to)}"
+        chip = f'<a href="{href}" class="map" target="_blank">{label}</a>'
+        return f"{chip} {text}".strip()
+    if poi:
+        chip = _map_link(poi, f"{emoji} {_html_escape(_poi_label(poi))}")
+        return f"{chip} {text}".strip()
+    return f"{emoji} {text}".strip()
+
+
+def _row_html(row: dict, poi_map: dict, uid: str = "", *, dashed: bool = False) -> str:
+    alt = _is_alt(row.get("text", ""))
+    body = _row_chip_body(row, poi_map)
     dashed_cls = " dashed" if dashed else ""
 
     if alt:
@@ -338,8 +354,11 @@ def _row_html(row: dict, poi_map: dict, uid: str = "", *, dashed: bool = False) 
             f'<span class="thcol"></span></li>'
         )
 
+    slot = row.get("slot", "")
     time = _html_escape(row.get("time", ""))
     t = f'<span class="t">{time}</span>' if time else '<span class="t"></span>'
+    pid = row.get("poi_id")
+    poi = poi_map.get(pid) if pid else None
     photo = _photo_html(poi, uid) if poi else ""
     cls = f"row slot-{_html_escape(slot)}{dashed_cls}"
     return (

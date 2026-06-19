@@ -189,6 +189,21 @@ def test_itinerary_rejects_extra_key():
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(_itin([{"slot": "meal", "text": "l", "typo": 1}]), schema)
 
+def test_itinerary_accepts_from_to_on_move_row():   # G2 — optional endpoint fields
+    schema = _load_schema("itinerary.schema.json")
+    jsonschema.validate(
+        _itin([{"slot": "move", "text": "A→B", "from": "函館空港", "to": "函館駅"}]), schema)
+
+def test_itinerary_from_to_optional_backward_compat():   # G2 — pre-feature rows still valid
+    schema = _load_schema("itinerary.schema.json")
+    jsonschema.validate(_itin([{"slot": "move", "text": "A→B"}]), schema)   # no from/to
+
+def test_itinerary_additionalproperties_intact_with_from_to():   # G2 — seal stays honest
+    schema = _load_schema("itinerary.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(
+            _itin([{"slot": "move", "text": "x", "from": "A", "to": "B", "typo": 1}]), schema)
+
 def test_itinerary_checklist_accepted():  # TW-034 surface support
     schema = _load_schema("itinerary.schema.json")
     doc = _itin([{"slot": "meal", "text": "l"}])

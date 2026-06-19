@@ -533,6 +533,43 @@ class TestDashedGrouping:
         assert "dashed" not in cls2[-1]                    # trailing alt is also last
 
 
+class TestMoveDirectionsChip:
+    """G2: chip leads the 說明 cell. A move row with from/to gets a directions chip
+    (slot-emoji + A→B, maps/dir, no travelmode); a point row gets a slot-emoji maps
+    chip (no 🗺️); a move row without from/to falls back to a plain emoji prefix."""
+
+    def _html(self, row, pmap=None):
+        itin = {"title": "T", "days": [{"date": "2026-11-01", "label": "D1", "rows": [row]}]}
+        return render_html_page(itin, pmap or {})
+
+    def test_move_row_directions_chip_at_start(self):
+        h = self._html({"slot": "move", "text": "午後抵達", "from": "函館空港", "to": "函館駅"})
+        # chip (href-first, per _map_link convention) leads the .bd cell
+        assert '<span class="bd"><a href="https://www.google.com/maps/dir/' in h
+        assert "maps/dir/?api=1&amp;origin=" in h              # directions url (escaped &)
+        assert "🚆 函館空港→函館駅" in h                         # slot emoji + A→B
+        assert "travelmode" not in h
+        assert "🗺️" not in h
+
+    def test_point_chip_at_start_slot_emoji(self):
+        h = self._html({"time": "10:00", "slot": "visit", "poi_id": "p1", "text": "小樽運河"}, POI_MAP)
+        assert '<span class="bd"><a href="https://www.google.com/maps/search/' in h  # chip leads
+        assert "📍 " in h                                       # visit slot emoji inside the chip
+        assert "🗺️" not in h                                    # literal map glyph dropped
+
+    def test_move_row_without_from_to_fallback(self):
+        h = self._html({"slot": "move", "text": "機場接駁"})
+        assert "maps/dir" not in h                             # no fabricated directions link
+        assert "🚆 機場接駁" in h                                # plain emoji prefix (backward-compat)
+
+    def test_move_chip_href_passes_html_gate(self):
+        from scripts.export_gate import run_html_gate
+        h = self._html({"slot": "move", "text": "go", "from": "A", "to": "B"})
+        assert "maps/dir" in h
+        r = run_html_gate(h, pois=[], min_days=1)
+        assert r["status"] == "pass", r["failures"]
+
+
 class TestLodgeBox:
     """G5: the lodging line is a distinct light-blue rounded box."""
 
