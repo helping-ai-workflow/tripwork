@@ -333,6 +333,12 @@ def _row_chip_body(row: dict, poi_map: dict) -> str:
         href = _html_escape(dir_url(frm, to))
         label = f"{emoji} {_html_escape(frm)}→{_html_escape(to)}"
         chip = f'<a href="{href}" class="map" target="_blank">{label}</a>'
+        # when the move row also resolves a poi, name it (its maps chip) after the
+        # directions chip so the destination stays linked — kept consistent with the
+        # markdown renderer. The poi thumbnail is suppressed in _row_html (a thumb would
+        # point at a different target than the A→B chip).
+        if poi:
+            chip += " " + _map_link(poi, f"📍 {_html_escape(_poi_label(poi))}")
         return f"{chip} {text}".strip()
     if poi:
         chip = _map_link(poi, f"{emoji} {_html_escape(_poi_label(poi))}")
@@ -359,7 +365,10 @@ def _row_html(row: dict, poi_map: dict, uid: str = "", *, dashed: bool = False) 
     t = f'<span class="t">{time}</span>' if time else '<span class="t"></span>'
     pid = row.get("poi_id")
     poi = poi_map.get(pid) if pid else None
-    photo = _photo_html(poi, uid) if poi else ""
+    # a move row whose directions chip wins (move + from/to) shows NO thumbnail — a thumb
+    # would point at a different target than the A→B chip; the .thcol cell stays reserved.
+    move_dir = slot == "move" and row.get("from") and row.get("to")
+    photo = _photo_html(poi, uid) if (poi and not move_dir) else ""
     cls = f"row slot-{_html_escape(slot)}{dashed_cls}"
     return (
         f'<li class="{cls}">{t}'

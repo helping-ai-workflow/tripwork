@@ -569,6 +569,17 @@ class TestMoveDirectionsChip:
         r = run_html_gate(h, pois=[], min_days=1)
         assert r["status"] == "pass", r["failures"]
 
+    def test_move_row_with_poi_suppresses_thumbnail(self):   # review finding-1
+        # a move row carrying BOTH from/to AND a poi with a photo: the dir chip wins, the
+        # poi is still named (its maps chip), but NO thumbnail — a thumb would point at a
+        # different target than the A→B chip. The reserved .thcol cell stays empty.
+        h = self._html({"slot": "move", "poi_id": "pp", "text": "go", "from": "A", "to": "B"},
+                       {"pp": POI_PHOTO})
+        assert "maps/dir" in h                                # directions chip leads
+        assert "<img" not in h                                # NO thumbnail on the move row
+        assert '<span class="thcol"></span>' in h             # reserved cell empty
+        assert "登別" in h                                     # poi still named in the cell
+
 
 class TestLodgeBox:
     """G5: the lodging line is a distinct light-blue rounded box."""

@@ -196,6 +196,27 @@ def test_export_gate_catches_md_escaped_underscore_poi_id():
     assert _names("no_internal_jargon", run_export_gate(md, [{"id": "hak-yam_yakei"}])) is False
 
 
+def test_export_gate_bookable_on_move_row_not_evaded():   # review finding-2
+    # a verified booking.required POI scheduled on a move row with from/to must NOT slip
+    # past the bookable-official-source check: the move cell must surface the poi name so
+    # _find_rows locates it, and the official link must be present to pass.
+    from scripts.render.markdown import render_day_table
+    bookable = {"id": "trn", "name_local": "特急北斗", "name_display": "特急北斗",
+                "verify_status": "verified", "booking": {"required": True},
+                "sources": [{"url": "https://jr.example", "official": True}]}
+    day = {"label": "D1", "rows": [
+        {"slot": "move", "poi_id": "trn", "text": "預訂", "from": "札幌", "to": "函館"}]}
+    ok_md = render_day_table(day, {"trn": bookable})
+    assert run_export_gate(ok_md, [bookable])["status"] == "pass", \
+        run_export_gate(ok_md, [bookable])["failures"]
+    # strip the official flag → the official link disappears → gate MUST fail (not evade)
+    no_off = {**bookable, "sources": [{"url": "https://review.example", "official": False}]}
+    bad_md = render_day_table(day, {"trn": no_off})
+    r = run_export_gate(bad_md, [no_off])
+    assert r["status"] == "fail"
+    assert _names("bookable_has_official_source", r) is False
+
+
 def test_find_row_ignores_heading_uses_table_row():   # TW-044
     bookable = {"id": "milford", "name_local": "Milford Sound", "name_display": "Milford Sound",
                 "verify_status": "verified", "booking": {"required": True},

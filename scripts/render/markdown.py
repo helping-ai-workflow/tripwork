@@ -39,11 +39,18 @@ def _poi_cell(poi, text):
         parts.append(escaped)
     return " ".join(parts)
 
-def _move_cell(frm, to, text):
+def _move_cell(frm, to, text, poi=None):
     """Move row with endpoints: a directions link LEADS the cell (mirrors _poi_cell's
-    link-first ordering), then the text. The label is escaped free text; the generated
-    link target (dir_url) is not. (G2)"""
+    link-first ordering). When the row ALSO resolves a poi, the poi maps link + official
+    source follow — so a bookable poi scheduled on a move row still surfaces its name and
+    official link for the export gate's bookable check (no silent evasion). Then the text.
+    Labels are escaped free text; generated link targets (dir_url / maps_url) are not. (G2)"""
     parts = [f"[🚆 {md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
+    if poi:
+        parts.append(link_markdown(poi))
+        url = _primary_source_url(poi)
+        if url:
+            parts.append(f"· [官網]({_safe_url(url)})")
     escaped = md_escape(text)
     if escaped:
         parts.append(escaped)
@@ -64,7 +71,7 @@ def render_day_table(day, poi_map):
         poi = poi_map.get(pid) if pid else None
         frm, to = row.get("from"), row.get("to")
         if row.get("slot") == "move" and frm and to:
-            cell = _move_cell(frm, to, text)        # G2: directions link at cell start
+            cell = _move_cell(frm, to, text, poi)   # G2: directions link at cell start
         elif poi:
             cell = _poi_cell(poi, text)
         else:

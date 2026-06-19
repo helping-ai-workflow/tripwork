@@ -64,7 +64,10 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 
 - On a travel day (a day that moves between overnight stops), render the inter-city move as
   a first-class row: transit → the `service` + `reserved` + `transfers` + `duration_mins`;
-  drive → the `duration_mins`. Do not bury the move inside a generic note.
+  drive → the `duration_mins`. Do not bury the move inside a generic note. Record the move's
+  two endpoints in the row's structured `from` / `to` fields so export renders an A→B
+  directions link; keep `service` / `reserved` / `transfers` / `duration_mins` in the row
+  `text`, not the endpoints.
 - Push `reserved`-seat reminders, `pass_advice`, and `last_service` notes into the
   **Pre-trip checklist / Contingency**.
 - `drive_too_long` is depart-independent and already resolved in `inter-stop-legs`; do not
@@ -115,8 +118,12 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
 
 Write `trips/<slug>/itinerary.yaml` as the **canonical** artifact (schema:
 `schemas/itinerary.schema.json`) — `{title, checklist, days:[{date, label, rows:[{time,
-slot, poi_id, text}], lodging}]}`. Each row references a POI by `poi_id` (matching a
+slot, poi_id, text, from, to}], lodging}]}`. Each row references a POI by `poi_id` (matching a
 `verify_status: verified` id in `verified-pois.yaml`); `slot ∈ meal|activity|visit|move|lodging`.
+For a `slot: move` row, put the two endpoints in the optional structured `from` / `to` fields
+(e.g. `from: 函館空港`, `to: 函館駅`) — **not** buried in `text`. Export builds an A→B Google Maps
+**directions** link from them; a move row that leaves `from` / `to` empty renders as plain text
+with no directions link. (`from` / `to` are optional and backward-compatible.)
 Then render `trips/<slug>/itinerary.md` from it via `scripts/render/markdown.py::render_day_table(day, poi_map)`.
 
 `itinerary.gate`, LINE / Google-Maps / Notion exports all read `itinerary.yaml` — never
