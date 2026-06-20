@@ -17,8 +17,12 @@ equals its `district` — `name_local` must be the venue's real name, not the ar
 (this catches the cluster_fallback town-name bug). A rejecting pre-check flips the
 result to `rejected` before the gates below run.
 
-Optionally capture a `name_zh` (Chinese gloss) on the POI here; the render layer
-shows it as `name_display（name_zh）` so the deliverable stays reader-friendly.
+Capture a `name_zh` (Chinese gloss) on the POI here; the render layer shows it as
+`name_display（name_zh）` so the deliverable stays reader-friendly. **`name_zh` is REQUIRED
+when `name_display` contains kana (hiragana/katakana)** — without it the maps-link label
+renders as bare kana a Chinese reader cannot read. A verified kana-named POI lacking
+`name_zh` is rejected by the schema and fails `itinerary-gate` (`referenced_pois_glossed`).
+Pure-Han names (e.g. 五稜郭) need no gloss; non-verified POIs are exempt (never rendered).
 
 Gates are evaluated in strict order — Gate 0 fires before Gate 1, Gate 1 before Gate 2, Gate 2 before Gate 3.
 

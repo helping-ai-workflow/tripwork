@@ -49,3 +49,13 @@ def kana_gloss_failures(text):
             term = _KANA.search(line).group(0)
             out.append(f"untranslated Japanese '{term}' has no （中文）gloss on its line")
     return out
+
+
+def kana_name_without_gloss(poi):
+    """A verified POI whose `name_display` carries kana but has no non-empty `name_zh` — its
+    render label (`name_display（name_zh）`) would be bare kana a Chinese reader can't read.
+    Forward data-quality guard: `name_display` is schema-required so it is always the rendered
+    name; pure-Han names are readable and exempt; non-verified POIs are never rendered."""
+    return bool(poi.get("verify_status") == "verified"
+                and _KANA.search(poi.get("name_display") or "")
+                and not (poi.get("name_zh") or "").strip())

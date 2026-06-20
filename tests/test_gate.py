@@ -182,6 +182,31 @@ def test_gate_passes_clean_title_label_endpoints():
     assert {"name": "japanese_glossed", "passed": True} in r["checks"]
 
 
+def _gpoi(pid, name_display, name_zh=None):
+    p = {"id": pid, "verify_status": "verified", "geocode": {"lat": 1.0, "lng": 2.0},
+         "name_display": name_display}
+    if name_zh is not None:
+        p["name_zh"] = name_zh
+    return p
+
+def test_gate_fails_on_scheduled_kana_poi_without_gloss():   # 0.21.0 forward guard
+    itin = _itin([{"time": "12:00", "slot": "meal", "poi_id": "k", "text": "午餐"}])
+    r = run_gate([_gpoi("k", "だるま 本店")], itin, advisory={"items": []})
+    assert r["status"] == "fail"
+    assert {"name": "referenced_pois_glossed", "passed": False} in r["checks"]
+    assert any("k" in f and "name_zh" in f for f in r["failures"])
+
+def test_gate_passes_kana_poi_with_gloss():
+    itin = _itin([{"time": "12:00", "slot": "meal", "poi_id": "k", "text": "午餐"}])
+    r = run_gate([_gpoi("k", "だるま 本店", "達摩本店")], itin, advisory={"items": []})
+    assert {"name": "referenced_pois_glossed", "passed": True} in r["checks"]
+
+def test_gate_glossed_check_passes_han_name():
+    itin = _itin([{"time": "12:00", "slot": "meal", "poi_id": "h", "text": "午餐"}])
+    r = run_gate([_gpoi("h", "五稜郭")], itin, advisory={"items": []})   # Han-only → exempt
+    assert {"name": "referenced_pois_glossed", "passed": True} in r["checks"]
+
+
 def test_gate_invariant_pass_implies_all_checks_passed():
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     if r["status"] == "pass":

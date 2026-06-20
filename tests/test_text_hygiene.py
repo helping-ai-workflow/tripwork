@@ -4,7 +4,7 @@ itinerary-gate (gate.py) and the render-layer export gates (export_gate.py).
 jargon_failures  — internal (poi-id) tokens / literal must_do leaked into user-facing text.
 kana_gloss_failures — an untranslated kana run on a line with no （中文）gloss.
 """
-from scripts.text_hygiene import jargon_failures, kana_gloss_failures
+from scripts.text_hygiene import jargon_failures, kana_gloss_failures, kana_name_without_gloss
 
 
 class TestJargon:
@@ -52,3 +52,25 @@ class TestKanaGloss:
 
     def test_empty(self):
         assert kana_gloss_failures("") == []
+
+
+class TestKanaNameGuard:
+    """A verified POI whose name_display carries kana must have a non-empty name_zh, so its
+    render label (name_display（name_zh）) is glossed. Forward data-quality guard."""
+
+    def test_verified_kana_no_zh_flagged(self):
+        assert kana_name_without_gloss({"verify_status": "verified", "name_display": "だるま"}) is True
+
+    def test_verified_kana_with_zh_ok(self):
+        assert kana_name_without_gloss(
+            {"verify_status": "verified", "name_display": "だるま", "name_zh": "達摩"}) is False
+
+    def test_verified_han_only_ok(self):
+        assert kana_name_without_gloss({"verify_status": "verified", "name_display": "五稜郭"}) is False
+
+    def test_unverified_kana_exempt(self):
+        assert kana_name_without_gloss({"verify_status": "unverified", "name_display": "だるま"}) is False
+
+    def test_whitespace_zh_flagged(self):
+        assert kana_name_without_gloss(
+            {"verify_status": "verified", "name_display": "だるま", "name_zh": "  "}) is True
