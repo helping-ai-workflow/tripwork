@@ -8,7 +8,7 @@ sources themselves is source-verify's job; this gate checks the assembled plan.
 """
 from scripts.facilities import stop_meets_required
 from scripts.calendar import poi_closed_on
-from scripts.text_hygiene import jargon_failures, kana_gloss_failures
+from scripts.text_hygiene import jargon_failures, kana_gloss_failures, kana_name_without_gloss
 
 def _referenced_ids(days):
     ids = set()
@@ -74,6 +74,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
             failures.append(f"day references non-verified POI '{pid}' ({p.get('verify_status')})")
         if p.get("geocode") is None:
             failures.append(f"POI '{pid}' missing geocode")
+        if kana_name_without_gloss(p):
+            failures.append(f"POI '{pid}' has a kana name but no name_zh gloss")
 
     for d in days:
         if not _day_has_meal(d):
@@ -153,6 +155,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
          "passed": not any("non-verified POI" in f or "unknown POI" in f for f in failures)},
         {"name": "referenced_pois_geocoded",
          "passed": not any("missing geocode" in f or "unknown POI" in f for f in failures)},
+        {"name": "referenced_pois_glossed",
+         "passed": not any("no name_zh gloss" in f for f in failures)},
         {"name": "days_have_meals",
          "passed": not any("no meal" in f for f in failures)},
         {"name": "overnight_days_have_lodging",

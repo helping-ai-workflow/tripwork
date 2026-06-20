@@ -49,3 +49,16 @@ def kana_gloss_failures(text):
             term = _KANA.search(line).group(0)
             out.append(f"untranslated Japanese '{term}' has no （中文）gloss on its line")
     return out
+
+
+def kana_name_without_gloss(poi):
+    """A verified POI whose RENDERED name carries kana but has no non-empty `name_zh` — its
+    label (`name（中文）`) would be bare kana a Chinese reader can't read. The rendered name is
+    `name_display or name_local` — the same fallback the renderers use (gmaps_links.link_markdown,
+    html_page._poi_label), so an empty `name_display` with a kana `name_local` is still caught.
+    Forward data-quality guard; pure-Han names are readable and exempt; non-verified POIs are
+    never rendered."""
+    rendered = poi.get("name_display") or poi.get("name_local") or ""
+    return bool(poi.get("verify_status") == "verified"
+                and _KANA.search(rendered)
+                and not (poi.get("name_zh") or "").strip())

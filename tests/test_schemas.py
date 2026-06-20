@@ -494,6 +494,37 @@ def _vp_verified(**over):
     base.update(over)
     return {"pois": [base]}
 
+def test_verified_kana_name_requires_name_zh():   # 0.21.0 forward guard
+    schema = _load_schema("verified-pois.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_vp_verified(name_display="だるま 本店"), schema)   # kana, no name_zh
+
+def test_verified_kana_name_with_zh_ok():
+    schema = _load_schema("verified-pois.schema.json")
+    jsonschema.validate(_vp_verified(name_display="だるま 本店", name_zh="達摩本店"), schema)
+
+def test_verified_kana_name_empty_zh_rejected():
+    schema = _load_schema("verified-pois.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_vp_verified(name_display="だるま", name_zh=""), schema)   # minLength
+
+def test_verified_empty_name_display_rejected():   # review finding: display name must be non-empty
+    schema = _load_schema("verified-pois.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_vp_verified(name_display="", name_local="すすきの", name_zh="薄野"), schema)
+
+def test_verified_han_name_no_zh_ok():
+    schema = _load_schema("verified-pois.schema.json")
+    jsonschema.validate(_vp_verified(name_display="五稜郭塔"), schema)   # Han-only → exempt
+
+def test_unverified_kana_name_no_zh_ok():
+    schema = _load_schema("verified-pois.schema.json")
+    doc = _vp_item(verify_status="unverified", status_reason="single source",
+                   name_display="だるま", sources=[{"url": "https://a.example", "lang": "ja"}])
+    del doc["pois"][0]["geocode"]
+    jsonschema.validate(doc, schema)   # unverified is exempt — never rendered
+
+
 def test_tw013_additionalproperties_rejects_typo_key():
     schema = _load_schema("verified-pois.schema.json")
     doc = _vp_verified(close_days=["monday"])   # typo of closed_days
