@@ -1,5 +1,30 @@
 # Changelog
 
+## 0.21.0 — require name_zh for kana-named verified POIs (gloss-at-source guard)
+
+A verified POI whose `name_display` contains kana renders its maps-link label as
+`name_display（name_zh）`; without `name_zh` the label is bare kana a Chinese reader can't
+read. `name_zh` was optional. This adds a forward data-quality guard so a kana-named POI
+cannot be scheduled without its Chinese gloss. **Forward guard only — the dogfood data
+already complies (0 verified violations; the 9 bare-kana POIs are all `unverified` and never
+render).**
+
+- **Rule:** a `verify_status: verified` POI whose `name_display` matches kana (`[぀-ヿ]`) must
+  carry a non-empty `name_zh`. Pure-Han names (五稜郭, 函館駅) are exempt (readable);
+  non-verified POIs are exempt (never rendered).
+- **`scripts/gate.py::run_gate` (runtime guard):** the referenced-POI loop adds
+  `referenced_pois_glossed` — a scheduled verified kana-named POI lacking `name_zh` fails the
+  gate, naming the POI id. This is the load-bearing enforcement (verified-pois.yaml is not
+  runtime-schema-validated). Predicate `text_hygiene.kana_name_without_gloss(poi)`.
+- **`schemas/verified-pois.schema.json` (declarative contract):** a third `allOf` if/then —
+  `verified` + kana `name_display` ⇒ `name_zh` required, `minLength: 1`.
+- **`source-verify` SKILL:** `name_zh` is no longer "optional" — it is REQUIRED when the name
+  contains kana.
+
+No consumer migration (real data already compliant). The kana-gloss check on free *prose*
+stays per-line best-effort and is a separate, abandoned concern (string-heuristic precision
+on Chinese-prose-with-Japanese-names is not viable — see that work item).
+
 ## 0.20.0 — canonical content-hygiene gate (protects every renderer) + Notion de-adapted
 
 0.19.0 added the `no_internal_jargon` check to the md + html export gates but left
