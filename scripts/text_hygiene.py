@@ -52,10 +52,13 @@ def kana_gloss_failures(text):
 
 
 def kana_name_without_gloss(poi):
-    """A verified POI whose `name_display` carries kana but has no non-empty `name_zh` — its
-    render label (`name_display（name_zh）`) would be bare kana a Chinese reader can't read.
-    Forward data-quality guard: `name_display` is schema-required so it is always the rendered
-    name; pure-Han names are readable and exempt; non-verified POIs are never rendered."""
+    """A verified POI whose RENDERED name carries kana but has no non-empty `name_zh` — its
+    label (`name（中文）`) would be bare kana a Chinese reader can't read. The rendered name is
+    `name_display or name_local` — the same fallback the renderers use (gmaps_links.link_markdown,
+    html_page._poi_label), so an empty `name_display` with a kana `name_local` is still caught.
+    Forward data-quality guard; pure-Han names are readable and exempt; non-verified POIs are
+    never rendered."""
+    rendered = poi.get("name_display") or poi.get("name_local") or ""
     return bool(poi.get("verify_status") == "verified"
-                and _KANA.search(poi.get("name_display") or "")
+                and _KANA.search(rendered)
                 and not (poi.get("name_zh") or "").strip())

@@ -508,6 +508,11 @@ def test_verified_kana_name_empty_zh_rejected():
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(_vp_verified(name_display="だるま", name_zh=""), schema)   # minLength
 
+def test_verified_empty_name_display_rejected():   # review finding: display name must be non-empty
+    schema = _load_schema("verified-pois.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_vp_verified(name_display="", name_local="すすきの", name_zh="薄野"), schema)
+
 def test_verified_han_name_no_zh_ok():
     schema = _load_schema("verified-pois.schema.json")
     jsonschema.validate(_vp_verified(name_display="五稜郭塔"), schema)   # Han-only → exempt

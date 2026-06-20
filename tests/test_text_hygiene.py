@@ -74,3 +74,14 @@ class TestKanaNameGuard:
     def test_whitespace_zh_flagged(self):
         assert kana_name_without_gloss(
             {"verify_status": "verified", "name_display": "だるま", "name_zh": "  "}) is True
+
+    def test_empty_name_display_kana_local_flagged(self):   # review finding
+        # renderers fall back name_display -> name_local; an empty name_display with a kana
+        # name_local still renders bare kana, so the guard keys on the rendered name.
+        assert kana_name_without_gloss(
+            {"verify_status": "verified", "name_display": "", "name_local": "すすきの"}) is True
+
+    def test_han_display_kana_local_ok(self):
+        # non-empty Han name_display is the rendered name; name_local kana is not shown.
+        assert kana_name_without_gloss(
+            {"verify_status": "verified", "name_display": "五稜郭", "name_local": "ごりょうかく"}) is False

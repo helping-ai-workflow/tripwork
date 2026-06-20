@@ -9,9 +9,11 @@ cannot be scheduled without its Chinese gloss. **Forward guard only — the dogf
 already complies (0 verified violations; the 9 bare-kana POIs are all `unverified` and never
 render).**
 
-- **Rule:** a `verify_status: verified` POI whose `name_display` matches kana (`[぀-ヿ]`) must
-  carry a non-empty `name_zh`. Pure-Han names (五稜郭, 函館駅) are exempt (readable);
-  non-verified POIs are exempt (never rendered).
+- **Rule:** a `verify_status: verified` POI whose **rendered name** (`name_display`, else
+  `name_local`) matches kana (`[぀-ヿ]`) must carry a non-empty `name_zh`. Pure-Han names
+  (五稜郭, 函館駅) are exempt (readable); non-verified POIs are exempt (never rendered).
+  `name_display` is now also `minLength: 1` (an empty display name fell back to a possibly-kana
+  `name_local`, slipping the guard — caught by adversarial review).
 - **`scripts/gate.py::run_gate` (runtime guard):** the referenced-POI loop adds
   `referenced_pois_glossed` — a scheduled verified kana-named POI lacking `name_zh` fails the
   gate, naming the POI id. This is the load-bearing enforcement (verified-pois.yaml is not

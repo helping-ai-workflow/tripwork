@@ -201,6 +201,13 @@ def test_gate_passes_kana_poi_with_gloss():
     r = run_gate([_gpoi("k", "だるま 本店", "達摩本店")], itin, advisory={"items": []})
     assert {"name": "referenced_pois_glossed", "passed": True} in r["checks"]
 
+def test_gate_fails_on_empty_display_kana_local_without_gloss():   # review finding
+    poi = {"id": "k", "verify_status": "verified", "geocode": {"lat": 1.0, "lng": 2.0},
+           "name_display": "", "name_local": "すすきの"}   # renders bare kana via fallback
+    itin = _itin([{"time": "12:00", "slot": "meal", "poi_id": "k", "text": "午餐"}])
+    r = run_gate([poi], itin, advisory={"items": []})
+    assert {"name": "referenced_pois_glossed", "passed": False} in r["checks"]
+
 def test_gate_glossed_check_passes_han_name():
     itin = _itin([{"time": "12:00", "slot": "meal", "poi_id": "h", "text": "午餐"}])
     r = run_gate([_gpoi("h", "五稜郭")], itin, advisory={"items": []})   # Han-only → exempt
