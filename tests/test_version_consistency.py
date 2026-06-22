@@ -1,47 +1,50 @@
-"""Ship-gate: plugin.json / marketplace.json / CHANGELOG versions must agree.
+"""Ship-gate: all 8 version-bearing manifests + CHANGELOG top must agree.
 
-Mirrors the release-flow halt condition "version files disagree → that's a
-release-flow bug, halt before merging". Runs in CI on every PR so a forgotten
-bump in any one file fails the build instead of shipping a split version.
+Runs in CI on every PR so a forgotten bump in any one file fails the build
+instead of shipping a split version across agent runtimes.
 """
 import json, pathlib, re
+import pytest
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
+_CHANGELOG_TOP = re.compile(r"^##\s*(\d+\.\d+\.\d+)", re.MULTILINE)
+_TOML_VERSION = re.compile(r'^version\s*=\s*"(\d+\.\d+\.\d+)"', re.MULTILINE)
 
 
-def _plugin_version():
-    return json.load(open(ROOT / ".claude-plugin" / "plugin.json"))["version"]
-
-
-def _marketplace_version():
-    mk = json.load(open(ROOT / ".claude-plugin" / "marketplace.json"))
-    return mk["plugins"][0]["version"]
-
-
-def _pyproject_version():
-    text = (ROOT / "pyproject.toml").read_text(encoding="utf-8")
-    m = re.search(r'^version\s*=\s*"(\d+\.\d+\.\d+)"', text, re.MULTILINE)
-    assert m, "pyproject.toml has no version"
-    return m.group(1)
-
-
-def _changelog_top_version():
-    text = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8")
-    m = re.search(r"^##\s*(\d+\.\d+\.\d+)", text, re.MULTILINE)
+def _changelog_top():
+    m = _CHANGELOG_TOP.search((ROOT / "CHANGELOG.md").read_text(encoding="utf-8"))
     assert m, "CHANGELOG.md has no '## X.Y.Z' heading"
     return m.group(1)
 
 
-def test_plugin_and_marketplace_versions_match():
-    assert _plugin_version() == _marketplace_version(), \
-        "plugin.json and marketplace.json versions disagree"
+def _json_version(rel, accessor):
+    return accessor(json.loads((ROOT / rel).read_text(encoding="utf-8")))
 
 
-def test_changelog_top_matches_plugin_version():
-    assert _changelog_top_version() == _plugin_version(), \
-        "CHANGELOG top heading does not match plugin.json version"
+def _toml_version(rel):
+    m = _TOML_VERSION.search((ROOT / rel).read_text(encoding="utf-8"))
+    assert m, f"{rel} has no version"
+    return m.group(1)
 
 
-def test_pyproject_matches_plugin_version():
-    assert _pyproject_version() == _plugin_version(), \
-        "pyproject.toml version does not match plugin.json version"
+# (rel_path, callable(root_relative)->version)
+_MANIFESTS = {
+    ".claude-plugin/plugin.json": lambda: _json_version(".claude-plugin/plugin.json", lambda d: d["version"]),
+    ".claude-plugin/marketplace.json": lambda: _json_version(".claude-plugin/marketplace.json", lambda d: d["plugins"][0]["version"]),
+    "pyproject.toml": lambda: _toml_version("pyproject.toml"),
+    "package.json": lambda: _json_version("package.json", lambda d: d["version"]),
+    ".cursor-plugin/plugin.json": lambda: _json_version(".cursor-plugin/plugin.json", lambda d: d["version"]),
+    ".codex-plugin/plugin.json": lambda: _json_version(".codex-plugin/plugin.json", lambda d: d["version"]),
+    ".kimi-plugin/plugin.json": lambda: _json_version(".kimi-plugin/plugin.json", lambda d: d["version"]),
+    "gemini-extension.json": lambda: _json_version("gemini-extension.json", lambda d: d["version"]),
+}
+
+
+@pytest.mark.parametrize("rel_path,getter", list(_MANIFESTS.items()))
+def test_manifest_version_matches_changelog_top(rel_path, getter):
+    assert (ROOT / rel_path).is_file(), f"version-bearing manifest {rel_path} is missing"
+    version = getter()
+    top = _changelog_top()
+    assert version == top, (
+        f"{rel_path} declares {version!r} but CHANGELOG top is {top!r}; "
+        f"run `python scripts/bump_version.py {top}` to resync.")

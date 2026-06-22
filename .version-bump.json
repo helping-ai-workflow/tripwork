@@ -1,0 +1,18 @@
+{
+  "files": [
+    { "path": ".claude-plugin/plugin.json", "type": "json", "key": "version" },
+    { "path": ".claude-plugin/marketplace.json", "type": "json", "key": "plugins.0.version" },
+    { "path": "pyproject.toml", "type": "toml", "key": "version" },
+    { "path": "package.json", "type": "json", "key": "version" },
+    { "path": ".cursor-plugin/plugin.json", "type": "json", "key": "version" },
+    { "path": ".codex-plugin/plugin.json", "type": "json", "key": "version" },
+    { "path": ".kimi-plugin/plugin.json", "type": "json", "key": "version" },
+    { "path": "gemini-extension.json", "type": "json", "key": "version" },
+    { "path": "CHANGELOG.md", "type": "changelog", "heading": "## {version}" }
+  ],
+  "audit": {
+    "exclude": ["CHANGELOG.md", "AGENTS.md", "CLAUDE.md", "README.md", "scripts/", "tests/", "docs/", ".version-bump.json"]
+  },
+  "current": "0.23.1",
+  "next": "0.24.0"
+}
