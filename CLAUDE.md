@@ -89,3 +89,25 @@ pointer.
 This repo follows the user's 8-step plugin pre-ship gate (TDD red→green,
 full pytest green, e2e fixture closure, matrix re-review) before any
 `OK 更新 plugin` release. README freshness is part of step 9 ship artifacts.
+
+## Release flow — version bump
+
+A version bump moves **8** version-bearing manifests plus the CHANGELOG, all in
+the release commit. Run them in one shot:
+
+    python scripts/bump_version.py <X.Y.Z>
+
+then hand-author the `## X.Y.Z — <desc>` CHANGELOG entry. The 8 manifests:
+`.claude-plugin/plugin.json`, `.claude-plugin/marketplace.json`, `pyproject.toml`,
+`package.json`, `.cursor-plugin/plugin.json`, `.codex-plugin/plugin.json`,
+`.kimi-plugin/plugin.json`, `gemini-extension.json`. All must equal the CHANGELOG
+top heading. Mechanical guards: `tests/test_version_consistency.py` (every
+manifest == CHANGELOG top), `tests/test_version_bump_manifest_lists_all.py`
+(`.version-bump.json` lists exactly the 8), and `scripts/bump_version.py --audit`
+(no stray undeclared file carries the version). The version-less `.opencode/`
+and `.pi/` descriptors are not bumped.
+
+Touching any manifest, hook, or alt-platform descriptor must pass the
+cross-platform gates (`test_version_consistency`, `test_bump_version`,
+`test_alt_platform_descriptors`, `test_run_hook_invariants`,
+`test_agent_context_files`).

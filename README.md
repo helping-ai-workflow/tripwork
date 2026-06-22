@@ -90,6 +90,19 @@ claude plugin install tripwork
 claude plugin marketplace update tripwork && claude plugin install tripwork
 ```
 
+<details>
+<summary>其他 AI agent 安裝（Cursor / Codex / Kimi / Gemini / OpenCode / Pi）</summary>
+
+| Agent | 安裝 |
+|---|---|
+| Cursor / Codex / Kimi | 用各自的 plugin marketplace 加 `git@github.com:helping-ai-workflow/tripwork.git`，再 install `tripwork` |
+| Gemini CLI | `gemini extensions install https://github.com/helping-ai-workflow/tripwork` |
+| OpenCode | `opencode.json` 的 `plugin` 陣列加 `"tripwork@git+https://github.com/helping-ai-workflow/tripwork.git"`（見 `.opencode/INSTALL.md`） |
+| Pi | `pi install git:github.com/helping-ai-workflow/tripwork` |
+
+每個 agent 都會在 session 開始自動載入 `using-tripwork`，行為與 Claude Code 一致。
+</details>
+
 ---
 
 ## 2. 完整跑一次會發生什麼
