@@ -60,7 +60,7 @@ def test_bump_moves_all_and_current(tmp_path):
     assert bump_version.bump(repo, "2.0.0") == 0
     assert bump_version.read_key(repo / "a.json", "version") == "2.0.0"
     assert bump_version.read_toml_version(repo / "pyproject.toml") == "2.0.0"
-    cfg = json.loads((repo / ".version-bump.json").read_text())
+    cfg = json.loads((repo / ".version-bump.json").read_text(encoding="utf-8"))
     assert cfg["current"] == "2.0.0" and cfg["next"] == "2.1.0"
 
 def test_audit_clean_and_flags_stray(tmp_path):

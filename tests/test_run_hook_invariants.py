@@ -25,3 +25,9 @@ def test_run_hook_cmd_is_executable_in_index():
     out = subprocess.check_output(
         ["git", "-C", str(REPO), "ls-files", "--stage", "hooks/run-hook.cmd"], text=True)
     assert out.split()[0] == "100755", f"run-hook.cmd must be git mode 100755, got: {out.split()[0]}"
+
+
+def test_session_start_is_executable_in_index():
+    out = subprocess.check_output(
+        ["git", "-C", str(REPO), "ls-files", "--stage", "hooks/session-start"], text=True)
+    assert out.split()[0] == "100755", f"hooks/session-start must be git mode 100755, got: {out.split()[0]}"

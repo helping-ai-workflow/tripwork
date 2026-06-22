@@ -13,13 +13,13 @@ def test_all_new_manifests_parse_and_name_tripwork():
         assert data["name"] == "tripwork", f"{rel} name != tripwork"
 
 def test_cursor_and_codex_wire_hooks():
-    cur = json.loads((ROOT / ".cursor-plugin/plugin.json").read_text())
-    cdx = json.loads((ROOT / ".codex-plugin/plugin.json").read_text())
+    cur = json.loads((ROOT / ".cursor-plugin/plugin.json").read_text(encoding="utf-8"))
+    cdx = json.loads((ROOT / ".codex-plugin/plugin.json").read_text(encoding="utf-8"))
     assert cur["hooks"] == "./hooks/hooks-cursor.json"
     assert cdx["hooks"] == "./hooks/hooks-codex.json"
 
 def test_package_json_wires_opencode_and_pi():
-    pkg = json.loads((ROOT / "package.json").read_text())
+    pkg = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))
     assert pkg["main"] == ".opencode/plugins/tripwork.js"
     assert pkg["pi"]["extensions"] == ["./.pi/extensions/tripwork.ts"]
     assert pkg["pi"]["skills"] == ["./skills"]
