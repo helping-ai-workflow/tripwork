@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# tripwork session-start hook: announces plugin load.
+# Output goes to stderr so it does not contaminate any tool stdout pipelines.
+
+VERSION="$(jq -r '.version' "$(dirname "$0")/../.claude-plugin/plugin.json" 2>/dev/null || echo unknown)"
+echo "[tripwork] plugin loaded — version ${VERSION}" 1>&2

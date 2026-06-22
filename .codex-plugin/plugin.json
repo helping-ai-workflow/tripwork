@@ -1,0 +1,40 @@
+{
+  "name": "tripwork",
+  "version": "0.24.0",
+  "description": "Source-Verified-First travel-planning pipeline plugin",
+  "author": {
+    "name": "helping-ai-workflow",
+    "url": "https://github.com/helping-ai-workflow/tripwork"
+  },
+  "homepage": "https://github.com/helping-ai-workflow/tripwork",
+  "repository": "https://github.com/helping-ai-workflow/tripwork",
+  "license": "MIT",
+  "keywords": [
+    "travel",
+    "itinerary",
+    "trip-planning",
+    "source-verified",
+    "geocode",
+    "routing-audit"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-codex.json",
+  "interface": {
+    "displayName": "tripwork",
+    "shortDescription": "Source-Verified-First travel-planning pipeline plugin.",
+    "longDescription": "tripwork derives a verified, day-by-day travel itinerary from a trip brief: destination research, multi-source POI verification, geocoded routing audit, lodging/legs/calendar/seasonal/transit/cost stages, then synthesis, gate, and export.",
+    "developerName": "helping-ai-workflow",
+    "category": "Productivity",
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
+    "websiteURL": "https://github.com/helping-ai-workflow/tripwork",
+    "defaultPrompt": [
+      "Plan a trip with tripwork.",
+      "Run tripwork:using-tripwork.",
+      "Verify and route my itinerary."
+    ],
+    "brandColor": "#2563EB"
+  }
+}

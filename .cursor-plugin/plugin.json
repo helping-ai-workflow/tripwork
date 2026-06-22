@@ -1,6 +1,7 @@
 {
   "name": "tripwork",
-  "description": "Source-Verified-First travel-planning pipeline: trip-brief → destination-research → source-verify → routing-audit → accommodation-research → inter-stop-legs → calendar-check → seasonal-advisory → transit-detail → cost-rollup → travel-advisory → itinerary-synthesis → itinerary-gate → export",
+  "displayName": "tripwork",
+  "description": "Source-Verified-First travel-planning pipeline plugin",
   "version": "0.24.0",
   "author": {
     "name": "helping-ai-workflow",
@@ -16,5 +17,7 @@
     "source-verified",
     "geocode",
     "routing-audit"
-  ]
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks-cursor.json"
 }
