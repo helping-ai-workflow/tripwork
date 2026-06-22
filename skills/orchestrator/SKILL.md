@@ -61,11 +61,16 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
     (regenerate itinerary.yaml + itinerary.md); lodging / facility failures -> run
     `tripwork:accommodation-research`. Then re-run rule 13.
 14. gate-report status==pass, no exports/<slug>-itinerary.md -> run `tripwork:export-artifact`.
-15. export deliverable exists, no export-gate-report.yaml -> run `tripwork:export-gate`. If
-    `export-gate-report` status==fail (a genuine render defect — naked `$`, broken link,
-    missing photo) -> delete the stale export-gate-report and return to
-    `tripwork:export-artifact` to re-render. A non-distributable label is NOT a fail (see
-    rule 16), so it never triggers this loop. (P7)
+15. export deliverable exists, no export-gate-report.yaml -> run `tripwork:export-gate`.
+    On `export-gate-report` status==fail, branch on `retryable`:
+    - **retryable==true** (a render-fixable defect — naked `$`, broken link, 0 rendered
+      photos) -> delete the stale export-gate-report and return to `tripwork:export-artifact`
+      to re-render.
+    - **retryable==false** (an upstream DATA defect re-render cannot fix — a photo with no
+      attribution, a bookable POI with no official source) -> **STOP and ask the user to fix
+      the data** (add the attribution / mark the official source), then re-verify. Do NOT
+      loop export-artifact on it. (F1)
+    A non-distributable label is NOT a fail (see rule 16), so it never triggers this loop. (P7)
 16. **export-gate-report status==pass -> pipeline complete.** Report the deliverables
     (`exports/<slug>-itinerary.md`, maps links, LINE text, optional Notion) and stop. If the
     report also carries `distributable: false` (a personal / google-photo variant), report
@@ -83,7 +88,8 @@ surfaced, not halted), must-do verification failure, an unfilled overnight stop 
 lodging pick or a missing required facility, an arrival after a lodging's reception close
 with no late check-in, a `blocking` seasonal hazard, a leg flagged `drive_too_long` /
 `missed_last_service` (including the synthesis-time re-check once the departure is known),
-or the cost estimate over a set budget.
+the cost estimate over a set budget, or an **export-gate fail that is non-retryable**
+(`retryable: false` — an upstream data defect re-render can't fix; see rule 15).
 
 **Read-back before re-asking.** Before halting on any of the above, consult
 `work/<slug>/stage-state.yaml` (schema: `schemas/stage-state.schema.json`): skip any

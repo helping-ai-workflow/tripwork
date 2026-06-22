@@ -34,9 +34,12 @@ item. If `trip-brief.home_currency` differs, add an advisory `fx_note` for the t
 
 ## Compute (logic in `scripts/cost.py`)
 
-- `pass_break_even(covered_fares, pass.price.amount)` — if the pass is cheaper than paying
-  the covered legs individually, recommend it and use the pass price for those legs
-  (record `pass_break_even` with `use_pass` + `saving`).
+- `pass_break_even(covered_fares, pass.price.amount, travellers=len(trip-brief.members))` —
+  if the pass is cheaper than paying the covered legs individually, recommend it and use the
+  pass price for those legs (record `pass_break_even` with `use_pass` + `saving`). **Pass the
+  head count** so the group totals are right — fares and the pass are both per-person, so a
+  multi-traveller trip is otherwise under-counted (the decision is the same, the magnitude is
+  not). (F2)
 - `incidental_total(daily, days)` → an `incidental` line item.
 - `sum_costs(line_items)` → `total` (+ per-category subtotals).
 - When `trip-brief.budget` is set, `over_budget(total, budget.amount)`. **If over → stop

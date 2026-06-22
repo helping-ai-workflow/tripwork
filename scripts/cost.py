@@ -47,18 +47,25 @@ def incidental_total(daily_amount, days):
     return daily_amount * days
 
 
-def pass_break_even(individual_fares, pass_price):
+def pass_break_even(individual_fares, pass_price, travellers=1):
     """Compare buying a pass vs paying each covered leg fare individually.
 
-    individual_fares: list of numbers (the fares of the legs the pass would cover).
-    Returns {"individual_total", "pass_price", "use_pass", "saving"} where
-    use_pass is True only when the pass is strictly cheaper, and saving is the
-    absolute difference between the two options.
+    individual_fares: list of numbers (the per-person fares of the legs the pass covers).
+    pass_price: the per-person pass price. travellers: head count (default 1) — both
+    sides scale by it so the returned `individual_total` / `pass_price` / `saving` are
+    GROUP totals (what cost-rollup adds to the trip total). The `use_pass` decision is
+    head-count-invariant (both sides scale equally) but the magnitudes are not — a
+    multi-traveller trip was previously under-counted by the head count. (F2, P6-twin)
+
+    Returns {"individual_total", "pass_price", "use_pass", "saving"} where use_pass is
+    True only when the pass is strictly cheaper, and saving is the absolute difference.
     """
-    individual_total = sum(individual_fares)
-    use_pass = pass_price < individual_total
-    saving = abs(individual_total - pass_price)
-    return {"individual_total": individual_total, "pass_price": pass_price,
+    travellers = travellers or 1
+    individual_total = sum(individual_fares) * travellers
+    group_pass_price = pass_price * travellers
+    use_pass = group_pass_price < individual_total
+    saving = abs(individual_total - group_pass_price)
+    return {"individual_total": individual_total, "pass_price": group_pass_price,
             "use_pass": use_pass, "saving": saving}
 
 

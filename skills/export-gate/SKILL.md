@@ -54,12 +54,14 @@ distributability checks spin against nothing.
 ## Output
 
 Write `trips/<slug>/export-gate-report.yaml` (schema: `schemas/gate-report.schema.json`
-— reused; same status/checks/failures shape, plus the optional `distributable` flag).
-On `status: fail` (a genuine render defect), list each failure and return to
-`export-artifact` via `tripwork:orchestrator` to re-render. A `status: pass` report with
-`distributable: false` is a **clean terminal personal variant** (google-photo HTML): the
-orchestrator completes it as "complete — non-distributable, 勿散布", it does NOT re-export
-loop. (P7)
+— reused; same status/checks/failures shape, plus the optional `distributable` + `retryable`
+flags). On `status: fail`, the report's **`retryable`** tells the orchestrator how to react
+(F1): `retryable: true` (a render-fixable defect) → re-render; `retryable: false` (the only
+failures are upstream DATA defects — a photo with no attribution, a bookable POI with no
+official source — that re-rendering cannot fix) → **stop and ask the user to fix the data**,
+do NOT loop. A `status: pass` report with `distributable: false` is a **clean terminal
+personal variant** (google-photo HTML): the orchestrator completes it as "complete —
+non-distributable, 勿散布", it does NOT re-export loop. (P7)
 
 ## Stage Contract
 
