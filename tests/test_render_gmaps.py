@@ -88,40 +88,41 @@ def test_link_markdown_escapes_label():   # TW-022
     assert "\\]" in label and "\\|" in label and "\\$" in label
 
 
-# --- P9: gmaps_place_id -> canonical maps/place/?q=place_id:<id> deep-link
-# (MIGRATED from the PR2 &query_place_id append form) ---
+# --- P9: gmaps_place_id -> Maps URLs API &query_place_id deep-link refinement
+# (RESTORED to the PR2 append form; the 0.23.0 maps/place/?q=place_id form was a
+# dead link Google does not resolve — consumer regression) ---
 
-def test_maps_url_place_id_uses_canonical_place_form():
-    """gmaps_place_id present -> canonical maps/place/?q=place_id:<id> (exact place)."""
+def test_maps_url_place_id_uses_query_place_id_refinement():
+    """gmaps_place_id present -> name-search query + &query_place_id=<id> (exact place)."""
     poi = {"name_local": "登別温泉", "district": "Noboribetsu",
            "gmaps_place_id": "ChIJ_abc-123"}
     url = maps_url(poi)
-    assert url.startswith("https://www.google.com/maps/place/?q=")
-    assert unquote(url).endswith("place_id:ChIJ_abc-123")
-    assert "/maps/search/" not in url   # NOT a name-search anymore
+    assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
+    assert "&query_place_id=ChIJ_abc-123" in url
+    assert "/maps/place/" not in url   # NOT the dead deep-link form
 
-def test_maps_url_place_id_wins_over_pin_exact():
-    """place_id takes precedence over the pin_exact (coord) branch."""
+def test_maps_url_place_id_refines_pin_exact():
+    """place_id REFINES the pin_exact (coord) branch — coord stays, suffix appended."""
     poi = {"name_local": "x", "district": "d",
            "geocode": {"lat": 42.47, "lng": 141.1, "pin_exact": True},
            "gmaps_place_id": "PLACE123"}
     url = maps_url(poi)
-    assert "/maps/place/?q=" in url
-    assert unquote(url).endswith("place_id:PLACE123")
-    assert "42.47" not in url
+    assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
+    assert "42.47" in unquote(url)                 # coord visible query preserved
+    assert url.endswith("&query_place_id=PLACE123")
 
-def test_maps_url_no_place_id_no_place_form():
-    """No gmaps_place_id -> name-search form, no place_id deep-link. (regression)"""
+def test_maps_url_no_place_id_no_query_place_id():
+    """No gmaps_place_id -> name-search form, no &query_place_id. (regression)"""
     poi = {"name_local": "大通公園"}
     url = maps_url(poi)
     assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
-    assert "place_id" not in url
+    assert "query_place_id" not in url
 
 def test_maps_url_place_id_is_fully_url_quoted():
     """place_id special chars are percent-encoded (safe='')."""
     poi = {"name_local": "x", "gmaps_place_id": "a b/c+d"}
     url = maps_url(poi)
-    assert url == "https://www.google.com/maps/place/?q=place_id%3Aa%20b%2Fc%2Bd"
+    assert url.endswith("&query_place_id=a%20b%2Fc%2Bd")
 
 
 # --- dogfood D3: name_zh Chinese gloss ---
