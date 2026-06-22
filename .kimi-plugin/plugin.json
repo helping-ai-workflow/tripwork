@@ -1,0 +1,20 @@
+{
+  "name": "tripwork",
+  "version": "0.23.1",
+  "description": "Source-Verified-First travel-planning pipeline plugin: trip-brief → research → source-verify → routing → synthesis → gate → export.",
+  "author": { "name": "helping-ai-workflow", "url": "https://github.com/helping-ai-workflow/tripwork" },
+  "homepage": "https://github.com/helping-ai-workflow/tripwork",
+  "license": "MIT",
+  "keywords": ["travel", "itinerary", "trip-planning", "source-verified", "geocode", "routing-audit"],
+  "skills": "./skills/",
+  "sessionStart": { "skill": "using-tripwork" },
+  "skillInstructions": "Kimi Code tool mapping for tripwork skills:\n\n- When a tripwork skill says to ask the user, ask clarifying questions, ask one question at a time, present multiple-choice options, or wait for the user's choice, call Kimi Code's `AskUserQuestion` tool. Put the recommended option first and suffix its label with `(Recommended)`.\n- When a tripwork skill refers to `TodoWrite`, use Kimi Code's `TodoList` tool.\n- When a tripwork skill says to dispatch a subagent, use Kimi Code's `Agent` tool with a Kimi subagent type (`explore` for read-only research, `coder` for file edits). Do not pass `general-purpose`.\n- When a tripwork skill refers to the `Skill` tool, use Kimi Code's native `Skill` tool. Always enter `tripwork:using-tripwork` first, then let `tripwork:orchestrator` pick the next stage.\n- When a tripwork skill says to use the consumer harness `WebSearch`, use Kimi Code's web-search tool. If no web-search tool is available, HALT the stage and tell the user (the Source-Verified-First iron rule: 'No search, no fact') — never substitute model memory.\n- Use Kimi Code's `Read`, `Write`, `Edit`, `Bash`, `Grep`, `Glob` tools by their actual exposed names for read/create/edit/run/search/find actions.",
+  "interface": {
+    "displayName": "tripwork",
+    "shortDescription": "Source-Verified-First travel-planning pipeline plugin.",
+    "longDescription": "tripwork derives a verified day-by-day itinerary through staged research, multi-source verification, geocoded routing, and gated export.",
+    "developerName": "helping-ai-workflow",
+    "capabilities": ["Interactive", "Read", "Write"],
+    "websiteURL": "https://github.com/helping-ai-workflow/tripwork"
+  }
+}
