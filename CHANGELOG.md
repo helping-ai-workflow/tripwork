@@ -1,5 +1,28 @@
 # Changelog
 
+## 0.24.0 — multi-agent runtime support (Cursor / Codex / Kimi / Gemini / OpenCode / Pi)
+
+tripwork now installs and self-bootstraps on six additional AI agent runtimes
+besides Claude Code. No skill / script / schema logic changed — this is purely
+the packaging, version-sync, tool-mapping, and session-start bootstrap layer,
+mirrored from the sibling chipwork plugin.
+
+- **Per-agent manifests** — `.cursor-plugin/`, `.codex-plugin/`, `.kimi-plugin/`,
+  `gemini-extension.json`, `package.json` (npm). Each carries tripwork metadata and
+  a tool-mapping that translates tripwork's neutral verbs to that agent's native
+  tools, including the Source-Verified-First rule: map `WebSearch` to the agent's
+  web search, or HALT ("No search, no fact") if it has none.
+- **Version-sync** — `.version-bump.json` + `scripts/bump_version.py` keep all 8
+  version-bearing manifests (json + pyproject toml) in lockstep; `--check` /
+  `--audit` run in CI.
+- **Bootstrap** — session-start injection of `using-tripwork` on every runtime:
+  shell hooks (Claude / Cursor / Codex), in-process injectors
+  (`.opencode/plugins/tripwork.js`, `.pi/extensions/tripwork.ts`), and a Gemini
+  `@`-include (`GEMINI.md`). `AGENTS.md` symlinks `CLAUDE.md`.
+- **Gates** — `test_version_consistency` (8-manifest), `test_bump_version`,
+  `test_version_bump_manifest_lists_all`, `test_alt_platform_descriptors`,
+  `test_run_hook_invariants`, `test_agent_context_files`.
+
 ## 0.23.1 — fix dead place_id maps link (consumer regression)
 
 The 0.23.0 P9 change rewrote `maps_url`'s place_id branch to the single-param

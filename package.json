@@ -1,11 +1,15 @@
 {
   "name": "tripwork",
-  "version": "0.23.1",
+  "version": "0.24.0",
   "description": "Source-Verified-First travel-planning pipeline: trip-brief → research → verify → route → synthesize → gate → export",
   "type": "module",
   "main": ".opencode/plugins/tripwork.js",
   "pi": {
-    "extensions": ["./.pi/extensions/tripwork.ts"],
-    "skills": ["./skills"]
+    "extensions": [
+      "./.pi/extensions/tripwork.ts"
+    ],
+    "skills": [
+      "./skills"
+    ]
   }
 }
