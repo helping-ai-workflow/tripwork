@@ -40,6 +40,11 @@ def load_media(path):
 def apply_media(poi_map, media_doc):
     """Overlay photo media from a side-file doc onto poi_map.
 
+    NON-MUTATING — you MUST capture the return: ``poi_map = apply_media(poi_map, doc)``.
+    A call that discards the result renders 0 photos silently (the footgun behind P8);
+    export-gate's ``media_landed`` check (run_html_gate media_count) catches it downstream,
+    but capture it here.
+
     Returns a NEW ``{poi_id: poi}`` dict in which each poi is a shallow copy with
     ``photo`` / ``photo_attribution`` / ``photo_source`` overlaid when the side-file
     has an entry for that id. Inputs are NEVER mutated — the canonical

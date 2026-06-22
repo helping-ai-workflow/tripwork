@@ -22,6 +22,26 @@ def sum_costs(line_items):
     return {"by_category": by_category, "total": sum(by_category.values())}
 
 
+def lodging_line_amount(cost, nights, rooms=1):
+    """Total cost of one stop's lodging, multiplying the per-room `amount` by rooms
+    (and by nights when the basis is per_night). (P6)
+
+    `cost` is an accommodations cost dict ``{amount, basis}`` whose `amount` is the
+    price PER ROOM. basis ``per_night`` -> amount × nights × rooms; basis ``total``
+    -> amount × rooms (a per-room total for the whole stay). `rooms` defaults to 1.
+    cost-rollup builds the lodging line item with this before handing it to sum_costs.
+    """
+    amount = cost.get("amount")
+    if not isinstance(amount, (int, float)) or isinstance(amount, bool):
+        raise ValueError(
+            "lodging cost has no numeric 'amount' (record an explicit estimate; "
+            "never silently zero a room cost)")
+    rooms = rooms or 1
+    if cost.get("basis", "per_night") == "per_night":
+        return amount * nights * rooms
+    return amount * rooms  # basis == "total": per-room total for the whole stay
+
+
 def incidental_total(daily_amount, days):
     """The user-supplied daily incidental allowance times the number of days."""
     return daily_amount * days

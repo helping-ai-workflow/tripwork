@@ -22,6 +22,13 @@ Compose the canonical `trips/<slug>/itinerary.yaml` from verified POIs and routi
   write the literal `must_do` in user-facing text; express it as plain prose (e.g.
   至少一晚溫泉旅館含會席). This is what satisfies `export-gate`'s `no_internal_jargon`
   check (a leaked id token or `must_do` is a hard fail).
+- **must_do coverage (P5).** `trip-brief.must_do` entries are free-text themes
+  (e.g. `日月潭遊湖賞景`), NOT POI ids. For each theme, decide which scheduled verified
+  POI(s) satisfy it and record the mapping in `itinerary.yaml` under
+  `must_do_coverage: {theme: [poi_id, …]}`. `itinerary-gate` passes a theme when ≥1 of its
+  mapped ids is actually scheduled — a theme with no covering scheduled POI is a gate fail.
+  (An entry that is itself a scheduled POI id self-covers, so legacy id-based must_do still
+  works.) If a theme cannot be covered by any verified POI → stop and ask the user.
 
 ## Calendar-awareness (reads `calendar.yaml` + each POI's `closed_days`)
 
@@ -93,6 +100,11 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   the existing `scripts/render/markdown.py::render_day_table` (the lodging dict is
   POI-shaped: `name_local` / `name_display` / `sources`), so the hotel name becomes the
   maps link and a primary `官網` / booking link is appended — no new renderer.
+- **Build the render `poi_map` as verified-pois + each stop's chosen lodging (P4).** Fold
+  in `scripts/gate.py::chosen_lodging_pois(accommodations)` so a `day.lodging` id resolves
+  natively — otherwise the lodging renders as a blank `—`. This is the same pool the
+  `itinerary-gate` builds (it folds accommodations automatically) and that `export-artifact`
+  must reuse; do NOT copy hotels into canonical `verified-pois.yaml`.
 - **Periodic-facility coverage (advisory):** for each `trip-brief.facility_needs.periodic`
   entry, build the ordered stop list `[{nights, has_facility}]` from each stop's chosen
   lodging and run `scripts/facilities.py::coverage_gaps(stops, max_gap_nights)`. Any
@@ -117,8 +129,9 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
 ## Output
 
 Write `trips/<slug>/itinerary.yaml` as the **canonical** artifact (schema:
-`schemas/itinerary.schema.json`) — `{title, checklist, days:[{date, label, rows:[{time,
-slot, poi_id, text, from, to}], lodging}]}`. Each row references a POI by `poi_id` (matching a
+`schemas/itinerary.schema.json`) — `{title, checklist, must_do_coverage, days:[{date, label,
+rows:[{time, slot, poi_id, text, from, to}], lodging}]}`. Include `must_do_coverage`
+(theme → covering scheduled POI ids, P5) whenever `trip-brief.must_do` is non-empty. Each row references a POI by `poi_id` (matching a
 `verify_status: verified` id in `verified-pois.yaml`); `slot ∈ meal|activity|visit|move|lodging`.
 For a `slot: move` row, put the two endpoints in the optional structured `from` / `to` fields
 (e.g. `from: 函館空港`, `to: 函館駅`) — **not** buried in `text`. Export builds an A→B Google Maps

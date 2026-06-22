@@ -142,11 +142,13 @@ class TestRunHtmlGatePhoto:
         r = run_html_gate(self._html(), pois=[_photo_poi()], min_days=1)
         assert r["status"] == "pass", r["failures"]
 
-    def test_google_photo_source_non_distributable_fails(self):
+    def test_google_photo_source_is_terminal_nondistributable(self):
+        # P7 (MIGRATED): google photo -> clean terminal non-distributable, not a fail.
         pois = [_photo_poi({"photo_source": "google"})]
         r = run_html_gate(self._html(), pois=pois, min_days=1)
-        assert r["status"] == "fail"
-        assert any("non-distributable photo_source" in f for f in r["failures"])
+        assert r["status"] == "pass", r["failures"]
+        assert r["distributable"] is False
+        assert not any("non-distributable photo_source" in f for f in r["failures"])
 
     def test_new_check_names_present(self):
         r = run_html_gate(self._html(), pois=[], min_days=1)

@@ -15,6 +15,16 @@
         "type": "string"
       }
     },
+    "must_do_coverage": {
+      "type": "object",
+      "description": "Maps each trip-brief must_do theme (free text) to the verified-POI ids that satisfy it; itinerary-gate passes the theme when >=1 mapped id is scheduled. (P5)",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
     "days": {
       "type": "array",
       "items": {

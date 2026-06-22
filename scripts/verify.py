@@ -6,7 +6,7 @@ passed in; this function holds the decision logic so it is unit-testable.
 """
 
 from urllib.parse import urlsplit
-from scripts.geocode import normalize_geocode_keys
+from scripts.geocode import normalize_geocode_keys, name_matches
 
 
 def _distinct_netlocs(sources):
@@ -14,8 +14,37 @@ def _distinct_netlocs(sources):
     return {urlsplit(s.get("url", "")).netloc.lower() for s in sources if s.get("url")}
 
 
+# Google Places `businessStatus` vocabulary — the operating signal source-verify
+# must obtain for Gate 0. (P1)
+_OPERATING_STATUS = {
+    "OPERATIONAL": True,
+    "CLOSED_TEMPORARILY": False,
+    "CLOSED_PERMANENTLY": False,
+}
+
+
+def operating_from_status(business_status):
+    """Map a sourced operating signal to operating True / False, or None.
+
+    `business_status` is the consumer/agent-supplied signal (Google Places
+    `businessStatus` vocabulary, case-insensitive). OPERATIONAL -> True;
+    CLOSED_TEMPORARILY / CLOSED_PERMANENTLY -> False. Any absent, blank, or
+    UNRECOGNISED value -> None.
+
+    None means "operating status not established": the caller MUST refuse to
+    silently verify (record `unverified`), never default to operating. (P1)
+    """
+    if business_status is None:
+        return None
+    key = str(business_status).strip().upper()
+    if not key:
+        return None
+    return _OPERATING_STATUS.get(key)  # True / False / None when unrecognised
+
+
 def classify_candidate(candidate, geocoded, in_claimed_region,
-                        local_lang=None, conflict_detected=False, operating=True):
+                        local_lang=None, conflict_detected=False, operating=True,
+                        name_match=True):
     """Return (verify_status, note).
 
     Gates are evaluated in strict order (spec §5.1):
@@ -59,6 +88,13 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     if not geocoded:
         return "unverified", "geocode unresolved: could not resolve coordinates"
 
+    # Gate 2b (P2): the resolved place must actually correspond to the queried
+    # venue. A wrong-but-plausible top hit (renamed nearby place, name drift) is
+    # 'conflicting', never 'verified'. The skill computes name_match via
+    # geocode.name_matches(queried name, resolved display_name).
+    if not name_match:
+        return "conflicting", "name mismatch: resolved place does not correspond to the queried venue"
+
     # Gate 3: cross-source conflict or region mismatch
     if conflict_detected:
         return "conflicting", "cross-source disagreement on rating/hours/address"
@@ -92,12 +128,17 @@ def normalize_and_validate_poi(poi):
 
 
 def verify_poi(poi, geocoded, in_claimed_region,
-               local_lang=None, conflict_detected=False, operating=True):
+               local_lang=None, conflict_detected=False, resolved_name=None):
     """Normalise a POI and classify it in one call.
 
     Runs normalize_and_validate_poi first (geocode key fix + name_local discipline).
     A non-None reason from the pre-check flips the result to ('rejected', reason)
     immediately, using the same verify_status vocabulary as classify_candidate.
+
+    Gate 0 (P1) is enforced HERE, not defaulted: the operating signal is read from
+    the POI's `business_status` field (the consumer/agent records it from Google
+    Places or an official-site check). An absent/unknown signal -> 'unverified'
+    (never a silent 'verified'); a CLOSED signal -> 'rejected' before geocode gates.
     Otherwise delegates to classify_candidate with the normalised POI.
 
     Returns (normalised_poi, verify_status, note).
@@ -105,8 +146,25 @@ def verify_poi(poi, geocoded, in_claimed_region,
     normalised, reason = normalize_and_validate_poi(poi)
     if reason is not None:
         return normalised, "rejected", reason
+
+    operating = operating_from_status(normalised.get("business_status"))
+    if operating is None:
+        return (normalised, "unverified",
+                "operating status not established: no business_status signal obtained "
+                "(Gate 0 cannot pass — record an operating signal or leave unverified)")
+    if not operating:
+        return normalised, "rejected", "permanently/temporarily closed (defunct)"
+
+    # Gate 2b (P2): confirm the resolved place corresponds to the queried venue.
+    # source-verify queries Nominatim by name_local, so compare that against the
+    # resolved display_name. When no resolved_name is supplied the check is skipped
+    # (name_match=True) — the skill is expected to pass it.
+    queried = normalised.get("name_local") or normalised.get("name_display") or ""
+    name_match = True if resolved_name is None else name_matches(queried, resolved_name)
+
     status, note = classify_candidate(
         normalised, geocoded=geocoded, in_claimed_region=in_claimed_region,
         local_lang=local_lang, conflict_detected=conflict_detected, operating=operating,
+        name_match=name_match,
     )
     return normalised, status, note

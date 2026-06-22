@@ -55,10 +55,11 @@ def test_resolve_place_falls_back_to_freetext(mocker):
     assert r.lng == pytest.approx(4.0)
     assert source == "nominatim"
 
-def test_resolve_place_none_when_both_miss(mocker):
+def test_resolve_place_none_when_all_miss(mocker):
     from scripts.geocode import resolve_place
-    mocker.patch("scripts.geocode.requests.get",
-                 side_effect=[_FakeResp([]), _FakeResp([])])
+    # P3: resolve_place now tries structured + several free-text attempts; every
+    # request must miss for the overall result to be None.
+    mocker.patch("scripts.geocode.requests.get", return_value=_FakeResp([]))
     r, source = resolve_place("nowhere", district="X", country="Y")
     assert r is None and source is None
 
@@ -102,7 +103,7 @@ def test_resolve_place_populates_cache_on_miss(mocker):
     from scripts.geocode import resolve_place
     from scripts.geocode_cache import cache_key
     mocker.patch("scripts.geocode.requests.get",
-                 side_effect=[_FakeResp([]), _FakeResp([])])  # structured miss, freetext miss
+                 return_value=_FakeResp([]))  # structured + all free-text attempts miss (P3)
     cache = {}
     r, source = resolve_place("Ghost Inn", district="D", country="C", cache=cache)
     assert r is None and source is None

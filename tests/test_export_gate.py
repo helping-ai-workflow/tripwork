@@ -134,9 +134,12 @@ def test_md_whitespace_attribution_fails():   # step-8 hardening: bare truthines
     assert r["status"] == "fail"
     assert _names("photo_has_attribution", r) is False
 
-def test_md_google_photo_source_non_distributable_fails():
+def test_md_google_photo_source_is_terminal_nondistributable():
+    # P7 (MIGRATED): a google photo is a clean terminal non-distributable state —
+    # status stays 'pass' (no re-export loop), distributable flag is False.
     r = run_export_gate(CLEAN, [_photo_poi({"photo_source": "google"})])
-    assert r["status"] == "fail"
+    assert r["status"] == "pass", r["failures"]
+    assert r["distributable"] is False
     assert _names("no_nondistributable_photo_source", r) is False
 
 def test_md_photo_checks_present():

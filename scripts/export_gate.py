@@ -21,15 +21,15 @@ _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
 
 def _photo_failures(pois):
-    """Data-level photo checks shared by BOTH gates (cross-axis matrix F4 + F5):
+    """Photo ATTRIBUTION presence (cross-axis matrix F4), shared by BOTH gates: a POI
+    carrying a `photo` MUST also carry a non-empty `photo_attribution`
+    (author + license + source_url). Returns a list of failure strings.
 
-    F4 attribution-presence — a POI carrying a `photo` MUST also carry a non-empty
-       `photo_attribution` (author + license + source_url).
-    F5 distributability     — `photo_source == "google"` may never reach a
-       distributable export (Google has no personal-cache/display exception); this
-       guard ships regardless of whether any google backend exists yet.
-
-    Returns a list of failure strings (empty when clean).
+    Distributability (F5) is split out into _has_nondistributable (P7): a
+    `photo_source == "google"` photo is intrinsically non-distributable — a LABELLING
+    decision that re-rendering can never fix — so it sets the deliverable's
+    `distributable: false` (a clean terminal for the personal variant) instead of
+    failing the gate, which would make the orchestrator re-export-loop forever.
     """
     out = []
     for p in (pois or []):
@@ -41,9 +41,16 @@ def _photo_failures(pois):
                     and str(attr.get("license") or "").strip()
                     and str(attr.get("source_url") or "").strip()):
                 out.append(f"photo POI '{p.get('id')}' missing attribution")
-        if p.get("photo_source") == "google":
-            out.append(f"non-distributable photo_source 'google' on POI '{p.get('id')}'")
     return out
+
+
+def _has_nondistributable(pois):
+    """True if any POI carries a non-distributable photo source (google). (P7)
+
+    This is a labelling decision, NOT a render defect: it drives the deliverable's
+    `distributable` flag (a personal/google-photo variant is a clean terminal state),
+    never the pass/fail channel the orchestrator loops on."""
+    return any(p.get("photo_source") == "google" for p in (pois or []))
 
 
 def run_export_gate(md_text, pois, min_days=None):
@@ -98,6 +105,10 @@ def run_export_gate(md_text, pois, min_days=None):
 
     failures.extend(_photo_failures(pois))
 
+    # P7: non-distributable is a clean terminal label, not a fail. status reflects
+    # only genuine (re-render-fixable) defects; distributable carries the labelling.
+    nondistributable = _has_nondistributable(pois)
+
     checks = [
         {"name": "deliverable_has_content",
          "passed": not any("empty" in f or "too few day" in f for f in failures)},
@@ -116,9 +127,10 @@ def run_export_gate(md_text, pois, min_days=None):
         {"name": "photo_has_attribution",
          "passed": not any("missing attribution" in f for f in failures)},
         {"name": "no_nondistributable_photo_source",
-         "passed": not any("non-distributable photo_source" in f for f in failures)},
+         "passed": not nondistributable},
     ]
     return {"status": "pass" if not failures else "fail",
+            "distributable": not nondistributable,
             "checks": checks, "failures": failures}
 
 _HREF = re.compile(r'href="([^"]*)"')
@@ -132,10 +144,16 @@ _IMG_SRC = re.compile(r'<img\b[^>]*\bsrc="([^"]*)"', re.IGNORECASE)
 # no javascript:, no data: of a non-image type. (security #6)
 _SAFE_IMG_SRC = re.compile(r'(?i)^(data:image/|https://)')
 
-def run_html_gate(html_text, pois, min_days=None):
+def run_html_gate(html_text, pois, min_days=None, media_count=0):
     """Validate a rendered one-page HTML deliverable. Structure/format only:
     non-empty, >= min_days day-cards, every href is http(s), no raw <script>.
     Output shape matches run_export_gate. (dogfood D4)
+
+    P8: when `media_count` (the number of entries in the verified-pois-media side-file
+    the export-gate skill loaded) is > 0 but the rendered HTML contains zero <img>,
+    the deliverable is failed — this catches the apply_media footgun where the caller
+    dropped the (non-mutating) return value, silently rendering 0 photos while the
+    gate's own merged pois still carry them. Callers with no side-file omit media_count.
     """
     failures = []
     stripped = (html_text or "").strip()
@@ -155,6 +173,17 @@ def run_html_gate(html_text, pois, min_days=None):
                 failures.append(f"unsafe <img src>: '{src}'")
         failures.extend(jargon_failures(html_text, pois))
     failures.extend(_photo_failures(pois))
+
+    # P8: a present media side-file that produced no <img> means the overlay was lost
+    # (dropped apply_media return) — fail so it does not silently ship photoless.
+    if media_count and not _IMG_SRC.findall(html_text or ""):
+        failures.append(
+            f"media side-file present ({media_count} entries) but rendered "
+            f"deliverable has 0 photos")
+
+    # P7: non-distributable is a clean terminal label, not a re-render-looping fail.
+    nondistributable = _has_nondistributable(pois)
+
     checks = [
         {"name": "deliverable_has_content",
          "passed": not any("empty" in f or "too few day" in f for f in failures)},
@@ -169,9 +198,12 @@ def run_html_gate(html_text, pois, min_days=None):
         {"name": "photo_has_attribution",
          "passed": not any("missing attribution" in f for f in failures)},
         {"name": "no_nondistributable_photo_source",
-         "passed": not any("non-distributable photo_source" in f for f in failures)},
+         "passed": not nondistributable},
+        {"name": "media_landed",
+         "passed": not any("has 0 photos" in f for f in failures)},
     ]
     return {"status": "pass" if not failures else "fail",
+            "distributable": not nondistributable,
             "checks": checks, "failures": failures}
 
 

@@ -35,6 +35,15 @@
           "claimed_district": {
             "type": "string"
           },
+          "business_status": {
+            "type": "string",
+            "enum": [
+              "OPERATIONAL",
+              "CLOSED_TEMPORARILY",
+              "CLOSED_PERMANENTLY"
+            ],
+            "description": "Optional sourced operating signal (Google Places businessStatus vocabulary) recorded during research; source-verify enforces it at Gate 0. (P1)"
+          },
           "sources": {
             "type": "array",
             "minItems": 1,

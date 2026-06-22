@@ -62,10 +62,15 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
     `tripwork:accommodation-research`. Then re-run rule 13.
 14. gate-report status==pass, no exports/<slug>-itinerary.md -> run `tripwork:export-artifact`.
 15. export deliverable exists, no export-gate-report.yaml -> run `tripwork:export-gate`. If
-    `export-gate-report` status==fail -> delete the stale export-gate-report and return to
-    `tripwork:export-artifact` to re-render.
+    `export-gate-report` status==fail (a genuine render defect — naked `$`, broken link,
+    missing photo) -> delete the stale export-gate-report and return to
+    `tripwork:export-artifact` to re-render. A non-distributable label is NOT a fail (see
+    rule 16), so it never triggers this loop. (P7)
 16. **export-gate-report status==pass -> pipeline complete.** Report the deliverables
-    (`exports/<slug>-itinerary.md`, maps links, LINE text, optional Notion) and stop.
+    (`exports/<slug>-itinerary.md`, maps links, LINE text, optional Notion) and stop. If the
+    report also carries `distributable: false` (a personal / google-photo variant), report
+    it as **complete — non-distributable (勿散布)**: a terminal state, NOT something to
+    re-export or "fix". (P7)
 
 After each stage completes, re-invoke this skill to pick the next stage.
 

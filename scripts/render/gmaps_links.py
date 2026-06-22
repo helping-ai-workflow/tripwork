@@ -2,6 +2,11 @@
 from urllib.parse import quote
 
 BASE = "https://www.google.com/maps/search/?api=1&query="
+# Canonical single-place deep-link form. When a place_id is known this resolves the
+# EXACT place (no name-search fuzziness), which is the cleanest stable link Google
+# still supports — the official URL shortener (maps.app.goo.gl) was deprecated and
+# is not API-mintable. (P9)
+PLACE_BASE = "https://www.google.com/maps/place/?q="
 DIR_BASE = "https://www.google.com/maps/dir/?api=1"
 
 # Chars with markdown meaning inside a [label]; backslash first so added escapes
@@ -18,34 +23,34 @@ def _query_name(poi):
     return poi.get("name_local") or poi.get("name_display") or poi.get("id", "")
 
 def maps_url(poi):
-    """Build a Google Maps query URL.
+    """Build a Google Maps link.
 
-    Name-search-first: returns ``query=<name_local> <district>`` so Google
-    resolves a labelled place card for area POIs (onsen districts, parks,
+    Place-id canonical (P9): when ``gmaps_place_id`` is present, return the
+    canonical single-place form ``maps/place/?q=place_id:<id>`` — Maps resolves the
+    EXACT place with no name-search fuzziness. This is the cleanest stable link
+    Google still supports (the official URL shortener was deprecated and short links
+    are not API-mintable). place_id WINS over pin_exact / name.
+
+    Name-search fallback: with no place_id, returns ``query=<name_local> <district>``
+    so Google resolves a labelled place card for area POIs (onsen districts, parks,
     markets, canals) rather than an unnamed coordinate pin.
 
-    Coord-pin opt-in: set ``geocode.pin_exact: true`` on a POI to force
-    ``query=lat,lng`` — reserve for precise venues where the name alone
-    creates an ambiguous match.
-
-    This deliberately REVERSES the TW-048 coord-first default (dogfood D1):
-    coordinate pins produced unnamed map markers for area POIs and silently
-    masked data-quality issues when geocode values were corrupt.
-
-    Place-id deep-link: when ``gmaps_place_id`` is present, ``&query_place_id``
-    is appended so Maps resolves the exact place. The visible ``query`` (name or
-    coords) is left intact in BOTH branches — place_id only refines the match.
+    Coord-pin opt-in: set ``geocode.pin_exact: true`` to force ``query=lat,lng`` —
+    reserve for precise venues where the name alone creates an ambiguous match. This
+    deliberately REVERSES the TW-048 coord-first default (dogfood D1): coordinate
+    pins produced unnamed markers and masked corrupt geocode values.
     """
     place_id = poi.get("gmaps_place_id")
-    suffix = "&query_place_id=" + quote(str(place_id), safe="") if place_id else ""
+    if place_id:
+        return PLACE_BASE + quote(f"place_id:{place_id}", safe="")
     geo = poi.get("geocode") or {}
     lat, lng = geo.get("lat"), geo.get("lng")
     if geo.get("pin_exact") and isinstance(lat, (int, float)) and isinstance(lng, (int, float)):
-        return BASE + quote(f"{lat},{lng}") + suffix
+        return BASE + quote(f"{lat},{lng}")
     name = _query_name(poi)
     district = poi.get("district")
     query = f"{name} {district}" if district else name
-    return BASE + quote(query) + suffix
+    return BASE + quote(query)
 
 def dir_url(origin, destination):
     """A→B Google Maps DIRECTIONS url. No ``&travelmode`` → the user picks car / transit

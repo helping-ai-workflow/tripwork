@@ -126,14 +126,14 @@ flowchart TB
 |---|---|
 | **trip-brief** | 把你說的話整理成日期、住宿、必去清單、預算、成員等參數 |
 | **destination-research** | 廣泛上網蒐集候選景點／餐廳（**會用當地語言搜尋**，挖出國際網站漏掉的店）。此階段先不信任，只是蒐集 |
-| **source-verify** ⛔ | **招牌關卡**。每個候選地點要：①≥2 個獨立來源（至少 1 個當地語言）②地圖能查到座標 ③座標落在它聲稱的區域內。三關都過才算「已驗證」，才能進行程 |
+| **source-verify** ⛔ | **招牌關卡**。每個候選地點要：①**還在營業**（永久／暫停營業的會被擋掉，查不到營業狀態就標未驗證、不放進行程）②≥2 個獨立來源（至少 1 個當地語言）③地圖能查到座標、且查到的就是它本人（被改名的鄰店會被擋）④座標落在它聲稱的區域內。全部過才算「已驗證」，才能進行程 |
 | **routing-audit** | 把已驗證地點按「區」分群，估算跨區移動時間；太遠（預設 >60 分）會**停下來問你** |
 | **accommodation-research** | 每個過夜鎮研究／查證住宿：已訂的查證+補料，沒訂的推薦 3 家讓你挑；查不到座標用該鎮中心 fallback（免 API key）；確認車位（必備硬擋）、洗衣節奏（軟提示）、晚到 vs 櫃台關門 |
 | **inter-stop-legs** | 規劃過夜城市之間的**城際交通**：大眾運輸查哪班車、要不要劃位、轉乘幾次、**末班車**幾點、要不要買 Pass；自駕算車程，**單日開太久**會停下來建議拆兩天。趕不上末班車也會停下來問你 |
 | **calendar-check** | 用官方來源查出旅遊期間的**當地國定假日（含補假）**，標好哪幾天人潮／店家可能受影響 |
 | **seasonal-advisory** | 查旅遊期間的**季節/天氣危害**（用官方來源：道路狀況、氣象、高山警告）：道路封閉這種會擋路的會停下來問你，雪鏈／保暖／日照短這種寫進行前清單；冬天自駕還會算每個鎮的日落時間，提醒哪段會摸黑開車要早點出發 |
 | **transit-detail** | 查市內交通的**舒適度細節**：通勤**尖峰時段**（帶長輩/行李避開人擠人）、**IC 卡**（Suica/ICOCA 等，哪買怎麼儲值）、每個景點**從車站走過去要幾分鐘**（太遠提醒改計程車）。全是提醒，不擋流程 |
-| **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**。全部標明是估算（含查詢日期），不是精確報價 |
+| **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×**房數**×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**（預算對照的是整趟總額：住宿＋交通＋雜支）。全部標明是估算（含查詢日期），不是精確報價 |
 | **travel-advisory** ⛔ | 查入境、海關、行動電源等**硬規定**，一律要官方來源並標生效日期；被禁項目醒目提醒並寫進行前清單（在排行程前先確認，禁帶品不會排進行程） |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單** |
 | **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點） |
@@ -144,7 +144,7 @@ flowchart TB
 
 ## 3. 你會拿到什麼
 
-- **Markdown 行程**——逐日時段表，**地點名稱本身就是 Google Maps 連結**（用當地語言店名，搭計程車／導航最準），**移動列另附「出發地 → 目的地」的路線導航連結**（開地圖直接帶路線，自己選開車或大眾運輸），要訂位／要買票的項目再附一條**官方來源連結**可一鍵查證或下單。
+- **Markdown 行程**——逐日時段表，**地點名稱本身就是 Google Maps 連結**（用當地語言店名，搭計程車／導航最準；查得到 Google place_id 的會直接帶你開到那一家店，不再只是名稱搜尋），**移動列另附「出發地 → 目的地」的路線導航連結**（開地圖直接帶路線，自己選開車或大眾運輸），要訂位／要買票的項目再附一條**官方來源連結**可一鍵查證或下單。
 - **LINE 短文**——純文字、用 emoji 分段、不含網址，**長輩友善**，直接貼到家庭群組。
 - **一頁式 HTML**——一個檔案、**離線就能看**的整趟行程網頁：漸層標題、行程總覽表、逐日卡片（**整齊三欄對齊：時間／說明／縮圖**，時段配色 + emoji、**住宿獨立成一張淺藍卡片**、當天備案收進說明欄的橘框），地點與移動列可點開地圖／路線導航、行前清單都在裡面，**大字 + 手機 RWD（長地圖連結不爆版）**，傳給長輩用瀏覽器打開就好。
 - **景點示意照片（選用，預設不開）**——開啟照片功能後，行程裡的主要景點會附一張**授權清楚**的示意照片（來自 Wikimedia Commons／Openverse 等開放授權來源），照片下方**一定標出作者與授權、附原始連結**，點縮圖可放大看大圖（離線也能看）。只收**授權乾淨**的照片，不會用來路不明的圖；沒開啟時行程跟以前完全一樣。
@@ -162,11 +162,13 @@ flowchart TB
 
 tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
-> 沒有任何景點、餐廳、地址、營業時間或規定，能在「通過 ≥2 個獨立來源交叉比對
-> （至少 1 個當地語言）＋ 地圖座標落在它聲稱的區域」之前，被寫進你的行程。
+> 沒有任何景點、餐廳、地址、營業時間或規定，能在「**仍在營業** ＋ 通過 ≥2 個獨立
+> 來源交叉比對（至少 1 個當地語言）＋ 地圖座標落在它聲稱的區域（且查到的就是它本人）」
+> 之前，被寫進你的行程。
 
-沒通過的地點**不會被偷偷丟掉**——它們會被記下來並標明原因（來源不足／查無座標／
-座標跑到別區／來源彼此矛盾），讓你看得到、也能自己決定。
+沒通過的地點**不會被偷偷丟掉**——它們會被記下來並標明原因（已歇業／查不到營業狀態／
+來源不足／查無座標／查到的是別家店／座標跑到別區／來源彼此矛盾），讓你看得到、也能
+自己決定。
 
 ### 它什麼時候會停下來問你
 
@@ -253,16 +255,17 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 599 個測試
+pytest                 # 679 個測試
 ```
 
 - 流水線由 `skills/` 下的 16 個 skill 組成，全程由 `orchestrator` 調度。
 - 純邏輯（查證三關、路線分類、距離、各種 render）在 `scripts/`，皆有單元測試。
 - Schema 定義在 `schemas/`；端到端 fixture 在 `tests/`。
-- **景點照片（選用）：** 可插拔 photo adapter（`scripts/photo_adapter.py`，backend `none`（預設）／`wiki`／`google`）抓開放授權景點照，硬性 license 白名單 `{CC0, PD, CC-BY, CC-BY-SA}`（拒 NC／ND）、附描述性 User-Agent 與每來源節流。照片存在側檔 `verified-pois-media.yaml`（schema `schemas/verified-pois-media.schema.json`），輸出時由 `scripts/media_merge.py` 疊回 poi_map，**不寫進** canonical `verified-pois.yaml`（source-verify 會整檔覆寫）。`export-gate` 會擋掉不安全的 `<img src>`（只允許 `data:image/` 或 `https://`）、沒有署名的照片、以及 `photo_source=google` 這種不可散布來源。`google` backend 因 ToS（無非 Google 介面顯示授權、無個人快取例外）**BLOCKED**。POI schema 的 `gmaps_place_id` 讓 Maps 連結可用 `&query_place_id` 深連到指定地點。
+- **景點照片（選用）：** 可插拔 photo adapter（`scripts/photo_adapter.py`，backend `none`（預設）／`wiki`／`google`）抓開放授權景點照，硬性 license 白名單 `{CC0, PD, CC-BY, CC-BY-SA}`（拒 NC／ND）、附描述性 User-Agent 與每來源節流。照片存在側檔 `verified-pois-media.yaml`（schema `schemas/verified-pois-media.schema.json`），輸出時由 `scripts/media_merge.py` 疊回 poi_map，**不寫進** canonical `verified-pois.yaml`（source-verify 會整檔覆寫）。`export-gate` 會擋掉不安全的 `<img src>`（只允許 `data:image/` 或 `https://`）、沒有署名的照片、以及 `photo_source=google` 這種不可散布來源。`google` backend 因 ToS（無非 Google 介面顯示授權、無個人快取例外）標為不可散布。POI schema 的 `gmaps_place_id` 讓 Maps 連結用 canonical `maps/place/?q=place_id:<id>` 直接深連到那一家店（P9）。
 - **移動列路線導航 + 內容衛生 gate（v0.19.0）：** itinerary schema 的 row 可選帶 `from`/`to`（移動列端點，向後相容；`additionalProperties:false` 仍擋未知 key），`scripts/render/gmaps_links.py:dir_url` 產生 `maps/dir/?api=1&origin=…&destination=…`（**不帶** `travelmode`，由使用者選開車／大眾運輸），HTML／Markdown 的地圖 chip 都移到說明開頭（slot emoji + 名稱／A→B）。`export-gate` 新增 `no_internal_jargon` 檢查，擋掉漏進使用者文案的內部 `(poi-id)` token 與 `must_do`（依權威 id 集合比對 → 零誤報；連 Markdown 的 `\_` 跳脫也照抓）。
 - **內容衛生移到 canonical 層（v0.20.0）：** jargon（`(poi-id)`／`must_do`）+ 日文 kana-gloss 兩個檢查移進 `scripts/gate.py::run_gate`（掃 `_itinerary_text`＝checklist＋每列 row text），共用 `scripts/text_hygiene.py`。這是**主**防線：在 canonical 層擋掉，md／html／LINE／貼進 Notion 的 md 全在源頭乾淨（含本來無 gate 的 `line_short.py`）——解掉 v0.19.0 列的 line_short 待辦。`export-gate` 的 md／html 檢查保留為 defense-in-depth。Notion 不再是獨立 adapter（貼已驗證的 md 即可）。
 - **kana 地點名強制中文 gloss（v0.21.0）：** `verify_status: verified` 且 `name_display` 含 kana（`[぀-ヿ]`）的 POI **必須**有非空 `name_zh`（地圖連結 label 才會顯示成 `name_display（name_zh）`、中文讀者讀得懂）。`itinerary-gate` 新增 `referenced_pois_glossed` check（`scripts/gate.py` + `text_hygiene.kana_name_without_gloss`）＋ `verified-pois.schema.json` 的 `allOf` if/then 雙層把關。純漢字名（五稜郭）豁免、unverified 豁免（不會 render）。前瞻防護，現有資料已合規、零 migration。
+- **消費端實測 9 defect（v0.22.0）：** (P1) Gate 0 營業狀態改為**強制**——`verify_poi` 讀 POI 的 `business_status`（Google Places vocabulary），CLOSED→`rejected`、**缺訊號→`unverified`（不再預設 operating）**。(P2) `geocode.name_matches` 在 resolve 後比對查到的店名 vs 查詢名，被改名的鄰店→`conflicting`。(P3) `resolve_place` 多加 `name_roman`＋bare-core 自由文字嘗試，著名 CJK 地標首輪即解析。(P4) `gate.chosen_lodging_pois` 把每個過夜鎮的 chosen 住宿疊進 gate／render 的 POI pool，`day.lodging` 直接解析（不再污染 canonical verified-pois）。(P5) `must_do` 為**主題字串**，`itinerary.must_do_coverage`（主題→POI ids）讓 gate 機械式驗證涵蓋。(P6) `accommodations.cost.rooms`＋`cost.lodging_line_amount` 以每房價×房數×晚數計；`budget` 明定為整趟總額。(P7) export-gate 把不可散布（`photo_source=google`）拆成 `distributable: false` 的**乾淨終態**（status 仍 pass，orchestrator 不再無限 re-export），真正 render defect 才 fail+loop。(P8) `run_html_gate(media_count=N)`：有側檔卻 0 `<img>`→fail（接住 `apply_media` 漏接回傳的 footgun）。(P9) Maps 連結改 canonical place_id 深連。新欄位：`business_status`（verified-pois + candidates）、`cost.rooms`（accommodations）、`must_do_coverage`（itinerary）、`distributable`（gate-report）。
 
 **地圖座標用量限制：** 使用 OSM Nominatim（免 API key），請遵守其使用政策
 （≤ 1 req/s、帶 User-Agent）。`scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流。

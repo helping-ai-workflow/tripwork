@@ -185,7 +185,16 @@
           },
           "gmaps_place_id": {
             "type": "string",
-            "description": "Google Maps place_id; deep-links maps_url via &query_place_id. May be re-emitted by source-verify so it survives re-verify on the canonical row."
+            "description": "Google Maps place_id; deep-links maps_url to the canonical place. May be re-emitted by source-verify so it survives re-verify on the canonical row."
+          },
+          "business_status": {
+            "type": "string",
+            "enum": [
+              "OPERATIONAL",
+              "CLOSED_TEMPORARILY",
+              "CLOSED_PERMANENTLY"
+            ],
+            "description": "Sourced operating signal (Google Places businessStatus vocabulary). source-verify must obtain it; an absent signal keeps the POI 'unverified' (Gate 0 cannot pass), a CLOSED value forces 'rejected'. Never default to operating. (P1)"
           },
           "photo": {
             "type": "object",

@@ -1,5 +1,68 @@
 # Changelog
 
+## 0.22.0 — fix 9 consumer-discovered defects (Sun-Moon-Lake dogfood)
+
+Nine defects hit end-to-end while a consumer ran the full pipeline for a 3D2N
+Sun Moon Lake self-drive trip. Each is fixed with a TDD red→green cycle; a single
+e2e fixture (`tests/test_e2e_defects_all9.py`) exercises all nine simultaneously,
+including the cross-defect gate run where P1/P2 filter the POIs, P4 folds the chosen
+lodging, and P5 covers the thematic must_do in one pass.
+
+- **P1 — operating status (Gate 0) is now enforced, not defaulted.** A permanently/
+  temporarily closed venue used to sail through as `verified` because `operating`
+  defaulted to `True` and nothing fetched a signal. `scripts/verify.py::verify_poi` now
+  reads a sourced `business_status` (Google Places vocabulary `OPERATIONAL` /
+  `CLOSED_TEMPORARILY` / `CLOSED_PERMANENTLY`) off the POI: CLOSED → `rejected` before
+  geocode; an **absent / unknown signal → `unverified` (never a silent `verified`)**.
+  New optional `business_status` field on `verified-pois` + `candidates` schemas;
+  `operating_from_status` maps the vocabulary. `classify_candidate`'s low-level
+  `operating` default is unchanged.
+- **P2 — renamed-neighbour / name-drift false match caught.** `scripts/geocode.py::
+  name_matches` confirms the resolved place corresponds to the queried venue (conservative
+  CJK containment on the venue token); a mismatch (querying 星月大地 but Nominatim returns
+  星月驛站) → `conflicting` ('name mismatch'), not `verified`. `verify_poi(resolved_name=…)`
+  / `classify_candidate(name_match=…)` wire it in.
+- **P3 — famous CJK landmarks resolve first-pass.** `resolve_place(name_roman=…)` adds an
+  English-name attempt and a bare-core-name free-text attempt after the street-slot
+  structured query and the combined query miss, so 日月潭文武廟 / 九族文化村 / 向山遊客中心 …
+  resolve without a manual English-retry pass.
+- **P4 — chosen lodging resolvable by gate AND export.** `scripts/gate.py::
+  chosen_lodging_pois(accommodations)` yields each stop's chosen lodging as a POI-shaped
+  dict; `run_gate` folds it into the reference pool and `itinerary-synthesis` /
+  `export-artifact` build `poi_map` the same way, so a `day.lodging` hotel id resolves
+  natively — without polluting canonical `verified-pois.yaml`.
+- **P5 — `must_do` is thematic, gate verifies coverage.** `trip-brief.must_do` entries are
+  free-text themes (e.g. `日月潭遊湖賞景`). `itinerary.must_do_coverage` (theme → covering
+  POI ids) lets `run_gate` check each theme has ≥1 scheduled covering POI. A scheduled POI
+  id still self-covers (id-based back-compat).
+- **P6 — rooms multiply + budget scope.** `accommodations.cost.rooms` + `scripts/cost.py
+  ::lodging_line_amount(cost, nights, rooms)` cost a multi-room stop as per-room × rooms ×
+  nights. `trip-brief.budget` is documented as the whole-trip total (lodging + transport +
+  incidentals) that `cost-rollup` already compares against.
+- **P7 — non-distributable deliverable has a terminal state.** A personal HTML variant with
+  `photo_source: google` no longer fails `export-gate` (which made `orchestrator` re-export
+  loop forever). `run_export_gate` / `run_html_gate` emit `distributable: false` (a clean
+  terminal "personal variant complete" — status stays `pass`); a genuine render defect still
+  fails and loops. New optional `distributable` field on `gate-report` schema; orchestrator
+  rules 15/16 recognise the terminal.
+- **P8 — media side-file present but 0 photos is caught.** `run_html_gate(media_count=N)`
+  fails when a media side-file was loaded but the rendered HTML has 0 `<img>` — catching a
+  dropped (non-mutating) `apply_media` return. `apply_media`'s docstring + `export-artifact`
+  now mandate capturing the return.
+- **P9 — Maps links use the canonical place_id form.** `maps_url` returns
+  `maps/place/?q=place_id:<id>` when `gmaps_place_id` is present (exact single place; wins
+  over `pin_exact`), falling back to name-search otherwise. Google deprecated the official
+  URL shortener, so true short links are not API-mintable — place_id canonical is the
+  cleanest stable form with no new dependency.
+
+Next-version follow-ups surfaced by the cross-axis matrix (same root-cause twins, out of
+scope here): `conflict_detected` default (P1 twin), `photo_adapter` name+region image match
+(P2/P3 twin), `export_gate._find_rows` name-substring matcher (P4 twin), `line_short` has no
+lodging line (P4 twin), `cost.pass_break_even` no head-count multiplier (P6 twin),
+`photo_has_attribution` / `bookable_has_official_source` on the binary loop channel (P7
+twins), `apply_media` ignores typo'd media keys (P8 twin), `dir_url` place_id deep-link (P9
+twin), and making `gmaps_place_id` non-optional (P9 depends on it).
+
 ## 0.21.0 — require name_zh for kana-named verified POIs (gloss-at-source guard)
 
 A verified POI whose `name_display` contains kana renders its maps-link label as

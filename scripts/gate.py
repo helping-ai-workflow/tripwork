@@ -10,6 +10,25 @@ from scripts.facilities import stop_meets_required
 from scripts.calendar import poi_closed_on
 from scripts.text_hygiene import jargon_failures, kana_gloss_failures, kana_name_without_gloss
 
+def chosen_lodging_pois(accommodations):
+    """Each overnight stop's chosen lodging as a POI-shaped dict, so the gate AND the
+    renderers can resolve a `day.lodging` / lodging-row id natively — without the
+    consumer merging hotels into canonical verified-pois.yaml. (P4)
+
+    The chosen candidate is returned verbatim (it already carries id / name_local /
+    name_display / geocode / verify_status / sources). Stops with no chosen lodging,
+    or whose chosen id is not among the stop's candidates, contribute nothing.
+    Both gate.run_gate and the export poi_map assembly fold this in."""
+    out = []
+    for stop in (accommodations or {}).get("stops", []):
+        chosen_id = stop.get("chosen")
+        if not chosen_id:
+            continue
+        chosen = next((c for c in stop.get("candidates", []) if c.get("id") == chosen_id), None)
+        if chosen is not None:
+            out.append(chosen)
+    return out
+
 def _referenced_ids(days):
     ids = set()
     for d in days:
@@ -60,6 +79,11 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         must_do:    optional list of POI ids that MUST be scheduled.
     """
     by_id = {p["id"]: p for p in pois}
+    # P4: fold each stop's chosen lodging into the POI pool so a `day.lodging` /
+    # lodging-row id referencing a hotel resolves natively (verified-pois win on id
+    # collision). The renderers assemble poi_map the same way (chosen_lodging_pois).
+    for lp in chosen_lodging_pois(accommodations):
+        by_id.setdefault(lp["id"], lp)
     days = itinerary.get("days", [])
     referenced = _referenced_ids(days)
 
@@ -100,11 +124,19 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
                 if closed:
                     failures.append(f"POI '{pid}' scheduled on closed day {date}: {reason}")
 
+    # P5: must_do entries are thematic free-text (e.g. "日月潭遊湖賞景"), NOT POI ids.
+    # An entry is covered when (a) it is itself a scheduled POI id (id-based
+    # back-compat), or (b) itinerary.must_do_coverage maps it to >=1 scheduled POI id.
+    # The agent (synthesis) authors the theme->ids mapping; the gate checks coverage.
     must_do_check = must_do is not None
     if must_do_check:
-        for pid in must_do:
-            if pid not in referenced:
-                failures.append(f"must_do POI '{pid}' not scheduled in any day")
+        coverage = itinerary.get("must_do_coverage", {}) or {}
+        for entry in must_do:
+            covered = (entry in referenced
+                       or any(cid in referenced for cid in coverage.get(entry, [])))
+            if not covered:
+                failures.append(
+                    f"must_do '{entry}' not covered by any scheduled POI")
 
     # Mandatory-safety-artifact-presence floor (D2-class): an absent advisory is a
     # GATE FAILURE, not a skip. The banned/restricted list lives ONLY inside
@@ -173,7 +205,7 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
                        "passed": not any("closed day" in f for f in failures)})
     if must_do_check:
         checks.append({"name": "must_do_covered",
-                       "passed": not any("must_do POI" in f for f in failures)})
+                       "passed": not any("not covered by any scheduled POI" in f for f in failures)})
     if advisory_check:
         checks.append({"name": "advisory_items_surfaced",
                        "passed": not any("not surfaced in itinerary" in f for f in failures)})

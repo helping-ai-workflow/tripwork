@@ -97,9 +97,9 @@ def test_e2e_happy_path_adapter_to_gate(mocker, tmp_path):
     html = render_html_page(ITIN, merged)
     md = render_day_table(ITIN["days"][0], merged)
 
-    # PR2: place_id deep-link rode through to the rendered maps URL (the & is
-    # HTML-escaped to &amp; in the attribute — correct, and gate-safe).
-    assert "&amp;query_place_id=ChIJ_landmark" in html
+    # P9 (MIGRATED): place_id rode through to the rendered maps URL as the canonical
+    # maps/place/?q=place_id:<id> form (single param, no '&', so gate-safe).
+    assert "maps/place/?q=place_id%3AChIJ_landmark" in html
     # PR3: photo img + escaped caption + pure-CSS lightbox, no script
     assert "<img" in html and 'type="checkbox"' in html
     assert "data:image/jpeg;base64," in html
@@ -126,16 +126,20 @@ def test_e2e_gate_rejects_missing_attribution():
     assert rm["status"] == "fail"
 
 
-def test_e2e_gate_rejects_google_photo_source():
+def test_e2e_google_photo_is_terminal_nondistributable():
+    # P7 (MIGRATED): a google photo is NOT a fail — it is a clean terminal
+    # non-distributable deliverable (status pass, distributable False) so the
+    # orchestrator does not re-export-loop on the personal variant.
     google = {"id": "g", "photo": {"url": "https://x/y.jpg"},
               "photo_attribution": {"author": "A", "license": "x", "source_url": "https://a.example"},
               "photo_source": "google"}
     html = render_html_page(ITIN, {"pp": dict(PP)})
     r = run_html_gate(html, pois=[google], min_days=1)
-    assert r["status"] == "fail"
-    assert any("non-distributable photo_source" in f for f in r["failures"])
+    assert r["status"] == "pass", r["failures"]
+    assert r["distributable"] is False
     rm = run_export_gate(render_day_table(ITIN["days"][0], {"pp": dict(PP)}), [google])
-    assert rm["status"] == "fail"
+    assert rm["status"] == "pass", rm["failures"]
+    assert rm["distributable"] is False
 
 
 def test_e2e_gate_rejects_unsafe_img_src():

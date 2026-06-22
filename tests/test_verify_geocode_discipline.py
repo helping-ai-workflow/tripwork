@@ -104,6 +104,7 @@ def test_verify_poi_geocode_key_normalised_and_clean_passes_through():
     poi["name_local"] = "洞爺湖ウィンザーホテル"
     poi["district"] = "洞爺湖温泉"
     poi["geocode"] = {"lat": 42.5, "lon": 140.7}
+    poi["business_status"] = "OPERATIONAL"   # P1: Gate 0 needs a sourced operating signal
     normalised, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True)
     assert status == "verified"
     assert normalised["geocode"]["lng"] == 140.7
