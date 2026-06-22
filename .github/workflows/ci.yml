@@ -15,8 +15,13 @@ jobs:
           python-version: '3.11'
       - name: Install
         run: pip install -e ".[dev]"
+      - name: Cross-platform manifest drift check
+        # --check: 8 manifests + CHANGELOG top must agree.
+        # --audit: a stray undeclared version string (a missed manifest) fails.
+        run: |
+          python scripts/bump_version.py --check
+          python scripts/bump_version.py --audit
       - name: Run full test suite
-        # Hermetic: geocode is mocked (pytest-mock), no network needed.
-        # Covers schema validation, source-verify gates, routing, calendar
-        # closure logic, e2e fixtures, README freshness, version consistency.
+        # Hermetic: geocode mocked. Covers schema, gates, e2e fixtures, README
+        # freshness, version consistency, and the cross-platform manifest gates.
         run: python -m pytest -q
