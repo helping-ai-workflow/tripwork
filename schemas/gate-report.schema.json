@@ -42,6 +42,10 @@
     "distributable": {
       "type": "boolean",
       "description": "export-gate only: false marks a personal / non-distributable deliverable (e.g. google-sourced photos) — a clean terminal state, NOT a re-render-looping failure. A status==pass deliverable with distributable==false is complete-but-non-distributable. (P7)"
+    },
+    "retryable": {
+      "type": "boolean",
+      "description": "export-gate only: on status==fail, false means every failure is an upstream DATA defect (missing photo attribution / no official source) that re-rendering cannot fix — the orchestrator must halt and ask the user to fix the data, not loop export-artifact. true means a render-fixable defect remains (re-render). (F1, P7-twin)"
     }
   },
   "allOf": [

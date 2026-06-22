@@ -53,6 +53,20 @@ def _has_nondistributable(pois):
     return any(p.get("photo_source") == "google" for p in (pois or []))
 
 
+# F1 (P7-twin): failure substrings that re-rendering CANNOT fix — they are upstream
+# DATA defects (a photo with no attribution, a bookable POI with no official source).
+# A fail whose only failures are these is non-retryable: the orchestrator must halt and
+# ask the user to fix the data, NOT loop export-artifact (which re-renders the same defect).
+_DATA_DEFECT_MARKERS = ("missing attribution", "official source link")
+
+
+def _is_retryable(failures):
+    """True when re-rendering could plausibly change the outcome: there are no failures
+    (a pass), or at least one failure is a render-fixable defect (not a pure data defect)."""
+    return (not failures) or any(
+        not any(m in f for m in _DATA_DEFECT_MARKERS) for f in failures)
+
+
 def run_export_gate(md_text, pois, min_days=None):
     """Return {status, checks, failures} for a rendered itinerary markdown.
 
@@ -131,6 +145,7 @@ def run_export_gate(md_text, pois, min_days=None):
     ]
     return {"status": "pass" if not failures else "fail",
             "distributable": not nondistributable,
+            "retryable": _is_retryable(failures),
             "checks": checks, "failures": failures}
 
 _HREF = re.compile(r'href="([^"]*)"')
@@ -204,6 +219,7 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
     ]
     return {"status": "pass" if not failures else "fail",
             "distributable": not nondistributable,
+            "retryable": _is_retryable(failures),
             "checks": checks, "failures": failures}
 
 

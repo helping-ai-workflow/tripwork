@@ -1,5 +1,32 @@
 # Changelog
 
+## 0.23.0 — matrix follow-ups (twins of the v0.22.0 defects)
+
+Three same-root-cause twins surfaced by the v0.22.0 cross-axis matrix audit, fixed via
+TDD red→green (`tests/test_followups_0_23_0.py`).
+
+- **F1 (P7-twin) — export-gate `retryable` flag.** `photo_has_attribution` and
+  `bookable_has_official_source` were still on the binary fail channel that
+  `orchestrator` rule 15 loops on — but they are upstream DATA defects re-rendering can
+  never fix, so they looped export-artifact forever (the same infinite-loop class P7
+  fixed for google photos). `run_export_gate` / `run_html_gate` now emit `retryable`:
+  on `status: fail`, `retryable: false` means every failure is a data defect → the
+  orchestrator **stops and asks the user to fix the data** instead of re-rendering;
+  `retryable: true` means a render-fixable defect remains → re-render. A fail with both
+  stays retryable until the render defect clears, then halts. New optional `retryable`
+  field on `gate-report` schema; orchestrator rule 15 + stop-on-confirmation updated.
+- **F2 (P6-twin) — `pass_break_even(travellers=)` head-count scaling.** Fares and the
+  pass are both per-person, so a multi-traveller trip under-counted the pass cost line.
+  The new `travellers` arg (default 1, back-compat) scales both sides → correct group
+  `individual_total` / `pass_price` / `saving`; the `use_pass` decision is unchanged
+  (head-count-invariant). cost-rollup passes `len(trip-brief.members)`.
+- **F3 (P9 coverage) — capture `gmaps_place_id` during the P1 Google check.** `maps_url`'s
+  canonical place-id deep-link only fires when `gmaps_place_id` is present. Rather than
+  make the field required (which would force a Google dependency on every POI and break
+  the no-key design), source-verify now records it **while the agent already has the POI's
+  Google Maps card open for the P1 `business_status` check** — zero extra cost, maximising
+  canonical-link coverage. Contract change only (source-verify SKILL); no code behaviour.
+
 ## 0.22.0 — fix 9 consumer-discovered defects (Sun-Moon-Lake dogfood)
 
 Nine defects hit end-to-end while a consumer ran the full pipeline for a 3D2N
