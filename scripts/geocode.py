@@ -1,4 +1,5 @@
 """OSM Nominatim geocoding wrapper. No API key; respects usage policy."""
+import re
 from dataclasses import dataclass
 import requests
 from scripts.distance import haversine_km
@@ -36,6 +37,26 @@ def in_region(lat, lng, region_lat, region_lng, radius_km=5.0):
     """True if (lat,lng) is within radius_km of a region centroid."""
     return haversine_km(lat, lng, region_lat, region_lng) <= radius_km
 
+def name_matches(query_name, display_name):
+    """True if a resolved place plausibly corresponds to the queried venue. (P2)
+
+    Conservative containment check: the queried name is compared against the venue
+    token of the resolved ``display_name`` (the part before the first comma). A
+    match requires one string to contain the other after stripping whitespace — so
+    ``日月潭文武廟`` matches ``文武廟, 日月潭, 南投`` (core ``文武廟`` ⊂ query) but
+    ``星月大地`` does NOT match the renamed neighbour ``星月驛站, 后里`` (neither
+    contains the other). Deliberately strict about declaring a match: a name that
+    cannot be confirmed returns False so the caller flags ``conflicting`` rather
+    than trusting a wrong-but-plausible top hit. Avoids the real-data false
+    positives a fuzzy / NER matcher produces."""
+    def _norm(s):
+        return re.sub(r"\s+", "", str(s or ""))
+    q = _norm(query_name)
+    core = _norm(str(display_name or "").split(",")[0])
+    if not q or not core:
+        return False
+    return core in q or q in core
+
 def geocode_structured(name, city=None, country=None, timeout=10):
     """Nominatim structured query — higher hit-rate for small venues than free text.
 
@@ -58,14 +79,25 @@ def geocode_structured(name, city=None, country=None, timeout=10):
     return GeocodeResult(lat=float(top["lat"]), lng=float(top["lon"]),
                          display_name=top.get("display_name", ""))
 
-def resolve_place(name, district=None, country=None, timeout=10, cache=None):
-    """Two-tier resolve (structured query first, free-text fallback) with an
+def resolve_place(name, district=None, country=None, timeout=10, cache=None, name_roman=None):
+    """Multi-tier resolve (structured query first, then free-text fallbacks) with an
     optional per-trip cache.
 
     When `cache` (a dict) is given, a hit — including a cached miss (None) — returns
     without touching Nominatim; otherwise the result (or None) is stored in `cache`.
     Returns (GeocodeResult, source) where source is 'nominatim_structured' or
-    'nominatim'; (None, None) if neither resolves. `cache=None` is the original behaviour.
+    'nominatim'; (None, None) if nothing resolves. `cache=None` is the original behaviour.
+
+    Resolution order (P3 — famous CJK POIs miss the street-slot structured query and
+    the combined free-text query, but resolve on the bare name or the English/roman
+    name; first hit wins):
+      1. structured query (venue name in the Nominatim 'street' slot)
+      2. free-text '<name> <district> <country>'
+      3. free-text '<name>' (bare core name)
+      4. free-text '<name_roman> <district> <country>' (when name_roman given)
+      5. free-text '<name_roman>'                       (when name_roman given)
+    Caller still rate-limits (Nominatim policy <= 1 req/s); this may issue up to
+    five requests on a hard-to-resolve POI, so space them.
     """
     if not name or not str(name).strip():
         raise ValueError("resolve_place requires a non-empty place name "
@@ -87,8 +119,16 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None):
     result = geocode_structured(name, city=district, country=country, timeout=timeout)
     source = "nominatim_structured"
     if result is None:
-        q = " ".join(p for p in (name, district, country) if p)
-        result = geocode(q, timeout=timeout)
+        attempts = [" ".join(p for p in (name, district, country) if p), name]
+        if name_roman:
+            attempts.append(" ".join(p for p in (name_roman, district, country) if p))
+            attempts.append(name_roman)
+        for q in attempts:
+            if not q or not str(q).strip():
+                continue
+            result = geocode(q, timeout=timeout)
+            if result is not None:
+                break
         source = "nominatim" if result is not None else None
 
     if cache is not None:

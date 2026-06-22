@@ -27,14 +27,22 @@ content correctness is guaranteed upstream by `source-verify`.
   protects every renderer); these render-side copies are defense-in-depth.
 - `photo_has_attribution` — any POI carrying a `photo` must also carry a non-empty
   `photo_attribution` (author + license + source_url).
-- `no_nondistributable_photo_source` — no POI may carry `photo_source: google`
-  (no display-surface ToS clearance / no personal-cache exception); keeps
-  google-sourced photos out of distributable exports even before any google backend exists.
+- `no_nondistributable_photo_source` — a POI carrying `photo_source: google` has no
+  display-surface ToS clearance. **This is NOT a hard fail (P7):** it is a labelling
+  decision re-rendering can never fix, so it sets the report's `distributable: false`
+  (a clean terminal "personal variant complete" state) while `status` stays `pass`. A
+  distributable export reports `distributable: true`.
 
 The html deliverable `exports/<slug>-itinerary.html` is validated by
 `scripts/export_gate.py::run_html_gate` (structure/format only: non-empty, at least
 `min_days` day-cards, every `href` an `http(s)://` URL, no raw `<script>`, every
-`<img src>` a `data:image/` or `https://` URL, plus the two photo checks above).
+`<img src>` a `data:image/` or `https://` URL, plus the photo checks above).
+
+- `media_landed` (html, P8) — when a `verified-pois-media.yaml` side-file is present, pass
+  its entry count as `run_html_gate(..., media_count=N)`. If `media_count > 0` but the
+  rendered HTML has **0 `<img>`**, the gate fails ("media side-file present but rendered
+  deliverable has 0 photos") — catching a dropped `apply_media` return that silently shipped
+  a photoless page. Omit `media_count` when there is no side-file.
 
 **Both gates require the MERGED pois.** Load `verified-pois.yaml` and overlay
 `verified-pois-media.yaml` via `scripts/media_merge.py::apply_media` (the same overlay
@@ -46,8 +54,12 @@ distributability checks spin against nothing.
 ## Output
 
 Write `trips/<slug>/export-gate-report.yaml` (schema: `schemas/gate-report.schema.json`
-— reused; same status/checks/failures shape). On `status: fail`, list each failure
-and return to `export-artifact` via `tripwork:orchestrator` to re-render.
+— reused; same status/checks/failures shape, plus the optional `distributable` flag).
+On `status: fail` (a genuine render defect), list each failure and return to
+`export-artifact` via `tripwork:orchestrator` to re-render. A `status: pass` report with
+`distributable: false` is a **clean terminal personal variant** (google-photo HTML): the
+orchestrator completes it as "complete — non-distributable, 勿散布", it does NOT re-export
+loop. (P7)
 
 ## Stage Contract
 

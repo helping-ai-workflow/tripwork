@@ -41,7 +41,9 @@ every candidate, exactly like `source-verify`.
 ## Cost (for the rollup)
 
 Record each candidate's numeric `cost` (amount + currency + `basis: per_night | total`)
-from the booking / official source, alongside the human-readable `price_band`.
+from the booking / official source, alongside the human-readable `price_band`. `amount`
+is the price **per room**; when a stop needs more than one room, record `cost.rooms` so
+`cost-rollup` multiplies correctly (default 1). (P6)
 `cost-rollup` (a later stage) sums these — do not compute totals here.
 
 ## Facilities (Source-Verified-First — from sources, never guessed)

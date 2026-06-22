@@ -9,10 +9,18 @@ Sum the structured big-ticket costs and compare them to the budget. Produces
 `trips/<slug>/cost.yaml` (schema: `schemas/cost.schema.json`). Everything is an
 **estimate** with an `as_of` date — never a precise quote (prices are volatile).
 
+## Budget scope (P6)
+
+`trip-brief.budget` is the **whole-trip** cap: lodging (per-room × rooms × nights) +
+transport + daily incidentals — i.e. exactly the `sum_costs` grand `total` this stage
+computes. It is NOT lodging-only. `over_budget` compares the grand total against it.
+
 ## Gather (from upstream artifacts — no re-research)
 
-- Accommodation: each chosen lodging's `cost` from `accommodations.yaml` (multiply by the
-  stop's `nights` when `cost.basis == "per_night"`).
+- Accommodation: each chosen lodging's `cost` from `accommodations.yaml`, via
+  `scripts/cost.py::lodging_line_amount(cost, nights, rooms)` — `cost.amount` is **per
+  room**, so this multiplies by `cost.rooms` (default 1) and, for `basis == "per_night"`,
+  by the stop's `nights`. A multi-room stop must set `cost.rooms` or it is under-costed. (P6)
 - Transport: each leg's `fare` from `legs.yaml`, and the trip-level `pass` option.
 - Incidental: `trip-brief.daily_incidental.amount × days` (a user-supplied allowance,
   honestly an estimate).

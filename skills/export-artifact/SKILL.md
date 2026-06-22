@@ -18,20 +18,31 @@ Render the verified itinerary into deliverables under `trips/<slug>/exports/`. R
 separate Notion adapter, deliverable, or gate. The md is already validated by `export-gate`,
 so the pasted content inherits that hygiene; the plugin core never imports an MCP client.
 
+## POI pool for rendering (P4)
+
+Build the `poi_map` the renderers consume as **verified-pois + each overnight stop's chosen
+lodging** — fold in `scripts/gate.py::chosen_lodging_pois(accommodations)` so a
+`day.lodging` id resolves to the hotel's name/link instead of rendering a blank `—`. This is
+the same pool `itinerary-synthesis` and `itinerary-gate` build; never copy hotels into
+canonical `verified-pois.yaml`.
+
 ## Photo enrichment (optional)
 
 When `trips/<slug>/verified-pois-media.yaml` exists (written by the photo adapter under
 backend `wiki`/`google`; absent under the default backend `none`), overlay it onto the
-poi_map **before any `render_*` call**:
+poi_map **before any `render_*` call**. `apply_media` is **non-mutating — you MUST capture
+its return** (a dropped return renders 0 photos silently; export-gate's `media_landed`
+check (P8) catches it, but capture it correctly in the first place):
 
-`apply_media(poi_map, load_media("trips/<slug>/verified-pois-media.yaml"))` from
-`scripts/media_merge.py`.
+`poi_map = apply_media(poi_map, load_media("trips/<slug>/verified-pois-media.yaml"))`
+from `scripts/media_merge.py`.
 
 This merges `photo` / `photo_attribution` / `photo_source` onto each POI by `poi_id`. It
 is a render-time overlay only — **never write media back into canonical
 `verified-pois.yaml`**, which `source-verify` wholesale-rewrites on every run and would
-clobber it. A photo without attribution, an unsafe `<img src>`, or `photo_source: google`
-is rejected by `export-gate`.
+clobber it. A photo without attribution or an unsafe `<img src>` is rejected by
+`export-gate`; `photo_source: google` marks the deliverable non-distributable (a clean
+terminal personal variant, not a failure — see export-gate P7).
 
 Return to `tripwork:orchestrator`.
 

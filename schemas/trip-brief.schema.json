@@ -69,6 +69,7 @@
     },
     "must_do": {
       "type": "array",
+      "description": "Free-text required experiences/themes (e.g. '日月潭遊湖賞景'), NOT POI ids. itinerary-synthesis maps each to covering POI ids in itinerary.must_do_coverage; itinerary-gate verifies coverage. (P5)",
       "items": {
         "type": "string"
       }
@@ -87,6 +88,7 @@
     },
     "budget": {
       "type": "object",
+      "description": "Whole-trip budget cap. Scope = the full cost-rollup total: lodging (per-room × rooms × nights) + transport + daily incidentals. cost-rollup compares this against the grand total and stops on over-budget. (P6)",
       "properties": {
         "amount": {
           "type": "number"

@@ -59,6 +59,7 @@
                 },
                 "cost": {
                   "type": "object",
+                  "description": "Per-room price. cost-rollup multiplies via scripts/cost.py::lodging_line_amount: per_night -> amount × nights × rooms; total -> amount × rooms. (P6)",
                   "properties": {
                     "amount": {
                       "type": "number"
@@ -71,6 +72,11 @@
                         "per_night",
                         "total"
                       ]
+                    },
+                    "rooms": {
+                      "type": "integer",
+                      "minimum": 1,
+                      "description": "Number of rooms booked at this stop; cost-rollup multiplies the per-room amount by this. Defaults to 1 when omitted. (P6)"
                     }
                   },
                   "additionalProperties": false
