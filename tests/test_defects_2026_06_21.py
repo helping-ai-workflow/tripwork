@@ -298,16 +298,18 @@ class TestP8MediaLanded:
 
 # ============================ P9 — place_id canonical link ====================
 class TestP9MapsPlaceId:
-    def test_place_id_uses_canonical_place_form(self):
+    def test_place_id_uses_query_place_id_refinement(self):
         url = maps_url({"name_local": "文武廟", "gmaps_place_id": "ChIJ_abc-123"})
-        assert url.startswith("https://www.google.com/maps/place/?q=")
-        assert "place_id:ChIJ_abc-123" in unquote(url)
+        assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
+        assert "&query_place_id=ChIJ_abc-123" in url
+        assert "/maps/place/" not in url
 
-    def test_place_id_wins_over_pin_exact(self):
+    def test_place_id_refines_pin_exact(self):
         url = maps_url({"name_local": "x", "gmaps_place_id": "P1",
                         "geocode": {"lat": 1.0, "lng": 2.0, "pin_exact": True}})
-        assert "/maps/place/?q=" in url
-        assert "place_id:P1" in unquote(url)
+        assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
+        assert "1.0,2.0" in unquote(url)            # coord branch preserved
+        assert url.endswith("&query_place_id=P1")
 
     def test_no_place_id_falls_back_to_name_search(self):
         url = maps_url({"name_local": "明洞", "district": "中區"})

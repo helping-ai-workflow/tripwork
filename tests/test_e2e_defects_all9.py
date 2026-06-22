@@ -185,11 +185,12 @@ class TestE2EAllNineDefects:
         assert any("media side-file" in f and "0 photos" in f for f in r["failures"])
 
     # ---- P9 ----
-    def test_p9_place_id_canonical_link_in_render(self):
-        from urllib.parse import unquote
+    def test_p9_place_id_query_place_id_link_in_render(self):
         url = maps_url(FERRY)
-        assert url.startswith("https://www.google.com/maps/place/?q=")
-        assert unquote(url).endswith("place_id:ChIJ_ferry")
+        assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
+        assert url.endswith("&query_place_id=ChIJ_ferry")
+        assert "/maps/place/" not in url           # dead form must not reappear
         # and it rides through the HTML renderer
         html = render_html_page(self._itin(), {p["id"]: p for p in _verified_pois()})
-        assert "maps/place/?q=place_id%3AChIJ_ferry" in html
+        assert "&amp;query_place_id=ChIJ_ferry" in html   # & escaped in href attr
+        assert "maps/place/?q=place_id" not in html

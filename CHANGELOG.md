@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.23.1 — fix dead place_id maps link (consumer regression)
+
+The 0.23.0 P9 change rewrote `maps_url`'s place_id branch to the single-param
+`maps/place/?q=place_id:<id>` form. Google does **not** resolve that form — every
+place_id-bearing POI rendered a dead link, hit during Sun-Moon-Lake dogfood.
+
+- **`scripts/render/gmaps_links.py`** — restored the Maps URLs API form: the visible
+  `query=<name district>` (or `query=lat,lng` under `pin_exact`) is kept and a
+  `&query_place_id=<id>` refinement is appended, so Maps resolves the exact place while
+  the link stays a well-formed `/maps/search/?api=1&query=…` URL. place_id now REFINES
+  the query (as it did pre-0.23.0) instead of replacing it. Removed the unused
+  `PLACE_BASE` constant; updated the P9 docstring to flag the dead form as not-to-reintroduce.
+- **Tests** — migrated all green-locked place_id assertions (in `test_render_gmaps.py`,
+  `test_defects_2026_06_21.py`, `test_e2e_defects_all9.py`, `test_e2e_photo_enrichment.py`)
+  from the dead `maps/place/?q=place_id` form to `/maps/search/?api=1&query=…&query_place_id=<id>`,
+  including the e2e href check asserting the dead form never reappears in a rendered deliverable.
+- **`skills/source-verify/SKILL.md`** — P9 prose realigned: place_id feeds a
+  `&query_place_id` refinement of the search link, not a `maps/place/?q=place_id:` deep-link.
+
 ## 0.23.0 — matrix follow-ups (twins of the v0.22.0 defects)
 
 Three same-root-cause twins surfaced by the v0.22.0 cross-axis matrix audit, fixed via

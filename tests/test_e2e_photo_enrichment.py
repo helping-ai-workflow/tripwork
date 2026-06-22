@@ -97,9 +97,11 @@ def test_e2e_happy_path_adapter_to_gate(mocker, tmp_path):
     html = render_html_page(ITIN, merged)
     md = render_day_table(ITIN["days"][0], merged)
 
-    # P9 (MIGRATED): place_id rode through to the rendered maps URL as the canonical
-    # maps/place/?q=place_id:<id> form (single param, no '&', so gate-safe).
-    assert "maps/place/?q=place_id%3AChIJ_landmark" in html
+    # P9 (RESTORED): place_id rode through to the rendered maps URL as the Maps URLs
+    # API &query_place_id refinement (& escaped to &amp; in the href attr); the dead
+    # 0.23.0 maps/place/?q=place_id form must not reappear.
+    assert "&amp;query_place_id=ChIJ_landmark" in html
+    assert "maps/place/?q=place_id" not in html
     # PR3: photo img + escaped caption + pure-CSS lightbox, no script
     assert "<img" in html and 'type="checkbox"' in html
     assert "data:image/jpeg;base64," in html
