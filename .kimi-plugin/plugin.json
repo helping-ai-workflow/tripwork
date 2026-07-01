@@ -1,6 +1,6 @@
 {
   "name": "tripwork",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "Source-Verified-First travel-planning pipeline plugin: trip-brief → research → source-verify → routing → synthesis → gate → export.",
   "author": {
     "name": "helping-ai-workflow",

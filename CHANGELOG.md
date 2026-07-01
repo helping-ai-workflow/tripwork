@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.25.1 — maps-link gate now catches the percent-encoded (%3A) dead form
+
+0.25.0's `maps_link_resolvable_form` was blind to the **real** dead form. 0.23.0 built
+the dead link as `quote("place_id:<id>", safe="")`, which percent-encodes the colon —
+the actual URL (and the 76 real consumer dead links) is `…/maps/place/?q=place_id%3A…`,
+not the literal-colon `…place_id:…`. The check matched `_MAPS_DEAD = "/maps/place/?q=place_id:"`
+against the raw target with no `unquote`, so `%3A` slipped past and 0.25.0 shipped green
+on the exact links it was meant to block. The 0.25.0 fixtures used a literal colon, so
+the unit + e2e tests were falsely green.
+
+- **Fix:** the dead-form test now runs against `unquote(t)`, so `place_id%3A` decodes to
+  `place_id:` and is caught. A resolvable `/maps/place/<name>/@` share link never decodes
+  to `/maps/place/?q=place_id:`, so the 0.25.0 false-positive guard is unaffected.
+- **Fixtures corrected** to the exact 0.23.0 output via `quote("place_id:<id>", safe="")`
+  (real `%3A` form), and a new e2e asserts a `%3A`-form deliverable fails the gate. These
+  fixtures are RED against 0.25.0 and GREEN after the `unquote`.
+- `maps_url` regression lock also asserts the `%3A`-encoded twin never appears.
+
 ## 0.25.0 — export-gate now blocks dead Google Maps links (D2)
 
 The export-gate and html-gate `links_well_formed` check was scheme-only (`^https?://`),

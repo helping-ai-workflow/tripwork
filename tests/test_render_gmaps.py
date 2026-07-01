@@ -135,6 +135,7 @@ def test_maps_url_never_returns_dead_place_id_form():
     poi = {"name_local": "登別温泉", "district": "Noboribetsu", "gmaps_place_id": "ChIJ_abc-123"}
     url = maps_url(poi)
     assert "/maps/place/?q=place_id:" not in url          # the exact banned dead form
+    assert "place_id%3A" not in url                         # nor its %3A-encoded twin
     assert "/maps/place/" not in url                        # not the place deep-link at all
     assert "query_place_id=ChIJ_abc-123" in url             # the resolvable refinement instead
     assert url.startswith("https://www.google.com/maps/search/?api=1&query=")

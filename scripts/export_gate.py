@@ -72,6 +72,10 @@ def _has_nondistributable(pois):
 # allow-listing of navigation links was redundant.
 _MAPS_HOST = "www.google.com/maps"
 # The banned single-param deep-link form Google does not resolve (the D1 regression).
+# 0.23.0 emitted it via `quote("place_id:<id>", safe="")`, so the colon is percent-encoded
+# to %3A in the real URL (and in the 76 real consumer dead links). The dead-form test
+# therefore matches against `unquote(t)` (below), NOT the raw target — else `%3A` slips
+# past this literal-colon marker.
 _MAPS_DEAD = "/maps/place/?q=place_id:"
 # A /maps/search link whose query is empty / whitespace-only resolves to nothing — e.g.
 # maps_url({}) or a whitespace-only POI name (gmaps_links.py:18,48). Capture the query
@@ -95,7 +99,10 @@ def _maps_link_failures(targets):
         t = (t or "").strip().replace("&amp;", "&")
         if _MAPS_HOST not in t:
             continue
-        if _MAPS_DEAD in t:
+        # unquote so the percent-encoded colon (place_id%3A, the real 0.23.0 output) is
+        # caught, not just a literal colon. A resolvable /maps/place/<name>/@ share link
+        # never decodes to `/maps/place/?q=place_id:`, so the FP guard is unaffected.
+        if _MAPS_DEAD in unquote(t):
             out.append(
                 f"dead Google Maps link (maps/place/?q=place_id: does not resolve): '{t}'")
             continue
