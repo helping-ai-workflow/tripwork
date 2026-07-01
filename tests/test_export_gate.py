@@ -220,6 +220,73 @@ def test_export_gate_bookable_on_move_row_not_evaded():   # review finding-2
     assert _names("bookable_has_official_source", r) is False
 
 
+# ── D2 (2026-07-01 gmaps-deadlink): maps_link_resolvable_form ─────────────────
+# links_well_formed is scheme-only, so the 0.23.0 dead `maps/place/?q=place_id:<id>`
+# form (still https://) passed the gate green while 38 links were dead. The gate now
+# asserts every www.google.com/maps link is a resolvable canonical form.
+
+_DEAD_MAPS = "https://www.google.com/maps/place/?q=place_id:ChIJ_abc123"
+
+def _maps_row(url):
+    return f"### Day 1\n\n| 時段 | 行程 |\n|---|---|\n| 09:00 | [大通公園]({url}) |\n"
+
+def test_export_gate_fails_on_dead_maps_place_id_link():
+    r = run_export_gate(_maps_row(_DEAD_MAPS), [])
+    assert r["status"] == "fail"
+    assert _names("maps_link_resolvable_form", r) is False
+    assert any("place_id" in f for f in r["failures"])
+
+def test_export_gate_dead_maps_link_is_retryable():
+    # a dead maps link is re-render-fixable (the incident: re-render under 0.24.0 fixed
+    # all 38) — so it must stay retryable, NOT be mistaken for an un-fixable data defect.
+    r = run_export_gate(_maps_row(_DEAD_MAPS), [])
+    assert r["retryable"] is True
+
+def test_export_gate_passes_canonical_maps_search_link():
+    r = run_export_gate(_maps_row("https://www.google.com/maps/search/?api=1&query=Sapporo"), [])
+    assert _names("maps_link_resolvable_form", r) is True
+
+def test_export_gate_passes_canonical_maps_dir_link():
+    url = "https://www.google.com/maps/dir/?api=1&origin=A&destination=B"
+    r = run_export_gate(_maps_row(url), [])
+    assert _names("maps_link_resolvable_form", r) is True
+
+def test_export_gate_fails_empty_maps_search_query():
+    # maps_url({}) / a nameless POI renders an empty query -> resolves to nothing
+    r = run_export_gate(_maps_row("https://www.google.com/maps/search/?api=1&query="), [])
+    assert r["status"] == "fail"
+    assert _names("maps_link_resolvable_form", r) is False
+    assert any("empty search query" in f for f in r["failures"])
+
+def test_export_gate_fails_whitespace_maps_search_query():
+    r = run_export_gate(_maps_row("https://www.google.com/maps/search/?api=1&query=%20%20%20"), [])
+    assert r["status"] == "fail"
+    assert _names("maps_link_resolvable_form", r) is False
+
+def test_export_gate_allows_resolvable_place_share_link():
+    # a POI official source that IS a real, resolvable /maps/place/<name>/@ share link
+    # must NOT be rejected — it is not the dead ?q=place_id: form. (adversarial-verify FP)
+    url = "https://www.google.com/maps/place/Kinosaki+Onsen/@35.6,134.8,15z"
+    r = run_export_gate(_maps_row(url), [])
+    assert _names("maps_link_resolvable_form", r) is True
+
+def test_export_gate_allows_maps_viewport_link():
+    # /maps/@lat,lng is a resolvable viewport link, not a dead form -> not flagged
+    r = run_export_gate(_maps_row("https://www.google.com/maps/@43.06,141.35,15z"), [])
+    assert _names("maps_link_resolvable_form", r) is True
+
+def test_export_gate_non_maps_host_link_not_flagged():
+    # an official-source (non-maps) https link must NOT be touched by the maps-form check
+    r = run_export_gate(_maps_row("https://milford.example/tickets"), [])
+    assert _names("maps_link_resolvable_form", r) is True
+
+def test_export_gate_maps_form_check_present():
+    r = run_export_gate(CLEAN, [])
+    assert "maps_link_resolvable_form" in [c["name"] for c in r["checks"]]
+    # CLEAN uses a canonical /maps/search link -> the check passes
+    assert _names("maps_link_resolvable_form", r) is True
+
+
 def test_find_row_ignores_heading_uses_table_row():   # TW-044
     bookable = {"id": "milford", "name_local": "Milford Sound", "name_display": "Milford Sound",
                 "verify_status": "verified", "booking": {"required": True},
