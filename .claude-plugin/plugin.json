@@ -1,7 +1,7 @@
 {
   "name": "tripwork",
   "description": "Source-Verified-First travel-planning pipeline: trip-brief → destination-research → source-verify → routing-audit → accommodation-research → inter-stop-legs → calendar-check → seasonal-advisory → transit-detail → cost-rollup → travel-advisory → itinerary-synthesis → itinerary-gate → export",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "author": {
     "name": "helping-ai-workflow",
     "url": "https://github.com/helping-ai-workflow/tripwork"

@@ -3,6 +3,8 @@
 Uses the same fixture itin/poi_map as test_html_page.py to generate real HTML.
 Strict TDD: tests written against the not-yet-implemented run_html_gate.
 """
+from urllib.parse import quote
+
 import pytest
 
 from scripts.export_gate import run_html_gate
@@ -197,7 +199,8 @@ class TestRunHtmlGateJargon:
 
 class TestRunHtmlGateMapsForm:
 
-    _DEAD = "https://www.google.com/maps/place/?q=place_id:ChIJ_abc123"
+    # real 0.23.0 output: colon percent-encoded to %3A (quote(...,safe=""))
+    _DEAD = "https://www.google.com/maps/place/?q=" + quote("place_id:ChIJ_abc123", safe="")
 
     def _html(self, extra=""):
         return render_html_page(ITIN, POI_MAP) + extra

@@ -1,3 +1,5 @@
+from urllib.parse import quote
+
 from scripts.export_gate import run_export_gate
 
 # A booking-required verified POI used by the bookable check.
@@ -225,7 +227,10 @@ def test_export_gate_bookable_on_move_row_not_evaded():   # review finding-2
 # form (still https://) passed the gate green while 38 links were dead. The gate now
 # asserts every www.google.com/maps link is a resolvable canonical form.
 
-_DEAD_MAPS = "https://www.google.com/maps/place/?q=place_id:ChIJ_abc123"
+# The EXACT string 0.23.0 emitted: `PLACE_BASE + quote("place_id:<id>", safe="")`.
+# quote(...,safe="") percent-encodes the colon to %3A, so the real dead form — and the
+# 76 real consumer dead links — carry `place_id%3A`, NOT a literal colon.
+_DEAD_MAPS = "https://www.google.com/maps/place/?q=" + quote("place_id:ChIJ_abc123", safe="")
 
 def _maps_row(url):
     return f"### Day 1\n\n| 時段 | 行程 |\n|---|---|\n| 09:00 | [大通公園]({url}) |\n"

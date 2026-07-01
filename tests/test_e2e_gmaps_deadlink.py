@@ -10,6 +10,8 @@ green while 38 links were dead. Asserts the D2 fix closes every axis at once:
   4. the SAME deliverables with the 0.23.0 dead form injected now FAIL both gates on
      maps_link_resolvable_form (previously blind) and stay retryable (re-render fixes it).
 """
+from urllib.parse import quote
+
 from scripts.export_gate import run_export_gate, run_html_gate
 from scripts.render.markdown import render_day_table
 from scripts.render.html_page import render_html_page, _html_escape
@@ -30,7 +32,9 @@ ITIN = {"title": "北海道", "days": [
     {"date": "2026-03-01", "label": "Day 1 — 札幌", "rows": DAY["rows"]}]}
 
 # The banned single-param deep-link form Google does not resolve (the D1 regression).
-DEAD = "https://www.google.com/maps/place/?q=place_id:ChIJ_odori-123"
+# EXACT 0.23.0 output — quote("place_id:<id>", safe="") percent-encodes the colon to %3A,
+# so the real form (and the 76 real consumer dead links) carry `place_id%3A`.
+DEAD = "https://www.google.com/maps/place/?q=" + quote("place_id:ChIJ_odori-123", safe="")
 
 
 def _check(r, name):
@@ -66,6 +70,19 @@ def test_injected_0230_dead_form_now_fails_export_gate():
     assert _check(r, "maps_link_resolvable_form") is False
     assert any("place_id" in f for f in r["failures"])
     assert r["retryable"] is True                  # re-render fixes it (the real remedy)
+
+
+def test_gate_scans_percent_encoded_place_id_deliverable_fails():
+    # The REAL 0.23.0 dead form percent-encodes the colon (quote(..., safe="")) -> %3A;
+    # the 76 real consumer dead links used %3A, not a literal colon. A deliverable
+    # carrying that exact form must fail the gate (regression: a literal-colon-only
+    # marker was blind to it in 0.25.0).
+    real_dead = "https://www.google.com/maps/place/?q=" + quote("place_id:ChIJ_real", safe="")
+    assert "%3A" in real_dead and "place_id:" not in real_dead   # truly %3A-encoded
+    md = render_day_table(DAY, POI_MAP).replace(maps_url(POI), real_dead)
+    r = run_export_gate(md, [POI], min_days=1)
+    assert r["status"] == "fail"
+    assert _check(r, "maps_link_resolvable_form") is False
 
 
 def test_resolvable_place_share_official_source_does_not_block_export():
