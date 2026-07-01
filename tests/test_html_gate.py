@@ -186,3 +186,64 @@ class TestRunHtmlGateJargon:
     def test_html_gate_jargon_check_present(self):
         r = run_html_gate(self._html(), pois=[], min_days=1)
         assert "no_internal_jargon" in [c["name"] for c in r["checks"]]
+
+
+# ---------------------------------------------------------------------------
+# D2 (2026-07-01 gmaps-deadlink): maps_link_resolvable_form
+# Every www.google.com/maps href must be a resolvable canonical form; the dead
+# 0.23.0 `maps/place/?q=place_id:` form (still https://) is rejected. Injected
+# AFTER the rendered html so the day-card count stays 1.
+# ---------------------------------------------------------------------------
+
+class TestRunHtmlGateMapsForm:
+
+    _DEAD = "https://www.google.com/maps/place/?q=place_id:ChIJ_abc123"
+
+    def _html(self, extra=""):
+        return render_html_page(ITIN, POI_MAP) + extra
+
+    def _passed(self, r):
+        return any(c["name"] == "maps_link_resolvable_form" and c["passed"] for c in r["checks"])
+
+    def test_dead_maps_place_id_href_fails(self):
+        html = self._html(f'<a href="{self._DEAD}">x</a>')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "fail"
+        assert self._passed(r) is False
+        assert any("place_id" in f for f in r["failures"])
+
+    def test_real_rendered_page_maps_hrefs_pass(self):
+        # render_html_page emits canonical /maps/search hrefs (html-escaped &amp;) —
+        # the maps-form check normalises &amp; so the real page is NOT false-failed.
+        r = run_html_gate(self._html(), pois=[], min_days=1)
+        assert r["status"] == "pass", r["failures"]
+        assert self._passed(r) is True
+
+    def test_canonical_dir_href_passes(self):
+        html = self._html('<a href="https://www.google.com/maps/dir/?api=1&amp;origin=A&amp;destination=B">go</a>')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert self._passed(r) is True
+
+    def test_non_maps_host_href_not_flagged(self):
+        html = self._html('<a href="https://jr.example/booking">官網</a>')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert self._passed(r) is True
+
+    def test_resolvable_place_share_href_not_flagged(self):
+        # a real /maps/place/<name>/@ share link (e.g. a POI official source) is
+        # resolvable and must NOT be rejected. (adversarial-verify FP)
+        html = self._html('<a href="https://www.google.com/maps/place/Kinosaki+Onsen/@35.6,134.8,15z">官網</a>')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert self._passed(r) is True
+
+    def test_empty_query_href_fails(self):
+        # html-escaped &amp; is normalised before the check, so an empty-query search
+        # href is still caught in the rendered page
+        html = self._html('<a href="https://www.google.com/maps/search/?api=1&amp;query=">x</a>')
+        r = run_html_gate(html, pois=[], min_days=1)
+        assert r["status"] == "fail"
+        assert self._passed(r) is False
+
+    def test_maps_form_check_present(self):
+        r = run_html_gate(self._html(), pois=[], min_days=1)
+        assert "maps_link_resolvable_form" in [c["name"] for c in r["checks"]]

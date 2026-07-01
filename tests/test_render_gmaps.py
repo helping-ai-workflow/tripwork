@@ -125,6 +125,27 @@ def test_maps_url_place_id_is_fully_url_quoted():
     assert url.endswith("&query_place_id=a%20b%2Fc%2Bd")
 
 
+# --- D2 (2026-07-01 gmaps-deadlink) regression lock -------------------------------
+# maps_url must NEVER emit the dead `maps/place/?q=place_id:<id>` form, and MUST carry
+# `query_place_id=` when a place_id is present. GREEN BY DESIGN: D1 was already fixed in
+# 0.24.0; this is a permanent guard so a future edit to maps_url cannot silently
+# reintroduce the 38-dead-link regression without turning this test red.
+
+def test_maps_url_never_returns_dead_place_id_form():
+    poi = {"name_local": "登別温泉", "district": "Noboribetsu", "gmaps_place_id": "ChIJ_abc-123"}
+    url = maps_url(poi)
+    assert "/maps/place/?q=place_id:" not in url          # the exact banned dead form
+    assert "/maps/place/" not in url                        # not the place deep-link at all
+    assert "query_place_id=ChIJ_abc-123" in url             # the resolvable refinement instead
+    assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
+
+def test_maps_url_no_place_id_still_never_place_form():
+    # even with no place_id the search form is used — never the dead place form
+    url = maps_url({"name_local": "大通公園"})
+    assert "/maps/place/" not in url
+    assert url.startswith("https://www.google.com/maps/search/?api=1&query=")
+
+
 # --- dogfood D3: name_zh Chinese gloss ---
 
 def test_link_markdown_with_name_zh_shows_gloss():

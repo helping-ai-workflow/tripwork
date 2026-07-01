@@ -7,6 +7,7 @@ source link. Output shape matches itinerary-gate: {status, checks, failures}
 (reuses schemas/gate-report.schema.json).
 """
 import re
+from urllib.parse import unquote
 
 # Format-agnostic content hygiene (jargon / kana-gloss) lives in scripts.text_hygiene so
 # the canonical itinerary-gate and these render gates share ONE implementation. These
@@ -53,6 +54,58 @@ def _has_nondistributable(pois):
     return any(p.get("photo_source") == "google" for p in (pois or []))
 
 
+# D2 (2026-07-01 gmaps-deadlink): maps-link resolvable-form gate. links_well_formed
+# above is scheme-only, so the 0.23.0 dead `maps/place/?q=place_id:<id>` form (still
+# https://) passed BOTH gates green while 38 links were dead. This makes the maps_url
+# docstring ban mechanical. It is render-fixable (re-render under the fixed maps_url),
+# so it carries no DATA_DEFECT_MARKER and stays retryable.
+#
+# Design — a PRECISE dead-form BLOCKLIST, not a canonical allow-list. "Is an arbitrary
+# Google Maps URL resolvable?" is not regex-decidable: Google has many valid shapes
+# (`/maps/place/<name>/@lat,lng` share links, `/maps/@`, path-style dir). An allow-list
+# false-positives on those — a POI whose official-source URL is a real, resolvable
+# `/maps/place/<name>/@` share link is rendered verbatim as `[官網](…)` (markdown.py:36)
+# and would wrongly fail the gate, blocking a valid export (adversarial verify,
+# 2026-07-01). So reject ONLY forms proven dead/unresolvable and leave every other maps
+# link untouched. maps_url / dir_url (the only navigation-link producers) are separately
+# unit-locked to the canonical form (tests/test_render_gmaps.py), so gate-level
+# allow-listing of navigation links was redundant.
+_MAPS_HOST = "www.google.com/maps"
+# The banned single-param deep-link form Google does not resolve (the D1 regression).
+_MAPS_DEAD = "/maps/place/?q=place_id:"
+# A /maps/search link whose query is empty / whitespace-only resolves to nothing — e.g.
+# maps_url({}) or a whitespace-only POI name (gmaps_links.py:18,48). Capture the query
+# value (up to & or end) so it can be percent-decoded and stripped.
+_MAPS_SEARCH_QUERY = re.compile(
+    r"^https?://www\.google\.com/maps/search/\?api=1&query=([^&]*)")
+
+
+def _maps_link_failures(targets):
+    """Failure strings for any www.google.com/maps link that is provably dead or
+    unresolvable: the D1 `maps/place/?q=place_id:` deep-link form, or a `/maps/search`
+    link whose query is empty / whitespace-only. Every OTHER maps form — including a
+    resolvable `/maps/place/<name>/@lat,lng` share link cited as an official source —
+    passes untouched.
+
+    `&amp;` is normalised first so an html-escaped href in a real rendered page
+    (`?api=1&amp;query=`) is matched correctly. Every message carries the substring
+    'Google Maps link' so the per-check pass/fail computation can key off it."""
+    out = []
+    for t in targets:
+        t = (t or "").strip().replace("&amp;", "&")
+        if _MAPS_HOST not in t:
+            continue
+        if _MAPS_DEAD in t:
+            out.append(
+                f"dead Google Maps link (maps/place/?q=place_id: does not resolve): '{t}'")
+            continue
+        m = _MAPS_SEARCH_QUERY.match(t)
+        if m and not unquote(m.group(1)).strip():
+            out.append(
+                f"unresolvable Google Maps link (empty search query): '{t}'")
+    return out
+
+
 # F1 (P7-twin): failure substrings that re-rendering CANNOT fix — they are upstream
 # DATA defects (a photo with no attribution, a bookable POI with no official source).
 # A fail whose only failures are these is non-retryable: the orchestrator must halt and
@@ -97,6 +150,7 @@ def run_export_gate(md_text, pois, min_days=None):
         if label.strip() in _MAP_TOKENS:
             failures.append(f"standalone map token '[{label}]'; POI name must be the link")
 
+    failures.extend(_maps_link_failures(t for _, t in _LINK.findall(md_text)))
     failures.extend(kana_gloss_failures(md_text))
     failures.extend(jargon_failures(md_text, pois))
 
@@ -130,6 +184,8 @@ def run_export_gate(md_text, pois, min_days=None):
          "passed": not any("naked '$'" in f for f in failures)},
         {"name": "links_well_formed",
          "passed": not any("malformed link" in f for f in failures)},
+        {"name": "maps_link_resolvable_form",
+         "passed": not any("Google Maps link" in f for f in failures)},
         {"name": "poi_name_is_link",
          "passed": not any("standalone map token" in f for f in failures)},
         {"name": "bookable_has_official_source",
@@ -181,6 +237,7 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
         for href in _HREF.findall(html_text):
             if not re.match(r"https?://", href):
                 failures.append(f"non-http href in deliverable: '{href}'")
+        failures.extend(_maps_link_failures(_HREF.findall(html_text)))
         if "<script" in html_text.lower():
             failures.append("raw <script> in deliverable (data not escaped)")
         for src in _IMG_SRC.findall(html_text):
@@ -204,6 +261,8 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
          "passed": not any("empty" in f or "too few day" in f for f in failures)},
         {"name": "links_well_formed",
          "passed": not any("href" in f for f in failures)},
+        {"name": "maps_link_resolvable_form",
+         "passed": not any("Google Maps link" in f for f in failures)},
         {"name": "no_raw_script",
          "passed": not any("<script>" in f for f in failures)},
         {"name": "img_src_safe",

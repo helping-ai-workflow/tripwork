@@ -1,6 +1,6 @@
 {
   "name": "tripwork",
   "description": "Source-Verified-First travel-planning pipeline plugin",
-  "version": "0.24.0",
+  "version": "0.25.0",
   "contextFileName": "GEMINI.md"
 }

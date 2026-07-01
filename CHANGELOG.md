@@ -1,5 +1,39 @@
 # Changelog
 
+## 0.25.0 — export-gate now blocks dead Google Maps links (D2)
+
+The export-gate and html-gate `links_well_formed` check was scheme-only (`^https?://`),
+so the 0.23.0 dead `maps/place/?q=place_id:<id>` deep-link form — which Google does not
+resolve — passed both gates green while shipping 38 dead POI links in a real deliverable
+(hokkaido-7d, 2026-07-01). `maps_url` itself was already fixed in 0.24.0, but nothing
+mechanically enforced the ban, so any regression to a dead-but-`https://` form shipped
+unnoticed. This adds a mechanical `maps_link_resolvable_form` check to both gates.
+
+- **New gate check `maps_link_resolvable_form`** in `run_export_gate` (over every
+  markdown link target) and `run_html_gate` (over every href). It rejects a
+  `www.google.com/maps` link only when it is *provably* dead/unresolvable:
+  - the D1 `maps/place/?q=place_id:` deep-link form, or
+  - a `/maps/search` link with an empty / whitespace-only `query=` (e.g. a nameless POI).
+- **Precise blocklist, not a canonical allow-list.** "Is an arbitrary Google Maps URL
+  resolvable?" is not regex-decidable — Google has many valid shapes
+  (`/maps/place/<name>/@lat,lng` share links, `/maps/@`, path-style dir). An allow-list
+  false-positives on those: a POI whose official-source URL is a real, resolvable
+  `/maps/place/<name>/@` share link renders as `[官網](…)` and would wrongly fail the
+  gate, blocking a valid export. The blocklist leaves every resolvable maps form
+  untouched while still catching the dead forms.
+- **`&amp;` normalisation** so an html-escaped href in a real rendered page
+  (`?api=1&amp;query=`) is matched correctly and not false-failed.
+- A dead maps link is **render-fixable** (re-render under the fixed `maps_url`), so it
+  stays `retryable: true` — the orchestrator re-exports rather than halting.
+- **Regression lock** in `tests/test_render_gmaps.py`: `maps_url` never returns the
+  dead `maps/place/?q=place_id:` form and always carries `query_place_id=` when a
+  place-id is present, so a future edit cannot silently reintroduce D1.
+- **Coverage confirmed** (adversarial audit): the two maps-emitting adapters
+  (`markdown.py` → `<slug>-itinerary.md`, `html_page.py` → `<slug>-itinerary.html`) are
+  the only export paths carrying `www.google.com/maps` links, and both run through the
+  new check; LINE short-text emits no maps links; Notion reuses the gated markdown.
+- README §2 export-gate row updated to state Google Maps links are checked to open.
+
 ## 0.24.0 — multi-agent runtime support (Cursor / Codex / Kimi / Gemini / OpenCode / Pi)
 
 tripwork now installs and self-bootstraps on six additional AI agent runtimes
