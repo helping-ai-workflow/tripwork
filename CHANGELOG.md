@@ -1,5 +1,17 @@
 # Changelog
 
+## 0.26.0 — preload trim (descriptions + using-tripwork roster)
+
+- Strip what-it-does tails from skill descriptions (13 of 18 trimmed; 5 were
+  already clean); add `test_description_hygiene.py` capping every one of the 18
+  descriptions at 210 chars with a `Use when` prefix (always-on preload
+  regrowth guard).
+- Remove the duplicate Quick Reference roster from `using-tripwork` (the
+  Pipeline tree already carries the stage roster + output artifacts); add
+  `test_using_tripwork_no_qr_roster.py`. Also shrinks the Gemini per-session
+  `@import` body for free.
+- No behaviour change: no skill renamed, no stage moved, README §2/§4 unchanged.
+
 ## 0.25.1 — maps-link gate now catches the percent-encoded (%3A) dead form
 
 0.25.0's `maps_link_resolvable_form` was blind to the **real** dead form. 0.23.0 built

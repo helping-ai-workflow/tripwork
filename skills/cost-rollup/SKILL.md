@@ -1,6 +1,6 @@
 ---
 name: cost-rollup
-description: Use when accommodations + legs are ready and the trip's big-ticket costs must be summed and compared to the budget before synthesis. No-key estimate. Produces cost.yaml.
+description: Use when accommodations + legs are ready and the trip's big-ticket costs must be summed and compared to the budget before synthesis. Produces cost.yaml.
 ---
 
 # cost-rollup — trip-cost estimate

@@ -1,6 +1,6 @@
 ---
 name: travel-advisory
-description: Use when an itinerary needs entry/customs/battery regulation verification for the destination + airline + travel date. Iron-rule gate. Produces advisory.yaml. Can also be invoked standalone to check regulations.
+description: Use when an itinerary needs entry/customs/battery regulation verification for the destination + airline + travel date, or when invoked standalone to check a regulation. Produces advisory.yaml.
 ---
 
 # travel-advisory — Source-Verified-First for hard facts

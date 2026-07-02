@@ -46,10 +46,11 @@ def test_export_gate_runs_on_merged_pois():   # D8: photo checks need post-apply
     assert "verified-pois-media" in text
     assert "apply_media" in text or "media_merge" in text
 
-def test_entry_skill_has_iron_rules_and_quick_reference():
+def test_entry_skill_has_iron_rules():
+    # The Quick Reference roster was dropped (dup of the Pipeline tree, see
+    # test_using_tripwork_no_qr_roster.py) — Iron Rules stays.
     text = (SKILLS / "using-tripwork" / "SKILL.md").read_text(encoding="utf-8")
     assert "## Iron Rules" in text
-    assert "## Quick Reference" in text
     assert "Source-Verified-First" in text
 
 def test_iron_rule_skills_state_source_verified_first():

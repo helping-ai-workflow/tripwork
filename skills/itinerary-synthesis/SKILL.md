@@ -1,6 +1,6 @@
 ---
 name: itinerary-synthesis
-description: Use when verified-pois + routing + accommodations + legs + calendar + seasonal + transit + cost + advisory are ready and a day-by-day itinerary must be produced. Produces itinerary.yaml (canonical) + itinerary.md (rendered).
+description: Use when verified-pois + routing + accommodations + legs + calendar + seasonal + transit + cost + advisory are ready and a day-by-day itinerary must be produced. Produces itinerary.yaml + itinerary.md.
 ---
 
 # itinerary-synthesis

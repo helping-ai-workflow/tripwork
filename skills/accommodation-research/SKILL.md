@@ -1,6 +1,6 @@
 ---
 name: accommodation-research
-description: Use when routing.yaml is ready and lodging must be established per overnight stop before synthesis. Researches/verifies accommodation (dual mode) with a no-key geocode fallback. Produces accommodations.yaml.
+description: Use when routing.yaml is ready and lodging must be established per overnight stop before synthesis. Produces accommodations.yaml.
 ---
 
 # accommodation-research — lodging per overnight stop

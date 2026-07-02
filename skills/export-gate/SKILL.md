@@ -1,6 +1,6 @@
 ---
 name: export-gate
-description: Use when export-artifact has produced exports/<slug>-itinerary.md and the rendered deliverable must be validated before the pipeline completes. Mechanical post-export gate. Produces export-gate-report.yaml.
+description: Use when export-artifact has produced exports/<slug>-itinerary.md and the rendered deliverable must be validated before the pipeline completes. Produces export-gate-report.yaml.
 ---
 
 # export-gate — mechanical post-export check

@@ -1,6 +1,6 @@
 ---
 name: using-tripwork
-description: Use when starting any travel-planning workflow with tripwork. Establishes routing, the file-centric workspace model, and the Source-Verified-First iron rule.
+description: Use when starting any travel-planning workflow with tripwork, before any pipeline stage runs.
 ---
 
 # Using tripwork
@@ -50,28 +50,6 @@ workspace-shape-preflight  (entry gate — first invocation only)
 | Stop on confirmation | Cross-source conflict, hop flagged `far`, booking lead-time missed, regulation `banned`, or must-do verification failure → stop and ask the user. Never silently drop content. |
 | Invoke orchestrator to advance | After any stage completes, re-invoke `tripwork:orchestrator` to determine the next stage. |
 | Preflight before pipeline | First invocation in a cwd is gated by `workspace-shape-preflight`; the `work/.preflight-completed` stamp must exist before the orchestrator advances. |
-
-## Quick Reference
-
-| Task | Skill |
-|---|---|
-| Validate/bootstrap workspace | `tripwork:workspace-shape-preflight` |
-| New trip request | `tripwork:orchestrator` |
-| Capture trip parameters | `tripwork:trip-brief` |
-| Gather candidate POIs | `tripwork:destination-research` |
-| Verify candidates | `tripwork:source-verify` |
-| Check cross-region feasibility | `tripwork:routing-audit` |
-| Pick lodging for overnight stops | `tripwork:accommodation-research` |
-| Check city-to-city legs | `tripwork:inter-stop-legs` |
-| Establish trip-range public holidays | `tripwork:calendar-check` |
-| Check seasonal/weather hazards | `tripwork:seasonal-advisory` |
-| Establish intra-city transit comfort | `tripwork:transit-detail` |
-| Roll up cost vs budget | `tripwork:cost-rollup` |
-| Check entry/customs/battery rules | `tripwork:travel-advisory` |
-| Build day-by-day plan | `tripwork:itinerary-synthesis` |
-| Validate structure before export | `tripwork:itinerary-gate` |
-| Render deliverables | `tripwork:export-artifact` |
-| Validate the rendered deliverable | `tripwork:export-gate` |
 
 ## Workspace
 

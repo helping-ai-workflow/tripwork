@@ -1,6 +1,6 @@
 ---
 name: workspace-shape-preflight
-description: Use when the tripwork pipeline is about to run its first stage in a cwd that has not yet been validated. Bootstraps blank or brownfield trip workspaces under explicit user confirmation, then stamps completion so it is skipped thereafter.
+description: Use when the tripwork pipeline is about to run its first stage in a cwd with no work/.preflight-completed stamp.
 ---
 
 # workspace-shape-preflight
