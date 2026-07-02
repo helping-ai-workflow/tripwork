@@ -1,6 +1,6 @@
 ---
 name: source-verify
-description: Use when candidates.yaml exists and each candidate must be verified before it can enter the itinerary. Iron-rule gate. Produces verified-pois.yaml.
+description: Use when candidates.yaml exists and each candidate must be verified before it can enter the itinerary. Produces verified-pois.yaml.
 ---
 
 # source-verify — Source-Verified-First gate

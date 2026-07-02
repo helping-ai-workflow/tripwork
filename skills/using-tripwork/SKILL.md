@@ -1,6 +1,6 @@
 ---
 name: using-tripwork
-description: Use when starting any travel-planning workflow with tripwork. Establishes routing, the file-centric workspace model, and the Source-Verified-First iron rule.
+description: Use when starting any travel-planning workflow with tripwork, before any pipeline stage runs.
 ---
 
 # Using tripwork

@@ -1,6 +1,6 @@
 ---
 name: export-artifact
-description: Use when gate-report status is pass and the itinerary must be exported. Produces markdown, Google Maps links, LINE short text, and a self-contained HTML one-pager.
+description: Use when gate-report status is pass and the itinerary must be exported. Produces exports/<slug>-itinerary.md.
 ---
 
 # export-artifact

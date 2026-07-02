@@ -1,6 +1,6 @@
 ---
 name: itinerary-gate
-description: Use when itinerary.yaml + advisory.yaml are ready and the plan must be validated before export. Mechanical gate. Produces gate-report.yaml.
+description: Use when itinerary.yaml + advisory.yaml are ready and the plan must be validated before export. Produces gate-report.yaml.
 ---
 
 # itinerary-gate — mechanical plan check

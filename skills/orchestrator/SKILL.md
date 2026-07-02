@@ -1,6 +1,6 @@
 ---
 name: orchestrator
-description: Use when a tripwork stage has completed and the next stage must be selected, or when a travel-planning request must be routed into the pipeline. Owns all stage transitions and stop-on-confirmation.
+description: Use when a tripwork stage has completed and the next stage must be selected, or when a travel-planning request must be routed into the pipeline.
 ---
 
 # tripwork Orchestrator

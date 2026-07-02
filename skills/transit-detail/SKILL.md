@@ -1,6 +1,6 @@
 ---
 name: transit-detail
-description: Use when verified-pois are ready and the destination's intra-city transit comfort details (commuter peak windows, IC card, station-to-POI walks) must be established before synthesis. No-key research, advisory only. Produces transit.yaml.
+description: Use when verified-pois are ready and the destination's intra-city transit comfort details (commuter peak windows, IC card, station-to-POI walks) must be established before synthesis. Produces transit.yaml.
 ---
 
 # transit-detail — intra-city transit comfort
