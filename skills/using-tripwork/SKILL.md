@@ -51,28 +51,6 @@ workspace-shape-preflight  (entry gate — first invocation only)
 | Invoke orchestrator to advance | After any stage completes, re-invoke `tripwork:orchestrator` to determine the next stage. |
 | Preflight before pipeline | First invocation in a cwd is gated by `workspace-shape-preflight`; the `work/.preflight-completed` stamp must exist before the orchestrator advances. |
 
-## Quick Reference
-
-| Task | Skill |
-|---|---|
-| Validate/bootstrap workspace | `tripwork:workspace-shape-preflight` |
-| New trip request | `tripwork:orchestrator` |
-| Capture trip parameters | `tripwork:trip-brief` |
-| Gather candidate POIs | `tripwork:destination-research` |
-| Verify candidates | `tripwork:source-verify` |
-| Check cross-region feasibility | `tripwork:routing-audit` |
-| Pick lodging for overnight stops | `tripwork:accommodation-research` |
-| Check city-to-city legs | `tripwork:inter-stop-legs` |
-| Establish trip-range public holidays | `tripwork:calendar-check` |
-| Check seasonal/weather hazards | `tripwork:seasonal-advisory` |
-| Establish intra-city transit comfort | `tripwork:transit-detail` |
-| Roll up cost vs budget | `tripwork:cost-rollup` |
-| Check entry/customs/battery rules | `tripwork:travel-advisory` |
-| Build day-by-day plan | `tripwork:itinerary-synthesis` |
-| Validate structure before export | `tripwork:itinerary-gate` |
-| Render deliverables | `tripwork:export-artifact` |
-| Validate the rendered deliverable | `tripwork:export-gate` |
-
 ## Workspace
 
 - `trips/<slug>/` — living docs (version-controlled by the consumer)
