@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.28.0 — body trim (redundant restatements)
+
+- Compress the heaviest skill bodies by removing `Common Mistakes` / `Red Flags`
+  rows and downstream-contract restatements that duplicate content already pinned
+  in each skill's `Gates` / `Rules` / `Method` / `Output` / `Capture` sections;
+  compress the orchestrator `Inputs` roster and the `using-tripwork` script-detail
+  iron-rule rows. On-invocation preload only.
+- No behaviour change: every content invariant guarded by
+  `tests/test_skills_structure.py` (~60 assertions) stays green; no skill renamed,
+  no stage moved, README §2/§4 unchanged.
+
 ## 0.27.0 — Tier-1 routing pointer at session-start
 
 - `hooks/session-start` now injects a ~80-token Tier-1 routing pointer via
