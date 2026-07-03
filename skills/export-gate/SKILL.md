@@ -71,11 +71,3 @@ non-distributable, 勿散布", it does NOT re-export loop. (P7)
 | Output | `trips/<slug>/export-gate-report.yaml` (`status` pass/fail + failures). |
 | Stop condition | `status: fail` → return to `export-artifact` to re-render. |
 | Next stage | `tripwork:orchestrator` (pipeline complete on pass). |
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---|---|
-| Re-judging POI content here | Format/structure only; content is `source-verify`'s job. |
-| Passing despite a bare `$` in a price | `no_naked_dollar` is a hard check; escape as `\$`. |
-| Feeding the gate the canonical `verified-pois.yaml` (no photos) | Overlay `verified-pois-media.yaml` via `apply_media` first; otherwise `photo_has_attribution` / `no_nondistributable_photo_source` spin against photo-less pois. |
