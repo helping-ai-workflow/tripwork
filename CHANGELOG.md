@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.27.0 — Tier-1 routing pointer at session-start
+
+- `hooks/session-start` now injects a ~80-token Tier-1 routing pointer via
+  `additionalContext`: every session carries the "enter
+  workspace-shape-preflight → orchestrator, never plan/verify/draft from model
+  memory (Source-Verified-First), re-enter orchestrator on resume" imperative.
+  This closes the standalone-install routing-discipline gap (no global
+  skill-first mandate) without preloading the full `using-tripwork` body — that
+  stays lazy-loaded on invoke.
+- New `test_session_start_pointer.py` executes the hook and asserts the parsed
+  `additionalContext` carries the imperative and stays Tier-1 (not the full
+  body). Guards against accidental removal or full-body regression.
+
 ## 0.26.0 — preload trim (descriptions + using-tripwork roster)
 
 - Strip what-it-does tails from skill descriptions (13 of 18 trimmed; 5 were
