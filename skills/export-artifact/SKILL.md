@@ -31,8 +31,7 @@ canonical `verified-pois.yaml`.
 When `trips/<slug>/verified-pois-media.yaml` exists (written by the photo adapter under
 backend `wiki`/`google`; absent under the default backend `none`), overlay it onto the
 poi_map **before any `render_*` call**. `apply_media` is **non-mutating — you MUST capture
-its return** (a dropped return renders 0 photos silently; export-gate's `media_landed`
-check (P8) catches it, but capture it correctly in the first place):
+its return**:
 
 `poi_map = apply_media(poi_map, load_media("trips/<slug>/verified-pois-media.yaml"))`
 from `scripts/media_merge.py`.
@@ -54,10 +53,3 @@ Return to `tripwork:orchestrator`.
 | Output | `trips/<slug>/exports/<slug>-itinerary.md` (+ line-short.txt + `<slug>-itinerary.html`). |
 | Stop condition | `gate-report` status != pass → do not export; return upstream. |
 | Next stage | `tripwork:orchestrator` (which routes to `export-gate`). |
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---|---|
-| Exporting before the gate passes | Run only on `gate-report.yaml` status `pass`. |
-| Building maps links from the display name | Use `name_local` for accurate taxi/Maps lookup. |

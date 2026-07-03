@@ -152,11 +152,3 @@ Return to `tripwork:orchestrator`.
 | Output | `trips/<slug>/itinerary.yaml` (canonical) + `trips/<slug>/itinerary.md` (rendered: day tables + contingency + checklist sections). |
 | Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot; a booking whose **lead-time missed** (`lead_time_missed` True); or a travel-day move that re-checks `missed_last_service` at its now-known departure → ask user. |
 | Next stage | `tripwork:orchestrator`. |
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---|---|
-| Placing a non-verified POI | Synthesis reads only `verify_status: verified`. |
-| Hand-listing bookings for the checklist | Derive from `booking.required==true`; do not retype. |
-| Omitting fallbacks for booking-required meals | Every fragile point needs a contingency line. |

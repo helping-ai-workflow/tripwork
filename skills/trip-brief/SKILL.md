@@ -44,17 +44,14 @@ Capture the trip into `trips/<slug>/trip-brief.yaml` (schema: `schemas/trip-brie
 - `overnight_stops[].leg_mode` (optional per stop) + `routing.max_single_drive_mins`
   (optional; default 300 = 5h). `leg_mode` overrides the trip-level `transport` for the leg
   **into** that stop (from the previous stop) — capture it for mixed trips (e.g. rail
-  between cities, a rented car for one segment). `inter-stop-legs` uses `leg_mode` (else
-  `transport`) to pick each leg's transit-vs-drive branch, and flags a single-day drive
-  over `max_single_drive_mins`.
+  between cities, a rented car for one segment).
 - `budget` (optional `{amount, currency}`) + `daily_incidental` (optional `{amount,
   currency}`) + `home_currency` (optional). `budget` is the structured trip budget
-  `cost-rollup` compares against (over → it stops and asks). `daily_incidental` is the
+  `cost-rollup` compares against. `daily_incidental` is the
   user's per-day allowance for food / tickets / local transport — an estimate, not
   researched per item. `home_currency` drives an FX advisory note on the total.
 - `routing.max_walk_mins` (optional; default 15). The comfortable station-to-POI walk
-  ceiling — `transit-detail` records each POI's walk minutes and `itinerary-synthesis`
-  flags a walk over this (suggest a taxi / note it for elders). Lower it for frail elders.
+  ceiling. Lower it for frail elders.
 
 ## Ingest sources
 
@@ -83,5 +80,4 @@ Write `trips/<slug>/trip-brief.yaml`, validate against the schema, then return t
 
 | Mistake | Fix |
 |---|---|
-| Inventing dates/lodging the user did not give | Never fabricate; ask for anything the pipeline needs. |
 | Treating a Notion claim as ground truth | trip-brief only captures intent; locations are still verified later. |

@@ -59,13 +59,6 @@ Return to `tripwork:orchestrator`.
 
 ## Red Flags
 
-- "One good review is enough" → no; >= 2 independent sources, >= 1 local-language.
-- "The name sounds like it's in that district" → geocode it; never assume region.
-- "I'll drop the ones that didn't verify" → never silently drop; record status + reason.
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---|---|
-| Writing a POI with no `geocode` as verified | No coordinates → `unverified` (D7: recorded for manual confirmation), never written as `verified`. |
-| Ignoring a region mismatch | Coordinates outside claimed district → `conflicting` + `conflict_note`, stop. |
+- Marking a single-source or no-geocode POI `verified` — see Gate 1 / Gate 2.
+- Assuming a POI's region from its name instead of geocoding — see Gate 3.
+- Silently dropping an unverified/rejected/conflicting candidate — see Output.

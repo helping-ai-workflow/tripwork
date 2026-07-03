@@ -9,22 +9,12 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 
 ## Inputs
 
-- `trips/<slug>/trip-brief.yaml`
-- `trips/<slug>/candidates.yaml`
-- `trips/<slug>/verified-pois.yaml`
-- `trips/<slug>/routing.yaml`
-- `trips/<slug>/accommodations.yaml`
-- `trips/<slug>/legs.yaml`
-- `trips/<slug>/calendar.yaml`
-- `trips/<slug>/seasonal.yaml`
-- `trips/<slug>/transit.yaml`
-- `trips/<slug>/cost.yaml`
-- `trips/<slug>/advisory.yaml`
-- `trips/<slug>/itinerary.md`
-- `trips/<slug>/exports/<slug>-itinerary.md`
-- `trips/<slug>/gate-report.yaml`
-- `trips/<slug>/export-gate-report.yaml`
-- `work/<slug>/stage-state.yaml`
+Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
+`candidates.yaml`, `verified-pois.yaml`, `routing.yaml`, `accommodations.yaml`,
+`legs.yaml`, `calendar.yaml`, `seasonal.yaml`, `transit.yaml`, `cost.yaml`,
+`advisory.yaml`, `itinerary.md`, `exports/<slug>-itinerary.md`,
+`gate-report.yaml`, `export-gate-report.yaml`. Orchestrator state:
+`work/<slug>/stage-state.yaml`.
 
 ## Definitions
 
