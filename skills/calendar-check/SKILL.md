@@ -41,11 +41,3 @@ If a public holiday with `closures: true` overlaps a day a `must_do` item can on
 | Output | `trips/<slug>/calendar.yaml` (public holidays in range with `impact` + official source). |
 | Stop condition | A `closures: true` holiday blocks the only feasible day for a `must_do` → ask user. |
 | Next stage | `tripwork:orchestrator`. |
-
-## Common Mistakes
-
-| Mistake | Fix |
-|---|---|
-| Listing only national holidays, skipping substitute days | Include observed/substitute holidays — they carry weekend-level crowds. |
-| Citing a travel-blog holiday list | Use an official government calendar (>= 1 official source). |
-| Recording a holiday with no `impact` | Always classify `crowds` / `closures`; synthesis acts on them. |
