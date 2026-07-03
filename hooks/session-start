@@ -1,6 +1,20 @@
 #!/usr/bin/env bash
-# tripwork session-start hook: announces plugin load.
-# Output goes to stderr so it does not contaminate any tool stdout pipelines.
+# tripwork session-start hook: announce version (stderr) + inject the Tier-1
+# routing pointer (stdout JSON). The pointer is a small static nudge — it does
+# NOT inline the full using-tripwork body, which stays lazy-loaded on invoke.
 
 VERSION="$(jq -r '.version' "$(dirname "$0")/../.claude-plugin/plugin.json" 2>/dev/null || echo unknown)"
 echo "[tripwork] plugin loaded — version ${VERSION}" 1>&2
+
+# Tier-1 routing pointer (~80 tokens). \n are literal JSON newline escapes.
+pointer='<system-reminder>\nYou have tripwork. Any travel-planning request MUST run the pipeline: tripwork:workspace-shape-preflight (first time in a cwd) then tripwork:orchestrator — never plan, verify, or draft an itinerary from model memory (Source-Verified-First: no search, no fact). Even when resuming or continuing an existing trip, re-enter tripwork:orchestrator; do not continue from memory. Full contract: tripwork:using-tripwork.\n</system-reminder>'
+
+if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
+    printf '{\n  "additional_context": "%s"\n}\n' "$pointer"
+elif [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -z "${COPILOT_CLI:-}" ]; then
+    printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "SessionStart",\n    "additionalContext": "%s"\n  }\n}\n' "$pointer"
+else
+    printf '{\n  "additionalContext": "%s"\n}\n' "$pointer"
+fi
+
+exit 0
