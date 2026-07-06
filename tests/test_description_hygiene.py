@@ -38,10 +38,11 @@ def test_every_description_within_ceiling_and_use_when():
 # belongs to the orchestrator, never to a trigger. Limitation: only
 # `.yaml`-suffixed citations are checked — bare English words like "calendar"
 # or "transit" are ambiguous and stay human-review territory.
-ARTIFACT_REF = re.compile(
-    r"\b(trip-brief|candidates|verified-pois|verified-pois-media|routing|"
-    r"accommodations|legs|calendar|seasonal|transit|cost|advisory|itinerary|"
-    r"gate-report)\.yaml\b")
+#
+# Spec-strength: generic "any lowercase-hyphen stem + .yaml" regex, not an
+# enumerated stem list — a new artifact file introduced later is caught
+# automatically instead of silently falling outside an already-stale list.
+ARTIFACT_REF = re.compile(r"\b[a-z][a-z-]*\.yaml\b")
 META_SKILLS = {"using-tripwork", "orchestrator", "workspace-shape-preflight"}
 
 
@@ -50,20 +51,57 @@ def _input_row(text: str) -> str:
     return m.group(1) if m else ""
 
 
+def _trigger_offenders(skill_md: Path) -> list:
+    """Return the list of "cites X.yaml but Input row doesn't carry it"
+    offender strings for a single SKILL.md file. Factored out of the test so
+    a negative self-test can exercise the checking logic directly against a
+    synthetic offending fixture, without needing a second real skill to break."""
+    name = skill_md.parent.name
+    if name in META_SKILLS:
+        return []
+    text = skill_md.read_text(encoding="utf-8")
+    trigger = _description(skill_md).split("Produces")[0]
+    inp = _input_row(text)
+    offenders = []
+    for match in ARTIFACT_REF.findall(trigger):
+        stem = match[: -len(".yaml")]
+        if f"{stem}.yaml" not in inp:
+            offenders.append(
+                f"{name}: trigger cites {stem}.yaml, not in Stage Contract Input")
+    return offenders
+
+
 def test_trigger_artifacts_are_stage_contract_inputs():
     offenders = []
     for skill_md in sorted(SKILLS.glob("*/SKILL.md")):
-        name = skill_md.parent.name
-        if name in META_SKILLS:
-            continue
-        text = skill_md.read_text(encoding="utf-8")
-        trigger = _description(skill_md).split("Produces")[0]
-        inp = _input_row(text)
-        for stem in ARTIFACT_REF.findall(trigger):
-            if stem not in inp:
-                offenders.append(
-                    f"{name}: trigger cites {stem}.yaml, not in Stage Contract Input")
+        offenders.extend(_trigger_offenders(skill_md))
     assert not offenders, "\n".join(offenders)
+
+
+def test_offending_trigger_is_caught_by_the_generalized_rule(tmp_path):
+    """Negative self-test: proves the generalized regex + Input-row membership
+    check actually catches an offender, not just that 18 already-clean skills
+    pass. A tmp SKILL.md cites `foo-bar.yaml` in its trigger clause while its
+    Stage Contract Input row only carries an unrelated artifact — the checker
+    must flag it."""
+    skill_dir = tmp_path / "fake-skill"
+    skill_dir.mkdir()
+    skill_md = skill_dir / "SKILL.md"
+    skill_md.write_text(
+        "---\n"
+        "name: fake-skill\n"
+        "description: Use when foo-bar.yaml is ready and something must happen "
+        "before synthesis. Produces baz.yaml.\n"
+        "---\n\n"
+        "## Stage Contract\n\n"
+        "| Field | Value |\n"
+        "|---|---|\n"
+        "| Input | trip-brief.yaml |\n"
+        "| Output | baz.yaml |\n",
+        encoding="utf-8")
+    offenders = _trigger_offenders(skill_md)
+    assert offenders, "expected the offender to be caught, but it was not"
+    assert any("foo-bar.yaml" in o for o in offenders)
 
 
 def test_calendar_check_trigger_matches_real_inputs():   # D5 pin
