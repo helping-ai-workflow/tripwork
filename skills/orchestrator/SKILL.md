@@ -12,7 +12,7 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
 `advisory.yaml`, `candidates.yaml`, `verified-pois.yaml`, `routing.yaml`,
 `accommodations.yaml`, `legs.yaml`, `calendar.yaml`, `seasonal.yaml`,
-`transit.yaml`, `cost.yaml`, `itinerary.md`, `exports/<slug>-itinerary.md`,
+`transit.yaml`, `cost.yaml`, `itinerary.yaml`, `itinerary.md`, `exports/<slug>-itinerary.md`,
 `gate-report.yaml`, `export-gate-report.yaml`. Orchestrator state:
 `work/<slug>/stage-state.yaml`.
 
