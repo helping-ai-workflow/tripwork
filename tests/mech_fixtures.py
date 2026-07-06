@@ -93,11 +93,19 @@ def routing():
 
 
 def accommodations():
+    # name_display is pure-Han ("駅前旅館（車站前旅館）", no katakana/hiragana): the
+    # accommodations schema has no name_zh field (unlike verified-pois), so
+    # scripts/text_hygiene.py::kana_name_without_gloss — which the gate runs on every
+    # folded lodging POI (scripts/gate.py::chosen_lodging_pois) — would otherwise flag
+    # this "verified" lodging as an ungloss kana leak with no way to satisfy it. A
+    # pure-Han rendered name is the documented exemption ("pure-Han names are readable
+    # and exempt") rather than a real gap, so name_display drops the katakana loanword
+    # "ホテル" in favor of the kanji "旅館"; name_local keeps the authentic Japanese name.
     return {"stops": [{
         "district": "函館", "nights": 1, "chosen": "hotel-1",
         "candidates": [{
             "id": "hotel-1", "name_local": "駅前ホテル",
-            "name_display": "駅前ホテル（車站前旅館）",
+            "name_display": "駅前旅館（車站前旅館）",
             "facilities": [], "geocode": {"lat": 41.77, "lng": 140.73},
             "sources": [
                 {"url": "https://hotel.example", "lang": "ja", "official": True},

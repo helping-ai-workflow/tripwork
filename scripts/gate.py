@@ -6,6 +6,12 @@ POI may be scheduled on a closed day; every must_do must be covered; every
 banned/restricted advisory item must be surfaced. Content correctness of the
 sources themselves is source-verify's job; this gate checks the assembled plan.
 """
+import sys as _sys
+import pathlib as _pathlib
+if __name__ == "__main__" and __package__ in (None, ""):
+    # run as `python scripts/gate.py`: make `from scripts.X import ...` resolve
+    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+
 from scripts.facilities import stop_meets_required
 from scripts.calendar import poi_closed_on
 from scripts.text_hygiene import jargon_failures, kana_gloss_failures, kana_name_without_gloss
@@ -216,3 +222,58 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
                        "passed": not any("missing required facility" in f for f in failures)})
 
     return {"status": "pass" if not failures else "fail", "checks": checks, "failures": failures}
+
+
+def _load_yaml_file(path):
+    import yaml
+    with open(path, encoding="utf-8") as fh:
+        return yaml.safe_load(fh)
+
+
+def main(argv):
+    """CLI: python scripts/gate.py <trip-dir> — run the itinerary gate over the
+    canonical artifacts in <trip-dir> and write <trip-dir>/gate-report.yaml.
+    Exit 0 pass / 1 fail / 2 missing required artifact."""
+    import argparse
+    import pathlib
+    import sys
+    import yaml
+
+    ap = argparse.ArgumentParser(description=main.__doc__)
+    ap.add_argument("trip_dir")
+    args = ap.parse_args(argv)
+    d = pathlib.Path(args.trip_dir)
+
+    def opt(name):
+        try:
+            return _load_yaml_file(d / name)
+        except FileNotFoundError:
+            return None
+
+    try:
+        pois = _load_yaml_file(d / "verified-pois.yaml")["pois"]
+        itinerary = _load_yaml_file(d / "itinerary.yaml")
+    except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError) as exc:
+        print(f"missing/invalid required artifact: {exc!r}", file=sys.stderr)
+        return 2
+
+    brief = opt("trip-brief.yaml") or {}
+    report = run_gate(
+        pois, itinerary,
+        accommodations=opt("accommodations.yaml"),
+        facility_needs=brief.get("facility_needs"),
+        calendar=opt("calendar.yaml"),
+        advisory=opt("advisory.yaml"),
+        must_do=brief.get("must_do"),
+    )
+    (d / "gate-report.yaml").write_text(
+        yaml.safe_dump(report, allow_unicode=True, sort_keys=False),
+        encoding="utf-8")
+    print(f"gate: {report['status']} ({len(report['failures'])} failures)")
+    for f in report["failures"]:
+        print(f"  - {f}")
+    return 0 if report["status"] == "pass" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(_sys.argv[1:]))
