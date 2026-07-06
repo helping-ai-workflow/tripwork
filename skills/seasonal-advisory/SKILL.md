@@ -1,6 +1,6 @@
 ---
 name: seasonal-advisory
-description: Use when calendar.yaml is ready and the destination's seasonal/weather hazards over the trip dates must be established before synthesis. Produces seasonal.yaml.
+description: Use when routing.yaml + accommodations.yaml are ready and the destination's seasonal/weather hazards over the trip dates must be established before synthesis. Source-Verified-First. Produces seasonal.yaml.
 ---
 
 # seasonal-advisory — seasonal/weather hazards + daylight

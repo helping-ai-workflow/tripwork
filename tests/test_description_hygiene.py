@@ -30,3 +30,49 @@ def test_every_description_within_ceiling_and_use_when():
         if not desc.startswith("Use when"):
             offenders.append(f"{name}: must start with 'Use when'")
     assert not offenders, "description hygiene violations:\n" + "\n".join(offenders)
+
+
+# --- D5: trigger artifacts must be REAL data dependencies -------------------
+# A description's trigger clause ("Use when X.yaml is ready ...") must cite only
+# artifacts the skill actually consumes (Stage Contract Input row). Ordering
+# belongs to the orchestrator, never to a trigger. Limitation: only
+# `.yaml`-suffixed citations are checked — bare English words like "calendar"
+# or "transit" are ambiguous and stay human-review territory.
+ARTIFACT_REF = re.compile(
+    r"\b(trip-brief|candidates|verified-pois|verified-pois-media|routing|"
+    r"accommodations|legs|calendar|seasonal|transit|cost|advisory|itinerary|"
+    r"gate-report)\.yaml\b")
+META_SKILLS = {"using-tripwork", "orchestrator", "workspace-shape-preflight"}
+
+
+def _input_row(text: str) -> str:
+    m = re.search(r"^\|\s*Input\s*\|(.+)\|\s*$", text, re.MULTILINE)
+    return m.group(1) if m else ""
+
+
+def test_trigger_artifacts_are_stage_contract_inputs():
+    offenders = []
+    for skill_md in sorted(SKILLS.glob("*/SKILL.md")):
+        name = skill_md.parent.name
+        if name in META_SKILLS:
+            continue
+        text = skill_md.read_text(encoding="utf-8")
+        trigger = _description(skill_md).split("Produces")[0]
+        inp = _input_row(text)
+        for stem in ARTIFACT_REF.findall(trigger):
+            if stem not in inp:
+                offenders.append(
+                    f"{name}: trigger cites {stem}.yaml, not in Stage Contract Input")
+    assert not offenders, "\n".join(offenders)
+
+
+def test_calendar_check_trigger_matches_real_inputs():   # D5 pin
+    desc = _description(SKILLS / "calendar-check" / "SKILL.md")
+    assert "trip-brief.yaml" in desc
+    assert "verified-pois" not in desc and "routing" not in desc
+
+
+def test_seasonal_advisory_trigger_matches_real_inputs():   # D5 pin
+    desc = _description(SKILLS / "seasonal-advisory" / "SKILL.md")
+    assert "routing.yaml" in desc and "accommodations.yaml" in desc
+    assert "calendar" not in desc

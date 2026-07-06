@@ -1,6 +1,6 @@
 ---
 name: calendar-check
-description: Use when verified-pois + routing are ready and the destination's public-holiday calendar overlapping the trip dates must be established before synthesis. Produces calendar.yaml.
+description: Use when trip-brief.yaml is ready and the destination's public-holiday calendar overlapping the trip dates must be established before synthesis. Produces calendar.yaml.
 ---
 
 # calendar-check
