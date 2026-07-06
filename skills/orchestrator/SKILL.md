@@ -33,6 +33,10 @@ its `next`/`reason` output; the numbered rules below are the SPECIFICATION that
 script implements (tests: `tests/test_next_stage.py`). The script does NOT
 handle slug binding (rule 0.5) or stop-on-confirmation — those stay with you.
 A `next: stop-and-ask` output is rule 15's non-retryable branch: halt and ask.
+After fixing DATA for a rule-13.5 accommodation-class failure (lodging/facility),
+delete the stale `gate-report.yaml` yourself before re-running the oracle — the
+script keys rule 13 on `itinerary.yaml` mtime and will not advance past a stale
+fail report on its own.
 
 0. If `work/.preflight-completed` is absent → run `tripwork:workspace-shape-preflight` first.
 0.5. **Bind `<slug>` first.** A new request must allocate a `<slug>` that does **not**

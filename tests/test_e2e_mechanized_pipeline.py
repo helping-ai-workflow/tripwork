@@ -1,6 +1,14 @@
 # tests/test_e2e_mechanized_pipeline.py
 """v0.29.0 e2e closure: every mechanized CLI over ONE fixture trip, plus the
-full next_stage walk in the NEW stage order (advisory before research)."""
+full next_stage walk in the NEW stage order (advisory before research).
+
+Deviation from the design spec (2026-07-06-tripwork-mechanized-gates-design.md
+§9): the gate-CLI fail case (see tests/test_gate_cli.py) exercises a no-meal
+defect instead of the spec's unglossed-kana row, because a schema-valid
+unglossed-kana verified POI cannot be constructed — verified-pois.schema.json's
+allOf forces the lodging path, which hits the known name_zh gap. The no-meal
+defect exercises the same gate-report fail/exit-1 contract without that
+construction problem."""
 import pathlib
 import subprocess
 import sys

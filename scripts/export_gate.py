@@ -27,6 +27,12 @@ _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 # Standalone map-token labels that mean the POI name was left as dead text.
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
 
+# Sentinel returned by main()'s opt() helper when an optional artifact exists
+# but fails to parse as YAML — distinct from None (absent), so callers can
+# tell "malformed" apart from "not provided" and exit 2 instead of proceeding
+# with a garbage value.
+_MALFORMED = object()
+
 def _photo_failures(pois):
     """Photo ATTRIBUTION presence (cross-axis matrix F4), shared by BOTH gates: a POI
     carrying a `photo` MUST also carry a non-empty `photo_attribution`
@@ -355,19 +361,31 @@ def main(argv):
                 return yaml.safe_load(fh)
         except FileNotFoundError:
             return None
+        except yaml.YAMLError as exc:
+            print(f"malformed optional artifact {name}: {exc!r}",
+                  file=sys.stderr)
+            return _MALFORMED
 
     pois_doc = opt("verified-pois.yaml")
+    if pois_doc is _MALFORMED:
+        return 2
     if not pois_doc:
         print("missing verified-pois.yaml", file=sys.stderr)
         return 2
+    accommodations_doc = opt("accommodations.yaml")
+    if accommodations_doc is _MALFORMED:
+        return 2
     poi_map = {p["id"]: p for p in
-               (pois_doc.get("pois") or []) + chosen_lodging_pois(opt("accommodations.yaml"))}
+               (pois_doc.get("pois") or []) + chosen_lodging_pois(accommodations_doc)}
     media_doc = load_media(d / "verified-pois-media.yaml")
     media_count = len((media_doc or {}).get("media") or {})
     poi_map = apply_media(poi_map, media_doc)      # NON-mutating: capture return
     merged_pois = list(poi_map.values())
 
-    itin = opt("itinerary.yaml") or {}
+    itin = opt("itinerary.yaml")
+    if itin is _MALFORMED:
+        return 2
+    itin = itin or {}
     min_days = len(itin.get("days") or []) or None
 
     md_report = run_export_gate(md_path.read_text(encoding="utf-8"),

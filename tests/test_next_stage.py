@@ -129,6 +129,44 @@ def test_rule13_5_lodging_fail_routes_accommodation(tmp_path):
     assert _next(t, w)["next"] == "tripwork:accommodation-research"
 
 
+def test_rule13_corrupt_gate_report_reruns_gate(tmp_path):
+    t, w = _full(tmp_path)
+    (t / "gate-report.yaml").write_text("status: fail\n  bad indent: [\n",
+                                        encoding="utf-8")
+    _bump(t / "gate-report.yaml", 60)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:itinerary-gate"
+    assert "rule 13" in got["reason"]
+
+
+def test_rule13_bogus_status_gate_report_reruns_gate(tmp_path):
+    t, w = _full(tmp_path)
+    write_artifact(t / "gate-report.yaml", {
+        "status": "bogus", "checks": [], "failures": []})
+    _bump(t / "gate-report.yaml", 60)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:itinerary-gate"
+    assert "rule 13" in got["reason"]
+
+
+def test_rule15_corrupt_export_gate_report_reruns_gate(tmp_path):
+    t, w = _full(tmp_path)
+    (t / "export-gate-report.yaml").write_text(
+        "status: fail\n  bad indent: [\n", encoding="utf-8")
+    _bump(t / "export-gate-report.yaml", 120)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:export-gate"
+
+
+def test_rule15_bogus_status_export_gate_report_reruns_gate(tmp_path):
+    t, w = _full(tmp_path)
+    write_artifact(t / "export-gate-report.yaml", {
+        "status": "bogus", "checks": [], "failures": []})
+    _bump(t / "export-gate-report.yaml", 120)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:export-gate"
+
+
 def test_rule15_retryable_fail_rerenders(tmp_path):
     t, w = _full(tmp_path)
     write_artifact(t / "export-gate-report.yaml", {

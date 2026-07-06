@@ -230,10 +230,17 @@ def _load_yaml_file(path):
         return yaml.safe_load(fh)
 
 
+class _MalformedOptionalArtifact(Exception):
+    """Raised by main()'s opt() helper when an OPTIONAL artifact exists but is
+    not valid YAML — caught alongside the required-artifact errors so a
+    corrupt optional file exits 2 (usage error) instead of raising a raw
+    traceback."""
+
+
 def main(argv):
     """CLI: python scripts/gate.py <trip-dir> — run the itinerary gate over the
     canonical artifacts in <trip-dir> and write <trip-dir>/gate-report.yaml.
-    Exit 0 pass / 1 fail / 2 missing required artifact."""
+    Exit 0 pass / 1 fail / 2 missing/invalid required or optional artifact."""
     import argparse
     import pathlib
     import sys
@@ -249,21 +256,30 @@ def main(argv):
             return _load_yaml_file(d / name)
         except FileNotFoundError:
             return None
+        except yaml.YAMLError as exc:
+            raise _MalformedOptionalArtifact(f"{name}: {exc!r}") from exc
 
     try:
         pois = _load_yaml_file(d / "verified-pois.yaml")["pois"]
+        if not isinstance(pois, list):
+            raise TypeError("verified-pois.yaml 'pois' is not a list")
         itinerary = _load_yaml_file(d / "itinerary.yaml")
-    except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError) as exc:
-        print(f"missing/invalid required artifact: {exc!r}", file=sys.stderr)
+        brief = opt("trip-brief.yaml") or {}
+        accommodations = opt("accommodations.yaml")
+        calendar = opt("calendar.yaml")
+        advisory = opt("advisory.yaml")
+    except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError,
+            _MalformedOptionalArtifact) as exc:
+        print(f"missing/invalid required or optional artifact: {exc!r}",
+              file=sys.stderr)
         return 2
 
-    brief = opt("trip-brief.yaml") or {}
     report = run_gate(
         pois, itinerary,
-        accommodations=opt("accommodations.yaml"),
+        accommodations=accommodations,
         facility_needs=brief.get("facility_needs"),
-        calendar=opt("calendar.yaml"),
-        advisory=opt("advisory.yaml"),
+        calendar=calendar,
+        advisory=advisory,
         must_do=brief.get("must_do"),
     )
     (d / "gate-report.yaml").write_text(

@@ -104,6 +104,9 @@ def next_stage(trip_dir, work_dir):
 
     # rule 13.5
     report = _load(gr)
+    if report.get("status") not in ("pass", "fail"):
+        return ("tripwork:itinerary-gate",
+                "rule 13: gate-report unreadable/invalid — re-run the gate")
     if report.get("status") == "fail":
         target = route_gate_failures(report.get("failures") or [])
         return target, f"rule 13.5: gate fail routes to {target}"
@@ -119,6 +122,10 @@ def next_stage(trip_dir, work_dir):
         return ("tripwork:export-gate",
                 "rule 15: export-gate-report missing or older than deliverable")
     ereport = _load(egr)
+    if ereport.get("status") not in ("pass", "fail"):
+        return ("tripwork:export-gate",
+                "rule 15: export-gate-report unreadable/invalid — "
+                "re-run the gate")
     if ereport.get("status") == "fail":
         if ereport.get("retryable", True):
             return ("tripwork:export-artifact",

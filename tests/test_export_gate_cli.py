@@ -72,3 +72,13 @@ def test_missing_deliverable_exits_two(tmp_path):
     t, _ = build_full_trip(tmp_path)
     (t / "exports" / f"{t.name}-itinerary.md").unlink()
     assert _run(t).returncode == 2
+
+
+def test_malformed_optional_artifact_exits_two_without_report(tmp_path):
+    t, _ = build_full_trip(tmp_path)
+    (t / "accommodations.yaml").write_text(
+        "stops:\n  bad indent: [\n", encoding="utf-8")
+    (t / "export-gate-report.yaml").unlink(missing_ok=True)
+    r = _run(t)
+    assert r.returncode == 2, r.stderr + r.stdout
+    assert not (t / "export-gate-report.yaml").exists()

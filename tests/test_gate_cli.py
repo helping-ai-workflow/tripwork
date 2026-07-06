@@ -49,6 +49,27 @@ def test_missing_required_artifact_exits_two_without_report(tmp_path):
     assert not (t / "gate-report.yaml").exists()
 
 
+def test_malformed_optional_artifact_exits_two_without_report(tmp_path):
+    t, _ = build_full_trip(tmp_path)
+    (t / "calendar.yaml").write_text("closed_days:\n  bad indent: [\n",
+                                     encoding="utf-8")
+    (t / "gate-report.yaml").unlink(missing_ok=True)
+    r = _run(t)
+    assert r.returncode == 2, r.stderr + r.stdout
+    assert not (t / "gate-report.yaml").exists()
+
+
+def test_null_pois_exits_two_without_report(tmp_path):
+    t, _ = build_full_trip(tmp_path)
+    doc = yaml.safe_load((t / "verified-pois.yaml").read_text(encoding="utf-8"))
+    doc["pois"] = None
+    write_artifact(t / "verified-pois.yaml", doc)
+    (t / "gate-report.yaml").unlink(missing_ok=True)
+    r = _run(t)
+    assert r.returncode == 2, r.stderr + r.stdout
+    assert not (t / "gate-report.yaml").exists()
+
+
 def test_missing_advisory_fails_gate_not_usage(tmp_path):
     # advisory is a mandatory GATE input (advisory_present floor) — its absence
     # is a gate FAIL (exit 1), not a usage error.
