@@ -21,6 +21,7 @@ The orchestrator's Stage Selection is canonical for order and predicates; this t
 workspace-shape-preflight  (entry gate — first invocation only)
   └─ orchestrator
        ├─ trip-brief            → trip-brief.yaml
+       ├─ travel-advisory (gate)→ advisory.yaml (entry/customs/battery — before research)
        ├─ destination-research  → candidates.yaml (untrusted pool)
        ├─ source-verify  (gate) → verified-pois.yaml
        ├─ routing-audit         → routing.yaml
@@ -30,7 +31,6 @@ workspace-shape-preflight  (entry gate — first invocation only)
        ├─ seasonal-advisory     → seasonal.yaml (weather/daylight hazards)
        ├─ transit-detail        → transit.yaml (peak windows / IC card / walks)
        ├─ cost-rollup           → cost.yaml (estimate vs budget)
-       ├─ travel-advisory (gate)→ advisory.yaml (entry/customs/battery)
        ├─ itinerary-synthesis   → itinerary.yaml (canonical) + itinerary.md
        ├─ itinerary-gate        → gate-report.yaml (pass)
        ├─ export-artifact       → exports/<slug>-itinerary.md (md / gmaps / line / notion)

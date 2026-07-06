@@ -67,9 +67,9 @@ def _mermaid_block():
 
 # Canonical pipeline order (mirrors test_skills_structure.EXPECTED minus meta skills).
 _PIPELINE_ORDER = [
-    "trip-brief", "destination-research", "source-verify", "routing-audit",
-    "accommodation-research", "inter-stop-legs", "calendar-check", "seasonal-advisory",
-    "transit-detail", "cost-rollup", "travel-advisory", "itinerary-synthesis",
+    "trip-brief", "travel-advisory", "destination-research", "source-verify",
+    "routing-audit", "accommodation-research", "inter-stop-legs", "calendar-check",
+    "seasonal-advisory", "transit-detail", "cost-rollup", "itinerary-synthesis",
     "itinerary-gate", "export-artifact", "export-gate",
 ]
 
