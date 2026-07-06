@@ -43,6 +43,9 @@ clobber it. A photo without attribution or an unsafe `<img src>` is rejected by
 `export-gate`; `photo_source: google` marks the deliverable non-distributable (a clean
 terminal personal variant, not a failure — see export-gate P7).
 
+(`export-gate`'s CLI re-applies the same overlay itself when gating — the
+overlay here is for RENDERING only.)
+
 Return to `tripwork:orchestrator`.
 
 ## Stage Contract

@@ -42,7 +42,9 @@ driving leg whose estimated arrival is `after_dark(arrival, date, lat)` — emit
 
 ## Output
 
-Write `seasonal.yaml`, validate, return to `tripwork:orchestrator`.
+Write `trips/<slug>/seasonal.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/seasonal.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 

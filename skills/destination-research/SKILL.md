@@ -20,7 +20,9 @@ Write raw search results under `work/<slug>/research-cache/` to avoid repeat que
 
 ## Output
 
-Write `candidates.yaml`, validate, return to `tripwork:orchestrator`. Do NOT assign `verify_status` here — that is `source-verify`'s job.
+Write `trips/<slug>/candidates.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/candidates.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`. Do NOT assign `verify_status` here — that is `source-verify`'s job.
 
 ## Stage Contract
 

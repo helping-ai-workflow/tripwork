@@ -7,8 +7,9 @@ description: Use when itinerary.yaml + advisory.yaml are ready and the plan must
 
 Reads the **canonical `itinerary.yaml`** (never re-builds a day structure from the rendered
 `.md`). Content correctness of each source is `source-verify`'s job; this gate checks the
-assembled plan obeys the iron rules. Call
-`run_gate(verified_pois, itinerary, accommodations=…, facility_needs=…, calendar=…, advisory=…, must_do=…)`.
+assembled plan obeys the iron rules. Run `python scripts/gate.py trips/<slug>` — the CLI loads
+the canonical artifacts itself, folds each stop's chosen lodging, runs `run_gate`, and
+writes `trips/<slug>/gate-report.yaml` (exit 0 pass / 1 fail).
 
 ## Checks (logic in `scripts/gate.py::run_gate`)
 

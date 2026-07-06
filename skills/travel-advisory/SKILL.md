@@ -17,7 +17,9 @@ Regulations can harm travellers if wrong, so the **Source-Verified-First** rule 
 
 ## Output
 
-Write `trips/<slug>/advisory.yaml` (schema: `schemas/advisory.schema.json`) **only when routed in by the orchestrator (Stage Selection rule 1.5, or the rule 11 staleness re-check)**. Any `restricted`/`banned` item -> surface prominently and feed it into the synthesis checklist. Stop and require user acknowledgement for `banned` items.
+Write `trips/<slug>/advisory.yaml` (schema: `schemas/advisory.schema.json`) **only when routed in by the orchestrator (Stage Selection rule 1.5, or the rule 11 staleness re-check)**. In that pipeline mode, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/advisory.yaml`
+(exit 0 required before returning). Any `restricted`/`banned` item -> surface prominently and feed it into the synthesis checklist. Stop and require user acknowledgement for `banned` items.
 
 **Standalone mode (ad-hoc regulation question).** When invoked directly (not via the orchestrator), do **NOT** write `trips/<slug>/advisory.yaml` — that file is the pipeline artifact, and writing it out of band lets the orchestrator's rule 11 treat the stage as already done and skip the real gate. Answer inline, or write `work/<slug>/advisory-adhoc.yaml` instead.
 

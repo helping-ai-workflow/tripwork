@@ -38,22 +38,18 @@ The html deliverable `exports/<slug>-itinerary.html` is validated by
 `min_days` day-cards, every `href` an `http(s)://` URL, no raw `<script>`, every
 `<img src>` a `data:image/` or `https://` URL, plus the photo checks above).
 
-- `media_landed` (html, P8) — when a `verified-pois-media.yaml` side-file is present, pass
-  its entry count as `run_html_gate(..., media_count=N)`. If `media_count > 0` but the
+- `media_landed` (html, P8) — when a `verified-pois-media.yaml` side-file is present, its
+  entry count is checked against the rendered HTML. If that count is > 0 but the
   rendered HTML has **0 `<img>`**, the gate fails ("media side-file present but rendered
   deliverable has 0 photos") — catching a dropped `apply_media` return that silently shipped
-  a photoless page. Omit `media_count` when there is no side-file.
-
-**Both gates require the MERGED pois.** Load `verified-pois.yaml` and overlay
-`verified-pois-media.yaml` via `scripts/media_merge.py::apply_media` (the same overlay
-`export-artifact` applies before render), then pass the result as the `pois` argument.
-The canonical `verified-pois.yaml` never carries `photo`/`photo_source` (by design —
-`source-verify` rewrites it wholesale), so feeding it alone makes the photo +
-distributability checks spin against nothing.
+  a photoless page.
 
 ## Output
 
-Write `trips/<slug>/export-gate-report.yaml` (schema: `schemas/gate-report.schema.json`
+Run `python scripts/export_gate.py trips/<slug>` — the CLI assembles the
+MERGED pois itself (verified-pois + chosen lodgings + `apply_media` overlay),
+gates both the md and html deliverables, and writes
+`trips/<slug>/export-gate-report.yaml` (schema: `schemas/gate-report.schema.json`
 — reused; same status/checks/failures shape, plus the optional `distributable` + `retryable`
 flags). On `status: fail`, the report's **`retryable`** tells the orchestrator how to react
 (F1): `retryable: true` (a render-fixable defect) → re-render; `retryable: false` (the only

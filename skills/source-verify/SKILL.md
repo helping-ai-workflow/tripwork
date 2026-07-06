@@ -46,7 +46,8 @@ Also record the intra-day `hours` object (consumed by synthesis via `scripts/hou
 
 Write all candidates into `trips/<slug>/verified-pois.yaml` (schema: `schemas/verified-pois.schema.json`) carrying their `verify_status` (and `closed_days` when known). Downstream stages read ONLY `verify_status: verified`. Never silently drop a candidate — `rejected`/`conflicting`/`unverified` stay recorded with their reason. **Every non-`verified` POI must carry a non-empty `status_reason`** (the schema enforces this; `verified` POIs instead require `geocode` + >= 2 sources). A non-`verified` POI may omit `geocode` and carry a single source — that is how a Nominatim miss (D7) or single-source candidate is recorded without fabricating coordinates or padding a second source. If a `must_do` item fails, stop and tell the user explicitly.
 
-Return to `tripwork:orchestrator`.
+Then validate it: `python scripts/validate_artifact.py trips/<slug>/verified-pois.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 

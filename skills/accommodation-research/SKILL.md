@@ -64,7 +64,9 @@ booking sources.
 
 ## Output
 
-Write `accommodations.yaml` (validate against the schema). Never silently drop a
+Write `trips/<slug>/accommodations.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/accommodations.yaml`
+(exit 0 required before returning). Never silently drop a
 candidate — `conflicting`/`rejected`/`unverified` stay recorded with their reason. Return
 to `tripwork:orchestrator`.
 

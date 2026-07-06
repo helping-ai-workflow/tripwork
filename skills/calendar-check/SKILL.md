@@ -27,7 +27,9 @@ Two closure axes feed synthesis. This stage owns the **trip-wide** axis (public 
 
 ## Output
 
-Write `trips/<slug>/calendar.yaml`, validate against the schema, return to `tripwork:orchestrator`. Crowd/closure logic for synthesis lives in `scripts/calendar.py` (`is_high_crowd`, `holiday_on`, `poi_closed_on`).
+Write `trips/<slug>/calendar.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/calendar.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`. Crowd/closure logic for synthesis lives in `scripts/calendar.py` (`is_high_crowd`, `holiday_on`, `poi_closed_on`).
 
 ## Stop-on-Confirmation
 
