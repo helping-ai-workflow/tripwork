@@ -1,6 +1,6 @@
 ---
 name: seasonal-advisory
-description: Use when calendar.yaml is ready and the destination's seasonal/weather hazards over the trip dates must be established before synthesis. Produces seasonal.yaml.
+description: Use when routing.yaml + accommodations.yaml are ready and the destination's seasonal/weather hazards over the trip dates must be established before synthesis. Source-Verified-First. Produces seasonal.yaml.
 ---
 
 # seasonal-advisory — seasonal/weather hazards + daylight
@@ -42,7 +42,9 @@ driving leg whose estimated arrival is `after_dark(arrival, date, lat)` — emit
 
 ## Output
 
-Write `seasonal.yaml`, validate, return to `tripwork:orchestrator`.
+Write `trips/<slug>/seasonal.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/seasonal.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 

@@ -239,7 +239,7 @@ def test_tw055_orchestrator_readback_rule():
 def test_tw035_travel_advisory_standalone_no_write():
     text = (SKILLS / "travel-advisory" / "SKILL.md").read_text(encoding="utf-8")
     assert "Standalone" in text and "advisory-adhoc.yaml" in text
-    assert _orch().find("stale relative to itinerary.md") > 0
+    assert _orch().find("stale relative to trip-brief") > 0
 
 def test_tw036_trip_brief_preflight_guard_before_write():
     text = (SKILLS / "trip-brief" / "SKILL.md").read_text(encoding="utf-8")
@@ -259,13 +259,24 @@ def test_tw026_synthesis_rechecks_missed_last_service():
 def test_tw037_using_tripwork_pipeline_full_order():
     text = (SKILLS / "using-tripwork" / "SKILL.md").read_text(encoding="utf-8")
     block = re.search(r"```\n(.*?)```", text, re.DOTALL).group(1)
-    order = ["trip-brief", "destination-research", "source-verify", "routing-audit",
-             "accommodation-research", "inter-stop-legs", "calendar-check",
-             "seasonal-advisory", "transit-detail", "cost-rollup", "travel-advisory",
+    order = ["trip-brief", "travel-advisory", "destination-research", "source-verify",
+             "routing-audit", "accommodation-research", "inter-stop-legs",
+             "calendar-check", "seasonal-advisory", "transit-detail", "cost-rollup",
              "itinerary-synthesis", "itinerary-gate", "export-artifact", "export-gate"]
     positions = [block.find(n) for n in order]
     assert all(p >= 0 for p in positions), f"missing stages: {[n for n,p in zip(order,positions) if p<0]}"
     assert positions == sorted(positions), "using-tripwork pipeline order diverges from orchestrator"
+
+def test_d4_advisory_runs_before_research():
+    text = _orch()
+    adv = text.find("rule 1.5")
+    research = text.find("No candidates.yaml")
+    assert 0 <= adv < research, "advisory (rule 1.5) must precede destination-research"
+
+def test_d3_pipeline_marker_is_canonical_yaml():
+    text = _orch()
+    assert "no itinerary.yaml" in text or "No itinerary.yaml" in text
+    assert "itinerary.yaml newer than gate-report.yaml" in text
 
 
 # ---- Wave 4 (v0.15.0) research-discipline + adapter prose guards ----
@@ -316,3 +327,23 @@ def test_tw061_calendar_no_same_rigor():
 def test_tw039_trip_brief_cache_lifecycle():
     t = _skill("trip-brief")
     assert "geocode-cache" in t and "destination or dates" in t and "rebuildable" in t
+
+
+# ---- v0.29.0 mechanized-invocation guards ----
+
+_VALIDATOR_SKILLS = ["trip-brief", "destination-research", "source-verify",
+                     "routing-audit", "accommodation-research", "inter-stop-legs",
+                     "calendar-check", "seasonal-advisory", "transit-detail",
+                     "cost-rollup", "travel-advisory", "itinerary-synthesis"]
+
+def test_stage_skills_cite_validator_cli():
+    missing = [n for n in _VALIDATOR_SKILLS
+               if "validate_artifact.py" not in _skill(n)]
+    assert not missing, f"skills missing the validator CLI line: {missing}"
+
+def test_gate_skills_cite_gate_clis():
+    assert "python scripts/gate.py" in _skill("itinerary-gate")
+    assert "python scripts/export_gate.py" in _skill("export-gate")
+
+def test_orchestrator_cites_next_stage_cli():
+    assert "next_stage.py" in _orch()

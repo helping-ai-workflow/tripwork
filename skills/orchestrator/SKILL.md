@@ -10,9 +10,9 @@ Coordinate the staged pipeline. This skill owns stage transitions; individual st
 ## Inputs
 
 Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
-`candidates.yaml`, `verified-pois.yaml`, `routing.yaml`, `accommodations.yaml`,
-`legs.yaml`, `calendar.yaml`, `seasonal.yaml`, `transit.yaml`, `cost.yaml`,
-`advisory.yaml`, `itinerary.md`, `exports/<slug>-itinerary.md`,
+`advisory.yaml`, `candidates.yaml`, `verified-pois.yaml`, `routing.yaml`,
+`accommodations.yaml`, `legs.yaml`, `calendar.yaml`, `seasonal.yaml`,
+`transit.yaml`, `cost.yaml`, `itinerary.yaml`, `itinerary.md`, `exports/<slug>-itinerary.md`,
 `gate-report.yaml`, `export-gate-report.yaml`. Orchestrator state:
 `work/<slug>/stage-state.yaml`.
 
@@ -27,11 +27,25 @@ Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
 
 ## Stage Selection
 
+**Run the oracle first.** Execute
+`python scripts/next_stage.py trips/<slug> --work-dir work/<slug>` and follow
+its `next`/`reason` output; the numbered rules below are the SPECIFICATION that
+script implements (tests: `tests/test_next_stage.py`). The script does NOT
+handle slug binding (rule 0.5) or stop-on-confirmation — those stay with you.
+A `next: stop-and-ask` output is rule 15's non-retryable branch: halt and ask.
+After fixing DATA for a rule-13.5 accommodation-class failure (lodging/facility),
+delete the stale `gate-report.yaml` yourself before re-running the oracle — the
+script keys rule 13 on `itinerary.yaml` mtime and will not advance past a stale
+fail report on its own.
+
 0. If `work/.preflight-completed` is absent → run `tripwork:workspace-shape-preflight` first.
 0.5. **Bind `<slug>` first.** A new request must allocate a `<slug>` that does **not**
    already exist under `trips/`; a resumed request must name or confirm exactly one
    existing `trips/<slug>/`. Never apply rules 1-16 across different `trips/<slug>/` dirs.
 1. No trip-brief.yaml -> run `tripwork:trip-brief`.
+1.5. **(rule 1.5)** trip-brief ready, no advisory.yaml -> run `tripwork:travel-advisory`.
+   A `banned` regulation (e.g. an entry restriction) must surface BEFORE any
+   research stage spends work on the destination.
 2. No candidates.yaml -> run `tripwork:destination-research`.
 3. candidates exist but verified-pois.yaml **stale** (see Definitions) or missing -> run `tripwork:source-verify`.
 4. verified-pois **ready**, no routing.yaml -> run `tripwork:routing-audit`.
@@ -41,10 +55,13 @@ Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
 8. calendar ready, no seasonal.yaml -> run `tripwork:seasonal-advisory`.
 9. seasonal ready, no transit.yaml -> run `tripwork:transit-detail`.
 10. transit ready, no cost.yaml -> run `tripwork:cost-rollup`.
-11. cost ready, and advisory.yaml absent **or stale relative to itinerary.md** (advisory
-    older than itinerary, or written by a standalone invocation) -> run `tripwork:travel-advisory`.
-12. advisory ready, no itinerary.md -> run `tripwork:itinerary-synthesis`.
-13. itinerary exists, and no gate-report.yaml **or itinerary.md newer than gate-report.yaml** -> run `tripwork:itinerary-gate`.
+11. cost ready, and advisory.yaml **stale relative to trip-brief.yaml** (advisory
+    older than the brief — the destination/dates/airline changed after it ran) ->
+    re-run `tripwork:travel-advisory`. The itinerary is deliberately NOT the
+    staleness anchor: synthesis rewrites it every run and would loop advisory.
+12. advisory ready, no itinerary.yaml -> run `tripwork:itinerary-synthesis`.
+    (The canonical `itinerary.yaml` is the marker, not the derived `itinerary.md`.)
+13. itinerary.yaml exists, and no gate-report.yaml **or itinerary.yaml newer than gate-report.yaml** -> run `tripwork:itinerary-gate`.
 13.5. **gate-report.yaml status==fail** -> route by failure class, invalidating the stale
     gate-report (and the artifact being regenerated): no-meal / unknown-POI / non-verified /
     geocode / closed-day / must_do / advisory-surface failures -> run `tripwork:itinerary-synthesis`

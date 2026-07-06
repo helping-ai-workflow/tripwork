@@ -49,7 +49,9 @@ in `work/<slug>/stage-state.yaml` before continuing.
 
 ## Output
 
-Write `legs.yaml`, validate, return to `tripwork:orchestrator`.
+Write `trips/<slug>/legs.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/legs.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 

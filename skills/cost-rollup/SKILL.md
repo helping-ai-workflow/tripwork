@@ -48,8 +48,10 @@ item. If `trip-brief.home_currency` differs, add an advisory `fx_note` for the t
 
 ## Output
 
-Write `cost.yaml` with `as_of` + `estimate_note`. A trip with no numeric costs still writes
-a best-effort (possibly empty) `cost.yaml`. Return to `tripwork:orchestrator`.
+Write `trips/<slug>/cost.yaml` with `as_of` + `estimate_note`. A trip with no numeric costs still writes
+a best-effort (possibly empty) `cost.yaml`. Then validate it:
+`python scripts/validate_artifact.py trips/<slug>/cost.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 

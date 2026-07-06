@@ -26,7 +26,9 @@ Use the consumer harness `WebSearch`; prefer local-language / operator sources.
 
 ## Output
 
-Write `transit.yaml` (validate against the schema). A walk-everywhere / cash-only trip
+Write `trips/<slug>/transit.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/transit.yaml`
+(exit 0 required before returning). A walk-everywhere / cash-only trip
 writes empty `peak_windows` / `walks` and no `ic_card`. Return to `tripwork:orchestrator`.
 
 ## Stage Contract

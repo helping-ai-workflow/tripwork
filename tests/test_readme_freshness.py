@@ -65,11 +65,11 @@ def _mermaid_block():
     assert m, "README has no ```mermaid block"
     return m.group(1)
 
-# Canonical pipeline order (mirrors test_skills_structure.EXPECTED minus meta skills).
+# Canonical pipeline order (mirrors the orchestrator SKILL.md Stage Selection order).
 _PIPELINE_ORDER = [
-    "trip-brief", "destination-research", "source-verify", "routing-audit",
-    "accommodation-research", "inter-stop-legs", "calendar-check", "seasonal-advisory",
-    "transit-detail", "cost-rollup", "travel-advisory", "itinerary-synthesis",
+    "trip-brief", "travel-advisory", "destination-research", "source-verify",
+    "routing-audit", "accommodation-research", "inter-stop-legs", "calendar-check",
+    "seasonal-advisory", "transit-detail", "cost-rollup", "itinerary-synthesis",
     "itinerary-gate", "export-artifact", "export-gate",
 ]
 

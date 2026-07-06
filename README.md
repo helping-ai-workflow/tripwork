@@ -117,7 +117,8 @@ flowchart TB
     P --> WSP["workspace-shape-preflight<br/>確認工作資料夾"]
     WSP --> ORC["orchestrator<br/>調度中心"]
     ORC --> TB["trip-brief<br/>把需求整理成參數"]
-    TB --> DR["destination-research<br/>廣泛蒐集候選地點<br/>（含當地語言搜尋）"]
+    TB --> ADV["travel-advisory ⛔ 關卡<br/>入境／海關<br/>／行動電源規定<br/>（官方來源）"]
+    ADV --> DR["destination-research<br/>廣泛蒐集候選地點<br/>（含當地語言搜尋）"]
     DR --> SV["source-verify ⛔ 關卡<br/>≥2 來源 + 地圖座標<br/>+ 區域比對"]
     SV --> RA["routing-audit<br/>同區分群<br/>算跨區拉車時間"]
     RA --> ACC["accommodation-research<br/>每個過夜鎮研究<br/>+ 查證住宿<br/>（設施/車位/洗衣）"]
@@ -126,8 +127,7 @@ flowchart TB
     CAL --> SEA["seasonal-advisory<br/>查季節/天氣危害<br/>（道路封閉、雪鏈、日照）"]
     SEA --> TRN["transit-detail<br/>市內交通<br/>（尖峰時段/IC卡<br/>站到景點步行）"]
     TRN --> COST["cost-rollup<br/>加總住宿/交通/Pass<br/>+ 雜支，對照預算"]
-    COST --> ADV["travel-advisory ⛔ 關卡<br/>入境／海關<br/>／行動電源規定<br/>（官方來源）"]
-    ADV --> SYN["itinerary-synthesis<br/>排出逐日行程<br/>+ 備案 + 行前清單<br/>（閉館日不排、<br/>假期標人潮）"]
+    COST --> SYN["itinerary-synthesis<br/>排出逐日行程<br/>+ 備案 + 行前清單<br/>（閉館日不排、<br/>假期標人潮）"]
     SYN --> GATE["itinerary-gate<br/>輸出前的結構檢查"]
     GATE --> EXP["export-artifact<br/>Markdown / Maps<br/>HTML / LINE"]
     EXP --> EGATE["export-gate ⛔ 關卡<br/>檢查成品連結<br/>格式可正常顯示"]
@@ -138,6 +138,7 @@ flowchart TB
 | 步驟 | 它在做什麼 |
 |---|---|
 | **trip-brief** | 把你說的話整理成日期、住宿、必去清單、預算、成員等參數 |
+| **travel-advisory** ⛔ | 查入境、海關、行動電源等**硬規定**，一律要官方來源並標生效日期；被禁項目醒目提醒並寫進行前清單（在蒐集景點前先確認，被禁項目不會浪費後面的研究） |
 | **destination-research** | 廣泛上網蒐集候選景點／餐廳（**會用當地語言搜尋**，挖出國際網站漏掉的店）。此階段先不信任，只是蒐集 |
 | **source-verify** ⛔ | **招牌關卡**。每個候選地點要：①**還在營業**（永久／暫停營業的會被擋掉，查不到營業狀態就標未驗證、不放進行程）②≥2 個獨立來源（至少 1 個當地語言）③地圖能查到座標、且查到的就是它本人（被改名的鄰店會被擋）④座標落在它聲稱的區域內。全部過才算「已驗證」，才能進行程 |
 | **routing-audit** | 把已驗證地點按「區」分群，估算跨區移動時間；太遠（預設 >60 分）會**停下來問你** |
@@ -147,7 +148,6 @@ flowchart TB
 | **seasonal-advisory** | 查旅遊期間的**季節/天氣危害**（用官方來源：道路狀況、氣象、高山警告）：道路封閉這種會擋路的會停下來問你，雪鏈／保暖／日照短這種寫進行前清單；冬天自駕還會算每個鎮的日落時間，提醒哪段會摸黑開車要早點出發 |
 | **transit-detail** | 查市內交通的**舒適度細節**：通勤**尖峰時段**（帶長輩/行李避開人擠人）、**IC 卡**（Suica/ICOCA 等，哪買怎麼儲值）、每個景點**從車站走過去要幾分鐘**（太遠提醒改計程車）。全是提醒，不擋流程 |
 | **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×**房數**×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**（預算對照的是整趟總額：住宿＋交通＋雜支）。全部標明是估算（含查詢日期），不是精確報價 |
-| **travel-advisory** ⛔ | 查入境、海關、行動電源等**硬規定**，一律要官方來源並標生效日期；被禁項目醒目提醒並寫進行前清單（在排行程前先確認，禁帶品不會排進行程） |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單** |
 | **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點） |
 | **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、離線可看的一頁式 HTML（`exports/<slug>-itinerary.html`，**可選擇為景點疊上授權照片**；可把 Markdown 貼進 Notion）|
@@ -268,7 +268,7 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 679 個測試
+pytest                 # 804 個測試
 ```
 
 - 流水線由 `skills/` 下的 16 個 skill 組成，全程由 `orchestrator` 調度。
@@ -281,6 +281,10 @@ pytest                 # 679 個測試
 - **matrix follow-up twin（v0.23.0）：** (F1, P7-twin) export-gate 新增 `retryable`：缺署名／缺官方來源這種**重 render 修不掉的 data defect**，`status:fail` 時 `retryable:false`→orchestrator **停下來問你修資料**（不再 re-export 無限 loop）；真 render defect `retryable:true`→重產。(F2, P6-twin) `cost.pass_break_even(travellers=)` 依人數縮放（fares／pass 皆 per-person，多人團原本少算 pass；決策不變、magnitude 修正）。(F3) source-verify 在為 P1 上 Google 查 `business_status` 那一趟**順手記 `gmaps_place_id`**（零額外成本、最大化 P9 canonical 連結覆蓋；不設必填以免破 no-key）。新欄位：`retryable`（gate-report）。
 - **消費端實測 9 defect（v0.22.0）：** (P1) Gate 0 營業狀態改為**強制**——`verify_poi` 讀 POI 的 `business_status`（Google Places vocabulary），CLOSED→`rejected`、**缺訊號→`unverified`（不再預設 operating）**。(P2) `geocode.name_matches` 在 resolve 後比對查到的店名 vs 查詢名，被改名的鄰店→`conflicting`。(P3) `resolve_place` 多加 `name_roman`＋bare-core 自由文字嘗試，著名 CJK 地標首輪即解析。(P4) `gate.chosen_lodging_pois` 把每個過夜鎮的 chosen 住宿疊進 gate／render 的 POI pool，`day.lodging` 直接解析（不再污染 canonical verified-pois）。(P5) `must_do` 為**主題字串**，`itinerary.must_do_coverage`（主題→POI ids）讓 gate 機械式驗證涵蓋。(P6) `accommodations.cost.rooms`＋`cost.lodging_line_amount` 以每房價×房數×晚數計；`budget` 明定為整趟總額。(P7) export-gate 把不可散布（`photo_source=google`）拆成 `distributable: false` 的**乾淨終態**（status 仍 pass，orchestrator 不再無限 re-export），真正 render defect 才 fail+loop。(P8) `run_html_gate(media_count=N)`：有側檔卻 0 `<img>`→fail（接住 `apply_media` 漏接回傳的 footgun）。(P9) Maps 連結改 place_id 深連（**v0.23.1 已還原**，見下）。新欄位：`business_status`（verified-pois + candidates）、`cost.rooms`（accommodations）、`must_do_coverage`（itinerary）、`distributable`（gate-report）。
 - **place_id 死連結還原（v0.23.1）：** v0.23.0 把 P9 的 place_id 連結改成單參數 `maps/place/?q=place_id:<id>`——Google **不解析此形式**，每個帶 place_id 的 POI 都變死連結（Sun-Moon-Lake 實測踩雷）。還原為 Maps URLs API 形式：保留 `query=<店名 區域>`（或 `pin_exact` 下的 `query=lat,lng`），後綴 `&query_place_id=<id>` 精修到確切地點，連結維持合法 `/maps/search/?api=1&query=…`。place_id 回復為**精修** query（如 0.23.0 前）而非取代。零 migration、零 schema 變更。
+- 機械化 CLI(v0.29.0):`python scripts/validate_artifact.py trips/<slug>/<artifact>.yaml`
+  驗 schema;`python scripts/gate.py trips/<slug>` / `python scripts/export_gate.py trips/<slug>`
+  跑關卡並寫 report;`python scripts/next_stage.py trips/<slug> --work-dir work/<slug>`
+  印下一站。exit code:0 pass / 1 fail / 2 用法錯。
 
 **地圖座標用量限制：** 使用 OSM Nominatim（免 API key），請遵守其使用政策
 （≤ 1 req/s、帶 User-Agent）。`scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流。

@@ -18,7 +18,11 @@ Cluster verified POIs by district and assess movement feasibility. Produces `tri
 
 Any hop flagged `far` -> stop and ask the user whether to keep or replace the POI. Do not silently reorder around it. A hop flagged `implausible` (estimate below the physical floor) -> do not record it; re-estimate or cite a sourced timetable first.
 
-Return to `tripwork:orchestrator`.
+## Output
+
+Write `trips/<slug>/routing.yaml`, then validate it:
+`python scripts/validate_artifact.py trips/<slug>/routing.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 

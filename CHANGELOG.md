@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.29.0 — mechanized gate invocation + early advisory
+
+- **validate_artifact CLI (D1)** — `python scripts/validate_artifact.py <artifact.yaml>`:
+  runtime schema validation for every pipeline artifact (exit 0/1/2); every stage
+  SKILL's "validate against the schema" now cites this command instead of ad-hoc glue.
+- **gate CLIs (D2)** — `python scripts/gate.py <trip-dir>` and
+  `python scripts/export_gate.py <trip-dir>` load artifacts, fold chosen lodgings,
+  apply the media overlay (export side), run the existing gate functions unchanged,
+  and write their reports. Kills the hand-written merged-pois glue defect class.
+- **next_stage oracle (D3)** — `python scripts/next_stage.py <trip-dir> --work-dir <dir>`
+  implements orchestrator rules 0–16 (tests: tests/test_next_stage.py); the pipeline
+  marker for synthesis is now the canonical `itinerary.yaml` (was the derived `.md`).
+- **travel-advisory runs early (D4)** — moved to rule 1.5 (right after trip-brief) so a
+  `banned` regulation surfaces before any research is spent; rule 11 is now a
+  staleness re-check anchored on trip-brief mtime.
+- **description hygiene (D5)** — calendar-check / seasonal-advisory triggers now cite
+  their real data dependencies; test_description_hygiene enforces trigger ⊆ Stage
+  Contract Input for `.yaml`-suffixed citations.
+
 ## 0.28.0 — body trim (redundant restatements)
 
 - Compress the heaviest skill bodies by removing `Common Mistakes` / `Red Flags`

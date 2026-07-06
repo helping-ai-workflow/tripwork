@@ -6,6 +6,12 @@ naked $, broken links, name-not-a-link, and bookable POIs missing an official
 source link. Output shape matches itinerary-gate: {status, checks, failures}
 (reuses schemas/gate-report.schema.json).
 """
+import sys as _sys
+import pathlib as _pathlib
+if __name__ == "__main__" and __package__ in (None, ""):
+    # run as `python scripts/export_gate.py`: make `from scripts.X import ...` resolve
+    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+
 import re
 from urllib.parse import unquote
 
@@ -20,6 +26,12 @@ _NAKED_DOLLAR = re.compile(r"(?<!\\)\$")
 _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 # Standalone map-token labels that mean the POI name was left as dead text.
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
+
+# Sentinel returned by main()'s opt() helper when an optional artifact exists
+# but fails to parse as YAML — distinct from None (absent), so callers can
+# tell "malformed" apart from "not provided" and exit 2 instead of proceeding
+# with a garbage value.
+_MALFORMED = object()
 
 def _photo_failures(pois):
     """Photo ATTRIBUTION presence (cross-axis matrix F4), shared by BOTH gates: a POI
@@ -298,3 +310,102 @@ def _find_rows(md_text, names):
     """
     return [line for line in md_text.splitlines()
             if line.lstrip().startswith("|") and any(name and name in line for name in names)]
+
+
+def merge_reports(md_report, html_report):
+    """Combine md + html gate reports into the single export-gate-report.
+    html check names are prefixed `html_`, html failures prefixed `html: `;
+    retryable is recomputed over the MERGED failures (substring markers are
+    prefix-safe), distributable is the AND of both labels."""
+    if html_report is None:
+        return md_report
+    failures = md_report["failures"] + [f"html: {f}" for f in html_report["failures"]]
+    checks = md_report["checks"] + [
+        {"name": f"html_{c['name']}", "passed": c["passed"]}
+        for c in html_report["checks"]]
+    return {
+        "status": "pass" if not failures else "fail",
+        "distributable": md_report["distributable"] and html_report["distributable"],
+        "retryable": _is_retryable(failures),
+        "checks": checks,
+        "failures": failures,
+    }
+
+
+def main(argv):
+    """CLI: python scripts/export_gate.py <trip-dir> — gate the rendered
+    deliverables (md + optional html) against the MERGED pois (verified-pois +
+    chosen lodgings + media overlay, all assembled here) and write
+    <trip-dir>/export-gate-report.yaml. Exit 0 pass / 1 fail / 2 missing input."""
+    import argparse
+    import pathlib
+    import sys
+    import yaml
+
+    from scripts.gate import chosen_lodging_pois
+    from scripts.media_merge import apply_media, load_media
+
+    ap = argparse.ArgumentParser(description=main.__doc__)
+    ap.add_argument("trip_dir")
+    args = ap.parse_args(argv)
+    d = pathlib.Path(args.trip_dir)
+    slug = d.resolve().name
+    md_path = d / "exports" / f"{slug}-itinerary.md"
+    if not md_path.is_file():
+        print(f"missing deliverable: {md_path}", file=sys.stderr)
+        return 2
+
+    def opt(name):
+        try:
+            with open(d / name, encoding="utf-8") as fh:
+                return yaml.safe_load(fh)
+        except FileNotFoundError:
+            return None
+        except yaml.YAMLError as exc:
+            print(f"malformed optional artifact {name}: {exc!r}",
+                  file=sys.stderr)
+            return _MALFORMED
+
+    pois_doc = opt("verified-pois.yaml")
+    if pois_doc is _MALFORMED:
+        return 2
+    if not pois_doc:
+        print("missing verified-pois.yaml", file=sys.stderr)
+        return 2
+    accommodations_doc = opt("accommodations.yaml")
+    if accommodations_doc is _MALFORMED:
+        return 2
+    poi_map = {p["id"]: p for p in
+               (pois_doc.get("pois") or []) + chosen_lodging_pois(accommodations_doc)}
+    media_doc = load_media(d / "verified-pois-media.yaml")
+    media_count = len((media_doc or {}).get("media") or {})
+    poi_map = apply_media(poi_map, media_doc)      # NON-mutating: capture return
+    merged_pois = list(poi_map.values())
+
+    itin = opt("itinerary.yaml")
+    if itin is _MALFORMED:
+        return 2
+    itin = itin or {}
+    min_days = len(itin.get("days") or []) or None
+
+    md_report = run_export_gate(md_path.read_text(encoding="utf-8"),
+                                merged_pois, min_days=min_days)
+    html_path = d / "exports" / f"{slug}-itinerary.html"
+    html_report = None
+    if html_path.is_file():
+        html_report = run_html_gate(html_path.read_text(encoding="utf-8"),
+                                    merged_pois, min_days=min_days,
+                                    media_count=media_count)
+    report = merge_reports(md_report, html_report)
+    (d / "export-gate-report.yaml").write_text(
+        yaml.safe_dump(report, allow_unicode=True, sort_keys=False),
+        encoding="utf-8")
+    print(f"export-gate: {report['status']} "
+          f"(retryable={report['retryable']}, distributable={report['distributable']})")
+    for f in report["failures"]:
+        print(f"  - {f}")
+    return 0 if report["status"] == "pass" else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(_sys.argv[1:]))

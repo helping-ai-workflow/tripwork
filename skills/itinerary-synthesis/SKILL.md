@@ -142,7 +142,8 @@ Then render `trips/<slug>/itinerary.md` from it via `scripts/render/markdown.py:
 `itinerary.gate`, LINE / Google-Maps / Notion exports all read `itinerary.yaml` — never
 re-build a day structure from the rendered `.md`. The `.md` is a derived view, not a source.
 
-Return to `tripwork:orchestrator`.
+Validate the canonical artifact: `python scripts/validate_artifact.py trips/<slug>/itinerary.yaml`
+(exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract
 
