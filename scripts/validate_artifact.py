@@ -48,7 +48,10 @@ def validate_file(artifact_path, schema_path=None):
         data = yaml.safe_load(p.read_text(encoding="utf-8"))
     except yaml.YAMLError as exc:
         return 2, [f"YAML parse error in {p}: {exc}"]
-    schema = json.loads(pathlib.Path(schema_path).read_text(encoding="utf-8"))
+    try:
+        schema = json.loads(pathlib.Path(schema_path).read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        return 2, [f"cannot load schema {schema_path}: {exc}"]
     validator = jsonschema.Draft7Validator(schema)
     errors = sorted(validator.iter_errors(data), key=lambda e: list(e.absolute_path))
     if errors:

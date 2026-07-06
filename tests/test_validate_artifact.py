@@ -84,6 +84,22 @@ def test_explicit_schema_override(tmp_path):
     assert r.returncode == 0
 
 
+def test_nonexistent_schema_exits_two(tmp_path):
+    p = _write(tmp_path, "whatever.yaml", GOOD_CALENDAR)
+    r = _run(p, "--schema", tmp_path / "no-such.schema.json")
+    assert r.returncode == 2
+    assert "cannot load schema" in r.stderr
+
+
+def test_malformed_schema_json_exits_two(tmp_path):
+    p = _write(tmp_path, "whatever.yaml", GOOD_CALENDAR)
+    bad_schema = tmp_path / "broken.schema.json"
+    bad_schema.write_text("{not valid json", encoding="utf-8")
+    r = _run(p, "--schema", bad_schema)
+    assert r.returncode == 2
+    assert "cannot load schema" in r.stderr
+
+
 def test_export_gate_report_shares_gate_report_schema(tmp_path):
     doc = {"status": "pass", "checks": [{"name": "x", "passed": True}], "failures": []}
     p = _write(tmp_path, "export-gate-report.yaml", doc)
