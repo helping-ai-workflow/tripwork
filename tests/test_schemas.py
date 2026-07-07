@@ -772,3 +772,35 @@ def test_media_sidefile_rejects_unknown_top_key():   # PR1 — own seal (matrix 
     bad["unexpected"] = 1
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
+
+# --- v0.30.0: lodging name_zh (kana-named hotel gate gap closure) ---
+
+def _acc_kana_candidate(**over):
+    c = {"id": "hotel-1", "name_local": "駅前ホテル", "name_display": "駅前ホテル",
+         "facilities": [], "geocode": {"lat": 41.77, "lng": 140.73},
+         "sources": [{"url": "https://hotel.example", "lang": "ja", "official": True},
+                     {"url": "https://booking.example", "lang": "zh"}],
+         "verify_status": "verified"}
+    c.update(over)
+    return {"stops": [{"district": "函館", "nights": 1, "chosen": "hotel-1",
+                       "candidates": [c]}]}
+
+def test_accommodations_candidate_accepts_name_zh():   # v0.30.0
+    schema = _load_schema("accommodations.schema.json")
+    jsonschema.validate(_acc_kana_candidate(name_zh="車站前旅館"), schema)
+
+def test_accommodations_verified_kana_candidate_requires_name_zh():   # v0.30.0
+    schema = _load_schema("accommodations.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_acc_kana_candidate(), schema)   # kana, no name_zh
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_acc_kana_candidate(name_zh=""), schema)   # minLength
+
+def test_accommodations_pure_han_candidate_needs_no_name_zh():   # v0.30.0
+    schema = _load_schema("accommodations.schema.json")
+    jsonschema.validate(_acc_kana_candidate(name_local="駅前旅館",
+                                            name_display="駅前旅館"), schema)
+
+def test_accommodations_unverified_kana_candidate_exempt():   # v0.30.0
+    schema = _load_schema("accommodations.schema.json")
+    jsonschema.validate(_acc_kana_candidate(verify_status="unverified"), schema)

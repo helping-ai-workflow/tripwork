@@ -198,3 +198,13 @@ def test_rule16_complete_and_nondistributable_label(tmp_path):
     _bump(t / "export-gate-report.yaml", 120)
     got = _next(t, w)
     assert got["next"] == "complete" and "勿散布" in got["reason"]
+
+
+def test_corrupt_scalar_report_routes_back_to_gate(tmp_path):   # v0.30.0 backlog (a)
+    # A report file that parses as a YAML scalar (not a dict) — e.g. truncated to
+    # the bare word `status` — must route back to the producing gate, not crash.
+    t, w = _full(tmp_path)
+    (t / "gate-report.yaml").write_text("status", encoding="utf-8")
+    _bump(t / "gate-report.yaml", 60)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:itinerary-gate"

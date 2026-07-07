@@ -21,6 +21,11 @@ every candidate, exactly like `source-verify`.
 ## Verification (reuse `scripts/verify.py::classify_candidate`)
 
 - ≥2 independent sources, ≥1 local-language (Gate 1).
+- **`name_zh` (Chinese gloss):** capture a `name_zh` on each candidate; the render
+  layer shows `name_display（name_zh）`. **REQUIRED when the candidate's `name_display`
+  contains kana** (e.g. 駅前ホテル) — the schema rejects a verified kana-named candidate
+  without it, and `itinerary-gate` fails the folded lodging (`no name_zh gloss`). Pure-Han
+  names (駅前旅館) are exempt. Same discipline as `source-verify`'s POI gloss.
 - **Geocode (D7, no API key):** resolve by `scripts/geocode.py::resolve_place(name_local,
   district, country)` — structured Nominatim query first, free-text fallback. On
   NO_RESULT, fall back to the stop's cluster `centroid` from `routing.yaml`
