@@ -378,3 +378,30 @@ def test_gate_banned_item_not_surfaced_still_fails_with_present_advisory():
     assert any("spare lithium battery" in f and "surface" in f.lower() for f in r["failures"])
     assert {"name": "advisory_items_surfaced", "passed": False} in r["checks"]
     assert {"name": "advisory_present", "passed": True} in r["checks"]
+
+# --- v0.30.0: kana-named lodging gloss (product-gap closure) ---
+
+def _kana_hotel_accom(name_zh=None):
+    c = {"id": "h1", "name_local": "駅前ホテル", "name_display": "駅前ホテル",
+         "verify_status": "verified", "geocode": {"lat": 1, "lng": 2},
+         "facilities": [],
+         "sources": [{"url": "https://a.example", "lang": "ja"},
+                     {"url": "https://b.example", "lang": "zh"}]}
+    if name_zh:
+        c["name_zh"] = name_zh
+    return {"stops": [{"district": "d", "nights": 1, "chosen": "h1",
+                       "candidates": [c]}]}
+
+def test_gate_kana_lodging_with_name_zh_passes():   # v0.30.0
+    r = run_gate([_poi("a")], _itin([_meal("a")], lodging="h1"),
+                 advisory={"items": []}, accommodations=_kana_hotel_accom("車站前旅館"),
+                 facility_needs={"required": []})
+    assert not any("name_zh" in f for f in r["failures"])
+    assert r["status"] == "pass"
+
+def test_gate_kana_lodging_without_name_zh_fails():   # v0.30.0
+    r = run_gate([_poi("a")], _itin([_meal("a")], lodging="h1"),
+                 advisory={"items": []}, accommodations=_kana_hotel_accom(),
+                 facility_needs={"required": []})
+    assert r["status"] == "fail"
+    assert any("h1" in f and "name_zh" in f for f in r["failures"])

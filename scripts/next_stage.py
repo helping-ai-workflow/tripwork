@@ -40,9 +40,12 @@ _CHAIN = [
 
 def _load(path):
     try:
-        return yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+        doc = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     except (FileNotFoundError, yaml.YAMLError):
         return {}
+    # A truncated report can parse as a bare YAML scalar; degrade to {} so it
+    # flows into the unreadable/invalid-report branch instead of crashing.
+    return doc if isinstance(doc, dict) else {}
 
 
 def _ready(path):

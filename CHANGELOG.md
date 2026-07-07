@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.30.0 — lodging name_zh: kana-hotel gate gap closed
+
+- **accommodations `name_zh` (product-gap closure)** — `accommodations.schema.json`
+  candidates gain an optional `name_zh` (Chinese gloss) plus the same kana→required
+  `allOf` if/then guard as verified-pois (0.21.0): a `verified` candidate whose
+  `name_display` carries kana must carry a non-empty `name_zh`. This closes the gap
+  where a kana-named hotel (ホテルXX) could NEVER pass `itinerary-gate` — the gate's
+  `kana_name_without_gloss` check requires the field the schema previously forbade
+  (`additionalProperties: false`). Renderers and gate logic unchanged (already
+  generic over `name_zh`); `accommodation-research` now captures the gloss during
+  verification. e2e fixture reverted to a kana-named hotel so the path is exercised
+  end-to-end.
+- **next_stage scalar-report hardening (v0.29.0 backlog)** — a report file that
+  parses as a bare YAML scalar (truncated to e.g. `status`) now degrades to the
+  unreadable/invalid-report branch (re-run the producing gate) instead of crashing
+  with an AttributeError.
+
 ## 0.29.0 — mechanized gate invocation + early advisory
 
 - **validate_artifact CLI (D1)** — `python scripts/validate_artifact.py <artifact.yaml>`:

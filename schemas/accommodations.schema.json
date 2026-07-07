@@ -54,6 +54,10 @@
                 "name_roman": {
                   "type": "string"
                 },
+                "name_zh": {
+                  "type": "string",
+                  "description": "Chinese gloss of the in-language lodging name; render layer shows name_display（name_zh）. Required when a verified candidate's name_display carries kana — mirrors verified-pois, closes the kana-hotel itinerary-gate gap."
+                },
                 "price_band": {
                   "type": "string"
                 },
@@ -187,7 +191,36 @@
                   "type": "string"
                 }
               },
-              "additionalProperties": false
+              "additionalProperties": false,
+              "allOf": [
+                {
+                  "if": {
+                    "required": [
+                      "verify_status",
+                      "name_display"
+                    ],
+                    "properties": {
+                      "verify_status": {
+                        "const": "verified"
+                      },
+                      "name_display": {
+                        "pattern": "[぀-ヿ]"
+                      }
+                    }
+                  },
+                  "then": {
+                    "required": [
+                      "name_zh"
+                    ],
+                    "properties": {
+                      "name_zh": {
+                        "type": "string",
+                        "minLength": 1
+                      }
+                    }
+                  }
+                }
+              ]
             }
           }
         },
