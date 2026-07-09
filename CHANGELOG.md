@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.31.0 — Codex hook 127: hooks-codex.json anchors on CLAUDE_PLUGIN_ROOT
+
+- **`hooks/hooks-codex.json` 相對路徑必爆 127**（下游 consumer 實爆，paperwork 7.98.0 / chipwork 0.54.0 同批）：command 原為 `bash ./hooks/run-hook.cmd session-start`，但 Codex 執行 plugin hook 時 cwd 是 session workspace 而非 plugin root（`codex-rs/hooks/src/engine/command_runner.rs` — `$SHELL -lc` + `current_dir(cwd)`），SessionStart 在每一個真實 Codex 安裝上都 exit 127。Codex 對 hook process 注入 `CLAUDE_PLUGIN_ROOT`/`PLUGIN_ROOT` env（`discovery.rs` OOTB compat），故 command 改為與 `hooks.json` 相同的 `"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd" session-start`。
+- 測試：`tests/test_manifests_present.py` 新增 plugin-root 錨定斷言＋e2e closure（`bash -lc`、foreign cwd、僅注入 `CLAUDE_PLUGIN_ROOT` — 斷言 rc=0 且輸出 SessionStart JSON）。修復前雙 RED（127 重現），修復後 GREEN。
+- 同根因掃描：`hooks.json`（Claude）不受影響；`hooks-cursor.json` 相對路徑列 follow-up（Cursor cwd 語意未驗證、無消費者回報）。
+
 ## 0.30.0 — lodging name_zh: kana-hotel gate gap closed
 
 - **accommodations `name_zh` (product-gap closure)** — `accommodations.schema.json`
