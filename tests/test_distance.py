@@ -113,3 +113,30 @@ def test_unknown_duration_source_is_rejected():
     """
     with pytest.raises(ValueError, match="unknown duration_source"):
         classify_hop(90, km=20, mode="drive", duration_source="agent_estmiate")
+
+
+def test_none_duration_source_defaults_to_agent_estimate():
+    """TW-066 fix-round-2: an absent optional field is not a caller bug.
+
+    schemas/routing.schema.json documents an absent `duration_source` as
+    `agent_estimate` -- and every hop written before this field existed has
+    it absent. The natural way to read an optional YAML field,
+    `hop.get('duration_source')`, yields `None`, and Part 2's
+    `rederive_hops` will do exactly that against pre-TW-066 artifacts. `None`
+    must classify identically to the explicit `agent_estimate` call -- assert
+    they agree rather than hard-coding the string twice, so this test cannot
+    drift out of sync with whatever `agent_estimate` currently means.
+    """
+    assert (classify_hop(45, km=20, mode="drive", duration_source=None)
+            == classify_hop(45, km=20, mode="drive", duration_source="agent_estimate"))
+
+
+def test_unrecognised_duration_source_still_raises_alongside_none_handling():
+    """Guard: special-casing `None` must not widen the net for real typos.
+
+    Only the literal absence (`None`) gets the schema's documented default;
+    any other unrecognised string -- including one that merely looks close,
+    like a stray capitalisation -- still raises.
+    """
+    with pytest.raises(ValueError, match="unknown duration_source"):
+        classify_hop(45, km=20, mode="drive", duration_source="Agent_Estimate")

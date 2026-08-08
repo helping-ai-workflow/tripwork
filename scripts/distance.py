@@ -60,8 +60,15 @@ def classify_hop(mins, max_hop_mins=60, km=None, mode=None,
 
     `duration_source` must be one of DURATION_SOURCES; an unrecognized value
     raises ValueError rather than silently taking the sourced path (which
-    would skip the `unsourced` safeguard) or being silently coerced.
+    would skip the `unsourced` safeguard) or being silently coerced. The one
+    exception is `None` (TW-066 fix-round-2): see the comment below.
     """
+    if duration_source is None:
+        # schemas/routing.schema.json documents an absent duration_source as
+        # agent_estimate. Reading an optional field with hop.get() yields None, and
+        # every hop written before this field existed has it absent -- so None is the
+        # schema's default, not a caller bug. A typo still raises.
+        duration_source = "agent_estimate"
     if duration_source not in DURATION_SOURCES:
         raise ValueError(f"unknown duration_source: {duration_source!r}")
     if km is not None and mode is not None and mins < min_plausible_mins(km, mode):
