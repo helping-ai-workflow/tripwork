@@ -17,3 +17,62 @@ def test_classify_hop_far_over_threshold():
 
 def test_classify_hop_boundary_inclusive():
     assert classify_hop(60, max_hop_mins=60) == "ok"
+
+
+def test_raising_the_guess_over_the_floor_does_not_buy_ok():
+    """TW-066: the dogfood escape hatch, closed.
+
+    An agent told its hop is `implausible` raised 20 min to 31 min and the gate
+    went green with no source cited. 31 clears min_plausible_mins(20,'drive')==30,
+    so the number alone can no longer be the whole story.
+    """
+    assert classify_hop(31, km=20, mode="drive",
+                        duration_source="agent_estimate") == "unsourced"
+
+
+def test_sourced_timetable_over_the_floor_is_ok():
+    """The over-blocking guard: a sourced estimate above the floor stays usable."""
+    assert classify_hop(31, km=20, mode="drive",
+                        duration_source="sourced_timetable") == "ok"
+    assert classify_hop(31, km=20, mode="drive",
+                        duration_source="map_estimate") == "ok"
+
+
+def test_below_the_floor_is_implausible_whatever_the_source():
+    """A cited source does not repeal physics."""
+    for src in ("agent_estimate", "map_estimate", "sourced_timetable"):
+        assert classify_hop(20, km=20, mode="drive", duration_source=src) == "implausible"
+
+
+def test_default_source_is_agent_estimate_and_legacy_calls_keep_working():
+    """Guard, GREEN at HEAD: back-compat guard, not defect evidence.
+
+    Back-compat: the 2-arg form still classifies on the threshold alone.
+    Without km+mode there is no floor to apply, so provenance cannot change the
+    answer and the legacy call sites keep their meaning.
+    """
+    assert classify_hop(30) == "ok"
+    assert classify_hop(90) == "far"
+
+
+def test_routing_schema_accepts_implausible_and_duration_source(tmp_path):
+    """TW-066 root cause the defect doc missed: an honest `implausible` was
+    schema-invalid, so raising the guess was the only legal move."""
+    from scripts.validate_artifact import validate_file
+
+    p = tmp_path / "routing.yaml"
+    p.write_text(
+        "clusters:\n"
+        "  - district: 西區\n"
+        "    pois: [a]\n"
+        "hops:\n"
+        "  - from: 西區\n"
+        "    to: 太保市\n"
+        "    mins: 20\n"
+        "    mode: drive\n"
+        "    flag: implausible\n"
+        "    duration_source: agent_estimate\n"
+        "warnings: []\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(p))[0] == 0

@@ -12,8 +12,10 @@ def test_classify_hop_flags_implausible_below_floor():   # TW-056
     from scripts.distance import classify_hop
     # 20 km by transit cannot take 45 min; below the floor -> not 'ok'
     assert classify_hop(45, max_hop_mins=60, km=20, mode="transit") == "implausible"
-    # a plausible 90-min hop over 20 km stays within the normal classification
-    assert classify_hop(90, max_hop_mins=120, km=20, mode="transit") == "ok"
+    # a plausible 90-min hop over 20 km clears the floor, but the call site never
+    # names a duration_source -> it is an unlabelled agent guess, so TW-066 marks
+    # it 'unsourced' rather than silently granting 'ok'.
+    assert classify_hop(90, max_hop_mins=120, km=20, mode="transit") == "unsourced"
 
 
 def test_classify_hop_backward_compatible_without_km():

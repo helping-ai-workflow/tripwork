@@ -79,8 +79,25 @@
             "type": "string",
             "enum": [
               "ok",
-              "far"
-            ]
+              "far",
+              "implausible",
+              "unsourced"
+            ],
+            "description": "Verdict from scripts/distance.py::classify_hop. `implausible` and `unsourced` were previously unrepresentable, which meant an honest recording of either produced a schema-invalid artifact — raising the guessed minutes was the only schema-valid escape. (TW-066)"
+          },
+          "duration_source": {
+            "type": "string",
+            "enum": [
+              "agent_estimate",
+              "map_estimate",
+              "sourced_timetable"
+            ],
+            "description": "Where `mins` came from. Optional in schema (old routing.yaml stays valid); required by the itinerary gate. An absent value is treated as agent_estimate. (TW-066)"
+          },
+          "source_url": {
+            "type": "string",
+            "pattern": "^https?://",
+            "description": "The timetable / map result backing `mins` when duration_source is not agent_estimate."
           }
         },
         "additionalProperties": false

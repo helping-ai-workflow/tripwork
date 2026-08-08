@@ -24,13 +24,32 @@ def min_plausible_mins(km, mode):
     speed = _SPEED_FLOOR_KMH.get(mode, 15.0)
     return km / speed * 60.0
 
-def classify_hop(mins, max_hop_mins=60, km=None, mode=None):
-    """Classify an inter-POI travel time.
+# Where a hop's duration came from. `agent_estimate` is the default because an
+# unlabelled number IS an agent estimate — defaulting to anything better would
+# launder a guess into a source. (TW-066)
+DURATION_SOURCES = ("agent_estimate", "map_estimate", "sourced_timetable")
 
-    When `km` and `mode` are given and `mins` is below `min_plausible_mins(km, mode)`,
-    the estimate is physically impossible -> 'implausible' (re-estimate / cite a
-    timetable). Otherwise <= threshold is 'ok', else 'far'.
+
+def classify_hop(mins, max_hop_mins=60, km=None, mode=None,
+                 duration_source="agent_estimate"):
+    """Classify a hop as ok / far / implausible / unsourced.
+
+    `implausible` fires when the claimed duration is below what the geometry
+    allows (min_plausible_mins). TW-056 added that floor; TW-066 closes the hole
+    it left: SKILL.md offered "re-estimate the hop OR cite a timetable", and
+    re-estimating needs no evidence, so an agent could clear the floor by raising
+    its own guess. A hop that clears the floor on an `agent_estimate` alone is
+    now `unsourced` — the number is plausible but nothing corroborates it.
+
+    Physics is not repealed by a citation: below the floor is `implausible`
+    regardless of duration_source.
+
+    Without km+mode there is no floor, so provenance cannot change the verdict
+    and the legacy 2-arg form keeps its exact meaning.
     """
-    if km is not None and mode is not None and mins < min_plausible_mins(km, mode):
-        return "implausible"
+    if km is not None and mode is not None:
+        if mins < min_plausible_mins(km, mode):
+            return "implausible"
+        if duration_source == "agent_estimate":
+            return "unsourced"
     return "ok" if mins <= max_hop_mins else "far"
