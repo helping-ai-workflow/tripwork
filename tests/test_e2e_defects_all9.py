@@ -63,12 +63,17 @@ RENAMED = {"id": "renamed", "name_local": "星月大地", "name_display": "星�
            "geocode": {"lat": 24.3, "lng": 120.7, "geocode_source": "nominatim"},
            "sources": _sources()}
 
+# geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging re-derives
+# hotel-lili to the recorded 'verified' instead of flagging it as a
+# verdicts_rederivable gap -- this fixture predates both fields.
 ACCOMMODATIONS = {"stops": [{
     "district": "日月潭", "nights": 2, "chosen": "hotel-lili",
     "candidates": [{
         "id": "hotel-lili", "name_local": "力麗溫德姆溫泉酒店",
         "name_display": "力麗溫德姆溫泉酒店", "verify_status": "verified",
-        "facilities": [], "geocode": {"lat": 23.86, "lng": 120.92},
+        "facilities": [],
+        "geocode": {"lat": 23.86, "lng": 120.92, "geocode_source": "nominatim"},
+        "resolved_name": "力麗溫德姆溫泉酒店",
         "cost": {"amount": 3000, "currency": "TWD", "basis": "per_night", "rooms": 2},
         "sources": _sources()}]}]}
 
@@ -157,9 +162,9 @@ class TestE2EAllNineDefects:
 
     def test_p4_p5_gate_passes_with_lodging_and_thematic_must_do(self):
         pois = _verified_pois()             # only ferry survives P1/P2 (P1/P2 closure)
-        r = run_gate(pois, self._itin(), accommodations=ACCOMMODATIONS,
+        r = run_gate(pois, self._itin(),
                      must_do=["日月潭遊湖賞景"], advisory={"items": []},
-                     **rederive_kwargs())
+                     **rederive_kwargs(accommodations=ACCOMMODATIONS))
         assert r["status"] == "pass", r["failures"]
         # P4: chosen lodging resolved from accommodations, not flagged unknown
         assert not any("unknown POI 'hotel-lili'" in f for f in r["failures"])

@@ -9,7 +9,19 @@ sources themselves is source-verify's job; this gate checks the assembled plan.
 import sys as _sys
 import pathlib as _pathlib
 if __name__ == "__main__" and __package__ in (None, ""):
-    # run as `python scripts/gate.py`: make `from scripts.X import ...` resolve
+    # run as `python scripts/gate.py`: make `from scripts.X import ...` resolve.
+    # Python auto-prepends this script's OWN directory (scripts/) to sys.path
+    # before this line ever runs. That directory contains scripts/calendar.py,
+    # which then SHADOWS the stdlib `calendar` module for any bare `import
+    # calendar` anywhere downstream -- http.cookiejar does exactly that
+    # (`from calendar import timegm`), so importing `requests` transitively
+    # (rederive -> verify -> geocode, added by I2's lodging re-derivation)
+    # crashes with "cannot import name 'timegm' from 'calendar'" pointing at
+    # OUR file. Drop the auto-added entry; `scripts.X` imports still resolve
+    # once repo_root is on the path, they never needed scripts/ itself there.
+    _here = str(_pathlib.Path(__file__).resolve().parent)
+    if _here in _sys.path:
+        _sys.path.remove(_here)
     _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
 
 from scripts.facilities import stop_meets_required
@@ -195,7 +207,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     # checks rather than folding into the substring-matched list below, because a
     # re-derivation failure names the producing stage and must route there.
     rd = run_rederivation(itinerary, by_id, legs=legs, routing=routing,
-                          cost=cost, trip_brief=trip_brief)
+                          cost=cost, trip_brief=trip_brief,
+                          accommodations=accommodations)
     failures.extend(rd["failures"])
 
     checks = [

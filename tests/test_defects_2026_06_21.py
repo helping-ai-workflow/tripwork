@@ -193,10 +193,15 @@ class TestP3GeocodeResilience:
 # ============================ P4 — lodging in gate/render pool ================
 class TestP4LodgingPool:
     def _acc(self):
+        # geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging
+        # re-derives this candidate to the recorded 'verified' instead of
+        # flagging it as a verdicts_rederivable gap.
         return {"stops": [{"district": "日月潭", "nights": 2, "chosen": "hotel-a",
             "candidates": [{
                 "id": "hotel-a", "name_local": "力麗溫德姆", "name_display": "力麗溫德姆",
-                "verify_status": "verified", "geocode": {"lat": 1.0, "lng": 2.0},
+                "verify_status": "verified",
+                "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"},
+                "resolved_name": "力麗溫德姆",
                 "facilities": [],
                 "sources": [{"url": "https://x.example", "lang": "zh"},
                             {"url": "https://y.example", "lang": "zh"}]}]}]}
@@ -211,8 +216,8 @@ class TestP4LodgingPool:
         # with only verified-pois + accommodations as inputs (no manual merge).
         r = run_gate([_poi("rest1", hours=_HOURS)],
                      _itin([_meal("rest1", closing_status="ok")], lodging="hotel-a"),
-                     accommodations=self._acc(), advisory={"items": []},
-                     **rederive_kwargs())
+                     advisory={"items": []},
+                     **rederive_kwargs(accommodations=self._acc()))
         assert r["status"] == "pass", r["failures"]
         assert not any("unknown POI 'hotel-a'" in f for f in r["failures"])
 

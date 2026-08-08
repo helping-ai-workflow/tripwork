@@ -405,8 +405,13 @@ def test_gate_banned_item_not_surfaced_still_fails_with_present_advisory():
 # --- v0.30.0: kana-named lodging gloss (product-gap closure) ---
 
 def _kana_hotel_accom(name_zh=None):
+    # geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging
+    # re-derives h1 to the recorded 'verified' instead of flagging it as a
+    # verdicts_rederivable gap -- this fixture predates both fields.
     c = {"id": "h1", "name_local": "駅前ホテル", "name_display": "駅前ホテル",
-         "verify_status": "verified", "geocode": {"lat": 1, "lng": 2},
+         "verify_status": "verified",
+         "geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"},
+         "resolved_name": "駅前ホテル",
          "facilities": [],
          "sources": [{"url": "https://a.example", "lang": "ja"},
                      {"url": "https://b.example", "lang": "zh"}]}
@@ -417,8 +422,9 @@ def _kana_hotel_accom(name_zh=None):
 
 def test_gate_kana_lodging_with_name_zh_passes():   # v0.30.0
     r = run_gate([_poi("a", hours=_HOURS)], _itin([_meal("a", closing_status="ok")], lodging="h1"),
-                 advisory={"items": []}, accommodations=_kana_hotel_accom("車站前旅館"),
-                 facility_needs={"required": []}, **rederive_kwargs())
+                 advisory={"items": []},
+                 facility_needs={"required": []},
+                 **rederive_kwargs(accommodations=_kana_hotel_accom("車站前旅館")))
     assert not any("name_zh" in f for f in r["failures"])
     assert r["status"] == "pass"
 

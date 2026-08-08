@@ -263,6 +263,13 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
     It is also the km/mode omission escape closing at the artifact layer: a hop
     that omits mode, or whose endpoint has no centroid, lands in this same list.
     Today the corpus omits neither, so all 19 failures are provenance ones.
+
+    accommodations={"stops": []} (I2): this test is scoped to legs/hops/cost --
+    the corpus's OWN, separate lodging rederivable gap is pinned by
+    test_real_trips_lodging_has_exactly_one_verdicts_match_failure below. Passing
+    the real accommodations.yaml here would fold 19 more findings (1 missing
+    geocode_source + 18 missing resolved_name) into this test's 19, doubling the
+    number for a reason unrelated to what this test claims.
     """
     total_missing = provenance_missing = 0
     for trip in IN_SCOPE:
@@ -272,7 +279,8 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
             legs=yaml.safe_load((d / "legs.yaml").read_text(encoding="utf-8")),
             routing=yaml.safe_load((d / "routing.yaml").read_text(encoding="utf-8")),
             cost=yaml.safe_load((d / "cost.yaml").read_text(encoding="utf-8")),
-            trip_brief=yaml.safe_load((d / "trip-brief.yaml").read_text(encoding="utf-8")))
+            trip_brief=yaml.safe_load((d / "trip-brief.yaml").read_text(encoding="utf-8")),
+            accommodations={"stops": []})
         c = _checks(res)
         assert c["verdicts_rederivable"]["passed"] is False, trip
         assert c["verdicts_rederivable"]["examined"] == (
@@ -282,6 +290,66 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
         total_missing += len(res["failures"])
         provenance_missing += sum("no duration_source" in f for f in res["failures"])
     assert (total_missing, provenance_missing) == (19, 19)
+
+
+@pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
+def test_real_trips_lodging_has_exactly_one_verdicts_match_failure():
+    """Measured at fd053dd (task-9-brief.md's table, 2026-08-09) across the four
+    schema-clean trips: 18 lodging candidates, all 18 recorded verify_status
+    'verified', 14 of them geocode_source cluster_fallback. rederive_lodging
+    re-derives Gates 1/2/2b/2c for each -- this is the whole justification for
+    the task: accommodation-research calls classify_candidate directly and
+    passes none of Part 1's arguments, so operating/name_match/geocode_source
+    all took their permissive defaults and TW-062/TW-063 never applied to
+    hotels at all.
+
+    The one real defect this finds: 2026-07-sun-moon-lake candidate d2-6 is a
+    cluster_fallback centroid with no existence proof (no official: true
+    source, no gmaps_place_id), recorded verified, re-derives unverified. The
+    id is asserted explicitly -- a bare count would stay green if a DIFFERENT
+    candidate started failing instead.
+
+    The other 18 findings are all on the rederivable axis, not the match axis:
+    1 candidate omits geocode_source entirely (a second, pre-TW-062 gap on the
+    same 2026-06-yilan hotel) and 0 of 18 carry resolved_name (the field is
+    new in this release, so every candidate is missing it) -- 1 + 18 == 19.
+    """
+    found = compared = 0
+    mismatches = []
+    for trip in IN_SCOPE:
+        d = CORPUS / trip
+        accommodations = yaml.safe_load(
+            (d / "accommodations.yaml").read_text(encoding="utf-8"))
+        brief = yaml.safe_load((d / "trip-brief.yaml").read_text(encoding="utf-8"))
+        res = run_rederivation({"days": []}, {}, legs={"legs": []},
+                               routing={"clusters": [], "hops": []},
+                               cost={"currency": "TWD", "line_items": [], "total": 0},
+                               trip_brief=brief, accommodations=accommodations)
+        c = _checks(res)
+        found += sum(len(stop.get("candidates") or [])
+                     for stop in accommodations.get("stops") or [])
+        compared += sum(1 for f in res["failures"]
+                        if "recorded verify_status" in f)
+        mismatches.extend(f for f in res["failures"] if "recorded verify_status" in f)
+    assert found == 18
+    assert len(mismatches) == 1, mismatches
+    assert "'d2-6'" in mismatches[0] and "re-derives 'unverified'" in mismatches[0]
+    assert "existence proof" in mismatches[0]
+
+    missing_geocode_source = missing_resolved_name = 0
+    for trip in IN_SCOPE:
+        d = CORPUS / trip
+        accommodations = yaml.safe_load(
+            (d / "accommodations.yaml").read_text(encoding="utf-8"))
+        res = run_rederivation({"days": []}, {}, legs={"legs": []},
+                               routing={"clusters": [], "hops": []},
+                               cost={"currency": "TWD", "line_items": [], "total": 0},
+                               accommodations=accommodations)
+        missing_geocode_source += sum("no geocode.geocode_source" in f
+                                      for f in res["failures"])
+        missing_resolved_name += sum("no resolved_name" in f for f in res["failures"])
+    assert missing_geocode_source == 1
+    assert missing_resolved_name == 18
 
 
 def _poi(**over):
@@ -339,10 +407,13 @@ def test_an_open_air_poi_declares_no_fixed_close_instead_of_faking_one():
                       "no_fixed_close": True})
     itin = _itin("17:10")
     itin["days"][0]["rows"][0]["closing_status"] = "ok"
+    # accommodations={"stops": []} (I2): keeps this closing-status guard scoped
+    # to what it names -- an absent accommodations.yaml is itself now a
+    # verdicts_rederivable finding and would falsely flip the assertion below.
     res = run_rederivation(itin, {"p1": poi}, legs={"legs": []},
                            routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
-                           trip_brief=BRIEF)
+                           trip_brief=BRIEF, accommodations={"stops": []})
     c = _checks(res)
     assert c["verdicts_match"]["passed"] is True
     assert c["verdicts_rederivable"]["passed"] is True
@@ -381,15 +452,93 @@ def test_rows_without_a_time_or_a_resolving_poi_are_out_of_scope():
         {"time": "12:00", "slot": "meal", "text": "朋友選定的店"},
         {"time": "12:00", "slot": "visit", "poi_id": "ghost", "text": "已刪除的景點"},
     ]}]}
+    # accommodations={"stops": []} (I2): keeps this scope guard scoped to what
+    # it names -- an absent accommodations.yaml is itself now a
+    # verdicts_rederivable finding and would falsely flip the assertion below.
     res = run_rederivation(itin, {"p1": _poi()}, legs={"legs": []},
                            routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
-                           trip_brief=BRIEF)
+                           trip_brief=BRIEF, accommodations={"stops": []})
     c = _checks(res)
     assert c["verdicts_rederivable"]["passed"] is True
     # examined unchanged by the ghost row: legs=0 + hops=0 + cost=1(present,
-    # filler) + closing=0 (all three itinerary rows are out of scope) == 1.
+    # filler) + closing=0 + accommodations=0(stops:[], present) == 1.
     assert c["verdicts_rederivable"]["examined"] == 1
+
+
+def _accom(candidate):
+    return {"stops": [{"district": "日月潭", "nights": 1, "chosen": candidate["id"],
+                       "candidates": [candidate]}]}
+
+
+def _lodging_cand(**over):
+    """Two distinct-domain, non-official sources; cluster_fallback geocode; no
+    gmaps_place_id -- the exact shape measured at fd053dd for
+    2026-07-sun-moon-lake candidate d2-6: recorded verified, no existence proof."""
+    c = {"id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
+         "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
+                     {"url": "https://b.example/d2-6", "lang": "zh"}],
+         "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "cluster_fallback"},
+         "verify_status": "verified"}
+    c.update(over)
+    return c
+
+
+def test_a_cluster_fallback_lodging_candidate_with_no_existence_proof_fails_verdicts_match():
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations=_accom(_lodging_cand()))
+    c = _checks(res)
+    assert c["verdicts_match"]["passed"] is False
+    assert any("d2-6" in f and "unverified" in f for f in res["failures"])
+
+
+def test_a_lodging_candidate_with_an_official_source_still_passes():
+    cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh", "official": True},
+                                  {"url": "https://b.example/d2-6", "lang": "zh"}])
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations=_accom(cand))
+    assert _checks(res)["verdicts_match"]["passed"] is True
+
+
+def test_lodging_with_no_geocode_source_is_not_rederivable():
+    with_gs = _accom(_lodging_cand(geocode={"lat": 23.86, "lng": 120.91,
+                                            "geocode_source": "nominatim"}))
+    no_gs = _accom(_lodging_cand(geocode={"lat": 23.86, "lng": 120.91}))
+    res_with = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                                cost={"currency": "TWD", "line_items": [], "total": 0},
+                                trip_brief=BRIEF, accommodations=with_gs)
+    res_no = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                              cost={"currency": "TWD", "line_items": [], "total": 0},
+                              trip_brief=BRIEF, accommodations=no_gs)
+    c_no = _checks(res_no)
+    assert c_no["verdicts_rederivable"]["passed"] is False
+    assert any("geocode_source" in f for f in res_no["failures"])
+    # blind-compare rule: the omission must not flip verdicts_match either way
+    assert c_no["verdicts_match"]["passed"] == _checks(res_with)["verdicts_match"]["passed"]
+
+
+def test_lodging_with_no_resolved_name_is_not_rederivable():
+    cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh", "official": True},
+                                  {"url": "https://b.example/d2-6", "lang": "zh"}])
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations=_accom(cand))
+    c = _checks(res)
+    assert c["verdicts_rederivable"]["passed"] is False
+    assert any("resolved_name" in f for f in res["failures"])
+    # not demoted by the missing field: this candidate is otherwise 'verified'
+    assert c["verdicts_match"]["passed"] is True
+
+
+def test_absent_accommodations_is_a_rederivable_failure_not_a_skip():
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations=None)
+    c = _checks(res)
+    assert c["verdicts_rederivable"]["passed"] is False
+    assert any("accommodations.yaml" in f and "not re-derivable" in f for f in res["failures"])
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")

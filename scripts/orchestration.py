@@ -18,8 +18,14 @@ def candidates_stale(candidate_ids, verified_ids):
 # no resolved lodging" is a missing itinerary ROW and routes to synthesis, not
 # accommodation. None of the groups below contains "lodging", so that survives,
 # but the ordering leaves it one careless marker away from inverting.
+#
+# "accommodations stop " / "accommodations.yaml absent" (I2) are rederive_lodging's
+# own markers (scripts/rederive.py) -- a re-derived verify_status mismatch or a
+# missing geocode_source/resolved_name/accommodations.yaml itself all name the
+# candidate this way, and only accommodation-research can fix any of them.
 _ROUTES = (
-    (("chosen lodging", "required facility"), "tripwork:accommodation-research"),
+    (("chosen lodging", "required facility", "accommodations stop ",
+      "accommodations.yaml absent"), "tripwork:accommodation-research"),
     (("legs[", "legs.yaml absent"), "tripwork:inter-stop-legs"),
     (("routing hop ", "routing.yaml absent"), "tripwork:routing-audit"),
     (("cost.total", "cost.by_category", "cost.yaml absent"), "tripwork:cost-rollup"),

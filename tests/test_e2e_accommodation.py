@@ -13,7 +13,16 @@ FACILITY_NEEDS = {"required": ["parking"],
                   "periodic": [{"facility": "laundry", "max_gap_nights": 2}]}
 
 def _lodge(_id, facilities):
-    return {"id": _id, "facilities": facilities}
+    # sources/geocode_source/resolved_name (I2, v0.33.0): so rederive_lodging
+    # re-derives every one of these to the recorded 'verified' instead of
+    # flagging it as a verdicts_rederivable gap -- this fixture predates
+    # verify_status/geocode entirely and never carried them.
+    return {"id": _id, "facilities": facilities, "name_local": _id, "name_display": _id,
+            "verify_status": "verified",
+            "sources": [{"url": f"https://a.example/{_id}", "lang": "en"},
+                        {"url": f"https://b.example/{_id}", "lang": "en"}],
+            "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"},
+            "resolved_name": _id}
 
 # CHC 1✓ Tekapo 2✗ Wanaka 2✓ TeAnau 2✗ Queenstown 3✓  (laundry coverage)
 ACCOM = {"stops": [
@@ -30,8 +39,8 @@ ACCOM = {"stops": [
 ]}
 
 def test_every_stop_has_verified_lodging_and_parking():
-    r = run_gate([], {"days": []}, accommodations=ACCOM, facility_needs=FACILITY_NEEDS,
-                 advisory={"items": []}, **rederive_kwargs())
+    r = run_gate([], {"days": []}, facility_needs=FACILITY_NEEDS,
+                 advisory={"items": []}, **rederive_kwargs(accommodations=ACCOM))
     assert r["status"] == "pass", r["failures"]
     assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging")
     assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met")

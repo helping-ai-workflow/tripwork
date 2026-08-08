@@ -16,6 +16,17 @@ skip. A skipped record is indistinguishable from a green one, which is the exact
 defect class this module exists to close (cf. scripts/gate.py:151-155, where an
 absent advisory is a failure rather than a skipped check).
 
+Lodging coverage is partial, and deliberately not papered over. rederive_lodging
+re-derives classify_candidate's Gates 1/2/2b/2c for every accommodations.yaml
+candidate. Gate 0 (operating) is NOT re-derived: accommodations.schema.json
+carries no business_status field, so there is nothing to read, and closing it is
+a TW-063-sized change deferred to v0.34.0. Gates 3a/3b (conflict_detected,
+in_claimed_region) are NOT re-derived either: both are computed by the agent at
+research time and the artifact records neither, so the permissive values are
+passed and a region mismatch or cross-source conflict on a hotel is invisible
+to this module. Do not read "lodging reaches the gates" as "all six gates run
+on lodging" — only Gates 1/2/2b/2c do.
+
 What this proves and what it does not: re-derivation proves a verdict follows
 from the recorded numbers. It never proves the numbers are real. min_plausible_mins
 is computed over agent-authored cluster centroids that TW-062 shows can be
@@ -26,6 +37,7 @@ from scripts.cost import sum_costs
 from scripts.distance import classify_hop, haversine_km
 from scripts.hours import closing_status
 from scripts.legs import classify_leg
+from scripts.verify import classify_candidate, name_matches
 
 # Plugin defaults, overridable only from trip-brief. Deliberately NOT recorded
 # per-record: a per-leg threshold would let an agent widen the cap to clear its
@@ -269,8 +281,73 @@ def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
     return out
 
 
+def rederive_lodging(accommodations, *, local_lang=None):
+    """Re-derive each lodging candidate's verify_status.
+
+    accommodation-research calls classify_candidate directly and passes none of
+    the arguments Part 1 added, so `operating`, `name_match` and `geocode_source`
+    all take their permissive defaults and TW-062/TW-063 never applied to hotels.
+    Re-derivation is the mechanical form: it reads what the artifact recorded
+    rather than what the SKILL asked the agent to pass.
+
+    Two gates are deliberately NOT re-derived here, and neither absence is
+    silent:
+
+      Gate 0 (operating) — schemas/accommodations.schema.json has no
+      business_status field, so there is nothing to read. Closing it is a
+      TW-063-sized change deferred to v0.34.0; `operating=True` here matches the
+      permissive value the stage already uses, so this task changes nothing about
+      it either way.
+
+      Gates 3a/3b (conflict_detected, in_claimed_region) — both are computed by
+      the agent at research time and the artifact records neither. Passing the
+      permissive values is the only honest option; it means a region mismatch or
+      a cross-source conflict is invisible to this function.
+
+    Missing inputs go to the rederivable axis and the match comparison then runs
+    BLIND to them, exactly as rederive_hops does for an absent duration_source —
+    so a field that is new in this release cannot demote a candidate merely by
+    being new.
+    """
+    out = Outcome()
+    if accommodations is None:
+        out.missing.append(
+            "accommodations.yaml absent — classify_candidate verdicts are not re-derivable")
+        return out
+    for stop in accommodations.get("stops") or []:
+        district = stop.get("district", "?")
+        for cand in stop.get("candidates") or []:
+            out.found += 1
+            where = f"accommodations stop {district!r} candidate {cand.get('id', '?')!r}"
+            gs = (cand.get("geocode") or {}).get("geocode_source")
+            if not gs:
+                out.missing.append(
+                    f"{where}: no geocode.geocode_source — Gate 2c (centroid "
+                    f"existence proof) is not re-derivable")
+            resolved = cand.get("resolved_name")
+            if not resolved:
+                out.missing.append(
+                    f"{where}: no resolved_name — Gate 2b (name match) is not "
+                    f"re-derivable")
+                name_match = True          # blind, per the docstring
+            else:
+                queried = cand.get("name_local") or cand.get("name_display") or ""
+                name_match = name_matches(queried, resolved)
+            got, note = classify_candidate(
+                cand, geocoded=True, in_claimed_region=True, local_lang=local_lang,
+                conflict_detected=False, operating=True, name_match=name_match,
+                geocode_source=gs or "")
+            out.compared += 1
+            rec = cand.get("verify_status")
+            if rec != got:
+                out.mismatches.append(
+                    f"{where}: recorded verify_status {rec!r} but classify_candidate "
+                    f"re-derives {got!r} ({note})")
+    return out
+
+
 def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
-                     trip_brief=None):
+                     trip_brief=None, accommodations=None):
     """Return {"checks": [verdicts_match, verdicts_rederivable], "failures": [...]}.
 
     `examined` is deliberately two different numbers: rederivable.examined counts
@@ -292,6 +369,9 @@ def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
                                    MIN_BUFFER_MINS),
         default_visit_mins=_brief_num(trip_brief, "scheduling", "default_visit_mins",
                                       DEFAULT_VISIT_MINS)))
+    total.merge(rederive_lodging(
+        accommodations,
+        local_lang=((trip_brief or {}).get("destination") or {}).get("local_lang")))
     return {
         "checks": [
             {"name": "verdicts_match", "passed": not total.mismatches,

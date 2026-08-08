@@ -101,12 +101,18 @@ def accommodations():
     # Kana-named hotel + name_zh (v0.30.0): exercises the lodging gloss path —
     # the gate's kana_name_without_gloss check on the folded lodging POI is
     # satisfied by name_zh, mirroring verified-pois.
+    # geocode_source + resolved_name (I2, v0.33.0): so run_gate's rederive_lodging
+    # re-derives this candidate to the SAME 'verified' it's recorded as -- without
+    # them the record is a genuine verdicts_rederivable gap (correct behaviour for
+    # the real corpus, wrong for this "everything passes" fixture).
     return {"stops": [{
         "district": "函館", "nights": 1, "chosen": "hotel-1",
         "candidates": [{
             "id": "hotel-1", "name_local": "駅前ホテル",
             "name_display": "駅前ホテル", "name_zh": "車站前旅館",
-            "facilities": [], "geocode": {"lat": 41.77, "lng": 140.73},
+            "facilities": [],
+            "geocode": {"lat": 41.77, "lng": 140.73, "geocode_source": "nominatim"},
+            "resolved_name": "駅前ホテル",
             "sources": [
                 {"url": "https://hotel.example", "lang": "ja", "official": True},
                 {"url": "https://guide.example/hotel", "lang": "zh"},
@@ -154,9 +160,17 @@ def itinerary():
 
 
 def rederive_kwargs(**over):
-    """The legs/routing/cost/trip_brief bundle run_gate needs so verdict
-    re-derivation has something to re-derive. Every existing run_gate call site
-    that asserts status == 'pass' must pass **rederive_kwargs().
+    """The legs/routing/cost/trip_brief/accommodations bundle run_gate needs so
+    verdict re-derivation has something to re-derive. Every existing run_gate
+    call site that asserts status == 'pass' must pass **rederive_kwargs().
+
+    accommodations defaults to {"stops": []} (I2, v0.33.0): rederive_lodging
+    treats an ABSENT accommodations.yaml as a verdicts_rederivable failure, same
+    as legs/routing/cost -- a call site that wants a real lodging fixture must
+    override it explicitly, e.g. **rederive_kwargs(accommodations=MY_ACCOM),
+    never a bare accommodations=MY_ACCOM alongside **rederive_kwargs() (that
+    collides: run_gate() got multiple values for keyword argument
+    'accommodations').
 
     There is deliberately NO rederive=False switch: an off-switch would make a
     skipped check indistinguishable from a green one, which is the defect class
@@ -168,6 +182,7 @@ def rederive_kwargs(**over):
         "cost": {"currency": "TWD", "as_of": "2026-08-07", "total": 0,
                  "line_items": []},
         "trip_brief": {"dates": {"start": "2026-08-29", "end": "2026-08-31"}},
+        "accommodations": {"stops": []},
     }
     kw.update(over)
     return kw

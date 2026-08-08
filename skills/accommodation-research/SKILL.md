@@ -22,6 +22,11 @@ every candidate, exactly like `source-verify`.
 
 ## Verification (reuse `scripts/verify.py::classify_candidate`)
 
+`itinerary-gate` now **re-derives** every candidate's `verify_status` from the
+recorded `sources`, `geocode.geocode_source` and `resolved_name` — the rule
+below is no longer satisfied by having read this paragraph; if the artifact
+doesn't carry the field, the gate fails and routes back here.
+
 - ≥2 independent sources, ≥1 local-language (Gate 1).
 - **`name_zh` (Chinese gloss):** capture a `name_zh` on each candidate; the render
   layer shows `name_display（name_zh）`. **REQUIRED when the candidate's `name_display`
@@ -40,7 +45,10 @@ every candidate, exactly like `source-verify`.
   `scripts/geocode_cache.py`) as `resolve_place(..., cache=cache)` — re-runs then skip
   already-resolved and known-miss hotel lookups. **When the user manually confirms a hotel
   or requests re-verification, delete that hotel's `cache_key` entry from the cache first**
-  so a stale negative cache cannot permanently suppress the re-query.
+  so a stale negative cache cannot permanently suppress the re-query. **Record
+  `resolved_name`** on every candidate — the geocoder's returned `display_name` — so
+  Gate 2b (name match) can be re-derived from the artifact instead of trusting
+  whatever the agent typed.
 - **Region:** a hotel that *does* geocode but lands outside the stop district
   (`scripts/geocode.py::in_region`) → `conflicting` + stop and ask. Centroid fallback is
   trivially in-region.
@@ -82,7 +90,7 @@ to `tripwork:orchestrator`.
 | Field | Value |
 |---|---|
 | Input | `trips/<slug>/routing.yaml` (clusters + centroids) + `trips/<slug>/trip-brief.yaml`. |
-| Output | `trips/<slug>/accommodations.yaml` (per-stop candidates + chosen). |
+| Output | `trips/<slug>/accommodations.yaml` (per-stop candidates + chosen, each candidate carrying `resolved_name` for gate re-derivation). |
 | Stop condition | Unfilled stop needs a pick; a required facility is missing; a hotel geocodes outside its stop; arrival is after reception close → ask user. |
 | Next stage | `tripwork:orchestrator`. |
 

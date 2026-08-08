@@ -30,8 +30,13 @@ def test_accommodation_marker_routes_to_accommodation_research():
 def test_legs_marker_routes_to_inter_stop_legs():
     legs = {"legs": [{"from": "三重", "to": "嘉義市", "mode": "drive",
                       "duration_mins": 400, "status": "ok"}]}
+    # accommodations={"stops": []} (I2): keeps this test scoped to legs -- an
+    # absent accommodations.yaml is ITSELF now a rederive_lodging finding
+    # ("accommodations.yaml absent") that shares _ROUTES' FIRST group with
+    # "legs[", which would silently hijack the assertion below.
     res = run_rederivation(ITIN, {}, legs=legs, routing={"clusters": [], "hops": []},
-                           cost={"currency": "TWD", "line_items": [], "total": 0})
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations={"stops": []})
     assert any("legs[" in f for f in res["failures"])
     assert route_gate_failures(res["failures"]) == "tripwork:inter-stop-legs"
 
@@ -44,7 +49,8 @@ def test_routing_marker_routes_to_routing_audit():
                "hops": [{"from": "西區", "to": "太保市", "mins": 5, "mode": "drive",
                          "duration_source": "sourced_timetable", "flag": "ok"}]}
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing=routing,
-                           cost={"currency": "TWD", "line_items": [], "total": 0})
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations={"stops": []})
     assert any("routing hop " in f for f in res["failures"])
     assert route_gate_failures(res["failures"]) == "tripwork:routing-audit"
 
@@ -54,9 +60,42 @@ def test_cost_marker_routes_to_cost_rollup():
             "line_items": [{"category": "lodging", "label": "兆品", "amount": 5000},
                            {"category": "transport", "label": "油資", "amount": 1000}]}
     res = run_rederivation(ITIN, {}, legs={"legs": []},
-                           routing={"clusters": [], "hops": []}, cost=cost)
+                           routing={"clusters": [], "hops": []}, cost=cost,
+                           accommodations={"stops": []})
     assert any("cost.total" in f for f in res["failures"])
     assert route_gate_failures(res["failures"]) == "tripwork:cost-rollup"
+
+
+def test_lodging_rederivation_mismatch_routes_to_accommodation_research():
+    """I2's new markers, "accommodations stop " / "accommodations.yaml absent",
+    extend the SAME first _ROUTES entry as "chosen lodging" / "required
+    facility" -- this is the mismatch-axis half: a candidate rederive_lodging
+    re-derives differently than recorded (the real d2-6 shape: cluster_fallback,
+    no existence proof) must route back to accommodation-research, same as the
+    pre-existing gate-level lodging checks."""
+    accommodations = {"stops": [{"district": "日月潭", "nights": 1, "chosen": "d2-6",
+        "candidates": [{
+            "id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
+            "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
+                       {"url": "https://b.example/d2-6", "lang": "zh"}],
+            "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "cluster_fallback"},
+            "verify_status": "verified"}]}]}
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations=accommodations)
+    assert any("accommodations stop " in f and "d2-6" in f for f in res["failures"])
+    assert route_gate_failures(res["failures"]) == "tripwork:accommodation-research"
+
+
+def test_accommodations_absent_marker_routes_to_accommodation_research():
+    """The rederivable-axis half of the same extension: accommodations=None
+    (mirroring Task 1's legs=None/routing=None/cost=None treatment) must also
+    route to accommodation-research, not fall through to synthesis."""
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations=None)
+    assert any("accommodations.yaml absent" in f for f in res["failures"])
+    assert route_gate_failures(res["failures"]) == "tripwork:accommodation-research"
 
 
 def test_no_resolved_lodging_still_routes_to_synthesis_not_accommodation():
@@ -64,7 +103,12 @@ def test_no_resolved_lodging_still_routes_to_synthesis_not_accommodation():
     per-day floor (a missing itinerary ROW, scripts/gate.py's _day_has_lodging
     check) -- NOT in any _ROUTES group, so it must fall through to synthesis.
     Pass **rederive_kwargs() so the rederivation axes stay clean and this
-    failure is the ONLY one in the report, isolating the exception."""
+    failure is the ONLY one in the report, isolating the exception. This also
+    guards I2's two new markers ("accommodations stop "/"accommodations.yaml
+    absent") added to the SAME first _ROUTES entry: rederive_kwargs()'s
+    accommodations={"stops": []} default keeps rederive_lodging silent, so
+    there is nothing for the new markers to (wrongly) match here -- the entry
+    being first is what makes them safe, and this is what pins that."""
     pois = [{"id": "a", "verify_status": "verified", "geocode": {"lat": 1, "lng": 2}}]
     itin = {"title": "t", "days": [
         {"date": "2026-06-12", "rows": [{"slot": "meal", "poi_id": "a", "text": "lunch"}]},
