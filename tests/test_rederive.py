@@ -1,5 +1,8 @@
 """Verdict re-derivation: the artifact's own inputs must reproduce its verdict."""
+import pathlib
+
 import pytest
+import yaml
 
 from scripts.rederive import run_rederivation, hop_km
 
@@ -107,6 +110,53 @@ def test_a_hop_with_no_mode_is_not_rederivable():
                for f in res["failures"])
 
 
+def test_hop_recorded_unsourced_with_no_duration_source_does_not_falsely_mismatch():
+    """Fix round 1, one-liner 1: the provenance-blind fold must not overwrite a
+    CORRECTLY recorded 'unsourced' back to 'ok'. Absent duration_source
+    defaults to agent_estimate, which IS what classify_hop returns for this
+    hop (km/mode present, over the floor, under the cap, agent_estimate) --
+    so 'unsourced' is the right answer and folding it to 'ok' would report
+    'recorded flag 'unsourced' but classify_hop re-derives 'ok'' on the axis
+    reserved for WRONG verdicts, exactly backwards from what the fold exists
+    to prevent."""
+    routing = {"clusters": [{"district": "西區", "pois": [],
+                             "centroid": {"lat": 23.47999, "lng": 120.44343}},
+                            {"district": "太保市", "pois": [],
+                             "centroid": {"lat": 23.4590, "lng": 120.3350}}],
+               "hops": [{"from": "西區", "to": "太保市", "mins": 30, "mode": "drive",
+                         "flag": "unsourced"}]}
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing=routing,
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF)
+    c = _checks(res)
+    assert c["verdicts_rederivable"]["passed"] is False   # still missing duration_source
+    assert c["verdicts_match"]["passed"] is True           # but NOT a false mismatch
+    assert not any("recorded flag 'unsourced'" in f for f in res["failures"])
+
+
+def test_hop_km_handles_explicit_null_clusters_without_crashing():
+    """Fix round 1, one-liner 2: opt() (scripts/gate.py) does not schema-validate,
+    so an explicit `clusters: null` in routing.yaml reaches hop_km verbatim.
+    `.get("clusters", [])` only substitutes when the KEY is absent -- an
+    explicit null survives the .get and crashes the dict comprehension with
+    TypeError instead of producing a gate failure."""
+    assert hop_km({"clusters": None}, {"from": "a", "to": "b"}) is None
+
+
+def test_a_hop_with_null_clusters_is_not_rederivable_not_a_crash():
+    """End-to-end sibling of the hop_km guard above: run_rederivation must not
+    raise on an explicit `clusters: null` -- it must report the hop as not
+    re-derivable, the same as an absent centroid."""
+    routing = {"clusters": None, "hops": [{"from": "西區", "to": "太保市", "mins": 30,
+                                           "mode": "drive", "flag": "ok"}]}
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing=routing,
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF)
+    c = _checks(res)
+    assert c["verdicts_rederivable"]["passed"] is False
+    assert any("centroid" in f for f in res["failures"])
+
+
 def test_a_wrong_cost_total_fails_verdicts_match():
     cost = {"currency": "TWD", "as_of": "2026-08-07", "total": 99999,
             "line_items": [{"category": "lodging", "label": "兆品", "amount": 5000},
@@ -159,9 +209,6 @@ def test_hop_km_resolves_endpoints_through_cluster_centroids():
     assert km is not None and 9.0 < km < 14.0
     assert hop_km(routing, {"from": "西區", "to": "不存在"}) is None
 
-
-import pathlib
-import yaml
 
 CORPUS = pathlib.Path("/home/user/hp_workspace/tripwork-workspace/trips")
 IN_SCOPE = ("2026-06-yilan", "2026-07-sun-moon-lake", "2026-08-chiayi",

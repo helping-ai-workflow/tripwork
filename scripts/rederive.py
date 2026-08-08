@@ -63,7 +63,7 @@ def hop_km(routing, hop):
     disable the plausibility floor (scripts/distance.py:34).
     """
     cents = {c.get("district"): c.get("centroid")
-             for c in (routing or {}).get("clusters", []) if c.get("centroid")}
+             for c in (routing or {}).get("clusters") or [] if c.get("centroid")}
     a, b = cents.get(hop.get("from")), cents.get(hop.get("to"))
     if not a or not b:
         return None
@@ -136,6 +136,7 @@ def rederive_hops(routing, *, max_hop_mins=MAX_HOP_MINS):
         ds = hop.get("duration_source")
         got = classify_hop(hop.get("mins"), max_hop_mins, km=km, mode=mode,
                            duration_source=ds, source_url=hop.get("source_url"))
+        rec = hop.get("flag")
         if ds is None:
             # Provenance is an INPUT and it is absent. Per this module's own axis
             # split that is a verdicts_rederivable failure, never a skip; per the
@@ -158,10 +159,17 @@ def rederive_hops(routing, *, max_hop_mins=MAX_HOP_MINS):
                 f"provenance branch is not re-derivable (record agent_estimate / "
                 f"map_estimate / sourced_timetable, plus source_url when it is not "
                 f"an agent estimate)")
-            if got == "unsourced":
+            # Fix round 1, one-liner 1: the fold is asymmetric. A hop recorded
+            # flag:'unsourced' with no duration_source is CORRECTLY recorded
+            # (absent means agent_estimate, which classifies 'unsourced') --
+            # only fold got back to 'ok' when the recorded verdict ISN'T
+            # already 'unsourced'. Folding unconditionally would rewrite a
+            # correct 'unsourced' into a false mismatch against 'ok', on the
+            # axis reserved for wrong verdicts -- backwards from the fold's
+            # purpose.
+            if got == "unsourced" and rec != "unsourced":
                 got = "ok"
         out.compared += 1
-        rec = hop.get("flag")
         if rec != got:
             out.mismatches.append(
                 f"routing hop {frm}->{to}: recorded flag {rec!r} but classify_hop "

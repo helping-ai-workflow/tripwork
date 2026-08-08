@@ -408,3 +408,42 @@ def test_gate_kana_lodging_without_name_zh_fails():   # v0.30.0
                  facility_needs={"required": []})
     assert r["status"] == "fail"
     assert any("h1" in f and "name_zh" in f for f in r["failures"])
+
+
+# --- fix round 1, Important 2: the wiring seam (run_gate must SURFACE
+#     verdict re-derivation, not just accept the kwargs). All 12 rederive.py
+#     unit tests call run_rederivation directly; the 10 migrated call sites
+#     only prove **rederive_kwargs() keeps a passing gate passing. Nothing
+#     asserted that a re-derivation failure actually reaches run_gate's
+#     output -- deleting `checks.extend(rd["checks"])` / `failures.extend(
+#     rd["failures"])` in scripts/gate.py would leave the rest of the suite
+#     green. This is the seam that most needs a test: the mechanism's
+#     user-visible contract IS the gate report.
+
+def test_gate_surfaces_rederivation_match_failure_in_report():
+    legs = {"legs": [{"from": "三重", "to": "嘉義市", "mode": "drive",
+                      "duration_mins": 400, "status": "ok"}]}
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
+                 legs=legs, routing={"clusters": [], "hops": [], "warnings": []},
+                 cost={"currency": "TWD", "as_of": "2026-08-07", "total": 0,
+                       "line_items": []},
+                 trip_brief={"dates": {"start": "2026-08-29", "end": "2026-08-31"}})
+    assert r["status"] == "fail"
+    assert {"name": "verdicts_match", "passed": False, "examined": 2} in r["checks"]
+    assert any("drive_too_long" in f and "三重" in f for f in r["failures"])
+
+
+def test_gate_surfaces_rederivation_rederivable_failure_in_report():
+    """Sibling of the match-axis guard above: a record with GAPS (not wrong,
+    just unverifiable) must also surface as a gate-report FAILURE via
+    verdicts_rederivable, never silently absorbed."""
+    legs = {"legs": [{"from": "嘉義", "to": "台南", "mode": "rail",
+                      "duration_mins": 40, "status": "ok"}]}
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
+                 legs=legs, routing={"clusters": [], "hops": [], "warnings": []},
+                 cost={"currency": "TWD", "as_of": "2026-08-07", "total": 0,
+                       "line_items": []},
+                 trip_brief={"dates": {"start": "2026-08-29", "end": "2026-08-31"}})
+    assert r["status"] == "fail"
+    assert {"name": "verdicts_rederivable", "passed": False, "examined": 2} in r["checks"]
+    assert any("last_service_exempt" in f for f in r["failures"])
