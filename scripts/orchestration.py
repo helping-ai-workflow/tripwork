@@ -29,6 +29,7 @@ _ROUTES = (
     (("legs[", "legs.yaml absent"), "tripwork:inter-stop-legs"),
     (("routing hop ", "routing.yaml absent"), "tripwork:routing-audit"),
     (("cost.total", "cost.by_category", "cost.yaml absent"), "tripwork:cost-rollup"),
+    (("AI-tone ",), "tripwork:itinerary-synthesis"),
 )
 
 

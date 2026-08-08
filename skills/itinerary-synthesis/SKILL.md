@@ -22,6 +22,7 @@ Compose the canonical `trips/<slug>/itinerary.yaml` from verified POIs and routi
   write the literal `must_do` in user-facing text; express it as plain prose (e.g.
   至少一晚溫泉旅館含會席). This is what satisfies `export-gate`'s `no_internal_jargon`
   check (a leaked id token or `must_do` is a hard fail).
+- **Prose style.** Row text and checklist items are read by a person, not filled into a template — see [references/prose-style.md](references/prose-style.md) for the judgment calls (三項並列、節奏、具體 vs 空泛). The mechanical patterns (破折號、粗體、裝飾性 emoji、AI 套語) are enforced by `scripts/text_hygiene.py::ai_tone_failures` as `itinerary-gate`'s `no_ai_tone` check, and a hit routes straight back here.
 - **must_do coverage (P5).** `trip-brief.must_do` entries are free-text themes
   (e.g. `日月潭遊湖賞景`), NOT POI ids. For each theme, decide which scheduled verified
   POI(s) satisfy it and record the mapping in `itinerary.yaml` under

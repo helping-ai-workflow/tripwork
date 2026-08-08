@@ -188,6 +188,33 @@ def rederive_kwargs(**over):
     return kw
 
 
+def build_gate_inputs():
+    """(pois, itin) pair that PASSES run_gate(advisory={"items": []},
+    **rederive_kwargs()) as-is, so a caller can mutate `itin` in place (e.g.
+    inject an em-dash into a row's text) and attribute any resulting failure
+    to that one mutation.
+
+    Deliberately a single day (not itinerary()'s two-day shape): a single day
+    is its own last day, so the always-on `_day_has_lodging` floor over
+    `days[:-1]` never fires and no `lodging` field is needed -- itinerary()'s
+    day 1 `lodging: "hotel-1"` is REFERENCED (scripts/gate.py::_referenced_ids)
+    but hotel-1 resolves only via a chosen accommodations candidate, which
+    rederive_kwargs()'s default `accommodations={"stops": []}` does not carry,
+    so pairing itinerary() with rederive_kwargs() bare fails on "day
+    references unknown POI 'hotel-1'" independent of any AI-tone content.
+    Confirmed empirically before this fixture was added.
+    """
+    return verified_pois()["pois"], {
+        "title": "測試行程",
+        "checklist": ["battery: spare lithium batteries carry-on only"],
+        "days": [
+            {"date": "2026-08-01",
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "poi-1",
+                       "text": "午餐", "closing_status": "ok"}]},
+        ],
+    }
+
+
 def build_full_trip(root, slug=SLUG):
     """Write the complete artifact set under root/trips/<slug> + work stamp."""
     t = root / "trips" / slug

@@ -27,7 +27,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
 from scripts.facilities import stop_meets_required
 from scripts.calendar import poi_closed_on
 from scripts.rederive import run_rederivation
-from scripts.text_hygiene import jargon_failures, kana_gloss_failures, kana_name_without_gloss
+from scripts.text_hygiene import (ai_tone_failures, jargon_failures,
+                                   kana_gloss_failures, kana_name_without_gloss)
 
 def chosen_lodging_pois(accommodations):
     """Each overnight stop's chosen lodging as a POI-shaped dict, so the gate AND the
@@ -201,6 +202,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     hygiene_text = _itinerary_text(itinerary)
     failures.extend(jargon_failures(hygiene_text, pois))
     failures.extend(kana_gloss_failures(hygiene_text))
+    ai_tone = ai_tone_failures(hygiene_text)
+    failures.extend(ai_tone)
 
     # Verdict re-derivation (v0.33.0). Every recorded mechanical verdict is
     # recomputed from the inputs the artifact itself carries. Emits its own two
@@ -228,6 +231,11 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
          "passed": not any("leaked into user-facing" in f for f in failures)},
         {"name": "japanese_glossed",
          "passed": not any("no （中文）gloss" in f for f in failures)},
+        # `passed` reads the direct return value, not a substring scan of the
+        # merged failures list like the nine checks above. AI-tone snippets embed
+        # arbitrary trip text, so a substring scan would be the only check in this
+        # file whose truth depends on trip content.
+        {"name": "no_ai_tone", "passed": not ai_tone},
     ]
     checks.extend(rd["checks"])
     if closed_check:

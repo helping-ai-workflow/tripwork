@@ -13,6 +13,7 @@ fall-through this release exists to end.
 from scripts.gate import run_gate
 from scripts.orchestration import route_gate_failures
 from scripts.rederive import run_rederivation
+from scripts.text_hygiene import ai_tone_failures
 from tests.mech_fixtures import rederive_kwargs
 
 ITIN = {"days": [{"date": "2026-08-29", "rows": []}]}
@@ -117,6 +118,20 @@ def test_no_resolved_lodging_still_routes_to_synthesis_not_accommodation():
     r = run_gate(pois, itin, advisory={"items": []}, **rederive_kwargs())
     assert any("no resolved lodging" in f for f in r["failures"])
     assert route_gate_failures(r["failures"]) == "tripwork:itinerary-synthesis"
+
+
+def test_ai_tone_marker_routes_to_itinerary_synthesis():
+    """Task 3's addition: the AI-tone entry is declared explicitly in _ROUTES
+    (last group, after accommodation + the three producing-stage entries)
+    rather than left to the default branch -- Task 1 made the default branch
+    stage-specific, so relying on fall-through would be an accident waiting
+    to happen. Built from a REAL ai_tone_failures() output (an em-dash, the
+    same shape as 31 of the 32 real canonical hits), not a hand-typed
+    literal, so a message-format rename on either side of the file boundary
+    fails here."""
+    failures = ai_tone_failures("抵嘉義先吃午餐——阿宏師火雞肉飯（光華總店）")
+    assert any(f.startswith("AI-tone ") for f in failures)
+    assert route_gate_failures(failures) == "tripwork:itinerary-synthesis"
 
 
 def test_accommodation_marker_wins_priority_over_a_later_group():
