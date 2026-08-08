@@ -113,7 +113,11 @@ def test_verify_poi_geocode_key_normalised_and_clean_passes_through():
     poi["business_status"] = {"status": "OPERATIONAL",
                               "source_url": "https://places.example/x",
                               "as_of": "2026-07-20"}
+    # TW-062: Gate 2b now refuses to run silently, so pass the name the geocoder
+    # resolved — this fixture's point is the lon->lng normalisation, and the
+    # geocoder resolving the same name keeps that isolated.
     normalised, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                          resolved_name="洞爺湖ウィンザーホテル",
                                           today=_TODAY)
     assert status == "verified"
     assert normalised["geocode"]["lng"] == 140.7

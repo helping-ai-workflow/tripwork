@@ -216,3 +216,105 @@ def test_bare_string_business_status_still_validates_against_the_schema(tmp_path
         encoding="utf-8",
     )
     assert validate_file(str(p))[0] == 0
+
+
+from scripts.verify import verify_poi
+
+
+def _clean_poi(**over):
+    """A POI that passes every other gate, so the only variable is the geocode
+    provenance. business_status is the sourced object form (Task 4)."""
+    poi = {
+        "id": "chunyen-restaurant",
+        "name_local": "春燕飯館",
+        "name_display": "春燕飯館",
+        "district": "嘉義市西區",
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": "https://example.gov.tw/x",
+                            "as_of": "2026-08-01"},
+        "geocode": {"lat": 23.47999, "lng": 120.44343,
+                    "geocode_source": "cluster_fallback"},
+        "sources": [
+            {"url": "https://a.example.tw/p", "lang": "zh"},
+            {"url": "https://b.example.com/q", "lang": "en"},
+        ],
+    }
+    poi.update(over)
+    return poi
+
+
+def test_cluster_fallback_without_existence_proof_is_not_verified():
+    """TW-062: a district centroid is a location, not evidence the place exists.
+
+    Nominatim finding nothing must not be a BETTER outcome than Nominatim
+    finding a name that disagrees (which is `conflicting`).
+    """
+    _, status, note = verify_poi(_clean_poi(), geocoded=True,
+                                 in_claimed_region=True, local_lang="zh",
+                                 resolved_name="春燕飯館")
+    assert status == "unverified"
+    assert "cluster_fallback" in note
+    # Discriminating clause: it must fail for the RIGHT reason, not because
+    # Gate 0 tripped on business_status.
+    assert "no business_status signal" not in note
+
+
+def test_cluster_fallback_with_an_official_source_stays_verified():
+    """The over-blocking guard: an official page proves the venue exists, so the
+    approximate coordinate is an acceptable position for it."""
+    poi = _clean_poi(sources=[
+        {"url": "https://chunyen.example.tw/", "lang": "zh", "official": True},
+        {"url": "https://b.example.com/q", "lang": "en"},
+    ])
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+    assert note == ""
+
+
+def test_cluster_fallback_with_a_place_id_stays_verified():
+    """gmaps_place_id is the other existence proof source-verify already
+    collects (skills/source-verify/SKILL.md:30)."""
+    poi = _clean_poi(gmaps_place_id="ChIJ5wJfhyWUbjQRG_DhFBgvW7g")
+    _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                              local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+
+
+def test_nominatim_resolved_geocode_is_unaffected():
+    """Regression guard: the normal path must not tighten."""
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                              local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+
+
+def test_omitting_resolved_name_no_longer_silently_skips_gate_2b():
+    """Same root cause as TW-062, different gate: a check that does not run is
+    indistinguishable from a check that passed.
+
+    verify.py:163 read `name_match = True if resolved_name is None else ...`, so a
+    caller that forgot the argument got a green POI with Gate 2b never executed —
+    no error, no warning, nothing in the artifact. Every hand-written consumer
+    driver was one omission away from it (TW-068).
+    """
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh")
+    assert status == "unverified"
+    assert "resolved_name" in note
+
+
+def test_an_explicit_unresolved_marker_is_how_d7_is_recorded():
+    """The escape hatch D7 needs: Nominatim genuinely returned nothing. Passing
+    the sentinel is a CLAIM that the lookup ran and found nothing; omitting the
+    argument is silence, and silence is what this change outlaws."""
+    from scripts.verify import NO_RESOLVED_NAME
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, note = verify_poi(poi, geocoded=False, in_claimed_region=True,
+                                 local_lang="zh", resolved_name=NO_RESOLVED_NAME)
+    assert status == "unverified"
+    assert "geocode unresolved" in note

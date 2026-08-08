@@ -10,6 +10,12 @@ from urllib.parse import urlsplit
 from scripts.geocode import normalize_geocode_keys, name_matches
 
 
+# Explicit "the geocoder ran and returned no name" marker. A caller must pass
+# either a resolved display_name or this sentinel; omitting the argument used to
+# mean "skip Gate 2b", which is silence dressed as a pass.
+NO_RESOLVED_NAME = object()
+
+
 def _distinct_netlocs(sources):
     """Set of distinct lower-cased domains across a candidate's source urls."""
     return {urlsplit(s.get("url", "")).netloc.lower() for s in sources if s.get("url")}
@@ -78,6 +84,20 @@ def operating_from_status(business_status, today=None):
         return None, (f"business_status.as_of {as_of.isoformat()} is {age} days old "
                       f"(max {OPERATING_MAX_AGE_DAYS}) — stale, re-check before scheduling")
     return _OPERATING_STATUS[key], ""
+
+
+def has_existence_proof(poi):
+    """True when something independent of the coordinate says this place exists.
+
+    A cluster centroid is the district's midpoint — it is a position, not
+    evidence. Two proofs are accepted because source-verify already collects
+    both: a source the skill flagged `official: true` (its own site or booking
+    page), or a `gmaps_place_id` recorded while the operating check was open
+    (skills/source-verify/SKILL.md:30). (TW-062)
+    """
+    if (poi.get("gmaps_place_id") or "").strip():
+        return True
+    return any(s.get("official") for s in (poi.get("sources") or []))
 
 
 def classify_candidate(candidate, geocoded, in_claimed_region,
@@ -196,12 +216,30 @@ def verify_poi(poi, geocoded, in_claimed_region,
     if not operating:
         return normalised, "rejected", "permanently/temporarily closed (defunct)"
 
-    # Gate 2b (P2): confirm the resolved place corresponds to the queried venue.
-    # source-verify queries Nominatim by name_local, so compare that against the
-    # resolved display_name. When no resolved_name is supplied the check is skipped
-    # (name_match=True) — the skill is expected to pass it.
+    # Gate 2b (P2). Omitting resolved_name used to set name_match=True, so a caller
+    # that forgot the argument got a verified POI with this gate never executed —
+    # the same failure shape as TW-062's Gate 2, one gate over. The default is now
+    # refusal: pass the resolved display_name, or NO_RESOLVED_NAME to state that
+    # the lookup ran and produced none.
     queried = normalised.get("name_local") or normalised.get("name_display") or ""
-    name_match = True if resolved_name is None else name_matches(queried, resolved_name)
+    if resolved_name is None:
+        return (normalised, "unverified",
+                "no resolved_name supplied — Gate 2b (name match) cannot run. Pass the "
+                "geocoder's display_name, or verify.NO_RESOLVED_NAME if it returned none")
+    name_match = True if resolved_name is NO_RESOLVED_NAME \
+        else name_matches(queried, resolved_name)
+
+    # Gate 2c (TW-062): a centroid fallback is not a geocode. Nominatim finding
+    # nothing must not outrank Nominatim finding a name that disagrees — which is
+    # `conflicting`. Without this, the incentive inverts: the POIs that cannot be
+    # resolved are the easiest to pass. Dogfood 2026-08: 8 of 17 chiayi POIs took
+    # this path, five of them sharing verbatim-identical coordinates.
+    geo_source = ((normalised.get("geocode") or {}).get("geocode_source") or "")
+    if geo_source == "cluster_fallback" and not has_existence_proof(normalised):
+        return (normalised, "unverified",
+                "geocode is a cluster_fallback centroid with no existence proof — "
+                "record an official: true source or a gmaps_place_id, or leave the "
+                "POI unverified for manual confirmation")
 
     status, note = classify_candidate(
         normalised, geocoded=geocoded, in_claimed_region=in_claimed_region,

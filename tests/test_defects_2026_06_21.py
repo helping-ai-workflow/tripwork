@@ -74,9 +74,12 @@ class TestP1Operating:
         assert "operating" in note.lower() or "business_status" in note.lower()
 
     def test_operational_signal_allows_verified(self):
+        # TW-062: Gate 2b now refuses to run silently, so the resolved name the
+        # geocoder returned must be passed — this fixture's point is Gate 0, and
+        # the geocoder resolving the same name ("店") keeps that isolated.
         _, status, _ = verify_poi(
             self._cand(business_status=_sourced_status("OPERATIONAL")),
-            geocoded=True, in_claimed_region=True, today=_TODAY)
+            geocoded=True, in_claimed_region=True, resolved_name="店", today=_TODAY)
         assert status == "verified"
 
     def test_classify_candidate_operating_false_still_rejected(self):
