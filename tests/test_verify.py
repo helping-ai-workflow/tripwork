@@ -150,6 +150,50 @@ def test_object_form_missing_source_url_is_not_a_signal():
     assert "source_url" in note
 
 
+def test_tel_source_url_business_status_verifies():
+    """TW-063 fix round 1 (Finding 1): the phone-confirmation route
+    (SKILL.md:30 route 3, 行前電話確認) is the only one available without a
+    Places API key; verify_poi must accept it like any other sourced signal."""
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "tel:+886-5-2593133",
+                        "as_of": "2026-08-01"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "verified"
+    assert note == ""
+
+
+def test_business_status_exactly_ninety_days_old_is_still_fresh():
+    """TW-063 fix round 1 (boundary, worth doing): age is computed as
+    `age > OPERATING_MAX_AGE_DAYS`, so exactly 90 days old is inclusive (still
+    fresh), not stale. Locks in the strict-vs-inclusive choice at the boundary."""
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-05-10"})  # exactly 90 days before today
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "verified"
+    assert note == ""
+
+
+def test_business_status_ninety_one_days_old_is_stale():
+    """TW-063 fix round 1 (boundary, worth doing): one day past the ceiling
+    must be stale — the other side of the same boundary."""
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-05-09"})  # exactly 91 days before today
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "unverified"
+    assert "stale" in note or "as_of" in note
+
+
 def test_bare_string_business_status_still_validates_against_the_schema(tmp_path):
     """Guard, GREEN at HEAD: schema stays permissive so existing trips keep
     passing validate_artifact and get a ROUTED gate failure instead of a hard

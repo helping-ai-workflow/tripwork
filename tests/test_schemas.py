@@ -860,3 +860,22 @@ def test_gate_report_check_accepts_examined_and_rejects_negative(tmp_path):
     rc, msgs = validate_file(str(bad), schema_path=str(schema_path))
     assert rc == 1
     assert any("examined" in m for m in msgs)
+
+
+def test_business_status_tel_source_url_validates():
+    """TW-063 fix round 1 (Finding 1): `tel:<number>` is the only operating-signal
+    route available to a consumer without a Places API key (SKILL.md:30 route 3
+    — 行前電話確認). Rejecting it would make this fix name an unobtainable source,
+    the exact defect TW-063 closes."""
+    schema = _load_schema("verified-pois.schema.json")
+    data = {"pois": [{
+        "id": "x", "name_local": "x", "name_display": "x",
+        "category": "restaurant", "district": "x",
+        "geocode": {"lat": 1.0, "lng": 2.0},
+        "sources": [{"url": "https://a.example", "lang": "ko"}, {"url": "https://b.example", "lang": "zh"}],
+        "verify_status": "verified",
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": "tel:+886-5-2593133",
+                            "as_of": "2026-08-01"},
+    }]}
+    jsonschema.validate(data, schema)

@@ -88,8 +88,11 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     Gates are evaluated in strict order (spec §5.1):
 
     Gate 0: must be operating — a permanently/temporarily closed (defunct) place
-            is 'rejected'. The skill determines `operating` from Google Maps
-            ('永久停業' / 'Permanently closed') or an official-site 404. (TW-005)
+            is 'rejected'. The skill determines `operating` via `operating_from_status`
+            (this module) from the POI's sourced `business_status` object
+            ({status, source_url, as_of}, TW-063) — never from a bare hand-typed
+            string, and never by reading a Google Maps card or inferring closure
+            from a site 404 (both measured dead in dogfood). (TW-005)
     Gate 1: >= 2 sources (else 'unverified').
             If local_lang given, at least one source must be in that lang (else 'unverified').
     Gate 2: geocode must resolve (else 'unverified', D7).

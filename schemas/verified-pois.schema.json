@@ -203,7 +203,11 @@
                     "type": "string",
                     "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
                   },
-                  "source_url": {"type": "string", "pattern": "^https?://"},
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^(https?://|tel:)",
+                    "description": "The Places API endpoint, the dated page, or `tel:<number>` for a phone confirmation. `tel:` is admitted deliberately: it is the only route available to a consumer without a Places API key, and rejecting it would make this fix name an unobtainable source — the exact defect TW-063 closes."
+                  },
                   "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
                 }
               }
