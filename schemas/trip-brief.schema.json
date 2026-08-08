@@ -114,6 +114,14 @@
     "home_currency": {
       "type": "string"
     },
+    "home_origin": {
+      "type": "string",
+      "description": "Where the trip departs from. Separate from home_return because they differ in practice — the 2026-08 chiayi trip left 三重 and ended in 新竹. (TW-065)"
+    },
+    "home_return": {
+      "type": "string",
+      "description": "Where the trip returns to. See home_origin."
+    },
     "routing": {
       "type": "object",
       "properties": {

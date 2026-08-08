@@ -399,3 +399,15 @@ def test_source_verify_names_an_achievable_operating_source():
     assert "business_status.source_url" in body, "must say what to record"
     assert "行前電話" in body or "phone" in body.lower(), \
         "must name the keyless fallback for consumers with no API key"
+
+
+def test_home_leg_ownership_is_stated_on_both_sides():
+    """The defect report's proposed assertion ('inter-stop-legs contains
+    cost-rollup, cost-rollup contains home') is vacuous both ways at HEAD:
+    inter-stop-legs:37 already says cost-rollup, and cost-rollup:33,60 already
+    contain 'home' inside home_currency. These tokens do not exist at HEAD."""
+    legs = open(f"{SKILLS}/inter-stop-legs/SKILL.md", encoding="utf-8").read()
+    cost = open(f"{SKILLS}/cost-rollup/SKILL.md", encoding="utf-8").read()
+    assert "home_origin" in legs
+    assert "kind: home" in legs
+    assert "kind: home" in cost

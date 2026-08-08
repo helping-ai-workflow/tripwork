@@ -23,6 +23,12 @@
           "to": {
             "type": "string"
           },
+          "kind": {
+            "type": "string",
+            "enum": ["inter_stop", "home"],
+            "default": "inter_stop",
+            "description": "`home` is the drive between the traveller's home and the trip's first/last base. It is a real leg with a real fare and a real duration — usually the LONGEST drive of a single-base trip, so it is the one leg drive_too_long exists for. Absent means inter_stop. (TW-065)"
+          },
           "mode": {
             "type": "string",
             "enum": [

@@ -8,8 +8,15 @@ description: Use when overnight stops are established and the mode-aware legs be
 Build one leg for each pair of consecutive `trip-brief.overnight_stops`. Produces
 `trips/<slug>/legs.yaml` (schema: `schemas/legs.schema.json`). Applies
 **Source-Verified-First** to the timetable facts (a wrong last-service time strands the
-traveller). A single-base trip (no `overnight_stops` sequence, or length ≤ 1) has no legs;
-write an empty `legs` list and return.
+traveller). A single-base trip (no `overnight_stops` sequence, or length ≤ 1) has no
+**inter-stop** legs — but it usually still has the longest drive of the whole trip. When
+`trip-brief.yaml` carries `home_origin` / `home_return`, emit a `kind: home` leg for each
+(they differ: a trip can leave from one place and return to another, and a return drive
+broken by a non-overnight waypoint is two legs, not one). Home legs carry the same fields as
+any other leg and go through `classify_leg` unchanged, so `drive_too_long` finally sees the
+leg it was written for. Without `home_origin`/`home_return`, an empty `legs` list is still
+correct. `cost-rollup` reads every leg's `fare` regardless of `kind`, so a home leg is how the
+drive home reaches the estimate instead of being hand-written into `cost.yaml`.
 
 ## Mode selection (per leg)
 

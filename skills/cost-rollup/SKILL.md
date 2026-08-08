@@ -21,7 +21,12 @@ computes. It is NOT lodging-only. `over_budget` compares the grand total against
   `scripts/cost.py::lodging_line_amount(cost, nights, rooms)` — `cost.amount` is **per
   room**, so this multiplies by `cost.rooms` (default 1) and, for `basis == "per_night"`,
   by the stop's `nights`. A multi-room stop must set `cost.rooms` or it is under-costed. (P6)
-- Transport: each leg's `fare` from `legs.yaml`, and the trip-level `pass` option.
+- Transport: each leg's `fare` from `legs.yaml` — **including `kind: home` legs**, which carry
+  the drive between home and the trip's base and are often the largest single transport item —
+  plus the trip-level `pass` option. Never hand-write a transport line item for a drive that
+  should be a leg: a line item carries no `sources` requirement and never reaches
+  `classify_leg`, so a 6-hour drive entered that way is both unsourced and unchecked for
+  feasibility.
 - Incidental: `trip-brief.daily_incidental.amount × days` (a user-supplied allowance,
   honestly an estimate).
 
