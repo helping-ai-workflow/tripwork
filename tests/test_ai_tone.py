@@ -97,11 +97,47 @@ EXCLUDED_PATTERNS = [
 def test_excluded_patterns_are_absent_from_the_lexicon():
     """Governance pin: a future contributor cannot silently re-add a pattern that
     was measured to false-positive. Re-adding one means editing this list and
-    facing its FP count."""
-    src = (ROOT / "scripts" / "text_hygiene.py").read_text(encoding="utf-8")
+    facing its FP count.
+
+    Asserts against the module's lexicon OBJECTS (`_AI_SLOP_WORDS`, `_AI_PROMO`,
+    `_AI_CHATBOT` as literal sets; `_AI_SLOP_TEMPLATES`, `_AI_MEANING_STAMP`, and
+    the compiled regexes as pattern-string sets), not the module's source text.
+    Two traps rule out the more obvious "pattern not in src" check:
+
+    1. scripts/text_hygiene.py's own comments NAME the excluded words -- "首選/
+       必訪/必吃/坐落於/享受/體驗/放鬆 are NOT here -- every one was measured as
+       real usage in the corpus." A source-substring check fails on the very
+       documentation that explains the exclusion.
+    2. A shipped pattern may legitimately CONTAIN an excluded word as a
+       sub-string of a larger, different pattern: `關鍵` is excluded as a
+       standalone slop word, while `發揮[^\\n。]{0,6}(?:關鍵|重要)作用` ships as a
+       meaning stamp. Source-substring matching would flag that as a violation
+       when it is correct -- the excluded THING is the bare word as a
+       standalone trigger, not every string containing it.
+
+    An earlier version of this test guarded with `"|" not in pattern`, which
+    silently exempted alternation patterns from the check entirely -- 7 of the
+    10 EXCLUDED_PATTERNS entries, including the three highest measured FP
+    counts after rule_of_three (首選|必訪|必遊|必吃, 5 FP; 享受|體驗|放鬆, 3 FP;
+    可能|似乎|或許, 3 FP). Only 3 of 10 were ever actually pinned. A governance
+    check that cannot fail is indistinguishable from one that passed -- the
+    exact defect class this release exists to close. This version checks every
+    alternation BRANCH of every excluded pattern against the literal sets, and
+    every excluded pattern whole against the regex-pattern-string sets, so all
+    10 entries are live.
+    """
+    from scripts import text_hygiene as th
+
+    literals = set(th._AI_SLOP_WORDS) | set(th._AI_PROMO) | set(th._AI_CHATBOT)
+    regexes = ({p for p, _ in th._AI_SLOP_TEMPLATES}
+               | {p for p, _ in th._AI_MEANING_STAMP}
+               | {th._AI_EM_DASH.pattern, th._AI_BOLD.pattern, th._AI_EMOJI.pattern})
+
     for label, pattern, _excerpt, _fp in EXCLUDED_PATTERNS:
-        if pattern and len(pattern) > 3 and "|" not in pattern:
-            assert pattern not in src, f"{label} was excluded but appears in the lexicon"
+        assert pattern not in regexes, f"{label} was excluded but ships as a regex"
+        for branch in (b for b in pattern.split("|") if b):
+            assert branch not in literals, (
+                f"{label}: '{branch}' was excluded but is a lexicon literal")
 
 
 def test_gate_reports_no_ai_tone_and_fails_on_an_em_dash():
