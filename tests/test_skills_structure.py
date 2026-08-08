@@ -285,8 +285,13 @@ def _skill(name):
     return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
 
 def test_tw024_websearch_unavailable_halts():
+    # TW-064 rebound the halt condition from one tool's availability to "every
+    # route [in the source ladder] unavailable" and reworded the no-substitute
+    # clause accordingly; this guard now checks the current wording of the same
+    # discipline (WebSearch still named, HALT still the outcome, model recall
+    # still barred as a stand-in for a fetched source).
     t = _skill("using-tripwork")
-    assert "WebSearch" in t and "HALT" in t and "never substitute model memory" in t
+    assert "WebSearch" in t and "HALT" in t and "model recall is never a source" in t
 
 def test_tw025_notion_is_gated_md_paste_not_adapter():
     # 0.20.0: Notion is no longer a post-gate write-back adapter. The itinerary reaches
@@ -347,3 +352,111 @@ def test_gate_skills_cite_gate_clis():
 
 def test_orchestrator_cites_next_stage_cli():
     assert "next_stage.py" in _orch()
+
+def test_iron_rule_halts_on_provenance_not_on_a_tool_name():
+    """TW-064: the rule's target is model memory, not a vendor tool.
+
+    Dogfood 2026-08-07T09:57 measured 'tool type web_search_20250305 is not
+    supported for this model'. Under the tool-bound wording every research stage
+    halts, which makes the plugin unusable rather than careful.
+    """
+    body = (SKILLS / "using-tripwork" / "SKILL.md").read_text(encoding="utf-8")
+    # The rewrite also renames the row from "No search, no fact" to "No unsourced
+    # fact" (the old name still reads as tool-bound, which is exactly the defect
+    # being fixed) — locate the row by its new name, not the one being replaced.
+    rule = [ln for ln in body.splitlines() if "No unsourced fact" in ln]
+    assert rule, "iron rule row not found"
+    row = rule[0]
+    assert "WebFetch" in row, "the ladder's second rung must be named in the rule"
+    assert not re.search(r"If the `WebSearch` tool is unavailable", row), \
+        "halt must not be bound to one tool's availability"
+    assert "every route" in row or "all routes" in row, \
+        "HALT fires only when EVERY route is unavailable"
+
+
+def test_every_websearch_skill_points_at_the_ladder():
+    """Dynamically enumerated so a new research skill is covered automatically."""
+    offenders = []
+    for path in sorted(SKILLS.glob("*/SKILL.md")):
+        body = path.read_text(encoding="utf-8")
+        if "WebSearch" not in body:
+            continue
+        if path.parent.name == "using-tripwork":
+            continue
+        if "source ladder" not in body:
+            offenders.append(str(path))
+    assert offenders == [], f"skills naming WebSearch without a ladder pointer: {offenders}"
+
+
+def test_source_verify_names_an_achievable_operating_source():
+    """TW-063: SKILL.md:30 pointed Gate 0 at a Google Maps card the plugin cannot
+    open, and named no path that works. The dogfood agent measured both stated
+    routes as dead and fell back to typing OPERATIONAL — the rule produced the
+    behaviour it forbade."""
+    p = SKILLS / "source-verify" / "SKILL.md"
+    body = p.read_text(encoding="utf-8")
+    assert "Places API" in body, "must name the route that actually works"
+    assert "business_status.source_url" in body, "must say what to record"
+    assert "行前電話" in body or "phone" in body.lower(), \
+        "must name the keyless fallback for consumers with no API key"
+
+
+def test_home_leg_ownership_is_stated_on_both_sides():
+    """The defect report's proposed assertion ('inter-stop-legs contains
+    cost-rollup, cost-rollup contains home') is vacuous both ways at HEAD:
+    inter-stop-legs:37 already says cost-rollup, and cost-rollup:33,60 already
+    contain 'home' inside home_currency. These tokens do not exist at HEAD."""
+    legs = open(f"{SKILLS}/inter-stop-legs/SKILL.md", encoding="utf-8").read()
+    cost = open(f"{SKILLS}/cost-rollup/SKILL.md", encoding="utf-8").read()
+    assert "home_origin" in legs
+    assert "kind: home" in legs
+    assert "kind: home" in cost
+
+
+def test_itinerary_synthesis_input_contract_reflects_home_legs():
+    """TW-065 fix-round-1: the Input row claimed legs.yaml is 'empty list if
+    single-base' — false since a single-base trip carrying home_origin/
+    home_return now legitimately writes a non-empty legs.yaml (a kind: home
+    leg). The contract must name the home-endpoint condition, not just
+    single-base vs multi-base."""
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "empty list if single-base" not in text, \
+        "Input row still claims legs.yaml is empty for every single-base trip"
+    assert "home endpoint" in text, \
+        "Input row must name the home-endpoint condition that keeps legs.yaml non-empty"
+
+
+def test_orchestrator_rule11_describes_fingerprint_not_mtime():
+    """C2: TW-067 (task 7) replaced rule 11's implementation with a content
+    fingerprint comparison, but left the rule-book prose agents actually read
+    describing the OLD mtime mechanism ('advisory.yaml stale relative to
+    trip-brief.yaml (advisory older than the brief)'). For a trip carrying a
+    fingerprint that sentence is false: rewriting the advisory no longer
+    clears rule 11 by making it newer, and `input_fingerprints` appeared
+    nowhere in the skill. Pin the fix: rule 11's own text must name the
+    fingerprint mechanism, and the Definitions section must say where the
+    fingerprint comes from; mtime survives only as the documented fallback for
+    an advisory with no recorded fingerprint, not as rule 11's definition.
+    """
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "input_fingerprints" in text, \
+        "Definitions must name where the fingerprint comes from"
+
+    start = text.index("11. cost ready")
+    end = text.index("12. advisory ready")
+    rule11 = text[start:end]
+    assert "fingerprint" in rule11, \
+        "rule 11 must describe the fingerprint comparison, not just mtime"
+    assert "fallback" in rule11.lower(), \
+        "rule 11 must say mtime is used only when no fingerprint was recorded"
+
+
+def test_orchestrator_definitions_name_fingerprint_source():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    defs_start = text.index("## Definitions")
+    defs_end = text.index("## Stage Selection")
+    definitions = text[defs_start:defs_end]
+    assert "input_fingerprint" in definitions, \
+        "Definitions section must name scripts/orchestration.py::input_fingerprint"
+    assert "input_fingerprint.py" in definitions or "orchestration.py" in definitions, \
+        "Definitions section must point at where the fingerprint is computed"

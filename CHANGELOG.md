@@ -1,5 +1,136 @@
 # Changelog
 
+## 0.32.0 — provenance at write time: six dogfood defects, gates that can now fail
+
+A consumer 3D2N dogfood run finished with `gate-report.yaml` 13/13 green and
+`export-gate-report.yaml` 17 of 19 (the other two are the deliberate
+non-distributable labels) — and the user still caught errors by eye. Every
+defect landed on one axis: **a gate that consumes a value the agent asserted about
+itself cannot fail, and a check that cannot fail is indistinguishable from a check
+that passed.** This release closes six instances of that axis at the moment a value
+is written.
+
+**Read the scope note at the bottom before assuming it closes more than it does.**
+
+- **Operating status needs a source and a date (TW-063).** `business_status` was a
+  bare enum — no `as_of`, no `source_url` — while `hours.as_of` and `rating_source`
+  already existed in the same repo. In the dogfood run 17 of 17 verified POIs carried
+  a hand-typed `OPERATIONAL`; the user caught a temporarily-closed restaurant on
+  Google Maps that Gate 0 did not. It is now the object form
+  `{status, source_url, as_of}` with a 90-day ceiling, and a bare string is treated
+  as self-attested (`unverified`, not a silent pass).
+  Both acquisition routes the SKILL used to name were measured dead: a fetched Google
+  Maps card carries no `businessStatus` (client-side render), and "official-site 404"
+  does not apply to venues whose only web presence is a social page. The skill now
+  names the routes that work — Places API, a dated official/social statement, or a
+  phone confirmation recorded as `tel:` — and says plainly that leaving a POI
+  `unverified` with a pre-departure call on the checklist is the honest outcome, not
+  a defect.
+- **A district centroid is not a geocode (TW-062).** `cluster_fallback` lived in the
+  global `geocode_source` enum but only `accommodation-research` ever authorised it,
+  and `verify_poi` never read the field (`grep -rn geocode_source scripts/` returned
+  nothing). So a POI carrying a neighbouring cluster's centroid passed Gate 2, skipped
+  Gate 2b (no `resolved_name` meant `name_match` defaulted `True`), and satisfied
+  Gate 3b by construction. The incentive inverted: a POI the geocoder could NOT
+  resolve was easier to verify than one it resolved to a different name. Dogfood: 8
+  of 17 verified POIs took this path, and 7 of those 8 share a verbatim-identical
+  coordinate with a sibling (one group of three, two groups of two). Four were bound
+  to a schedule slot at some point during the run; one survived into the shipped
+  itinerary as a meal. A centroid now keeps a POI `verified` only with an existence
+  proof independent of the coordinate.
+  The same commit closes the twin one gate over: omitting `resolved_name` used to
+  skip Gate 2b silently. Callers now pass the resolved name or the explicit
+  `NO_RESOLVED_NAME` sentinel — silence is no longer a pass.
+- **A re-estimated hop must say where the estimate came from (TW-066).**
+  `classify_hop` compared numbers only, and the skill offered "re-estimate the hop or
+  cite a timetable" — the first branch needs no evidence. Dogfood: two hops judged
+  `implausible` were re-typed as 30 and 20 minutes and the gate went green with no
+  source and no trace. Root cause the defect report missed: `routing.schema.json`
+  constrained `flag` to `[ok, far]`, so honestly recording `implausible` produced an
+  invalid artifact — raising the guess was the only schema-legal move. The enum now
+  carries `implausible` and `unsourced`, hops record `duration_source` (+ `source_url`,
+  required when the source is not an agent estimate), and the verdict precedence is
+  **implausible > far > unsourced > ok** so the user-facing `far` halt can never be
+  swallowed by a provenance verdict.
+- **The iron rule binds to provenance, not to a vendor tool (TW-064).** "No search,
+  no fact" halted on `WebSearch` being unavailable. Nine skills named that tool and
+  `WebFetch` appeared nowhere, so on a model group without `web_search_20250305` every
+  research stage halted and the plugin was unusable — a dogfood run hit exactly that
+  API error and the agent invented its own WebFetch route, correctly, with nothing in
+  the plugin to record it. Renamed **No unsourced fact** and rewritten as a three-rung
+  source ladder; HALT fires only when every rung is unavailable. The four alt-platform
+  mirrors (`GEMINI.md`, `.kimi-plugin`, `.opencode`, `.pi`) were re-synced and are now
+  guarded — they had each kept the old single-tool framing.
+- **The drive home is a leg, with an owner (TW-065).** `inter-stop-legs` told a
+  single-base trip to write `legs: []` and return, so the home↔base drive belonged to
+  no stage: `cost-rollup`'s only transport source is `legs.yaml`'s `fare`, and
+  `drive_too_long` never saw what is usually the longest drive of the trip. Three real
+  trips produced three incompatible shapes — one hand-wrote 1,300 into `cost.yaml` (a
+  line item carries no `sources` requirement and never reaches `classify_leg`), one
+  added three home legs totalling 445 min / NT$2,200 with the return split across two
+  rows through a non-overnight waypoint, one broke the SKILL and got the right answer.
+  `legs[].kind: inter_stop|home` plus `trip-brief.home_origin`/`home_return`, both
+  optional.
+- **Advisory staleness anchors on content, not on file mtime (TW-067).** Rule 11
+  compared whole-file mtimes while its own comment named destination/dates/airline as
+  the anchor, so editing `must_do` invalidated the advisory and the only way to clear
+  the oracle was to rewrite a byte-identical file. Dogfood did it three times; the
+  final `advisory.yaml` is 277 bytes of `items: []`. The damage is not the wasted run
+  — it teaches an agent to satisfy an oracle by touching a file, and rules 13 and 15
+  have mtimes that ARE load-bearing. Now a normalised content fingerprint, with mtime
+  as the fallback when none is recorded (rule 11 is the gate that surfaces a `banned`
+  regulation, so it fails closed).
+- **Known schema inconsistency, not fixed here.** `candidates.schema.json`'s
+  `business_status` is still the bare-string enum — only `verified-pois` gained the
+  sourced object form. Nothing exercises the gap today (`destination-research` never
+  writes the field; only `source-verify` does), but the two schemas now disagree.
+- **Gate reports can record how many records a check examined.** `checks[]` accepts an
+  optional `examined` integer. Nothing emits it yet — see the scope note.
+
+### Migration — read this before re-running an existing trip
+
+- **Re-running `source-verify` will empty an existing trip.** Measured against the four
+  schema-clean consumer trips: **100 of 100 currently-`verified` POIs become
+  `unverified`** — three trips because `business_status` is a bare string, one because
+  45 POIs have no `business_status` at all. `itinerary-synthesis` reads only `verified`,
+  so the next synthesis produces an empty itinerary until the operating signals are
+  re-sourced. This is the intended consequence of the fix, not a regression.
+- **Artifacts already on disk are untouched.** `gate.py` consumes the `verify_status`
+  recorded in the artifact; nothing re-runs `verify_poi` over a finished trip. So this
+  release closes the self-attestation defect **at write time only**. Closing it for
+  existing artifacts requires re-deriving recorded verdicts from recorded inputs, which
+  is 0.33.0's work.
+- New artifact fields are **optional in schema and required by the gate**, so every
+  existing artifact still passes `validate_artifact` (verified: 60/60 files across the
+  four clean trips) and a stale one gets a routed gate failure rather than a hard
+  validation error.
+
+### Deliberately still open
+
+- **Lodging does not reach the new gates.** `accommodation-research` calls
+  `classify_candidate` directly, so `operating`, `name_match` and `geocode_source` all
+  take permissive defaults. 14 of 18 real lodging candidates are `cluster_fallback`
+  with no `business_status`. TW-062 and TW-063 do not apply to hotels yet.
+- **Gate 2c can be skipped by omission.** It keys on `geocode_source`, which is
+  optional; a POI that simply omits the field never reaches the check. 19 real POIs
+  already omit it.
+- `classify_hop`'s floor and provenance checks both sit behind `km`/`mode`, which are
+  optional — omitting them skips both.
+- `examined` has no producer, so gate reports still cannot say how many records they
+  inspected.
+- `legs[].kind: home` has no renderer: `itinerary-synthesis` renders a leg only on a
+  day that moves between overnight stops, so a home leg feeds cost and feasibility but
+  may never reach the deliverable.
+
+### Scope
+
+TW-068 (a batch driver for `source-verify`) and TW-069 (a page-level markdown render
+entry plus a `contingency` container) are **not** in this release, along with verdict
+re-derivation, the mechanical AI-tone gate, the `_DEPS` staleness table, and
+photo-enrichment ownership. All are 0.33.0.
+
+Tests: 813 → 874, zero skipped or xfailed.
+
 ## 0.31.0 — Codex hook 127: hooks-codex.json anchors on CLAUDE_PLUGIN_ROOT
 
 - **`hooks/hooks-codex.json` 相對路徑必爆 127**（下游 consumer 實爆，paperwork 7.98.0 / chipwork 0.54.0 同批）：command 原為 `bash ./hooks/run-hook.cmd session-start`，但 Codex 執行 plugin hook 時 cwd 是 session workspace 而非 plugin root（`codex-rs/hooks/src/engine/command_runner.rs` — `$SHELL -lc` + `current_dir(cwd)`），SessionStart 在每一個真實 Codex 安裝上都 exit 127。Codex 對 hook process 注入 `CLAUDE_PLUGIN_ROOT`/`PLUGIN_ROOT` env（`discovery.rs` OOTB compat），故 command 改為與 `hooks.json` 相同的 `"${CLAUDE_PLUGIN_ROOT}/hooks/run-hook.cmd" session-start`。

@@ -11,7 +11,7 @@ Everything is **advisory** — this stage never stops the pipeline.
 
 ## Research (no API key)
 
-Use the consumer harness `WebSearch`; prefer local-language / operator sources.
+Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else WebFetch against an official page, else a search HTML endpoint for discovery only); prefer local-language / operator sources.
 
 - **peak_windows** — the commuter rush-hour windows (e.g. ~07:30–09:30 and ~17:30–19:30).
   Record `label`, `start`, `end`, optional `note`, and ≥ 1 `sources` (operator/official).

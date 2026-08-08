@@ -24,6 +24,11 @@ Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
   `verified-pois.yaml` `pois[]` (or `candidates.yaml` is newer than `verified-pois.yaml`).
   Re-verify only the missing/changed ids, reusing the geocode cache. Predicate:
   `scripts/orchestration.py::candidates_stale`.
+- **input fingerprint** (rule 11): a content hash of an upstream artifact's projected
+  fields — `scripts/orchestration.py::input_fingerprint` (CLI:
+  `python scripts/input_fingerprint.py <trip-brief.yaml> <projection>`). The producing
+  stage records it as `input_fingerprints["<upstream>.yaml"]` on the derived artifact,
+  so staleness reflects real content changes, not incidental file edits/mtimes.
 
 ## Stage Selection
 
@@ -55,10 +60,16 @@ fail report on its own.
 8. calendar ready, no seasonal.yaml -> run `tripwork:seasonal-advisory`.
 9. seasonal ready, no transit.yaml -> run `tripwork:transit-detail`.
 10. transit ready, no cost.yaml -> run `tripwork:cost-rollup`.
-11. cost ready, and advisory.yaml **stale relative to trip-brief.yaml** (advisory
-    older than the brief — the destination/dates/airline changed after it ran) ->
-    re-run `tripwork:travel-advisory`. The itinerary is deliberately NOT the
-    staleness anchor: synthesis rewrites it every run and would loop advisory.
+11. cost ready, and advisory.yaml **stale relative to trip-brief.yaml** -> re-run
+    `tripwork:travel-advisory`. Staleness is an **input fingerprint** comparison
+    (see Definitions): it fires when the brief's current fingerprint no longer
+    matches advisory.yaml's recorded `input_fingerprints["trip-brief.yaml"]` — i.e.
+    destination/dates/airline actually changed, not just any edit to the brief (an
+    unrelated must_do edit no longer re-triggers this stage). **Fallback only:**
+    when advisory.yaml carries no recorded fingerprint (written before the
+    fingerprint mechanism existed), rule 11 falls back to comparing file mtimes —
+    advisory older than the brief. The itinerary is deliberately NOT the staleness
+    anchor: synthesis rewrites it every run and would loop advisory.
 12. advisory ready, no itinerary.yaml -> run `tripwork:itinerary-synthesis`.
     (The canonical `itinerary.yaml` is the marker, not the derived `itinerary.md`.)
 13. itinerary.yaml exists, and no gate-report.yaml **or itinerary.yaml newer than gate-report.yaml** -> run `tripwork:itinerary-gate`.

@@ -28,6 +28,11 @@
           },
           "passed": {
             "type": "boolean"
+          },
+          "examined": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "How many records this check actually inspected. A check that examined 0 records is not the same as a check that found 0 problems; without this count a passed:true is unfalsifiable. Optional so export-gate reports, which emit no counts, stay valid."
           }
         },
         "additionalProperties": false

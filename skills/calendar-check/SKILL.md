@@ -12,7 +12,7 @@ Two closure axes feed synthesis. This stage owns the **trip-wide** axis (public 
 ## Method
 
 - Read `dates.start`/`dates.end` and the destination from `trip-brief.yaml`.
-- Use the consumer harness `WebSearch`; prefer the **official** government holiday calendar (e.g. a national gazette / government portal), in the local language.
+- Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else WebFetch against an official page, else a search HTML endpoint for discovery only); prefer the **official** government holiday calendar (e.g. a national gazette / government portal), in the local language.
 - List every public holiday that falls within the trip range, **including substitute/observed holidays** (e.g. a Sunday holiday's Monday make-up day — these draw weekend-level crowds).
 - For each holiday record `date`, `name_local`, `name_display`, `type`, and `impact`:
   - `crowds: true` — major attractions/markets are packed (treat like a weekend).

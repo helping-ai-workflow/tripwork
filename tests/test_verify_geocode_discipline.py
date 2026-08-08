@@ -3,7 +3,12 @@
   (a) geocode key normalisation: lon/long -> lng
   (b) name_local == district rejection (cluster_fallback town-name bug)
 """
+import datetime
+
 from scripts.verify import normalize_and_validate_poi
+
+# Reference "today" for sourced business_status.as_of recency (TW-063).
+_TODAY = datetime.date(2026, 8, 8)
 
 
 def test_geocode_lon_key_normalised_to_lng():
@@ -104,8 +109,16 @@ def test_verify_poi_geocode_key_normalised_and_clean_passes_through():
     poi["name_local"] = "洞爺湖ウィンザーホテル"
     poi["district"] = "洞爺湖温泉"
     poi["geocode"] = {"lat": 42.5, "lon": 140.7}
-    poi["business_status"] = "OPERATIONAL"   # P1: Gate 0 needs a sourced operating signal
-    normalised, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True)
+    # P1/TW-063: Gate 0 needs a sourced {status, source_url, as_of} operating signal.
+    poi["business_status"] = {"status": "OPERATIONAL",
+                              "source_url": "https://places.example/x",
+                              "as_of": "2026-07-20"}
+    # TW-062: Gate 2b now refuses to run silently, so pass the name the geocoder
+    # resolved — this fixture's point is the lon->lng normalisation, and the
+    # geocoder resolving the same name keeps that isolated.
+    normalised, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                          resolved_name="洞爺湖ウィンザーホテル",
+                                          today=_TODAY)
     assert status == "verified"
     assert normalised["geocode"]["lng"] == 140.7
     assert "lon" not in normalised["geocode"]

@@ -72,6 +72,11 @@
         },
         "additionalProperties": false
       }
+    },
+    "input_fingerprints": {
+      "type": "object",
+      "description": "Content fingerprints of the upstream fields this artifact was derived from, keyed by upstream filename. Written by the producing stage via scripts/orchestration.py::input_fingerprint. Optional: an artifact without one falls back to the mtime comparison. (TW-067)",
+      "additionalProperties": {"type": "string"}
     }
   },
   "additionalProperties": false

@@ -82,3 +82,25 @@ def test_tw060_mermaid_stage_order_matches_pipeline():
     block = _mermaid_block()
     positions = [block.find(s) for s in _PIPELINE_ORDER]
     assert positions == sorted(positions), "§2 mermaid stage order diverges from the pipeline order"
+
+
+def test_implausible_stop_condition_in_readme():
+    """C3: routing-audit's `implausible` hop stop-on-confirmation (this release)
+    has no row in §4's "它什麼時候會停下來問你" list — the freshness test above
+    only checks skill-name coverage, so this new stop condition drifted silently.
+    """
+    assert "預估時間不合理" in README, (
+        "README §4 stop-condition list has no row for a hop flagged `implausible`. "
+        "Update README in the same PR."
+    )
+
+
+def test_source_verify_gate0_readme_requires_sourced_status():
+    """C3: README §2's source-verify row described Gate 0 as if any hand-typed
+    operating status counted. TW-063 (this release) made Gate 0 require a
+    SOURCED status ({status, source_url, as_of}) — a bare self-attested value
+    now yields `unverified`, not a pass."""
+    assert "查證來源與日期" in README, (
+        "README §2 source-verify row does not say the operating status needs a "
+        "verifiable source + date, not a hand-typed value."
+    )

@@ -12,8 +12,10 @@ def test_classify_hop_flags_implausible_below_floor():   # TW-056
     from scripts.distance import classify_hop
     # 20 km by transit cannot take 45 min; below the floor -> not 'ok'
     assert classify_hop(45, max_hop_mins=60, km=20, mode="transit") == "implausible"
-    # a plausible 90-min hop over 20 km stays within the normal classification
-    assert classify_hop(90, max_hop_mins=120, km=20, mode="transit") == "ok"
+    # a plausible 90-min hop over 20 km clears the floor, but the call site never
+    # names a duration_source -> it is an unlabelled agent guess, so TW-066 marks
+    # it 'unsourced' rather than silently granting 'ok'.
+    assert classify_hop(90, max_hop_mins=120, km=20, mode="transit") == "unsourced"
 
 
 def test_classify_hop_backward_compatible_without_km():
@@ -33,3 +35,22 @@ def test_candidates_stale_predicate():   # TW-053
     from scripts.orchestration import candidates_stale
     assert candidates_stale(["a", "b", "temple-x"], ["a", "b"]) is True   # temple-x unverified
     assert candidates_stale(["a", "b"], ["a", "b", "extra"]) is False     # full coverage
+
+
+def test_fingerprint_is_stable_across_key_order_and_yaml_style():   # TW-067
+    from scripts.orchestration import input_fingerprint
+    a = {"destination": {"city": "嘉義市", "country": "TW"},
+         "dates": {"start": "2026-08-29", "end": "2026-08-31"},
+         "airline": None, "must_do": ["雞肉飯"]}
+    b = {"dates": {"end": "2026-08-31", "start": "2026-08-29"},
+         "must_do": ["花磚"], "destination": {"country": "TW", "city": "嘉義市"}}
+    proj = ("airline", "dates", "destination")
+    assert input_fingerprint(a, proj) == input_fingerprint(b, proj)
+
+
+def test_fingerprint_changes_when_a_projected_field_changes():   # TW-067
+    from scripts.orchestration import input_fingerprint
+    a = {"destination": {"city": "嘉義市"}, "dates": {"start": "2026-08-29"}}
+    b = {"destination": {"city": "台南市"}, "dates": {"start": "2026-08-29"}}
+    proj = ("dates", "destination")
+    assert input_fingerprint(a, proj) != input_fingerprint(b, proj)

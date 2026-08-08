@@ -545,6 +545,39 @@ def test_tw043_swapped_coords_rejected_everywhere():
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(build(), _load_schema(name))
 
+def _routing_doc(hop_extra):
+    hop = {"from": "西區", "to": "太保市", "mins": 45, "flag": "ok"}
+    hop.update(hop_extra)
+    return {"clusters": [{"district": "西區", "pois": ["a"]}], "hops": [hop], "warnings": []}
+
+
+def test_i1_sourced_duration_source_requires_source_url():
+    """I1: nothing in the schema required `source_url` when a hop declares a
+    non-default `duration_source` -- the hop's `required` list is only
+    [from,to,mins,flag]. A hop claiming `sourced_timetable` with no
+    `source_url` must be schema-invalid; the identical hop WITH a source_url
+    must stay valid."""
+    schema = _load_schema("routing.schema.json")
+    for src in ("map_estimate", "sourced_timetable"):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(_routing_doc({"duration_source": src}), schema)
+        jsonschema.validate(
+            _routing_doc({"duration_source": src, "source_url": "https://transit.example/x"}),
+            schema,
+        )
+
+
+def test_i1_transition_rule_agent_estimate_and_absent_duration_source_unaffected():
+    """Transition rule (I1): existing artifacts must keep validating. A hop
+    with NO duration_source at all (every pre-TW-066 hop), and a hop that
+    explicitly declares the default `agent_estimate`, must not be forced to
+    carry a source_url -- the conditional is scoped to hops that actually
+    declare a NON-DEFAULT duration_source."""
+    schema = _load_schema("routing.schema.json")
+    jsonschema.validate(_routing_doc({}), schema)  # no duration_source key at all
+    jsonschema.validate(_routing_doc({"duration_source": "agent_estimate"}), schema)
+
+
 def test_tw008_source_url_must_be_http():
     schema = _load_schema("advisory.schema.json")
     bad = {"items": [{"topic": "battery", "rule": "x", "effective_date": "2026-01-01", "risk": "info",
@@ -804,3 +837,112 @@ def test_accommodations_pure_han_candidate_needs_no_name_zh():   # v0.30.0
 def test_accommodations_unverified_kana_candidate_exempt():   # v0.30.0
     schema = _load_schema("accommodations.schema.json")
     jsonschema.validate(_acc_kana_candidate(verify_status="unverified"), schema)
+
+
+def test_gate_report_check_accepts_examined_and_rejects_negative(tmp_path):
+    """A gate-report check may carry an examined:N count (v0.32.0 rederive).
+
+    Without it the whole verdict-re-derivation mechanism cannot report how many
+    records it actually looked at, which is the vacuous-true defect this release
+    exists to close.
+    """
+    from scripts.validate_artifact import validate_file
+    import pathlib
+
+    schema_path = pathlib.Path(__file__).resolve().parent.parent / "schemas" / "gate-report.schema.json"
+
+    ok = tmp_path / "gate-report.yaml"
+    ok.write_text(
+        "status: pass\n"
+        "checks:\n"
+        "  - name: verdicts_match\n"
+        "    passed: true\n"
+        "    examined: 17\n"
+        "failures: []\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(ok))[0] == 0
+
+    # Examined:0 is the critical case — distinguishes "inspected 0 records"
+    # (no verdict to derive) from "inspected N records" (verdict is real).
+    zero = tmp_path / "gate-report-zero.yaml"
+    zero.write_text(
+        "status: pass\n"
+        "checks:\n"
+        "  - name: verdicts_match\n"
+        "    passed: true\n"
+        "    examined: 0\n"
+        "failures: []\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(zero), schema_path=str(schema_path))[0] == 0
+
+    # Examined:-1 must be rejected by minimum:0 constraint.
+    bad = tmp_path / "gate-report-neg.yaml"
+    bad.write_text(
+        "status: pass\n"
+        "checks:\n"
+        "  - name: verdicts_match\n"
+        "    passed: true\n"
+        "    examined: -1\n"
+        "failures: []\n",
+        encoding="utf-8",
+    )
+    # schema_path passed explicitly because gate-report-neg.yaml is not in
+    # SCHEMA_BY_BASENAME; basenames must match exactly (gate-report.yaml, not variants).
+    rc, msgs = validate_file(str(bad), schema_path=str(schema_path))
+    assert rc == 1
+    assert any("examined" in m for m in msgs)
+
+
+def test_business_status_tel_source_url_validates():
+    """TW-063 fix round 1 (Finding 1): `tel:<number>` is the only operating-signal
+    route available to a consumer without a Places API key (SKILL.md:30 route 3
+    — 行前電話確認). Rejecting it would make this fix name an unobtainable source,
+    the exact defect TW-063 closes."""
+    schema = _load_schema("verified-pois.schema.json")
+    data = {"pois": [{
+        "id": "x", "name_local": "x", "name_display": "x",
+        "category": "restaurant", "district": "x",
+        "geocode": {"lat": 1.0, "lng": 2.0},
+        "sources": [{"url": "https://a.example", "lang": "ko"}, {"url": "https://b.example", "lang": "zh"}],
+        "verify_status": "verified",
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": "tel:+886-5-2593133",
+                            "as_of": "2026-08-01"},
+    }]}
+    jsonschema.validate(data, schema)
+
+
+def _business_status_poi(source_url):
+    return {"pois": [{
+        "id": "x", "name_local": "x", "name_display": "x",
+        "category": "restaurant", "district": "x",
+        "geocode": {"lat": 1.0, "lng": 2.0},
+        "sources": [{"url": "https://a.example", "lang": "ko"}, {"url": "https://b.example", "lang": "zh"}],
+        "verify_status": "verified",
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": source_url,
+                            "as_of": "2026-08-01"},
+    }]}
+
+
+def test_business_status_places_api_url_still_validates():
+    """Regression guard for I4's tightened pattern: a plausible Google Places
+    API URL must keep validating."""
+    schema = _load_schema("verified-pois.schema.json")
+    jsonschema.validate(
+        _business_status_poi("https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4"),
+        schema,
+    )
+
+
+@pytest.mark.parametrize("junk", ["tel:", "https://", "tel:not-a-number", "https:// nonsense"])
+def test_i4_source_url_pattern_rejects_four_chars_of_junk(junk):
+    """I4: `^(https?://|tel:)` has no end anchor, so `source_url` (Gate 0's sole
+    auditability carrier, new in this release) is satisfied by as little as the
+    literal string 'tel:' with nothing after it. `scripts/verify.py` only checks
+    non-empty, so none of these four junk values were ever rejected."""
+    schema = _load_schema("verified-pois.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_business_status_poi(junk), schema)

@@ -1,5 +1,5 @@
 # tests/test_verify.py
-from scripts.verify import classify_candidate
+from scripts.verify import classify_candidate, verify_poi
 
 def _cand(sources, langs):
     # bare tokens -> distinct https domains so independence (distinct netloc) holds
@@ -77,3 +77,316 @@ def test_same_domain_sources_not_independent():   # TW-023
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
     assert status == "unverified"
     assert "independent" in note.lower() or "domain" in note.lower()
+
+
+import datetime
+
+
+def _sourced_poi(bs, **over):
+    poi = {
+        "id": "tsai-duck", "name_local": "蔡氏鴨庄", "name_display": "蔡氏鴨庄",
+        "district": "嘉義市東區",
+        "business_status": bs,
+        "geocode": {"lat": 23.47, "lng": 120.45, "geocode_source": "nominatim"},
+        "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                    {"url": "https://b.example.com/q", "lang": "en"}],
+    }
+    poi.update(over)
+    return poi
+
+
+def test_bare_string_business_status_is_no_longer_a_signal():
+    """TW-063: 17/17 dogfood POIs carried a hand-typed OPERATIONAL. The schema
+    had nowhere to record that it was hand-typed, so review could not see it."""
+    _, status, note = verify_poi(_sourced_poi("OPERATIONAL"), geocoded=True,
+                                 in_claimed_region=True, local_lang="zh",
+                                 resolved_name="蔡氏鴨庄")
+    assert status == "unverified"
+    assert "self-attested" in note
+
+
+def test_sourced_recent_business_status_verifies():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-07-20"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "verified"
+    assert note == ""
+
+
+def test_business_status_older_than_ninety_days_is_stale():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-01-01"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "unverified"
+    assert "stale" in note or "as_of" in note
+
+
+def test_closed_still_rejects_in_the_object_form():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "CLOSED_TEMPORARILY",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-08-01"})
+    _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                              local_lang="zh", resolved_name="蔡氏鴨庄",
+                              today=today)
+    assert status == "rejected"
+
+
+def test_object_form_missing_source_url_is_not_a_signal():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL", "as_of": "2026-08-01"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "unverified"
+    assert "source_url" in note
+
+
+def test_tel_source_url_business_status_verifies():
+    """TW-063 fix round 1 (Finding 1): the phone-confirmation route
+    (SKILL.md:30 route 3, 行前電話確認) is the only one available without a
+    Places API key; verify_poi must accept it like any other sourced signal."""
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "tel:+886-5-2593133",
+                        "as_of": "2026-08-01"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "verified"
+    assert note == ""
+
+
+def test_business_status_exactly_ninety_days_old_is_still_fresh():
+    """TW-063 fix round 1 (boundary, worth doing): age is computed as
+    `age > OPERATING_MAX_AGE_DAYS`, so exactly 90 days old is inclusive (still
+    fresh), not stale. Locks in the strict-vs-inclusive choice at the boundary."""
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-05-10"})  # exactly 90 days before today
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "verified"
+    assert note == ""
+
+
+def test_business_status_ninety_one_days_old_is_stale():
+    """TW-063 fix round 1 (boundary, worth doing): one day past the ceiling
+    must be stale — the other side of the same boundary."""
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-05-09"})  # exactly 91 days before today
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "unverified"
+    assert "stale" in note or "as_of" in note
+
+
+def test_bare_string_business_status_still_validates_against_the_schema(tmp_path):
+    """Guard, GREEN at HEAD: schema stays permissive so existing trips keep
+    passing validate_artifact and get a ROUTED gate failure instead of a hard
+    validation error when business_status is still the legacy bare string."""
+    from scripts.validate_artifact import validate_file
+    p = tmp_path / "verified-pois.yaml"
+    p.write_text(
+        "pois:\n"
+        "  - id: x\n"
+        "    name_local: 春燕\n"
+        "    name_display: 春燕\n"
+        "    category: meal\n"
+        "    district: 西區\n"
+        "    verify_status: unverified\n"
+        "    status_reason: pending\n"
+        "    business_status: OPERATIONAL\n"
+        "    sources:\n"
+        "      - url: https://a.example.tw/p\n"
+        "        lang: zh\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(p))[0] == 0
+
+
+from scripts.verify import verify_poi
+
+
+def _clean_poi(**over):
+    """A POI that passes every other gate, so the only variable is the geocode
+    provenance. business_status is the sourced object form (Task 4)."""
+    poi = {
+        "id": "chunyen-restaurant",
+        "name_local": "春燕飯館",
+        "name_display": "春燕飯館",
+        "district": "嘉義市西區",
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": "https://example.gov.tw/x",
+                            "as_of": "2026-08-01"},
+        "geocode": {"lat": 23.47999, "lng": 120.44343,
+                    "geocode_source": "cluster_fallback"},
+        "sources": [
+            {"url": "https://a.example.tw/p", "lang": "zh"},
+            {"url": "https://b.example.com/q", "lang": "en"},
+        ],
+    }
+    poi.update(over)
+    return poi
+
+
+def test_cluster_fallback_without_existence_proof_is_not_verified():
+    """TW-062: a district centroid is a location, not evidence the place exists.
+
+    Nominatim finding nothing must not be a BETTER outcome than Nominatim
+    finding a name that disagrees (which is `conflicting`).
+    """
+    _, status, note = verify_poi(_clean_poi(), geocoded=True,
+                                 in_claimed_region=True, local_lang="zh",
+                                 resolved_name="春燕飯館")
+    assert status == "unverified"
+    assert "cluster_fallback" in note
+    # Discriminating clause: it must fail for the RIGHT reason, not because
+    # Gate 0 tripped on business_status.
+    assert "no business_status signal" not in note
+
+
+def test_cluster_fallback_with_an_official_source_stays_verified():
+    """Guard, GREEN at HEAD (over-blocking guard): an official page proves the
+    venue exists, so the approximate coordinate is an acceptable position for
+    it. Prevents Gate 2c from over-blocking a POI that has real existence
+    proof — a regression here would wrongly downgrade a verifiable POI to
+    unverified just because its geocode source is cluster_fallback."""
+    poi = _clean_poi(sources=[
+        {"url": "https://chunyen.example.tw/", "lang": "zh", "official": True},
+        {"url": "https://b.example.com/q", "lang": "en"},
+    ])
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+    assert note == ""
+
+
+def test_cluster_fallback_with_a_place_id_stays_verified():
+    """Guard, GREEN at HEAD (over-blocking guard): gmaps_place_id is the other
+    existence proof source-verify already collects
+    (skills/source-verify/SKILL.md:30). Prevents Gate 2c from over-blocking a
+    POI whose existence proof is a place_id rather than an official source —
+    a regression here would wrongly downgrade it to unverified."""
+    poi = _clean_poi(gmaps_place_id="ChIJ5wJfhyWUbjQRG_DhFBgvW7g")
+    _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                              local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+
+
+def test_nominatim_resolved_geocode_is_unaffected():
+    """Guard, GREEN at HEAD (regression guard): the normal path must not
+    tighten. Prevents Gate 2c from firing on a real Nominatim-resolved
+    geocode — a regression here would wrongly downgrade every ordinary
+    verified POI, not just cluster_fallback ones."""
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                              local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+
+
+def test_omitting_resolved_name_no_longer_silently_skips_gate_2b():
+    """Same root cause as TW-062, different gate: a check that does not run is
+    indistinguishable from a check that passed.
+
+    verify.py:163 read `name_match = True if resolved_name is None else ...`, so a
+    caller that forgot the argument got a green POI with Gate 2b never executed —
+    no error, no warning, nothing in the artifact. Every hand-written consumer
+    driver was one omission away from it (TW-068).
+    """
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh")
+    assert status == "unverified"
+    assert "resolved_name" in note
+
+
+def test_an_explicit_unresolved_marker_is_how_d7_is_recorded():
+    """The escape hatch D7 needs: Nominatim genuinely returned nothing. Passing
+    the sentinel is a CLAIM that the lookup ran and found nothing; omitting the
+    argument is silence, and silence is what this change outlaws."""
+    from scripts.verify import NO_RESOLVED_NAME
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, note = verify_poi(poi, geocoded=False, in_claimed_region=True,
+                                 local_lang="zh", resolved_name=NO_RESOLVED_NAME)
+    assert status == "unverified"
+    assert "geocode unresolved" in note
+
+
+def test_no_resolved_name_sentinel_passes_gate_2b_when_geocode_actually_resolved():
+    """I5: the sentinel's meaning was untested. The test above passes
+    geocoded=False, so Gate 2 ('geocode unresolved') returns FIRST and Gate 2b
+    -- the branch that actually reads NO_RESOLVED_NAME -- never runs; it pins
+    Gate 2's message, not the sentinel's effect. Mutation proof: flipping
+    verify.py's `name_match = True` to `False` for the NO_RESOLVED_NAME branch
+    left all pre-existing tests green.
+
+    Here geocoded=True and geocode_source='nominatim' (not cluster_fallback,
+    so Gate 2c's existence-proof sub-check does not confound the result), so
+    execution reaches Gate 2b. NO_RESOLVED_NAME must make it PASS -- not skip,
+    not fail -- all the way through to 'verified'.
+    """
+    from scripts.verify import NO_RESOLVED_NAME
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name=NO_RESOLVED_NAME)
+    assert status == "verified", note
+
+
+def test_missing_resolved_name_does_not_preempt_earlier_gates():
+    """Review Round 1 (Finding 1): the Gate 2b refusal must obey
+    skills/source-verify/SKILL.md:28's documented strict order — 'Gate 0 fires
+    before Gate 1, Gate 1 before Gate 2' — not short-circuit ahead of it.
+
+    A POI with only ONE source and an unresolved geocode has TWO problems more
+    fundamental than a missing resolved_name: Gate 1 (sources) and Gate 2
+    (geocoded). The caller should be told about the sources problem first —
+    the one closer to the front of the pipeline — not sent to fix
+    resolved_name, rerun, and only then discover the real blocker.
+    """
+    poi = _clean_poi(
+        sources=[{"url": "https://a.example.tw/p", "lang": "zh"}],
+        geocode={"lat": 23.4, "lng": 120.4, "geocode_source": "nominatim"},
+    )
+    _, status, note = verify_poi(poi, geocoded=False, in_claimed_region=True,
+                                 local_lang="zh")
+    assert status == "unverified"
+    assert "independent sources" in note
+    assert "resolved_name" not in note
+
+
+def test_cluster_fallback_does_not_preempt_earlier_gates():
+    """Review Round 2: Gate 2's cluster_fallback sub-check must also obey
+    skills/source-verify/SKILL.md:28's documented strict order, mirroring
+    Round 1's Gate 2b fix — it is a Gate 2 concern, so Gate 1 (sources) must
+    still fire first.
+
+    A POI with only ONE source and a cluster_fallback centroid (no existence
+    proof) has a more fundamental problem than the unproven centroid: Gate 1
+    (sources). The caller should be told about the sources problem first, not
+    sent to add an official source or gmaps_place_id, rerun, and only then
+    discover the real blocker.
+    """
+    poi = _clean_poi(sources=[{"url": "https://a.example.tw/p", "lang": "zh"}])
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "unverified"
+    assert "independent sources" in note
+    assert "cluster_fallback" not in note

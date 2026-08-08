@@ -7,6 +7,7 @@ lodging folded in by P4, the thematic must_do covered by P5, all in one gate run
 also close. Each defect gets a direct assertion; schema validation proves the new
 fields (business_status / rooms / must_do_coverage / distributable) coexist.
 """
+import datetime
 import json
 import pathlib
 
@@ -23,26 +24,35 @@ from scripts.render.html_page import render_html_page
 
 SCHEMAS = pathlib.Path(__file__).resolve().parent.parent / "schemas"
 
+# Reference "today" for sourced business_status.as_of recency (TW-063). Fixed
+# so this fixture doesn't rot as the wall clock advances past the 90-day window.
+TODAY = datetime.date(2026, 7, 1)
+
 
 def _sources():
     return [{"url": "https://a.example", "lang": "zh"},
             {"url": "https://b.example", "lang": "zh"}]
 
 
+def _sourced_status(status, as_of="2026-06-15"):
+    return {"status": status, "source_url": "https://places.example/x", "as_of": as_of}
+
+
 # ---- shared raw candidates (destination-research output, pre source-verify) ----
 FERRY = {"id": "ferry", "name_local": "水社碼頭", "name_display": "水社碼頭",
          "name_roman": "Shuishe Pier", "category": "activity", "district": "日月潭",
-         "business_status": "OPERATIONAL", "gmaps_place_id": "ChIJ_ferry",
+         "business_status": _sourced_status("OPERATIONAL"), "gmaps_place_id": "ChIJ_ferry",
          "geocode": {"lat": 23.86, "lng": 120.91}, "sources": _sources()}
 STAR_MOON = {"id": "star-moon", "name_local": "星月大地", "name_display": "星月大地",
              "category": "meal", "district": "后里",
-             "business_status": "CLOSED_PERMANENTLY",
+             "business_status": _sourced_status("CLOSED_PERMANENTLY"),
              "geocode": {"lat": 24.3, "lng": 120.7}, "sources": _sources()}
 NO_SIGNAL = {"id": "no-signal", "name_local": "某餐廳", "name_display": "某餐廳",
              "category": "meal", "district": "日月潭",
              "geocode": {"lat": 23.86, "lng": 120.91}, "sources": _sources()}
 RENAMED = {"id": "renamed", "name_local": "星月大地", "name_display": "星月大地",
-           "category": "meal", "district": "后里", "business_status": "OPERATIONAL",
+           "category": "meal", "district": "后里",
+           "business_status": _sourced_status("OPERATIONAL"),
            "geocode": {"lat": 24.3, "lng": 120.7}, "sources": _sources()}
 
 ACCOMMODATIONS = {"stops": [{
@@ -61,7 +71,7 @@ def _verified_pois():
     out = []
     # ferry: OPERATIONAL + resolved name matches -> verified
     _, s, _ = verify_poi(FERRY, geocoded=True, in_claimed_region=True,
-                         resolved_name="水社碼頭, 日月潭, 南投縣")
+                         resolved_name="水社碼頭, 日月潭, 南投縣", today=TODAY)
     if s == "verified":
         out.append({**FERRY, "verify_status": "verified"})
     return out
@@ -94,15 +104,16 @@ class TestE2EAllNineDefects:
 
     # ---- P1 ----
     def test_p1_closed_rejected_missing_unverified_operational_verified(self):
-        assert verify_poi(STAR_MOON, geocoded=True, in_claimed_region=True)[1] == "rejected"
+        assert verify_poi(STAR_MOON, geocoded=True, in_claimed_region=True,
+                          today=TODAY)[1] == "rejected"
         assert verify_poi(NO_SIGNAL, geocoded=True, in_claimed_region=True)[1] == "unverified"
         assert verify_poi(FERRY, geocoded=True, in_claimed_region=True,
-                          resolved_name="水社碼頭, 日月潭")[1] == "verified"
+                          resolved_name="水社碼頭, 日月潭", today=TODAY)[1] == "verified"
 
     # ---- P2 ----
     def test_p2_renamed_neighbour_is_conflicting(self):
         _, status, note = verify_poi(RENAMED, geocoded=True, in_claimed_region=True,
-                                     resolved_name="星月驛站, 后里區, 台中市")
+                                     resolved_name="星月驛站, 后里區, 台中市", today=TODAY)
         assert status == "conflicting"
         assert "mismatch" in note.lower()
 

@@ -12,10 +12,12 @@ Produces `trips/<slug>/seasonal.yaml` (schema: `schemas/seasonal.schema.json`). 
 
 ## Method (no API key)
 
-- Use the consumer harness `WebSearch`; prefer **official** local-language sources: the
-  national road authority (e.g. NZTA road conditions), the met service, and the parks /
-  alpine authority (e.g. DOC alpine warnings). The plugin bundles no weather API — this is
-  climatological/official-source research, the same model as `calendar-check`.
+- Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else
+  WebFetch against an official page, else a search HTML endpoint for discovery only);
+  prefer **official** local-language sources: the national road authority (e.g. NZTA road
+  conditions), the met service, and the parks / alpine authority (e.g. DOC alpine warnings).
+  The plugin bundles no weather API — this is climatological/official-source research, the
+  same model as `calendar-check`.
 - Record each hazard as an `items[]` entry: `hazard` (open vocabulary — `road_closure`,
   `chains_required`, `heat`, `typhoon`, `monsoon`, `altitude`, …), `note`, `severity`,
   optional `applies_to` / `effective_window`, and `sources` (≥ 1 **official**).

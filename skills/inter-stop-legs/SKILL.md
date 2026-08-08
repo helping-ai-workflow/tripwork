@@ -8,8 +8,15 @@ description: Use when overnight stops are established and the mode-aware legs be
 Build one leg for each pair of consecutive `trip-brief.overnight_stops`. Produces
 `trips/<slug>/legs.yaml` (schema: `schemas/legs.schema.json`). Applies
 **Source-Verified-First** to the timetable facts (a wrong last-service time strands the
-traveller). A single-base trip (no `overnight_stops` sequence, or length ≤ 1) has no legs;
-write an empty `legs` list and return.
+traveller). A single-base trip (no `overnight_stops` sequence, or length ≤ 1) has no
+**inter-stop** legs — but it usually still has the longest drive of the whole trip. When
+`trip-brief.yaml` carries `home_origin` / `home_return`, emit a `kind: home` leg for each
+(they differ: a trip can leave from one place and return to another, and a return drive
+broken by a non-overnight waypoint is two legs, not one). Home legs carry the same fields as
+any other leg and go through `classify_leg` unchanged, so `drive_too_long` finally sees the
+leg it was written for. Without `home_origin`/`home_return`, an empty `legs` list is still
+correct. `cost-rollup` reads every leg's `fare` regardless of `kind`, so a home leg is how the
+drive home reaches the estimate instead of being hand-written into `cost.yaml`.
 
 ## Mode selection (per leg)
 
@@ -19,8 +26,10 @@ public mode and note the assumption.
 
 ## Research (no timetable API)
 
-Use the consumer harness `WebSearch`; prefer **official** local-language sources (rail
-operator timetable e.g. JR / Korail, intercity bus operator, road authority). `mode` is one
+Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else WebFetch
+against an official page, else a search HTML endpoint for discovery only); prefer
+**official** local-language sources (rail operator timetable e.g. JR / Korail, intercity bus
+operator, road authority). `mode` is one
 of `drive | rail | bus | flight | ferry` (schema-enforced enum — never a freeform label like
 "self_drive"). A `drive` leg MUST carry a measured `duration_mins` (the schema requires it and
 `scripts/legs.py::classify_leg` raises rather than defaulting an unmeasured drive to feasible).
