@@ -329,6 +329,27 @@ def test_an_explicit_unresolved_marker_is_how_d7_is_recorded():
     assert "geocode unresolved" in note
 
 
+def test_no_resolved_name_sentinel_passes_gate_2b_when_geocode_actually_resolved():
+    """I5: the sentinel's meaning was untested. The test above passes
+    geocoded=False, so Gate 2 ('geocode unresolved') returns FIRST and Gate 2b
+    -- the branch that actually reads NO_RESOLVED_NAME -- never runs; it pins
+    Gate 2's message, not the sentinel's effect. Mutation proof: flipping
+    verify.py's `name_match = True` to `False` for the NO_RESOLVED_NAME branch
+    left all pre-existing tests green.
+
+    Here geocoded=True and geocode_source='nominatim' (not cluster_fallback,
+    so Gate 2c's existence-proof sub-check does not confound the result), so
+    execution reaches Gate 2b. NO_RESOLVED_NAME must make it PASS -- not skip,
+    not fail -- all the way through to 'verified'.
+    """
+    from scripts.verify import NO_RESOLVED_NAME
+    poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
+                              "geocode_source": "nominatim"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name=NO_RESOLVED_NAME)
+    assert status == "verified", note
+
+
 def test_missing_resolved_name_does_not_preempt_earlier_gates():
     """Review Round 1 (Finding 1): the Gate 2b refusal must obey
     skills/source-verify/SKILL.md:28's documented strict order — 'Gate 0 fires

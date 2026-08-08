@@ -424,3 +424,39 @@ def test_itinerary_synthesis_input_contract_reflects_home_legs():
         "Input row still claims legs.yaml is empty for every single-base trip"
     assert "home endpoint" in text, \
         "Input row must name the home-endpoint condition that keeps legs.yaml non-empty"
+
+
+def test_orchestrator_rule11_describes_fingerprint_not_mtime():
+    """C2: TW-067 (task 7) replaced rule 11's implementation with a content
+    fingerprint comparison, but left the rule-book prose agents actually read
+    describing the OLD mtime mechanism ('advisory.yaml stale relative to
+    trip-brief.yaml (advisory older than the brief)'). For a trip carrying a
+    fingerprint that sentence is false: rewriting the advisory no longer
+    clears rule 11 by making it newer, and `input_fingerprints` appeared
+    nowhere in the skill. Pin the fix: rule 11's own text must name the
+    fingerprint mechanism, and the Definitions section must say where the
+    fingerprint comes from; mtime survives only as the documented fallback for
+    an advisory with no recorded fingerprint, not as rule 11's definition.
+    """
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "input_fingerprints" in text, \
+        "Definitions must name where the fingerprint comes from"
+
+    start = text.index("11. cost ready")
+    end = text.index("12. advisory ready")
+    rule11 = text[start:end]
+    assert "fingerprint" in rule11, \
+        "rule 11 must describe the fingerprint comparison, not just mtime"
+    assert "fallback" in rule11.lower(), \
+        "rule 11 must say mtime is used only when no fingerprint was recorded"
+
+
+def test_orchestrator_definitions_name_fingerprint_source():
+    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    defs_start = text.index("## Definitions")
+    defs_end = text.index("## Stage Selection")
+    definitions = text[defs_start:defs_end]
+    assert "input_fingerprint" in definitions, \
+        "Definitions section must name scripts/orchestration.py::input_fingerprint"
+    assert "input_fingerprint.py" in definitions or "orchestration.py" in definitions, \
+        "Definitions section must point at where the fingerprint is computed"

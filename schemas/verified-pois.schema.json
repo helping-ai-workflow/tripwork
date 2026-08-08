@@ -205,8 +205,8 @@
                   },
                   "source_url": {
                     "type": "string",
-                    "pattern": "^(https?://|tel:)",
-                    "description": "The Places API endpoint, the dated page, or `tel:<number>` for a phone confirmation. `tel:` is admitted deliberately: it is the only route available to a consumer without a Places API key, and rejecting it would make this fix name an unobtainable source — the exact defect TW-063 closes."
+                    "pattern": "^(https?://[^\\s]+|tel:[+0-9][0-9()\\-. ]{5,})$",
+                    "description": "The Places API endpoint, the dated page, or `tel:<number>` for a phone confirmation. `tel:` is admitted deliberately: it is the only route available to a consumer without a Places API key, and rejecting it would make this fix name an unobtainable source — the exact defect TW-063 closes. End-anchored (I4): the prior pattern had no `$`, so `tel:` alone or `https://` alone satisfied it — this is Gate 0's sole auditability carrier, so a pattern four junk characters can pass is not a minor gap."
                   },
                   "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
                 }

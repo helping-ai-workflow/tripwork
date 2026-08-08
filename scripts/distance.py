@@ -31,7 +31,7 @@ DURATION_SOURCES = ("agent_estimate", "map_estimate", "sourced_timetable")
 
 
 def classify_hop(mins, max_hop_mins=60, km=None, mode=None,
-                 duration_source="agent_estimate"):
+                 duration_source="agent_estimate", source_url=None):
     """Classify a hop as ok / far / implausible / unsourced.
 
     Precedence (project-owner ruling, TW-066 fix-round-1):
@@ -55,8 +55,19 @@ def classify_hop(mins, max_hop_mins=60, km=None, mode=None,
     carries only an `agent_estimate` is `unsourced` — the number is plausible
     but nothing corroborates it.
 
+    `unsourced` ALSO fires for a `map_estimate`/`sourced_timetable` hop that
+    carries no `source_url` (I1, this release): re-typing the enum used to be
+    enough on its own -- `agent_estimate` -> `unsourced`, relabel the exact
+    same number `sourced_timetable`, and it came back `ok` with nothing
+    anywhere having checked that a source was actually cited. That is the
+    identical bare-enum shape Task 2 closed for `business_status`
+    ({status} -> {status, source_url, as_of}), reopened next door. A blank or
+    whitespace-only `source_url` counts as missing.
+
     Without km+mode there is no floor, so provenance cannot change the verdict
-    and the legacy 2-arg form keeps its exact meaning.
+    and the legacy 2-arg form keeps its exact meaning -- this is the
+    `km`/`mode` omission escape, and it is DEFERRED to v0.33.0 on purpose:
+    this fix's `source_url` requirement only applies once km+mode are given.
 
     `duration_source` must be one of DURATION_SOURCES; an unrecognized value
     raises ValueError rather than silently taking the sourced path (which
@@ -75,6 +86,9 @@ def classify_hop(mins, max_hop_mins=60, km=None, mode=None,
         return "implausible"
     if mins > max_hop_mins:
         return "far"
-    if km is not None and mode is not None and duration_source == "agent_estimate":
-        return "unsourced"
+    if km is not None and mode is not None:
+        if duration_source == "agent_estimate":
+            return "unsourced"
+        if not (source_url or "").strip():
+            return "unsourced"
     return "ok"

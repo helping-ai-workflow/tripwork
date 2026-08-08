@@ -545,6 +545,39 @@ def test_tw043_swapped_coords_rejected_everywhere():
         with pytest.raises(jsonschema.ValidationError):
             jsonschema.validate(build(), _load_schema(name))
 
+def _routing_doc(hop_extra):
+    hop = {"from": "西區", "to": "太保市", "mins": 45, "flag": "ok"}
+    hop.update(hop_extra)
+    return {"clusters": [{"district": "西區", "pois": ["a"]}], "hops": [hop], "warnings": []}
+
+
+def test_i1_sourced_duration_source_requires_source_url():
+    """I1: nothing in the schema required `source_url` when a hop declares a
+    non-default `duration_source` -- the hop's `required` list is only
+    [from,to,mins,flag]. A hop claiming `sourced_timetable` with no
+    `source_url` must be schema-invalid; the identical hop WITH a source_url
+    must stay valid."""
+    schema = _load_schema("routing.schema.json")
+    for src in ("map_estimate", "sourced_timetable"):
+        with pytest.raises(jsonschema.ValidationError):
+            jsonschema.validate(_routing_doc({"duration_source": src}), schema)
+        jsonschema.validate(
+            _routing_doc({"duration_source": src, "source_url": "https://transit.example/x"}),
+            schema,
+        )
+
+
+def test_i1_transition_rule_agent_estimate_and_absent_duration_source_unaffected():
+    """Transition rule (I1): existing artifacts must keep validating. A hop
+    with NO duration_source at all (every pre-TW-066 hop), and a hop that
+    explicitly declares the default `agent_estimate`, must not be forced to
+    carry a source_url -- the conditional is scoped to hops that actually
+    declare a NON-DEFAULT duration_source."""
+    schema = _load_schema("routing.schema.json")
+    jsonschema.validate(_routing_doc({}), schema)  # no duration_source key at all
+    jsonschema.validate(_routing_doc({"duration_source": "agent_estimate"}), schema)
+
+
 def test_tw008_source_url_must_be_http():
     schema = _load_schema("advisory.schema.json")
     bad = {"items": [{"topic": "battery", "rule": "x", "effective_date": "2026-01-01", "risk": "info",
@@ -879,3 +912,37 @@ def test_business_status_tel_source_url_validates():
                             "as_of": "2026-08-01"},
     }]}
     jsonschema.validate(data, schema)
+
+
+def _business_status_poi(source_url):
+    return {"pois": [{
+        "id": "x", "name_local": "x", "name_display": "x",
+        "category": "restaurant", "district": "x",
+        "geocode": {"lat": 1.0, "lng": 2.0},
+        "sources": [{"url": "https://a.example", "lang": "ko"}, {"url": "https://b.example", "lang": "zh"}],
+        "verify_status": "verified",
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": source_url,
+                            "as_of": "2026-08-01"},
+    }]}
+
+
+def test_business_status_places_api_url_still_validates():
+    """Regression guard for I4's tightened pattern: a plausible Google Places
+    API URL must keep validating."""
+    schema = _load_schema("verified-pois.schema.json")
+    jsonschema.validate(
+        _business_status_poi("https://places.googleapis.com/v1/places/ChIJN1t_tDeuEmsRUsoyG83frY4"),
+        schema,
+    )
+
+
+@pytest.mark.parametrize("junk", ["tel:", "https://", "tel:not-a-number", "https:// nonsense"])
+def test_i4_source_url_pattern_rejects_four_chars_of_junk(junk):
+    """I4: `^(https?://|tel:)` has no end anchor, so `source_url` (Gate 0's sole
+    auditability carrier, new in this release) is satisfied by as little as the
+    literal string 'tel:' with nothing after it. `scripts/verify.py` only checks
+    non-empty, so none of these four junk values were ever rejected."""
+    schema = _load_schema("verified-pois.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(_business_status_poi(junk), schema)

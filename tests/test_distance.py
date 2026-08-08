@@ -31,11 +31,39 @@ def test_raising_the_guess_over_the_floor_does_not_buy_ok():
 
 
 def test_sourced_timetable_over_the_floor_is_ok():
-    """The over-blocking guard: a sourced estimate above the floor stays usable."""
-    assert classify_hop(31, km=20, mode="drive",
-                        duration_source="sourced_timetable") == "ok"
-    assert classify_hop(31, km=20, mode="drive",
-                        duration_source="map_estimate") == "ok"
+    """The over-blocking guard: a sourced estimate above the floor stays usable
+    -- PROVIDED it actually carries a source_url (I1: a bare enum is not a
+    source; see test_sourced_duration_source_without_url_is_still_unsourced)."""
+    assert classify_hop(31, km=20, mode="drive", duration_source="sourced_timetable",
+                        source_url="https://transit.example/timetable") == "ok"
+    assert classify_hop(31, km=20, mode="drive", duration_source="map_estimate",
+                        source_url="https://maps.example/route") == "ok"
+
+
+def test_sourced_duration_source_without_url_is_still_unsourced():
+    """I1: `unsourced` is cleared by re-typing an enum, which is the shape this
+    release closed for `business_status` (Task 2) and reopened next door for
+    hops (Task 4). Measured at HEAD: a hop over the plausibility floor and
+    under the cap returns `unsourced` on `agent_estimate`; relabelling the
+    SAME hop `sourced_timetable` with no `source_url` returned `ok` -- nothing
+    checked that a source was actually cited. `classify_hop` must not let a
+    duration_source relabel alone clear this without an accompanying URL.
+    """
+    for src in ("map_estimate", "sourced_timetable"):
+        assert classify_hop(31, km=20, mode="drive", duration_source=src) == "unsourced"
+        assert classify_hop(31, km=20, mode="drive", duration_source=src,
+                            source_url="") == "unsourced"
+        assert classify_hop(31, km=20, mode="drive", duration_source=src,
+                            source_url="   ") == "unsourced"
+
+
+def test_source_url_requirement_respects_the_km_mode_omission_escape():
+    """Guard: the km/mode-omission behaviour is DEFERRED to v0.33.0 on purpose
+    (NOT this fix's scope) -- the legacy 2-arg call form must keep classifying
+    on the threshold alone, with no source_url requirement, exactly as before.
+    """
+    assert classify_hop(31, duration_source="sourced_timetable") == "ok"
+    assert classify_hop(31, duration_source="map_estimate") == "ok"
 
 
 def test_below_the_floor_is_implausible_whatever_the_source():
