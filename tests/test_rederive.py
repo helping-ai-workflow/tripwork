@@ -323,7 +323,14 @@ def test_a_row_with_no_recorded_closing_status_is_not_rederivable():
 
 
 def test_an_open_air_poi_declares_no_fixed_close_instead_of_faking_one():
-    """Genuine false positive, designed around rather than skipped: of the 10
+    """Guard, GREEN at HEAD: guards the `hours.no_fixed_close` short-circuit
+    branch in `rederive_closing` — if that branch is ever dropped, this exact
+    row (hours with no `close`, but `no_fixed_close: True`) falls through to
+    the "neither close nor no_fixed_close" path and starts failing
+    `verdicts_rederivable`, which is the false positive this test exists to
+    prove does not happen.
+
+    Genuine false positive, designed around rather than skipped: of the 10
     yilan POIs carrying hours with no `close`, the beaches, lakes and old streets
     among them genuinely have no closing time. Demanding hours.close there is
     wrong; a recorded CLAIM that there is none is not. (The eateries in that same
@@ -354,18 +361,35 @@ def test_a_poi_with_neither_close_nor_no_fixed_close_is_not_rederivable():
 
 
 def test_rows_without_a_time_or_a_resolving_poi_are_out_of_scope():
-    """Measured: of 94 corpus rows, 31 carry a `time` but no `poi_id` (move rows,
+    """Guard, GREEN at HEAD: guards the `not t or not pid` scope filter in
+    `rederive_closing` — if that filter regresses, move rows and free-text
+    meals (rows with no `time` or no `poi_id`) get pulled into `examined`,
+    burying the real closing-buffer signal under noise that was never
+    schedulable against a POI's hours in the first place.
+
+    Measured: of 94 corpus rows, 31 carry a `time` but no `poi_id` (move rows,
     free-text meals) and 5 carry a `poi_id` that does not resolve in
-    verified-pois. Counting either in `examined` would bury the signal."""
+    verified-pois. Counting either in `examined` would bury the signal.
+
+    The third row below (`time` + a `poi_id` that is NOT in `by_id`) exercises
+    the `pid not in (by_id or {})` disjunct directly — otherwise that branch
+    is reachable only through the corpus test, which is `skipif`-guarded on
+    an external directory absent from every checkout that isn't the
+    controller's."""
     itin = {"days": [{"date": "2026-08-29", "rows": [
         {"slot": "move", "from": "三重", "to": "嘉義市", "text": "自駕"},
         {"time": "12:00", "slot": "meal", "text": "朋友選定的店"},
+        {"time": "12:00", "slot": "visit", "poi_id": "ghost", "text": "已刪除的景點"},
     ]}]}
     res = run_rederivation(itin, {"p1": _poi()}, legs={"legs": []},
                            routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
                            trip_brief=BRIEF)
-    assert _checks(res)["verdicts_rederivable"]["passed"] is True
+    c = _checks(res)
+    assert c["verdicts_rederivable"]["passed"] is True
+    # examined unchanged by the ghost row: legs=0 + hops=0 + cost=1(present,
+    # filler) + closing=0 (all three itinerary rows are out of scope) == 1.
+    assert c["verdicts_rederivable"]["examined"] == 1
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
