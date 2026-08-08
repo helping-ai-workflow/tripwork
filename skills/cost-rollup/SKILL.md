@@ -28,9 +28,11 @@ computes. It is NOT lodging-only. `over_budget` compares the grand total against
 ## Currency (no FX API)
 
 Pick one **primary currency** (usually the destination's). Convert minor-currency items
-with a **researched approximate rate** (consumer `WebSearch` for a widely-cited / official
-rate near the trip dates); record `fx_rate` + `source_currency` on the converted line
-item. If `trip-brief.home_currency` differs, add an advisory `fx_note` for the total.
+with a **researched approximate rate**, found via the **source ladder** in
+`tripwork:using-tripwork` (WebSearch, else WebFetch against an official page, else a search
+HTML endpoint for discovery only) for a widely-cited / official rate near the trip dates;
+record `fx_rate` + `source_currency` on the converted line item. If
+`trip-brief.home_currency` differs, add an advisory `fx_note` for the total.
 
 ## Compute (logic in `scripts/cost.py`)
 

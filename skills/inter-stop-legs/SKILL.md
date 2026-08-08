@@ -19,8 +19,10 @@ public mode and note the assumption.
 
 ## Research (no timetable API)
 
-Use the consumer harness `WebSearch`; prefer **official** local-language sources (rail
-operator timetable e.g. JR / Korail, intercity bus operator, road authority). `mode` is one
+Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else WebFetch
+against an official page, else a search HTML endpoint for discovery only); prefer
+**official** local-language sources (rail operator timetable e.g. JR / Korail, intercity bus
+operator, road authority). `mode` is one
 of `drive | rail | bus | flight | ferry` (schema-enforced enum — never a freeform label like
 "self_drive"). A `drive` leg MUST carry a measured `duration_mins` (the schema requires it and
 `scripts/legs.py::classify_leg` raises rather than defaulting an unmeasured drive to feasible).

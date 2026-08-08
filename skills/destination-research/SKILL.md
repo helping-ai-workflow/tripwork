@@ -9,7 +9,7 @@ Gather a *candidate pool* into `trips/<slug>/candidates.yaml` (schema: `schemas/
 
 ## Method
 
-- Use the consumer harness `WebSearch` tool. The plugin bundles no search engine.
+- Gather candidates using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else WebFetch against an official page, else a search HTML endpoint for discovery only). Record the URL you actually fetched on every candidate.
 - For each topic in `must_do` + standard categories (food, sights, shopping), search broadly.
 - **Always include local-language queries** (e.g. Korean for Korea) — local sources surface places international sources miss, and a local source is required to pass `source-verify`.
 - Record every source URL with its `lang`. Capture `claimed_district` when a source states a location, but treat it as a claim, not a fact.

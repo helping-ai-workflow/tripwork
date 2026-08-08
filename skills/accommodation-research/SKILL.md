@@ -14,8 +14,10 @@ every candidate, exactly like `source-verify`.
 
 - **filled** (`overnight_stops[i].lodging` given) → verify + enrich that hotel; set
   `chosen` to it. Never override the user's booking.
-- **unfilled** → research **N = 3** verified candidates (consumer `WebSearch`, include
-  local-language queries); leave `chosen: null` and **stop and ask the user to pick**.
+- **unfilled** → research **N = 3** verified candidates using the **source ladder** in
+  `tripwork:using-tripwork` (WebSearch, else WebFetch against an official or booking page,
+  else a search HTML endpoint for discovery only), including local-language queries; leave
+  `chosen: null` and **stop and ask the user to pick**.
   List all unfilled stops' options at once — do not interrupt per stop.
 
 ## Verification (reuse `scripts/verify.py::classify_candidate`)

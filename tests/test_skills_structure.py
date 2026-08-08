@@ -285,8 +285,13 @@ def _skill(name):
     return (SKILLS / name / "SKILL.md").read_text(encoding="utf-8")
 
 def test_tw024_websearch_unavailable_halts():
+    # TW-064 rebound the halt condition from one tool's availability to "every
+    # route [in the source ladder] unavailable" and reworded the no-substitute
+    # clause accordingly; this guard now checks the current wording of the same
+    # discipline (WebSearch still named, HALT still the outcome, model recall
+    # still barred as a stand-in for a fetched source).
     t = _skill("using-tripwork")
-    assert "WebSearch" in t and "HALT" in t and "never substitute model memory" in t
+    assert "WebSearch" in t and "HALT" in t and "model recall is never a source" in t
 
 def test_tw025_notion_is_gated_md_paste_not_adapter():
     # 0.20.0: Notion is no longer a post-gate write-back adapter. The itinerary reaches
@@ -347,6 +352,41 @@ def test_gate_skills_cite_gate_clis():
 
 def test_orchestrator_cites_next_stage_cli():
     assert "next_stage.py" in _orch()
+
+def test_iron_rule_halts_on_provenance_not_on_a_tool_name():
+    """TW-064: the rule's target is model memory, not a vendor tool.
+
+    Dogfood 2026-08-07T09:57 measured 'tool type web_search_20250305 is not
+    supported for this model'. Under the tool-bound wording every research stage
+    halts, which makes the plugin unusable rather than careful.
+    """
+    body = (SKILLS / "using-tripwork" / "SKILL.md").read_text(encoding="utf-8")
+    # The rewrite also renames the row from "No search, no fact" to "No unsourced
+    # fact" (the old name still reads as tool-bound, which is exactly the defect
+    # being fixed) — locate the row by its new name, not the one being replaced.
+    rule = [ln for ln in body.splitlines() if "No unsourced fact" in ln]
+    assert rule, "iron rule row not found"
+    row = rule[0]
+    assert "WebFetch" in row, "the ladder's second rung must be named in the rule"
+    assert not re.search(r"If the `WebSearch` tool is unavailable", row), \
+        "halt must not be bound to one tool's availability"
+    assert "every route" in row or "all routes" in row, \
+        "HALT fires only when EVERY route is unavailable"
+
+
+def test_every_websearch_skill_points_at_the_ladder():
+    """Dynamically enumerated so a new research skill is covered automatically."""
+    offenders = []
+    for path in sorted(SKILLS.glob("*/SKILL.md")):
+        body = path.read_text(encoding="utf-8")
+        if "WebSearch" not in body:
+            continue
+        if path.parent.name == "using-tripwork":
+            continue
+        if "source ladder" not in body:
+            offenders.append(str(path))
+    assert offenders == [], f"skills naming WebSearch without a ladder pointer: {offenders}"
+
 
 def test_source_verify_names_an_achievable_operating_source():
     """TW-063: SKILL.md:30 pointed Gate 0 at a Google Maps card the plugin cannot

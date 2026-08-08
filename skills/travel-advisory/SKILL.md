@@ -9,7 +9,7 @@ Regulations can harm travellers if wrong, so the **Source-Verified-First** rule 
 
 ## Method
 
-- Use the consumer harness `WebSearch`; prefer local-language official sources.
+- Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else WebFetch against an official page, else a search HTML endpoint for discovery only); prefer local-language official sources.
 - Each item needs >= 1 **official** source (airline notice, government entry portal) plus a corroborating source.
 - Record `effective_date` for every rule (regulations change — e.g. battery rules with staged effective dates).
 - If the travel date precedes a rule's `effective_date`, set `not_yet_in_effect: true`.
