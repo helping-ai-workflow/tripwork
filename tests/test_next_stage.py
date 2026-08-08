@@ -108,15 +108,24 @@ def test_stale_candidates_reverify(tmp_path):
     assert _next(t, w)["next"] == "tripwork:source-verify"
 
 
-def test_rule11_rebrief_with_destination_change_re_runs_advisory(tmp_path):
-    """TW-067 migration (was test_rule11_rebrief_re_runs_advisory): pre-fix,
-    rule 11 fired on ANY brief rewrite — a bare mtime bump with no content
-    change, which is now covered separately by test_rule11_ignores_a_bare_touch
-    and asserts the OPPOSITE. Now that rule 11 is keyed by input_fingerprint,
-    only a change to a projected field (destination/dates/airline) re-runs
-    advisory. Kept against the FULL pipeline fixture (through
-    export-gate-report), not just the minimal through-cost one, to prove the
-    interaction still holds with a fuller trip directory in play."""
+def test_rule11_ignored_edit_does_not_derail_a_complete_pipeline(tmp_path):
+    """TW-067 migration, fix round 1 (was test_rule11_rebrief_re_runs_advisory,
+    which encoded the pre-fix 'any mtime bump fires' behaviour; an interim
+    revision fixed that but left it a near-duplicate of
+    test_rule11_fires_when_the_destination_changes). Rule 11 itself decides
+    identically regardless of fixture depth — it returns before rule 12 ever
+    reads itinerary.yaml/gate-report.yaml/export-gate-report.yaml, so fixture
+    depth cannot change which branch of rule 11 executes. What full depth CAN
+    show, and the through-cost fixture cannot, is the actual dogfood scenario:
+    a harmless brief edit made AFTER an otherwise-COMPLETE pipeline (itinerary
+    synthesized, both gates passed) must not derail it back to
+    travel-advisory. test_rule11_ignores_a_must_do_edit cannot demonstrate
+    this because its fixture never reaches 'complete' in the first place.
+
+    trip-brief.yaml is bumped newer than advisory.yaml on purpose: under the
+    pre-fix whole-file-mtime rule that alone would fire rule 11 and the
+    pipeline would never reach 'complete', so this fixture also discriminates
+    the fix the same way test_rule11_ignores_a_must_do_edit does."""
     t, w = _full(tmp_path)
     brief = yaml.safe_load((t / "trip-brief.yaml").read_text(encoding="utf-8"))
     fp = input_fingerprint(brief, ADVISORY_PROJECTION)
@@ -124,13 +133,12 @@ def test_rule11_rebrief_with_destination_change_re_runs_advisory(tmp_path):
     adv["input_fingerprints"] = {"trip-brief.yaml": fp}
     write_artifact(t / "advisory.yaml", adv)
 
-    brief["destination"]["city"] = "Sapporo"
+    brief["must_do"] = ["雞肉飯", "花磚"]
     write_artifact(t / "trip-brief.yaml", brief)
-    _bump(t / "trip-brief.yaml", 3600)           # re-briefed after advisory
+    _bump(t / "trip-brief.yaml", 3600)           # rewritten well after advisory
 
     got = _next(t, w)
-    assert got["next"] == "tripwork:travel-advisory"
-    assert "rule 11" in got["reason"]
+    assert got["next"] == "complete", got["reason"]
 
 
 def test_rule11_ignores_a_must_do_edit(tmp_path):
@@ -153,6 +161,10 @@ def test_rule11_ignores_a_must_do_edit(tmp_path):
 
 
 def test_rule11_fires_when_the_destination_changes(tmp_path):
+    """Fix round 1: advisory.yaml is bumped provably NEWER than trip-brief.yaml
+    (not the reverse) so the old whole-file-mtime rule would read this as
+    "not stale". The only way this test can still fire is the content check —
+    proving the trigger is the fingerprint mismatch, not mtime."""
     t, w = _build_trip_through_cost(tmp_path)
     brief = yaml.safe_load((t / "trip-brief.yaml").read_text(encoding="utf-8"))
     fp = input_fingerprint(brief, ADVISORY_PROJECTION)
@@ -161,6 +173,7 @@ def test_rule11_fires_when_the_destination_changes(tmp_path):
 
     brief["destination"]["city"] = "台南市"
     write_artifact(t / "trip-brief.yaml", brief)
+    _bump(t / "advisory.yaml", 999999)           # advisory provably newer
 
     got = _next(t, w)
     assert got["next"] == "tripwork:travel-advisory"
