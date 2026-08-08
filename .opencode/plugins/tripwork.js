@@ -39,7 +39,11 @@ When tripwork skills request actions, substitute OpenCode equivalents:
 - Create, edit, or delete files -> \`apply_patch\`
 - Run shell commands -> \`bash\`
 - Search files -> \`grep\`, \`glob\`
-- Consumer-harness \`WebSearch\` -> OpenCode's web-search tool; if none exists, HALT the stage and tell the user (Source-Verified-First: "No search, no fact") — never substitute model memory.`;
+- Consumer-harness \`WebSearch\` -> OpenCode's web-search tool (source ladder rung 1).
+  Consumer-harness \`WebFetch\` -> whatever URL-fetch capability OpenCode exposes (rungs
+  2/3: an official page, else a search engine's HTML endpoint for discovery only). HALT
+  the stage and tell the user only when every rung of the source ladder is unavailable
+  (Source-Verified-First: "No unsourced fact") — model recall is never a source.`;
 
     _bootstrapCache = `<EXTREMELY_IMPORTANT>
 You have tripwork.

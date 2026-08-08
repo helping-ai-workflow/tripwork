@@ -83,7 +83,7 @@ Pi has native skills but does not expose Claude Code's \`Skill\` tool. When a tr
 
 Pi's built-in coding tools are lowercase: \`read\`, \`write\`, \`edit\`, \`bash\`, plus optional \`grep\`, \`find\`, \`ls\`. Use those for read/create/edit/run/search/find/list actions.
 
-When a tripwork skill says to use the consumer-harness \`WebSearch\`, use Pi's web-search tool if one is installed; if none exists, HALT the stage and tell the user (Source-Verified-First: "No search, no fact") — never substitute model memory.
+When a tripwork skill says to use the consumer-harness \`WebSearch\`, use Pi's web-search tool if one is installed (source ladder rung 1). When a tripwork skill says to use the consumer-harness \`WebFetch\`, use whatever URL-fetch capability Pi exposes (rungs 2/3: an official page, else a search engine's HTML endpoint for discovery only). HALT the stage and tell the user only when every rung of the source ladder is unavailable (Source-Verified-First: "No unsourced fact") — model recall is never a source.
 
 Pi does not ship a standard subagent or task-list tool. If \`subagent\` (from \`pi-subagents\`) or a todo tool is installed, use it; otherwise work in this session or track tasks in a plan / \`TODO.md\`.`;
 }
