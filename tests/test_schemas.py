@@ -830,6 +830,21 @@ def test_gate_report_check_accepts_examined_and_rejects_negative(tmp_path):
     )
     assert validate_file(str(ok))[0] == 0
 
+    # Examined:0 is the critical case — distinguishes "inspected 0 records"
+    # (no verdict to derive) from "inspected N records" (verdict is real).
+    zero = tmp_path / "gate-report-zero.yaml"
+    zero.write_text(
+        "status: pass\n"
+        "checks:\n"
+        "  - name: verdicts_match\n"
+        "    passed: true\n"
+        "    examined: 0\n"
+        "failures: []\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(zero), schema_path=str(schema_path))[0] == 0
+
+    # Examined:-1 must be rejected by minimum:0 constraint.
     bad = tmp_path / "gate-report-neg.yaml"
     bad.write_text(
         "status: pass\n"
@@ -840,6 +855,8 @@ def test_gate_report_check_accepts_examined_and_rejects_negative(tmp_path):
         "failures: []\n",
         encoding="utf-8",
     )
+    # schema_path passed explicitly because gate-report-neg.yaml is not in
+    # SCHEMA_BY_BASENAME; basenames must match exactly (gate-report.yaml, not variants).
     rc, msgs = validate_file(str(bad), schema_path=str(schema_path))
     assert rc == 1
     assert any("examined" in m for m in msgs)
