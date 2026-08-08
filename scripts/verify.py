@@ -102,7 +102,7 @@ def has_existence_proof(poi):
 
 def classify_candidate(candidate, geocoded, in_claimed_region,
                         local_lang=None, conflict_detected=False, operating=True,
-                        name_match=True):
+                        name_match=True, geocode_source=None):
     """Return (verify_status, note).
 
     Gates are evaluated in strict order (spec §5.1):
@@ -115,7 +115,9 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
             from a site 404 (both measured dead in dogfood). (TW-005)
     Gate 1: >= 2 sources (else 'unverified').
             If local_lang given, at least one source must be in that lang (else 'unverified').
-    Gate 2: geocode must resolve (else 'unverified', D7).
+    Gate 2: geocode must resolve (else 'unverified', D7). A `cluster_fallback`
+            geocode_source with no independent existence proof is treated the
+            same as unresolved — 'unverified' (TW-062).
     Gate 2b: name_match must be determined and true (else 'unverified' when
              undetermined, 'conflicting' when a real mismatch — see below).
     Gate 3a: conflict_detected — cross-source disagreement on rating/hours/address
@@ -123,7 +125,9 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     Gate 3b: geocoded point must fall within the claimed region (else 'conflicting').
 
     Args:
-        candidate:        dict with 'sources' list, each item having 'lang'.
+        candidate:        dict with 'sources' list, each item having 'lang'. Also
+                          read here (Gate 2) via `has_existence_proof(candidate)`
+                          for its `gmaps_place_id` / `sources[].official` fields.
         geocoded:         bool — True if coordinates were successfully resolved.
         in_claimed_region: bool — True if coordinates fall inside the claimed district.
         local_lang:       optional str, ISO-639 code for the destination's local language.
@@ -134,6 +138,9 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
                           supplied a resolved_name to compare against -> 'unverified',
                           not a silent pass). Default True keeps existing callers that
                           never pass this argument unaffected.
+        geocode_source:   optional str, `candidate["geocode"]["geocode_source"]`
+                          (TW-062). Default None never equals 'cluster_fallback',
+                          so existing callers that never pass this are unaffected.
     """
     sources = candidate.get("sources", [])
     langs = {s.get("lang") for s in sources}
@@ -155,6 +162,17 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # for manual confirmation ('unverified'), never silently dropped ('rejected').
     if not geocoded:
         return "unverified", "geocode unresolved: could not resolve coordinates"
+
+    # Gate 2 sub-check (TW-062): a centroid fallback is not a geocode. Nominatim
+    # finding nothing must not outrank Nominatim finding a name that disagrees —
+    # which is `conflicting`. Without this, the incentive inverts: the POIs that
+    # cannot be resolved are the easiest to pass. Dogfood 2026-08: 8 of 17 chiayi
+    # POIs took this path, five of them sharing verbatim-identical coordinates.
+    if geocode_source == "cluster_fallback" and not has_existence_proof(candidate):
+        return ("unverified",
+                "geocode is a cluster_fallback centroid with no existence proof — "
+                "record an official: true source or a gmaps_place_id, or leave the "
+                "POI unverified for manual confirmation")
 
     # Gate 2b (P2): the resolved place must actually correspond to the queried
     # venue. A wrong-but-plausible top hit (renamed nearby place, name drift) is
@@ -248,21 +266,18 @@ def verify_poi(poi, geocoded, in_claimed_region,
     else:
         name_match = name_matches(queried, resolved_name)
 
-    # Gate 2c (TW-062): a centroid fallback is not a geocode. Nominatim finding
-    # nothing must not outrank Nominatim finding a name that disagrees — which is
-    # `conflicting`. Without this, the incentive inverts: the POIs that cannot be
-    # resolved are the easiest to pass. Dogfood 2026-08: 8 of 17 chiayi POIs took
-    # this path, five of them sharing verbatim-identical coordinates.
+    # Gate 2's cluster_fallback sub-check (TW-062) also lives inside
+    # classify_candidate now, for the identical reason Gate 2b's input does: an
+    # early return here would fire ahead of Gate 1 (sources) and Gate 2
+    # (geocoded), which skills/source-verify/SKILL.md:28 documents as running
+    # first. Only the geocode_source STRING is computed here and threaded down;
+    # classify_candidate owns the has_existence_proof(candidate) call and the
+    # decision (review round 2).
     geo_source = ((normalised.get("geocode") or {}).get("geocode_source") or "")
-    if geo_source == "cluster_fallback" and not has_existence_proof(normalised):
-        return (normalised, "unverified",
-                "geocode is a cluster_fallback centroid with no existence proof — "
-                "record an official: true source or a gmaps_place_id, or leave the "
-                "POI unverified for manual confirmation")
 
     status, note = classify_candidate(
         normalised, geocoded=geocoded, in_claimed_region=in_claimed_region,
         local_lang=local_lang, conflict_detected=conflict_detected, operating=operating,
-        name_match=name_match,
+        name_match=name_match, geocode_source=geo_source,
     )
     return normalised, status, note

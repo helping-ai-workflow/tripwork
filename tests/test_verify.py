@@ -349,3 +349,23 @@ def test_missing_resolved_name_does_not_preempt_earlier_gates():
     assert status == "unverified"
     assert "independent sources" in note
     assert "resolved_name" not in note
+
+
+def test_cluster_fallback_does_not_preempt_earlier_gates():
+    """Review Round 2: Gate 2's cluster_fallback sub-check must also obey
+    skills/source-verify/SKILL.md:28's documented strict order, mirroring
+    Round 1's Gate 2b fix — it is a Gate 2 concern, so Gate 1 (sources) must
+    still fire first.
+
+    A POI with only ONE source and a cluster_fallback centroid (no existence
+    proof) has a more fundamental problem than the unproven centroid: Gate 1
+    (sources). The caller should be told about the sources problem first, not
+    sent to add an official source or gmaps_place_id, rerun, and only then
+    discover the real blocker.
+    """
+    poi = _clean_poi(sources=[{"url": "https://a.example.tw/p", "lang": "zh"}])
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "unverified"
+    assert "independent sources" in note
+    assert "cluster_fallback" not in note
