@@ -411,3 +411,16 @@ def test_home_leg_ownership_is_stated_on_both_sides():
     assert "home_origin" in legs
     assert "kind: home" in legs
     assert "kind: home" in cost
+
+
+def test_itinerary_synthesis_input_contract_reflects_home_legs():
+    """TW-065 fix-round-1: the Input row claimed legs.yaml is 'empty list if
+    single-base' — false since a single-base trip carrying home_origin/
+    home_return now legitimately writes a non-empty legs.yaml (a kind: home
+    leg). The contract must name the home-endpoint condition, not just
+    single-base vs multi-base."""
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "empty list if single-base" not in text, \
+        "Input row still claims legs.yaml is empty for every single-base trip"
+    assert "home endpoint" in text, \
+        "Input row must name the home-endpoint condition that keeps legs.yaml non-empty"
