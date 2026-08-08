@@ -347,3 +347,15 @@ def test_gate_skills_cite_gate_clis():
 
 def test_orchestrator_cites_next_stage_cli():
     assert "next_stage.py" in _orch()
+
+def test_source_verify_names_an_achievable_operating_source():
+    """TW-063: SKILL.md:30 pointed Gate 0 at a Google Maps card the plugin cannot
+    open, and named no path that works. The dogfood agent measured both stated
+    routes as dead and fell back to typing OPERATIONAL — the rule produced the
+    behaviour it forbade."""
+    p = SKILLS / "source-verify" / "SKILL.md"
+    body = p.read_text(encoding="utf-8")
+    assert "Places API" in body, "must name the route that actually works"
+    assert "business_status.source_url" in body, "must say what to record"
+    assert "行前電話" in body or "phone" in body.lower(), \
+        "must name the keyless fallback for consumers with no API key"

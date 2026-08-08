@@ -188,13 +188,26 @@
             "description": "Google Maps place_id; deep-links maps_url to the canonical place. May be re-emitted by source-verify so it survives re-verify on the canonical row."
           },
           "business_status": {
-            "type": "string",
-            "enum": [
-              "OPERATIONAL",
-              "CLOSED_TEMPORARILY",
-              "CLOSED_PERMANENTLY"
-            ],
-            "description": "Sourced operating signal (Google Places businessStatus vocabulary). source-verify must obtain it; an absent signal keeps the POI 'unverified' (Gate 0 cannot pass), a CLOSED value forces 'rejected'. Never default to operating. (P1)"
+            "description": "Operating signal. The object form is the one Gate 0 accepts: {status, source_url, as_of}. The bare string is retained for one version so existing trips keep passing validate_artifact — it is treated as SELF-ATTESTED and yields `unverified`, which routes back to source-verify with a fixable message rather than failing validation outright. (TW-063)",
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+              },
+              {
+                "type": "object",
+                "required": ["status", "source_url", "as_of"],
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+                  },
+                  "source_url": {"type": "string", "pattern": "^https?://"},
+                  "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+                }
+              }
+            ]
           },
           "photo": {
             "type": "object",

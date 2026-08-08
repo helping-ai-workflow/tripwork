@@ -4,6 +4,7 @@ Written RED-first per the 8-step plugin pre-ship gate. One class per defect.
 Not-yet-existing names / params are imported or exercised INSIDE each test so an
 unimplemented defect reports its own RED rather than failing module collection.
 """
+import datetime
 from urllib.parse import unquote
 
 import pytest
@@ -13,6 +14,14 @@ from scripts.geocode import resolve_place
 from scripts.gate import run_gate
 from scripts.export_gate import run_export_gate, run_html_gate
 from scripts.render.gmaps_links import maps_url
+
+# Reference "today" for sourced business_status.as_of recency (TW-063). Fixed
+# so these tests don't rot as the wall clock advances past the 90-day window.
+_TODAY = datetime.date(2026, 6, 21)
+
+
+def _sourced_status(status, as_of="2026-06-01"):
+    return {"status": status, "source_url": "https://places.example/x", "as_of": as_of}
 
 
 # --- shared builders (mirror tests/test_gate.py conventions) -------------------
@@ -51,8 +60,9 @@ class TestP1Operating:
 
     def test_closed_permanently_rejected_before_geocode(self):
         # Acceptance: a candidate whose source reports closed -> rejected (Gate 0).
-        _, status, note = verify_poi(self._cand(business_status="CLOSED_PERMANENTLY"),
-                                     geocoded=True, in_claimed_region=True)
+        _, status, note = verify_poi(
+            self._cand(business_status=_sourced_status("CLOSED_PERMANENTLY")),
+            geocoded=True, in_claimed_region=True, today=_TODAY)
         assert status == "rejected"
         assert "clos" in note.lower() or "defunct" in note.lower()
 
@@ -64,8 +74,9 @@ class TestP1Operating:
         assert "operating" in note.lower() or "business_status" in note.lower()
 
     def test_operational_signal_allows_verified(self):
-        _, status, _ = verify_poi(self._cand(business_status="OPERATIONAL"),
-                                  geocoded=True, in_claimed_region=True)
+        _, status, _ = verify_poi(
+            self._cand(business_status=_sourced_status("OPERATIONAL")),
+            geocoded=True, in_claimed_region=True, today=_TODAY)
         assert status == "verified"
 
     def test_classify_candidate_operating_false_still_rejected(self):
@@ -96,12 +107,12 @@ class TestP2NameMatch:
 
     def test_verify_poi_resolved_name_mismatch_conflicting(self):
         c = {"id": "x", "name_local": "星月大地", "name_display": "星月大地",
-             "business_status": "OPERATIONAL",
+             "business_status": _sourced_status("OPERATIONAL"),
              "sources": [{"url": "https://a.example", "lang": "zh"},
                          {"url": "https://b.example", "lang": "zh"}],
              "geocode": {"lat": 1.0, "lng": 2.0}}
         _, status, note = verify_poi(c, geocoded=True, in_claimed_region=True,
-                                     resolved_name="星月驛站, 后里區")
+                                     resolved_name="星月驛站, 后里區", today=_TODAY)
         assert status == "conflicting"
         assert "mismatch" in note.lower()
 

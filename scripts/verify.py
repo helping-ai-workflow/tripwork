@@ -5,6 +5,7 @@ The geocode + region results are computed by the skill (using geocode.py) and
 passed in; this function holds the decision logic so it is unit-testable.
 """
 
+import datetime
 from urllib.parse import urlsplit
 from scripts.geocode import normalize_geocode_keys, name_matches
 
@@ -23,23 +24,60 @@ _OPERATING_STATUS = {
 }
 
 
-def operating_from_status(business_status):
-    """Map a sourced operating signal to operating True / False, or None.
+# How old a sourced operating signal may be before it stops meaning anything.
+# Shorter than hours' 12 months (skills/source-verify/SKILL.md:41) because a
+# restaurant closes permanently faster than it changes its closing time.
+OPERATING_MAX_AGE_DAYS = 90
 
-    `business_status` is the consumer/agent-supplied signal (Google Places
-    `businessStatus` vocabulary, case-insensitive). OPERATIONAL -> True;
-    CLOSED_TEMPORARILY / CLOSED_PERMANENTLY -> False. Any absent, blank, or
-    UNRECOGNISED value -> None.
 
-    None means "operating status not established": the caller MUST refuse to
-    silently verify (record `unverified`), never default to operating. (P1)
+def _parse_iso(d):
+    try:
+        return datetime.date.fromisoformat(str(d))
+    except (TypeError, ValueError):
+        return None
+
+
+def operating_from_status(business_status, today=None):
+    """Map a sourced operating signal to (operating, reason).
+
+    Accepts the sourced object form
+    ``{"status": <enum>, "source_url": "https://…", "as_of": "YYYY-MM-DD"}``
+    and, for the transition, the legacy bare string — which is now treated as
+    NOT a signal. That is the whole point of TW-063: the bare enum recorded a
+    verdict with no way to record where it came from, so 17 of 17 dogfood POIs
+    carried a hand-typed OPERATIONAL and review could not tell. The user caught
+    a temporarily-closed restaurant by eye; Gate 0 did not.
+
+    Returns (True | False | None, reason). None means "not established" and the
+    caller MUST record `unverified` — never default to operating. (P1)
     """
     if business_status is None:
-        return None
-    key = str(business_status).strip().upper()
-    if not key:
-        return None
-    return _OPERATING_STATUS.get(key)  # True / False / None when unrecognised
+        return None, "no business_status signal obtained"
+    if isinstance(business_status, str):
+        key = business_status.strip().upper()
+        if not key:
+            return None, "no business_status signal obtained"
+        return None, ("business_status is self-attested: a bare string records a "
+                      "verdict with no source_url and no as_of, so it cannot be "
+                      "reviewed. Record {status, source_url, as_of}")
+    if not isinstance(business_status, dict):
+        return None, "business_status is neither a status object nor a string"
+
+    key = str(business_status.get("status") or "").strip().upper()
+    if key not in _OPERATING_STATUS:
+        return None, f"unrecognised business_status.status {key!r}"
+    if not str(business_status.get("source_url") or "").strip():
+        return None, "business_status has no source_url — the signal is unauditable"
+
+    as_of = _parse_iso(business_status.get("as_of"))
+    if as_of is None:
+        return None, "business_status has no valid as_of date"
+    ref = today or datetime.date.today()
+    age = (ref - as_of).days
+    if age > OPERATING_MAX_AGE_DAYS:
+        return None, (f"business_status.as_of {as_of.isoformat()} is {age} days old "
+                      f"(max {OPERATING_MAX_AGE_DAYS}) — stale, re-check before scheduling")
+    return _OPERATING_STATUS[key], ""
 
 
 def classify_candidate(candidate, geocoded, in_claimed_region,
@@ -128,7 +166,8 @@ def normalize_and_validate_poi(poi):
 
 
 def verify_poi(poi, geocoded, in_claimed_region,
-               local_lang=None, conflict_detected=False, resolved_name=None):
+               local_lang=None, conflict_detected=False, resolved_name=None,
+               today=None):
     """Normalise a POI and classify it in one call.
 
     Runs normalize_and_validate_poi first (geocode key fix + name_local discipline).
@@ -147,11 +186,10 @@ def verify_poi(poi, geocoded, in_claimed_region,
     if reason is not None:
         return normalised, "rejected", reason
 
-    operating = operating_from_status(normalised.get("business_status"))
+    operating, why = operating_from_status(normalised.get("business_status"), today=today)
     if operating is None:
         return (normalised, "unverified",
-                "operating status not established: no business_status signal obtained "
-                "(Gate 0 cannot pass — record an operating signal or leave unverified)")
+                f"operating status not established: {why} (Gate 0 cannot pass)")
     if not operating:
         return normalised, "rejected", "permanently/temporarily closed (defunct)"
 

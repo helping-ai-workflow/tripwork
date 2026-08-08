@@ -1,5 +1,5 @@
 # tests/test_verify.py
-from scripts.verify import classify_candidate
+from scripts.verify import classify_candidate, verify_poi
 
 def _cand(sources, langs):
     # bare tokens -> distinct https domains so independence (distinct netloc) holds
@@ -77,3 +77,98 @@ def test_same_domain_sources_not_independent():   # TW-023
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
     assert status == "unverified"
     assert "independent" in note.lower() or "domain" in note.lower()
+
+
+import datetime
+
+
+def _sourced_poi(bs, **over):
+    poi = {
+        "id": "tsai-duck", "name_local": "蔡氏鴨庄", "name_display": "蔡氏鴨庄",
+        "district": "嘉義市東區",
+        "business_status": bs,
+        "geocode": {"lat": 23.47, "lng": 120.45, "geocode_source": "nominatim"},
+        "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                    {"url": "https://b.example.com/q", "lang": "en"}],
+    }
+    poi.update(over)
+    return poi
+
+
+def test_bare_string_business_status_is_no_longer_a_signal():
+    """TW-063: 17/17 dogfood POIs carried a hand-typed OPERATIONAL. The schema
+    had nowhere to record that it was hand-typed, so review could not see it."""
+    _, status, note = verify_poi(_sourced_poi("OPERATIONAL"), geocoded=True,
+                                 in_claimed_region=True, local_lang="zh",
+                                 resolved_name="蔡氏鴨庄")
+    assert status == "unverified"
+    assert "self-attested" in note
+
+
+def test_sourced_recent_business_status_verifies():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-07-20"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "verified"
+    assert note == ""
+
+
+def test_business_status_older_than_ninety_days_is_stale():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-01-01"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "unverified"
+    assert "stale" in note or "as_of" in note
+
+
+def test_closed_still_rejects_in_the_object_form():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "CLOSED_TEMPORARILY",
+                        "source_url": "https://places.example/x",
+                        "as_of": "2026-08-01"})
+    _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                              local_lang="zh", resolved_name="蔡氏鴨庄",
+                              today=today)
+    assert status == "rejected"
+
+
+def test_object_form_missing_source_url_is_not_a_signal():
+    today = datetime.date(2026, 8, 8)
+    poi = _sourced_poi({"status": "OPERATIONAL", "as_of": "2026-08-01"})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 today=today)
+    assert status == "unverified"
+    assert "source_url" in note
+
+
+def test_bare_string_business_status_still_validates_against_the_schema(tmp_path):
+    """Guard, GREEN at HEAD: schema stays permissive so existing trips keep
+    passing validate_artifact and get a ROUTED gate failure instead of a hard
+    validation error when business_status is still the legacy bare string."""
+    from scripts.validate_artifact import validate_file
+    p = tmp_path / "verified-pois.yaml"
+    p.write_text(
+        "pois:\n"
+        "  - id: x\n"
+        "    name_local: 春燕\n"
+        "    name_display: 春燕\n"
+        "    category: meal\n"
+        "    district: 西區\n"
+        "    verify_status: unverified\n"
+        "    status_reason: pending\n"
+        "    business_status: OPERATIONAL\n"
+        "    sources:\n"
+        "      - url: https://a.example.tw/p\n"
+        "        lang: zh\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(p))[0] == 0
