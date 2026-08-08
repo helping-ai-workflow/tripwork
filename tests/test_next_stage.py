@@ -6,6 +6,7 @@ import sys
 
 import yaml
 
+from scripts.orchestration import ADVISORY_PROJECTION, input_fingerprint
 from tests.mech_fixtures import build_full_trip, write_artifact
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -54,6 +55,17 @@ def _full(tmp_path):
     return t, w
 
 
+def _build_trip_through_cost(tmp_path):
+    """Trip with every rule 1-10 chain artifact present and schema-valid —
+    i.e. everything through cost.yaml — but no itinerary.yaml. That is the
+    minimum fixture rule 11 needs: it is decided before rule 12 ever looks at
+    the itinerary, so building further (gate-report, export) would be inert
+    for these tests."""
+    t, w = build_full_trip(tmp_path)
+    (t / "itinerary.yaml").unlink()
+    return t, w
+
+
 def test_rule0_preflight(tmp_path):
     t, w = _full(tmp_path)
     (tmp_path / "work" / ".preflight-completed").unlink()
@@ -96,9 +108,85 @@ def test_stale_candidates_reverify(tmp_path):
     assert _next(t, w)["next"] == "tripwork:source-verify"
 
 
-def test_rule11_rebrief_re_runs_advisory(tmp_path):
+def test_rule11_rebrief_with_destination_change_re_runs_advisory(tmp_path):
+    """TW-067 migration (was test_rule11_rebrief_re_runs_advisory): pre-fix,
+    rule 11 fired on ANY brief rewrite — a bare mtime bump with no content
+    change, which is now covered separately by test_rule11_ignores_a_bare_touch
+    and asserts the OPPOSITE. Now that rule 11 is keyed by input_fingerprint,
+    only a change to a projected field (destination/dates/airline) re-runs
+    advisory. Kept against the FULL pipeline fixture (through
+    export-gate-report), not just the minimal through-cost one, to prove the
+    interaction still holds with a fuller trip directory in play."""
     t, w = _full(tmp_path)
+    brief = yaml.safe_load((t / "trip-brief.yaml").read_text(encoding="utf-8"))
+    fp = input_fingerprint(brief, ADVISORY_PROJECTION)
+    adv = yaml.safe_load((t / "advisory.yaml").read_text(encoding="utf-8"))
+    adv["input_fingerprints"] = {"trip-brief.yaml": fp}
+    write_artifact(t / "advisory.yaml", adv)
+
+    brief["destination"]["city"] = "Sapporo"
+    write_artifact(t / "trip-brief.yaml", brief)
     _bump(t / "trip-brief.yaml", 3600)           # re-briefed after advisory
+
+    got = _next(t, w)
+    assert got["next"] == "tripwork:travel-advisory"
+    assert "rule 11" in got["reason"]
+
+
+def test_rule11_ignores_a_must_do_edit(tmp_path):
+    """TW-067: dogfood edited trip-brief 3 times and rewrote a byte-identical
+    277-byte advisory each time, updating only its mtime. That teaches the
+    agent to satisfy an oracle by touching a file — and rules 13/15 have
+    mtimes that really are load-bearing."""
+    t, w = _build_trip_through_cost(tmp_path)
+    brief = yaml.safe_load((t / "trip-brief.yaml").read_text(encoding="utf-8"))
+    fp = input_fingerprint(brief, ADVISORY_PROJECTION)
+    write_artifact(t / "advisory.yaml",
+                   {"items": [], "input_fingerprints": {"trip-brief.yaml": fp}})
+
+    brief["must_do"] = ["雞肉飯", "花磚"]
+    write_artifact(t / "trip-brief.yaml", brief)
+    _bump(t / "trip-brief.yaml", 3600)
+
+    got = _next(t, w)
+    assert got["next"] != "tripwork:travel-advisory", got["reason"]
+
+
+def test_rule11_fires_when_the_destination_changes(tmp_path):
+    t, w = _build_trip_through_cost(tmp_path)
+    brief = yaml.safe_load((t / "trip-brief.yaml").read_text(encoding="utf-8"))
+    fp = input_fingerprint(brief, ADVISORY_PROJECTION)
+    write_artifact(t / "advisory.yaml",
+                   {"items": [], "input_fingerprints": {"trip-brief.yaml": fp}})
+
+    brief["destination"]["city"] = "台南市"
+    write_artifact(t / "trip-brief.yaml", brief)
+
+    got = _next(t, w)
+    assert got["next"] == "tripwork:travel-advisory"
+    assert "rule 11" in got["reason"]
+
+
+def test_rule11_ignores_a_bare_touch(tmp_path):
+    t, w = _build_trip_through_cost(tmp_path)
+    brief = yaml.safe_load((t / "trip-brief.yaml").read_text(encoding="utf-8"))
+    fp = input_fingerprint(brief, ADVISORY_PROJECTION)
+    write_artifact(t / "advisory.yaml",
+                   {"items": [], "input_fingerprints": {"trip-brief.yaml": fp}})
+    _bump(t / "trip-brief.yaml", 3600)           # rewritten, but content unchanged
+
+    got = _next(t, w)
+    assert got["next"] != "tripwork:travel-advisory"
+
+
+def test_rule11_still_fires_when_no_fingerprint_was_recorded(tmp_path):
+    """Fail-OPEN would be wrong here: an advisory with no fingerprint predates
+    the mechanism, and rule 11 is the safety gate that surfaces a `banned`
+    regulation. Fall back to the old mtime comparison."""
+    t, w = _build_trip_through_cost(tmp_path)
+    write_artifact(t / "advisory.yaml", {"items": []})
+    _bump(t / "trip-brief.yaml", 3600)
+
     got = _next(t, w)
     assert got["next"] == "tripwork:travel-advisory"
     assert "rule 11" in got["reason"]

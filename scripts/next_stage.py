@@ -18,7 +18,8 @@ import pathlib
 
 import yaml
 
-from scripts.orchestration import candidates_stale, route_gate_failures
+from scripts.orchestration import (ADVISORY_PROJECTION, candidates_stale,
+                                    input_fingerprint, route_gate_failures)
 from scripts.validate_artifact import validate_file
 
 # (artifact, producing stage, rule tag) in pipeline order — advisory moved to
@@ -84,12 +85,24 @@ def next_stage(trip_dir, work_dir):
         elif not _ready(p):
             return skill, f"{rule}: {name} exists but is not schema-valid"
 
-    # rule 11 — advisory freshness anchor is the BRIEF (destination/dates/airline
-    # changes invalidate regulations); deliberately NOT the itinerary, which is
-    # rewritten by every synthesis run and would loop advisory research.
-    if _newer(t / "trip-brief.yaml", t / "advisory.yaml"):
+    # rule 11 — advisory freshness anchors on the BRIEF's destination/dates/airline,
+    # compared by CONTENT not mtime. The old whole-file mtime compare made every
+    # must_do edit re-run travel-advisory, and the only way to satisfy it was to
+    # rewrite a byte-identical advisory — training the agent to touch files to
+    # clear an oracle, which is exactly what rules 13 and 15 must not tolerate.
+    adv = _load(t / "advisory.yaml")
+    brief_doc = _load(t / "trip-brief.yaml")
+    recorded = (adv.get("input_fingerprints") or {}).get("trip-brief.yaml")
+    if recorded is None:
+        # No fingerprint: this advisory predates the mechanism. Rule 11 is the
+        # gate that surfaces a `banned` regulation, so fall back to mtime rather
+        # than fail open.
+        if _newer(t / "trip-brief.yaml", t / "advisory.yaml"):
+            return ("tripwork:travel-advisory",
+                    "rule 11: advisory has no input fingerprint and the brief is newer")
+    elif recorded != input_fingerprint(brief_doc, ADVISORY_PROJECTION):
         return ("tripwork:travel-advisory",
-                "rule 11: advisory stale (trip-brief re-written after it)")
+                "rule 11: advisory stale (destination/dates/airline changed since it ran)")
 
     # rule 12 — marker is the CANONICAL itinerary.yaml (not the derived .md)
     itin = t / "itinerary.yaml"
