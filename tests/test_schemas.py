@@ -804,3 +804,42 @@ def test_accommodations_pure_han_candidate_needs_no_name_zh():   # v0.30.0
 def test_accommodations_unverified_kana_candidate_exempt():   # v0.30.0
     schema = _load_schema("accommodations.schema.json")
     jsonschema.validate(_acc_kana_candidate(verify_status="unverified"), schema)
+
+
+def test_gate_report_check_accepts_examined_and_rejects_negative(tmp_path):
+    """A gate-report check may carry an examined:N count (v0.32.0 rederive).
+
+    Without it the whole verdict-re-derivation mechanism cannot report how many
+    records it actually looked at, which is the vacuous-true defect this release
+    exists to close.
+    """
+    from scripts.validate_artifact import validate_file
+    import pathlib
+
+    schema_path = pathlib.Path(__file__).resolve().parent.parent / "schemas" / "gate-report.schema.json"
+
+    ok = tmp_path / "gate-report.yaml"
+    ok.write_text(
+        "status: pass\n"
+        "checks:\n"
+        "  - name: verdicts_match\n"
+        "    passed: true\n"
+        "    examined: 17\n"
+        "failures: []\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(ok))[0] == 0
+
+    bad = tmp_path / "gate-report-neg.yaml"
+    bad.write_text(
+        "status: pass\n"
+        "checks:\n"
+        "  - name: verdicts_match\n"
+        "    passed: true\n"
+        "    examined: -1\n"
+        "failures: []\n",
+        encoding="utf-8",
+    )
+    rc, msgs = validate_file(str(bad), schema_path=str(schema_path))
+    assert rc == 1
+    assert any("examined" in m for m in msgs)
