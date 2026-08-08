@@ -83,6 +83,11 @@ def verified_pois():
         ],
         "verify_status": "verified",
         "geocode": {"lat": 41.796, "lng": 140.757},
+        # v0.33.0 (R4): both rows below schedule poi-1 at 12:00 with slot "meal",
+        # so last_order is what closing_status actually reads; last_entry is also
+        # given so the fixture stays valid if a row's slot ever changes to visit.
+        "hours": {"close": "22:00", "last_order": "21:30", "last_entry": "21:30",
+                  "typical_visit_mins": 60, "as_of": "2026-07-06"},
     }]}
 
 
@@ -139,11 +144,11 @@ def itinerary():
         "days": [
             {"date": "2026-08-01",
              "rows": [{"time": "12:00", "slot": "meal", "poi_id": "poi-1",
-                       "text": "午餐"}],
+                       "text": "午餐", "closing_status": "ok"}],
              "lodging": "hotel-1"},
             {"date": "2026-08-02",
              "rows": [{"time": "12:00", "slot": "meal", "poi_id": "poi-1",
-                       "text": "午餐"}]},
+                       "text": "午餐", "closing_status": "ok"}]},
         ],
     }
 

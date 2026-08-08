@@ -24,6 +24,7 @@ line item is a real price.
 """
 from scripts.cost import sum_costs
 from scripts.distance import classify_hop, haversine_km
+from scripts.hours import closing_status
 from scripts.legs import classify_leg
 
 # Plugin defaults, overridable only from trip-brief. Deliberately NOT recorded
@@ -32,6 +33,8 @@ from scripts.legs import classify_leg
 MAX_SINGLE_DRIVE_MINS = 300
 MAX_HOP_MINS = 60
 COST_TOL = 0.005
+MIN_BUFFER_MINS = 30
+DEFAULT_VISIT_MINS = 60
 
 
 class Outcome:
@@ -207,6 +210,65 @@ def rederive_cost(cost):
     return out
 
 
+def _last_call_for(slot, hours):
+    """meal -> last_order; everything else -> last_entry.
+    Transcribed verbatim from skills/itinerary-synthesis/SKILL.md:43, where the
+    rule has lived as prose with no enforcement."""
+    return hours.get("last_order") if slot == "meal" else hours.get("last_entry")
+
+
+def _need_mins(hours, min_buffer_mins, default_visit_mins):
+    """max(min_buffer, typical_visit_mins or default). Also from SKILL.md:43."""
+    return max(min_buffer_mins,
+               hours.get("typical_visit_mins") or default_visit_mins)
+
+
+def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
+                     default_visit_mins=DEFAULT_VISIT_MINS):
+    """Re-derive each timed row's closing_status.
+
+    Scope: rows carrying BOTH a `time` and a `poi_id` that resolves in by_id.
+    Move rows and free-text meals (31 of 94 in the corpus) have no closing
+    verdict to make and are not counted in `examined`.
+
+    hours.no_fixed_close is a recorded CLAIM, not a skip: an open-air place
+    genuinely has no closing time, and demanding a fake 23:59 would then flow
+    into the need_mins arithmetic as if it meant something.
+    """
+    out = Outcome()
+    for day in (itinerary or {}).get("days") or []:
+        date = day.get("date", "?")
+        for j, row in enumerate(day.get("rows") or []):
+            t, pid = row.get("time"), row.get("poi_id")
+            if not t or not pid or pid not in (by_id or {}):
+                continue
+            out.found += 1
+            hours = (by_id[pid].get("hours") or {})
+            where = f"itinerary day {date} row {j} (poi {pid!r} @ {t})"
+            if not hours.get("close") and not hours.get("no_fixed_close"):
+                out.missing.append(
+                    f"{where}: POI carries neither hours.close nor "
+                    f"hours.no_fixed_close — closing_status is not re-derivable")
+                continue
+            if "closing_status" not in row:
+                out.missing.append(
+                    f"{where}: no recorded closing_status — the closing-buffer "
+                    f"verdict is not re-derivable")
+                continue
+            if hours.get("no_fixed_close"):
+                got, reason = "ok", ""
+            else:
+                got, reason = closing_status(
+                    t, hours["close"], _last_call_for(row.get("slot"), hours),
+                    _need_mins(hours, min_buffer_mins, default_visit_mins))
+            out.compared += 1
+            if row["closing_status"] != got:
+                out.mismatches.append(
+                    f"{where}: recorded closing_status {row['closing_status']!r} but "
+                    f"hours.closing_status re-derives {got!r} ({reason or 'no reason'})")
+    return out
+
+
 def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
                      trip_brief=None):
     """Return {"checks": [verdicts_match, verdicts_rederivable], "failures": [...]}.
@@ -224,6 +286,12 @@ def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
         routing, max_hop_mins=_brief_num(trip_brief, "routing", "max_hop_mins",
                                          MAX_HOP_MINS)))
     total.merge(rederive_cost(cost))
+    total.merge(rederive_closing(
+        itinerary, by_id,
+        min_buffer_mins=_brief_num(trip_brief, "scheduling", "min_buffer_mins",
+                                   MIN_BUFFER_MINS),
+        default_visit_mins=_brief_num(trip_brief, "scheduling", "default_visit_mins",
+                                      DEFAULT_VISIT_MINS)))
     return {
         "checks": [
             {"name": "verdicts_match", "passed": not total.mismatches,

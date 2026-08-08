@@ -44,6 +44,11 @@ FERRY = {"id": "ferry", "name_local": "水社碼頭", "name_display": "水社碼
          "name_roman": "Shuishe Pier", "category": "activity", "district": "日月潭",
          "business_status": _sourced_status("OPERATIONAL"), "gmaps_place_id": "ChIJ_ferry",
          "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+         # v0.33.0 (R4): explicit hours, not no_fixed_close -- this fixture schedules
+         # ferry with slot "meal" (a lunch stop), so it should stay re-derivable the
+         # same way a real itinerary row would be, not opt out via the open-air claim.
+         "hours": {"close": "22:00", "last_order": "21:30", "typical_visit_mins": 60,
+                   "as_of": "2026-06-15"},
          "sources": _sources()}
 STAR_MOON = {"id": "star-moon", "name_local": "星月大地", "name_display": "星月大地",
              "category": "meal", "district": "后里",
@@ -142,10 +147,12 @@ class TestE2EAllNineDefects:
     def _itin(self):
         return {"title": "日月潭 3D2N", "days": [
             {"date": "2026-07-01", "label": "D1",
-             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐"}],
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐",
+                       "closing_status": "ok"}],
              "lodging": "hotel-lili"},
             {"date": "2026-07-02", "label": "D2",
-             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐"}]},
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐",
+                       "closing_status": "ok"}]},
         ], "must_do_coverage": {"日月潭遊湖賞景": ["ferry"]}}
 
     def test_p4_p5_gate_passes_with_lodging_and_thematic_must_do(self):

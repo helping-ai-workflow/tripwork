@@ -44,6 +44,8 @@ While verifying opening hours, record each POI's `closed_days` (the per-POI clos
 
 Also record the intra-day `hours` object (consumed by synthesis via `scripts/hours.py::closing_status`): `close`, and where applicable `last_order` (restaurant L.O.) / `last_entry` (sight last admission), plus `typical_visit_mins` (how long a visit needs). These come from the same verified sources — never guess a closing time. **Recency:** hours / `closed_days` must come from the official page or a source dated within the last 12 months; record `hours.as_of` (the date the hours were stated) so stale opening times can be re-checked rather than silently driving minute-level scheduling.
 
+A place with genuinely no closing time — an open-air beach, lake, park or old street — records `hours.no_fixed_close: true` rather than omitting `close`. An omission means "nobody checked"; the flag means "checked, there is none". The gate cannot tell those apart without it. This is a sourced CLAIM, not a fallback for an incomplete lookup: an eatery or any business with a plausible closing time that simply wasn't recorded is a **data gap**, not a `no_fixed_close` candidate — stamping the flag there would launder "nobody finished checking" into "checked, there is none" (TW-063's bare-enum defect in a new shape). Go back and find the hours, or leave `close` absent and let the gate flag it.
+
 **Cache invalidation on re-verify.** When the user manually confirms a place or asks to re-verify, delete that POI's `cache_key` entry from `work/<slug>/geocode-cache/geocode.json` before re-running — otherwise a cached miss (D7 negative cache) permanently suppresses the re-query.
 
 ## Output

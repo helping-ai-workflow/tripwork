@@ -2,12 +2,23 @@
 from scripts.gate import run_gate
 from tests.mech_fixtures import rederive_kwargs
 
-def _poi(pid, geo=True, status="verified", closed_days=None):
+# v0.33.0 (R4): explicit close + last_order + last_entry so a POI opted into the
+# closing-buffer check (via _poi(..., hours=_HOURS)) is re-derivable for a row
+# scheduled by either _meal (12:00) or _act (14:00). Not no_fixed_close: several
+# call sites name their POI "rest1" (a restaurant) and a generic gate fixture
+# should not model "genuinely no closing time" for something meal-shaped.
+_HOURS = {"close": "22:00", "last_order": "21:30", "last_entry": "21:30",
+         "typical_visit_mins": 60, "as_of": "2026-01-01"}
+
+
+def _poi(pid, geo=True, status="verified", closed_days=None, hours=None):
     d = {"id": pid, "verify_status": status}
     if geo:
         d["geocode"] = {"lat": 1.0, "lng": 2.0}
     if closed_days is not None:
         d["closed_days"] = closed_days
+    if hours is not None:
+        d["hours"] = hours
     return d
 
 def _itin(rows, date="2026-06-12", lodging=None, checklist=None):
@@ -19,12 +30,21 @@ def _itin(rows, date="2026-06-12", lodging=None, checklist=None):
         itin["checklist"] = checklist
     return itin
 
-def _meal(pid): return {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
-def _act(pid):  return {"time": "14:00", "slot": "activity", "poi_id": pid, "text": "see"}
+def _meal(pid, closing_status=None):
+    row = {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
+    if closing_status is not None:
+        row["closing_status"] = closing_status
+    return row
+
+def _act(pid, closing_status=None):
+    row = {"time": "14:00", "slot": "activity", "poi_id": pid, "text": "see"}
+    if closing_status is not None:
+        row["closing_status"] = closing_status
+    return row
 
 def test_gate_pass_when_all_verified_geocoded_with_meal():
-    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
-                 **rederive_kwargs())
+    r = run_gate([_poi("a", hours=_HOURS)], _itin([_meal("a", closing_status="ok")]),
+                 advisory={"items": []}, **rederive_kwargs())
     assert r["status"] == "pass"
     assert r["failures"] == []
 
@@ -363,8 +383,8 @@ def test_gate_advisory_present_check_always_in_report_when_present():
 
 def test_gate_pass_with_empty_advisory():
     """advisory={"items": []} -> no 'advisory absent' failure; otherwise-valid plan passes."""
-    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
-                 **rederive_kwargs())
+    r = run_gate([_poi("a", hours=_HOURS)], _itin([_meal("a", closing_status="ok")]),
+                 advisory={"items": []}, **rederive_kwargs())
     assert not any("advisory absent" in f for f in r["failures"])
     assert r["status"] == "pass"
     assert r["failures"] == []
@@ -396,7 +416,7 @@ def _kana_hotel_accom(name_zh=None):
                        "candidates": [c]}]}
 
 def test_gate_kana_lodging_with_name_zh_passes():   # v0.30.0
-    r = run_gate([_poi("a")], _itin([_meal("a")], lodging="h1"),
+    r = run_gate([_poi("a", hours=_HOURS)], _itin([_meal("a", closing_status="ok")], lodging="h1"),
                  advisory={"items": []}, accommodations=_kana_hotel_accom("車站前旅館"),
                  facility_needs={"required": []}, **rederive_kwargs())
     assert not any("name_zh" in f for f in r["failures"])
@@ -436,7 +456,12 @@ def test_gate_surfaces_rederivation_match_failure_in_report():
 def test_gate_surfaces_rederivation_rederivable_failure_in_report():
     """Sibling of the match-axis guard above: a record with GAPS (not wrong,
     just unverifiable) must also surface as a gate-report FAILURE via
-    verdicts_rederivable, never silently absorbed."""
+    verdicts_rederivable, never silently absorbed.
+
+    examined is 3, not 2 (pre-v0.33.0): _poi("a") here deliberately carries no
+    `hours` and _meal("a") no `closing_status`, so on top of the leg gap this
+    row is now ALSO a genuine, separate rederivable gap (R4) -- one more true
+    finding on the same axis, not a bug in this test."""
     legs = {"legs": [{"from": "嘉義", "to": "台南", "mode": "rail",
                       "duration_mins": 40, "status": "ok"}]}
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
@@ -445,5 +470,6 @@ def test_gate_surfaces_rederivation_rederivable_failure_in_report():
                        "line_items": []},
                  trip_brief={"dates": {"start": "2026-08-29", "end": "2026-08-31"}})
     assert r["status"] == "fail"
-    assert {"name": "verdicts_rederivable", "passed": False, "examined": 2} in r["checks"]
+    assert {"name": "verdicts_rederivable", "passed": False, "examined": 3} in r["checks"]
     assert any("last_service_exempt" in f for f in r["failures"])
+    assert any("closing_status is not re-derivable" in f for f in r["failures"])

@@ -36,8 +36,18 @@ def _poi(pid, geo=True, status="verified", **extra):
     return d
 
 
-def _meal(pid):
-    return {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
+# v0.33.0 (R4): explicit close + last_order, mirroring tests/test_gate.py's
+# _HOURS. "rest1" names a restaurant -- not a no_fixed_close candidate (see
+# skills/source-verify/SKILL.md's eatery caveat).
+_HOURS = {"close": "22:00", "last_order": "21:30", "last_entry": "21:30",
+         "typical_visit_mins": 60, "as_of": "2026-01-01"}
+
+
+def _meal(pid, closing_status=None):
+    row = {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
+    if closing_status is not None:
+        row["closing_status"] = closing_status
+    return row
 
 
 def _itin(rows, date="2026-07-01", lodging=None, **extra):
@@ -199,7 +209,8 @@ class TestP4LodgingPool:
     def test_gate_passes_with_lodging_only_in_accommodations(self):
         # Acceptance: gate passes when day.lodging is an accommodations chosen id,
         # with only verified-pois + accommodations as inputs (no manual merge).
-        r = run_gate([_poi("rest1")], _itin([_meal("rest1")], lodging="hotel-a"),
+        r = run_gate([_poi("rest1", hours=_HOURS)],
+                     _itin([_meal("rest1", closing_status="ok")], lodging="hotel-a"),
                      accommodations=self._acc(), advisory={"items": []},
                      **rederive_kwargs())
         assert r["status"] == "pass", r["failures"]
@@ -217,8 +228,9 @@ class TestP4LodgingPool:
 # ============================ P5 — must_do thematic coverage ==================
 class TestP5MustDo:
     def test_thematic_must_do_covered_passes(self):
-        r = run_gate([_poi("ferry")],
-                     _itin([_meal("ferry")], must_do_coverage={"日月潭遊湖賞景": ["ferry"]}),
+        r = run_gate([_poi("ferry", hours=_HOURS)],
+                     _itin([_meal("ferry", closing_status="ok")],
+                          must_do_coverage={"日月潭遊湖賞景": ["ferry"]}),
                      must_do=["日月潭遊湖賞景"], advisory={"items": []}, **rederive_kwargs())
         assert r["status"] == "pass", r["failures"]
         assert {"name": "must_do_covered", "passed": True} in r["checks"]

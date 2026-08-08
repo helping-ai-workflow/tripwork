@@ -4,7 +4,7 @@ import pathlib
 import pytest
 import yaml
 
-from scripts.rederive import run_rederivation, hop_km
+from scripts.rederive import run_rederivation, hop_km, rederive_closing, Outcome
 
 BRIEF = {"dates": {"start": "2026-08-29", "end": "2026-08-31"},
          "routing": {"max_hop_mins": 60, "max_single_drive_mins": 300}}
@@ -282,3 +282,129 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
         total_missing += len(res["failures"])
         provenance_missing += sum("no duration_source" in f for f in res["failures"])
     assert (total_missing, provenance_missing) == (19, 19)
+
+
+def _poi(**over):
+    p = {"id": "p1", "name_display": "花磚博物館", "verify_status": "verified",
+         "hours": {"close": "17:30", "last_entry": "17:00",
+                   "typical_visit_mins": 60, "as_of": "2026-08-01"}}
+    p.update(over)
+    return p
+
+
+def _itin(time, slot="visit", pid="p1"):
+    return {"days": [{"date": "2026-08-29",
+                      "rows": [{"time": time, "slot": slot, "poi_id": pid,
+                                "text": "花磚博物館"}]}]}
+
+
+def test_a_row_scheduled_past_last_entry_fails_verdicts_match():
+    """The closing-buffer iron rule (using-tripwork/SKILL.md:48) had no gate.
+    A visit booked at 17:10 against a 17:00 last entry passed every check."""
+    itin = _itin("17:10")
+    itin["days"][0]["rows"][0]["closing_status"] = "ok"
+    res = run_rederivation(itin, {"p1": _poi()}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF)
+    c = _checks(res)
+    assert c["verdicts_match"]["passed"] is False
+    assert any("closing_status" in f and "17:10" in f for f in res["failures"])
+
+
+def test_a_row_with_no_recorded_closing_status_is_not_rederivable():
+    res = run_rederivation(_itin("13:15"), {"p1": _poi()}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF)
+    c = _checks(res)
+    assert c["verdicts_rederivable"]["passed"] is False
+    assert any("no recorded closing_status" in f for f in res["failures"])
+
+
+def test_an_open_air_poi_declares_no_fixed_close_instead_of_faking_one():
+    """Genuine false positive, designed around rather than skipped: of the 10
+    yilan POIs carrying hours with no `close`, the beaches, lakes and old streets
+    among them genuinely have no closing time. Demanding hours.close there is
+    wrong; a recorded CLAIM that there is none is not. (The eateries in that same
+    group are a data gap, not a claim — see this task's opening note.)"""
+    poi = _poi(hours={"typical_visit_mins": 45, "as_of": "2026-08-01",
+                      "no_fixed_close": True})
+    itin = _itin("17:10")
+    itin["days"][0]["rows"][0]["closing_status"] = "ok"
+    res = run_rederivation(itin, {"p1": poi}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF)
+    c = _checks(res)
+    assert c["verdicts_match"]["passed"] is True
+    assert c["verdicts_rederivable"]["passed"] is True
+
+
+def test_a_poi_with_neither_close_nor_no_fixed_close_is_not_rederivable():
+    poi = _poi(hours={"typical_visit_mins": 45, "as_of": "2026-08-01"})
+    itin = _itin("13:15")
+    itin["days"][0]["rows"][0]["closing_status"] = "ok"
+    res = run_rederivation(itin, {"p1": poi}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF)
+    assert _checks(res)["verdicts_rederivable"]["passed"] is False
+    assert any("no_fixed_close" in f for f in res["failures"])
+
+
+def test_rows_without_a_time_or_a_resolving_poi_are_out_of_scope():
+    """Measured: of 94 corpus rows, 31 carry a `time` but no `poi_id` (move rows,
+    free-text meals) and 5 carry a `poi_id` that does not resolve in
+    verified-pois. Counting either in `examined` would bury the signal."""
+    itin = {"days": [{"date": "2026-08-29", "rows": [
+        {"slot": "move", "from": "三重", "to": "嘉義市", "text": "自駕"},
+        {"time": "12:00", "slot": "meal", "text": "朋友選定的店"},
+    ]}]}
+    res = run_rederivation(itin, {"p1": _poi()}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF)
+    assert _checks(res)["verdicts_rederivable"]["passed"] is True
+
+
+@pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
+def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
+    """Measured by the controller at fd053dd (task-2-brief.md's corrected table,
+    2026-08-09 — the original draft conflated 'no hours at all' with the scope
+    denominator and got 29 of 94; the real denominator is 58, not 94):
+
+        94 itinerary rows total across the four schema-clean trips
+      - 31 carry a `time` but no `poi_id` (move rows, free-text meals)
+      -  5 carry a `poi_id` that does not resolve in verified-pois
+      = 58 in scope (`time` AND a resolving `poi_id`)
+
+    Of the 58: 24 POIs have no `hours` at all, 5 have `hours` but no `close`
+    (29 total land on 'neither close nor no_fixed_close'), and every one of the
+    remaining 29 lands on 'no recorded closing_status' -- 0 rows in the corpus
+    carry a closing_status today, so verdicts_match never gets anything to
+    compare. This is the honest half of the same budget Task 1 Step 8 pinned
+    for legs/hops/cost: 58 verdicts_rederivable failures, 0 verdicts_match
+    failures, 0 compared.
+    """
+    total = Outcome()
+    rows_total = has_time_no_pid = unresolved_pid = 0
+    for trip in IN_SCOPE:
+        d = CORPUS / trip
+        itin = yaml.safe_load((d / "itinerary.yaml").read_text(encoding="utf-8"))
+        pois = yaml.safe_load((d / "verified-pois.yaml").read_text(encoding="utf-8"))
+        by_id = {p["id"]: p for p in pois.get("pois") or []}
+        for day in itin.get("days") or []:
+            for row in day.get("rows") or []:
+                rows_total += 1
+                t, pid = row.get("time"), row.get("poi_id")
+                if t and not pid:
+                    has_time_no_pid += 1
+                elif t and pid and pid not in by_id:
+                    unresolved_pid += 1
+        total.merge(rederive_closing(itin, by_id))
+    assert (rows_total, has_time_no_pid, unresolved_pid) == (94, 31, 5)
+    assert total.found == 58, "58 rows must be IN SCOPE, not skipped"
+    assert len(total.missing) == 58
+    assert len(total.mismatches) == 0
+    assert total.compared == 0, "nothing is comparable while 0 rows carry closing_status"

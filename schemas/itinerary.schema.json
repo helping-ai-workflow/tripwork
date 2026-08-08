@@ -79,6 +79,11 @@
                 },
                 "to": {
                   "type": "string"
+                },
+                "closing_status": {
+                  "type": "string",
+                  "enum": ["ok", "tight", "after_last_call", "closed"],
+                  "description": "Verdict synthesis computed via scripts/hours.py::closing_status for this row. Optional in schema for back-compat; required by the itinerary gate on every row carrying both a `time` and a resolving `poi_id`. Without it the closing-buffer iron rule (using-tripwork/SKILL.md:48) has no mechanical form."
                 }
               }
             }

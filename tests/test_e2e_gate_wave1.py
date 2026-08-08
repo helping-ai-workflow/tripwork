@@ -50,10 +50,14 @@ def test_wave1_gate_closes_all_four_defects():
 
 
 def test_wave1_clean_itinerary_passes_every_check():
-    pois = [{"id": "m", "verify_status": "verified", "geocode": {"lat": 37.5, "lng": 127.0}}]
+    pois = [{"id": "m", "verify_status": "verified", "geocode": {"lat": 37.5, "lng": 127.0},
+            # v0.33.0 (R4): explicit hours so the row's closing_status is re-derivable.
+            "hours": {"close": "22:00", "last_order": "21:30", "typical_visit_mins": 60,
+                      "as_of": "2026-01-01"}}]
     itin = {"title": "ok", "checklist": ["spare lithium battery: carry-on only"],
             "days": [{"date": "2026-06-12", "label": "Day 1",
-                      "rows": [{"time": "12:00", "slot": "meal", "poi_id": "m", "text": "lunch"}]}]}
+                      "rows": [{"time": "12:00", "slot": "meal", "poi_id": "m", "text": "lunch",
+                                "closing_status": "ok"}]}]}
     r = run_gate(pois, itin, calendar=CALENDAR, advisory=ADVISORY, must_do=["m"],
                  **rederive_kwargs())
     assert r["status"] == "pass", r["failures"]

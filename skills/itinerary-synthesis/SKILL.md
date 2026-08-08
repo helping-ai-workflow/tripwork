@@ -45,6 +45,7 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `after_last_call` / `closed` → never schedule there at that time; move the item earlier or to another day. If a `must_do` POI cannot fit before its last order/entry on **any** feasible slot/day → stop and ask the user.
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
+- Record the verdict on the row as `closing_status`. `itinerary-gate` re-derives it from the POI's `hours` and fails when the recorded value disagrees — the rule is no longer satisfied by having read this paragraph.
 
 ## Transit comfort (reads `transit.yaml`)
 

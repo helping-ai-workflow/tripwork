@@ -17,11 +17,16 @@ def test_cross_stage_verify_gate_render_export():
     poi = {"id": "odari", "name_local": "오다리집", "name_display": "Odari",
            "verify_status": "verified", "geocode": {"lat": 37.56, "lng": 126.98},
            "booking": {"required": True},
+           # v0.33.0 (R4): "오다리집" is a restaurant (Korean "-집" naming), so this
+           # is explicit close/last_order, never hours.no_fixed_close.
+           "hours": {"close": "22:00", "last_order": "21:30", "typical_visit_mins": 60,
+                     "as_of": "2026-01-01"},
            "sources": [_src("official", official=True), _src("guide", "en")]}
     # 2) gate: itinerary referencing only the verified POI passes
     itin = {"title": "t", "checklist": [],
             "days": [{"date": "2026-06-12", "label": "D1",
-                      "rows": [{"time": "12:00", "slot": "meal", "poi_id": "odari", "text": "lunch"}]}]}
+                      "rows": [{"time": "12:00", "slot": "meal", "poi_id": "odari",
+                                "text": "lunch", "closing_status": "ok"}]}]}
     g = run_gate([poi], itin, advisory={"items": []}, **rederive_kwargs())
     assert g["status"] == "pass", g["failures"]
     # 3) render the day from the canonical itinerary + poi map
