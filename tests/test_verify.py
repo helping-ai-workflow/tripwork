@@ -260,8 +260,11 @@ def test_cluster_fallback_without_existence_proof_is_not_verified():
 
 
 def test_cluster_fallback_with_an_official_source_stays_verified():
-    """The over-blocking guard: an official page proves the venue exists, so the
-    approximate coordinate is an acceptable position for it."""
+    """Guard, GREEN at HEAD (over-blocking guard): an official page proves the
+    venue exists, so the approximate coordinate is an acceptable position for
+    it. Prevents Gate 2c from over-blocking a POI that has real existence
+    proof — a regression here would wrongly downgrade a verifiable POI to
+    unverified just because its geocode source is cluster_fallback."""
     poi = _clean_poi(sources=[
         {"url": "https://chunyen.example.tw/", "lang": "zh", "official": True},
         {"url": "https://b.example.com/q", "lang": "en"},
@@ -273,8 +276,11 @@ def test_cluster_fallback_with_an_official_source_stays_verified():
 
 
 def test_cluster_fallback_with_a_place_id_stays_verified():
-    """gmaps_place_id is the other existence proof source-verify already
-    collects (skills/source-verify/SKILL.md:30)."""
+    """Guard, GREEN at HEAD (over-blocking guard): gmaps_place_id is the other
+    existence proof source-verify already collects
+    (skills/source-verify/SKILL.md:30). Prevents Gate 2c from over-blocking a
+    POI whose existence proof is a place_id rather than an official source —
+    a regression here would wrongly downgrade it to unverified."""
     poi = _clean_poi(gmaps_place_id="ChIJ5wJfhyWUbjQRG_DhFBgvW7g")
     _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
                               local_lang="zh", resolved_name="春燕飯館")
@@ -282,7 +288,10 @@ def test_cluster_fallback_with_a_place_id_stays_verified():
 
 
 def test_nominatim_resolved_geocode_is_unaffected():
-    """Regression guard: the normal path must not tighten."""
+    """Guard, GREEN at HEAD (regression guard): the normal path must not
+    tighten. Prevents Gate 2c from firing on a real Nominatim-resolved
+    geocode — a regression here would wrongly downgrade every ordinary
+    verified POI, not just cluster_fallback ones."""
     poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
                               "geocode_source": "nominatim"})
     _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
@@ -318,3 +327,25 @@ def test_an_explicit_unresolved_marker_is_how_d7_is_recorded():
                                  local_lang="zh", resolved_name=NO_RESOLVED_NAME)
     assert status == "unverified"
     assert "geocode unresolved" in note
+
+
+def test_missing_resolved_name_does_not_preempt_earlier_gates():
+    """Review Round 1 (Finding 1): the Gate 2b refusal must obey
+    skills/source-verify/SKILL.md:28's documented strict order — 'Gate 0 fires
+    before Gate 1, Gate 1 before Gate 2' — not short-circuit ahead of it.
+
+    A POI with only ONE source and an unresolved geocode has TWO problems more
+    fundamental than a missing resolved_name: Gate 1 (sources) and Gate 2
+    (geocoded). The caller should be told about the sources problem first —
+    the one closer to the front of the pipeline — not sent to fix
+    resolved_name, rerun, and only then discover the real blocker.
+    """
+    poi = _clean_poi(
+        sources=[{"url": "https://a.example.tw/p", "lang": "zh"}],
+        geocode={"lat": 23.4, "lng": 120.4, "geocode_source": "nominatim"},
+    )
+    _, status, note = verify_poi(poi, geocoded=False, in_claimed_region=True,
+                                 local_lang="zh")
+    assert status == "unverified"
+    assert "independent sources" in note
+    assert "resolved_name" not in note

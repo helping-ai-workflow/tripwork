@@ -116,6 +116,8 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     Gate 1: >= 2 sources (else 'unverified').
             If local_lang given, at least one source must be in that lang (else 'unverified').
     Gate 2: geocode must resolve (else 'unverified', D7).
+    Gate 2b: name_match must be determined and true (else 'unverified' when
+             undetermined, 'conflicting' when a real mismatch — see below).
     Gate 3a: conflict_detected — cross-source disagreement on rating/hours/address
              (else 'conflicting').  Computed by the skill and signalled via this param.
     Gate 3b: geocoded point must fall within the claimed region (else 'conflicting').
@@ -127,6 +129,11 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
         local_lang:       optional str, ISO-639 code for the destination's local language.
         conflict_detected: bool (default False) — True when the skill has detected
                           cross-source disagreement on rating/hours/address.
+        name_match:       True (matches / not disputed), False (a real mismatch ->
+                          'conflicting'), or None (undetermined — the caller never
+                          supplied a resolved_name to compare against -> 'unverified',
+                          not a silent pass). Default True keeps existing callers that
+                          never pass this argument unaffected.
     """
     sources = candidate.get("sources", [])
     langs = {s.get("lang") for s in sources}
@@ -153,6 +160,15 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # venue. A wrong-but-plausible top hit (renamed nearby place, name drift) is
     # 'conflicting', never 'verified'. The skill computes name_match via
     # geocode.name_matches(queried name, resolved display_name).
+    # name_match is None when the caller never supplied a resolved_name to compare
+    # (TW-062/2): that's "cannot run", not "passed" — 'unverified', not the 'False'
+    # case's 'conflicting'. None and False must not collapse to the same branch.
+    if name_match is None:
+        return (
+            "unverified",
+            "no resolved_name supplied — Gate 2b (name match) cannot run. Pass the "
+            "geocoder's display_name, or verify.NO_RESOLVED_NAME if it returned none",
+        )
     if not name_match:
         return "conflicting", "name mismatch: resolved place does not correspond to the queried venue"
 
@@ -216,18 +232,21 @@ def verify_poi(poi, geocoded, in_claimed_region,
     if not operating:
         return normalised, "rejected", "permanently/temporarily closed (defunct)"
 
-    # Gate 2b (P2). Omitting resolved_name used to set name_match=True, so a caller
-    # that forgot the argument got a verified POI with this gate never executed —
-    # the same failure shape as TW-062's Gate 2, one gate over. The default is now
-    # refusal: pass the resolved display_name, or NO_RESOLVED_NAME to state that
-    # the lookup ran and produced none.
+    # Gate 2b (P2) input. Omitting resolved_name used to set name_match=True, so a
+    # caller that forgot the argument got a verified POI with this gate never
+    # executed — the same failure shape as TW-062's Gate 2, one gate over. The
+    # default is now refusal: pass the resolved display_name, or NO_RESOLVED_NAME
+    # to state that the lookup ran and produced none. Left as None here (rather
+    # than returning early) so classify_candidate's gate ORDER decides when this
+    # fires — Gate 1 (sources) and Gate 2 (geocoded) must still fire first per
+    # skills/source-verify/SKILL.md:28's documented strict order.
     queried = normalised.get("name_local") or normalised.get("name_display") or ""
     if resolved_name is None:
-        return (normalised, "unverified",
-                "no resolved_name supplied — Gate 2b (name match) cannot run. Pass the "
-                "geocoder's display_name, or verify.NO_RESOLVED_NAME if it returned none")
-    name_match = True if resolved_name is NO_RESOLVED_NAME \
-        else name_matches(queried, resolved_name)
+        name_match = None
+    elif resolved_name is NO_RESOLVED_NAME:
+        name_match = True
+    else:
+        name_match = name_matches(queried, resolved_name)
 
     # Gate 2c (TW-062): a centroid fallback is not a geocode. Nominatim finding
     # nothing must not outrank Nominatim finding a name that disagrees — which is
