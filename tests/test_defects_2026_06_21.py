@@ -14,6 +14,7 @@ from scripts.geocode import resolve_place
 from scripts.gate import run_gate
 from scripts.export_gate import run_export_gate, run_html_gate
 from scripts.render.gmaps_links import maps_url
+from tests.mech_fixtures import rederive_kwargs
 
 # Reference "today" for sourced business_status.as_of recency (TW-063). Fixed
 # so these tests don't rot as the wall clock advances past the 90-day window.
@@ -199,7 +200,8 @@ class TestP4LodgingPool:
         # Acceptance: gate passes when day.lodging is an accommodations chosen id,
         # with only verified-pois + accommodations as inputs (no manual merge).
         r = run_gate([_poi("rest1")], _itin([_meal("rest1")], lodging="hotel-a"),
-                     accommodations=self._acc(), advisory={"items": []})
+                     accommodations=self._acc(), advisory={"items": []},
+                     **rederive_kwargs())
         assert r["status"] == "pass", r["failures"]
         assert not any("unknown POI 'hotel-a'" in f for f in r["failures"])
 
@@ -217,7 +219,7 @@ class TestP5MustDo:
     def test_thematic_must_do_covered_passes(self):
         r = run_gate([_poi("ferry")],
                      _itin([_meal("ferry")], must_do_coverage={"日月潭遊湖賞景": ["ferry"]}),
-                     must_do=["日月潭遊湖賞景"], advisory={"items": []})
+                     must_do=["日月潭遊湖賞景"], advisory={"items": []}, **rederive_kwargs())
         assert r["status"] == "pass", r["failures"]
         assert {"name": "must_do_covered", "passed": True} in r["checks"]
 

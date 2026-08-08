@@ -7,6 +7,7 @@ passes. Reproduces the field run that found D1/D7.
 from scripts.gate import run_gate
 from scripts.facilities import coverage_gaps, reception_ok
 from scripts.verify import classify_candidate
+from tests.mech_fixtures import rederive_kwargs
 
 FACILITY_NEEDS = {"required": ["parking"],
                   "periodic": [{"facility": "laundry", "max_gap_nights": 2}]}
@@ -30,7 +31,7 @@ ACCOM = {"stops": [
 
 def test_every_stop_has_verified_lodging_and_parking():
     r = run_gate([], {"days": []}, accommodations=ACCOM, facility_needs=FACILITY_NEEDS,
-                 advisory={"items": []})
+                 advisory={"items": []}, **rederive_kwargs())
     assert r["status"] == "pass", r["failures"]
     assert next(c["passed"] for c in r["checks"] if c["name"] == "overnight_stops_have_lodging")
     assert next(c["passed"] for c in r["checks"] if c["name"] == "required_facilities_met")

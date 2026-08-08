@@ -148,6 +148,26 @@ def itinerary():
     }
 
 
+def rederive_kwargs(**over):
+    """The legs/routing/cost/trip_brief bundle run_gate needs so verdict
+    re-derivation has something to re-derive. Every existing run_gate call site
+    that asserts status == 'pass' must pass **rederive_kwargs().
+
+    There is deliberately NO rederive=False switch: an off-switch would make a
+    skipped check indistinguishable from a green one, which is the defect class
+    the mechanism closes.
+    """
+    kw = {
+        "legs": {"legs": []},
+        "routing": {"clusters": [], "hops": [], "warnings": []},
+        "cost": {"currency": "TWD", "as_of": "2026-08-07", "total": 0,
+                 "line_items": []},
+        "trip_brief": {"dates": {"start": "2026-08-29", "end": "2026-08-31"}},
+    }
+    kw.update(over)
+    return kw
+
+
 def build_full_trip(root, slug=SLUG):
     """Write the complete artifact set under root/trips/<slug> + work stamp."""
     t = root / "trips" / slug

@@ -14,6 +14,7 @@ if __name__ == "__main__" and __package__ in (None, ""):
 
 from scripts.facilities import stop_meets_required
 from scripts.calendar import poi_closed_on
+from scripts.rederive import run_rederivation
 from scripts.text_hygiene import jargon_failures, kana_gloss_failures, kana_name_without_gloss
 
 def chosen_lodging_pois(accommodations):
@@ -74,7 +75,8 @@ def _itinerary_text(itinerary):
     return " \n ".join(p for p in parts if p)
 
 def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
-             calendar=None, advisory=None, must_do=None):
+             calendar=None, advisory=None, must_do=None,
+             legs=None, routing=None, cost=None, trip_brief=None):
     """Return a gate-report dict: {status, checks, failures}.
 
     Args:
@@ -188,6 +190,14 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     failures.extend(jargon_failures(hygiene_text, pois))
     failures.extend(kana_gloss_failures(hygiene_text))
 
+    # Verdict re-derivation (v0.33.0). Every recorded mechanical verdict is
+    # recomputed from the inputs the artifact itself carries. Emits its own two
+    # checks rather than folding into the substring-matched list below, because a
+    # re-derivation failure names the producing stage and must route there.
+    rd = run_rederivation(itinerary, by_id, legs=legs, routing=routing,
+                          cost=cost, trip_brief=trip_brief)
+    failures.extend(rd["failures"])
+
     checks = [
         {"name": "referenced_pois_verified",
          "passed": not any("non-verified POI" in f or "unknown POI" in f for f in failures)},
@@ -206,6 +216,7 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         {"name": "japanese_glossed",
          "passed": not any("no （中文）gloss" in f for f in failures)},
     ]
+    checks.extend(rd["checks"])
     if closed_check:
         checks.append({"name": "no_closed_day_violation",
                        "passed": not any("closed day" in f for f in failures)})
@@ -268,6 +279,9 @@ def main(argv):
         accommodations = opt("accommodations.yaml")
         calendar = opt("calendar.yaml")
         advisory = opt("advisory.yaml")
+        legs = opt("legs.yaml")
+        routing = opt("routing.yaml")
+        cost = opt("cost.yaml")
     except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError,
             _MalformedOptionalArtifact) as exc:
         print(f"missing/invalid required or optional artifact: {exc!r}",
@@ -281,6 +295,10 @@ def main(argv):
         calendar=calendar,
         advisory=advisory,
         must_do=brief.get("must_do"),
+        legs=legs,
+        routing=routing,
+        cost=cost,
+        trip_brief=brief,
     )
     (d / "gate-report.yaml").write_text(
         yaml.safe_dump(report, allow_unicode=True, sort_keys=False),

@@ -4,6 +4,7 @@ from scripts.verify import classify_candidate
 from scripts.gate import run_gate
 from scripts.render.markdown import render_day_table
 from scripts.export_gate import run_export_gate
+from tests.mech_fixtures import rederive_kwargs
 
 def _src(dom, lang="ko", official=False):
     return {"url": f"https://{dom}.example", "lang": lang, "official": official}
@@ -21,7 +22,7 @@ def test_cross_stage_verify_gate_render_export():
     itin = {"title": "t", "checklist": [],
             "days": [{"date": "2026-06-12", "label": "D1",
                       "rows": [{"time": "12:00", "slot": "meal", "poi_id": "odari", "text": "lunch"}]}]}
-    g = run_gate([poi], itin, advisory={"items": []})
+    g = run_gate([poi], itin, advisory={"items": []}, **rederive_kwargs())
     assert g["status"] == "pass", g["failures"]
     # 3) render the day from the canonical itinerary + poi map
     md = "### D1\n\n| 時段 | 行程 |\n|---|---|\n" + \

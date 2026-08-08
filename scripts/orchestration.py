@@ -13,19 +13,30 @@ def candidates_stale(candidate_ids, verified_ids):
     return any(cid not in set(verified_ids) for cid in candidate_ids)
 
 
-# Rule 13.5 failure-class routing. Lodging/facility failures trace to the
-# accommodation stage; everything else (meal / unknown POI / non-verified /
-# geocode / closed-day / must_do / advisory-surface / hygiene) traces to the
-# itinerary author. NOTE: "has no resolved lodging" (the always-on per-day
-# floor) is itinerary-derived — a missing lodging ROW is a synthesis defect,
-# so it deliberately routes to synthesis, not accommodation.
-_ACCOM_MARKERS = ("chosen lodging", "required facility")
+# Rule 13.5 failure-class routing, in priority order. accommodation stays FIRST:
+# scripts/orchestration.py's original note records a deliberate exception — "has
+# no resolved lodging" is a missing itinerary ROW and routes to synthesis, not
+# accommodation. None of the groups below contains "lodging", so that survives,
+# but the ordering leaves it one careless marker away from inverting.
+_ROUTES = (
+    (("chosen lodging", "required facility"), "tripwork:accommodation-research"),
+    (("legs[", "legs.yaml absent"), "tripwork:inter-stop-legs"),
+    (("routing hop ", "routing.yaml absent"), "tripwork:routing-audit"),
+    (("cost.total", "cost.by_category", "cost.yaml absent"), "tripwork:cost-rollup"),
+)
 
 
 def route_gate_failures(failures):
-    """Return the stage skill an itinerary-gate FAIL should route to."""
-    if any(m in f for f in failures for m in _ACCOM_MARKERS):
-        return "tripwork:accommodation-research"
+    """Return the stage skill an itinerary-gate FAIL should route to.
+
+    A re-derivation failure names a field only its PRODUCING stage can write —
+    synthesis cannot add `km` to a routing hop. Before v0.33.0 everything that
+    was not a lodging defect fell through to synthesis, so feedback could never
+    cross back past accommodation-research.
+    """
+    for markers, target in _ROUTES:
+        if any(m in f for f in failures for m in markers):
+            return target
     return "tripwork:itinerary-synthesis"
 
 

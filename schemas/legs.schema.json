@@ -64,6 +64,16 @@
           "last_service": {
             "type": "string"
           },
+          "last_service_exempt": {
+            "type": "object",
+            "required": ["reason"],
+            "additionalProperties": false,
+            "properties": {
+              "reason": {"type": "string", "minLength": 1},
+              "source_url": {"type": "string", "pattern": "^https?://"}
+            },
+            "description": "Sourced claim that this non-drive leg has no last-service concept (charter, single daily sailing already named in `service`). Without it, scripts/legs.py:56-58 returns 'ok' whenever depart/last_service are absent — a verdict that is reproducible and meaningless. Optional in schema; required by the gate for any non-drive leg lacking depart+last_service."
+          },
           "pass_advice": {
             "type": "string"
           },

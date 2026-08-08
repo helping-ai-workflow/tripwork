@@ -4,6 +4,7 @@ from scripts.gate import run_gate
 from scripts.export_gate import run_export_gate, run_html_gate
 from scripts.render.html_page import render_html_page
 from scripts.render.gmaps_links import maps_url
+from tests.mech_fixtures import rederive_kwargs
 
 def _q(u):
     return unquote(u.split("query=", 1)[1])
@@ -157,7 +158,7 @@ def test_d8_canonical_hygiene_protects_all_renderers_e2e():
         {"slot": "meal", "poi_id": "hak-goryokaku", "text": "午餐"},
         {"slot": "visit", "poi_id": "hak-goryokaku", "text": "夜景 スターバックス（星巴克）"},
     ]}]}
-    rc = run_gate(pois, clean, advisory={"items": []})
+    rc = run_gate(pois, clean, advisory={"items": []}, **rederive_kwargs())
     assert rc["status"] == "pass", rc["failures"]
     line = render_line_short(clean)
     assert "(hak-goryokaku)" not in line and "must_do" not in line   # line-short clean by construction

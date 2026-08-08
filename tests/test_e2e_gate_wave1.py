@@ -5,6 +5,7 @@ EVERY corresponding check — proving the per-defect unit fixes also hold under
 cross-defect interaction. 2026-06-12 is a Friday.
 """
 from scripts.gate import run_gate
+from tests.mech_fixtures import rederive_kwargs
 
 POIS = [
     {"id": "verified_meal", "verify_status": "verified", "geocode": {"lat": 37.5, "lng": 127.0}},
@@ -53,6 +54,7 @@ def test_wave1_clean_itinerary_passes_every_check():
     itin = {"title": "ok", "checklist": ["spare lithium battery: carry-on only"],
             "days": [{"date": "2026-06-12", "label": "Day 1",
                       "rows": [{"time": "12:00", "slot": "meal", "poi_id": "m", "text": "lunch"}]}]}
-    r = run_gate(pois, itin, calendar=CALENDAR, advisory=ADVISORY, must_do=["m"])
+    r = run_gate(pois, itin, calendar=CALENDAR, advisory=ADVISORY, must_do=["m"],
+                 **rederive_kwargs())
     assert r["status"] == "pass", r["failures"]
     assert all(c["passed"] for c in r["checks"])

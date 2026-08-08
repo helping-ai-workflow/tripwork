@@ -21,6 +21,7 @@ from scripts.cost import lodging_line_amount, sum_costs, over_budget
 from scripts.export_gate import run_export_gate, run_html_gate
 from scripts.render.gmaps_links import maps_url
 from scripts.render.html_page import render_html_page
+from tests.mech_fixtures import rederive_kwargs
 
 SCHEMAS = pathlib.Path(__file__).resolve().parent.parent / "schemas"
 
@@ -150,7 +151,8 @@ class TestE2EAllNineDefects:
     def test_p4_p5_gate_passes_with_lodging_and_thematic_must_do(self):
         pois = _verified_pois()             # only ferry survives P1/P2 (P1/P2 closure)
         r = run_gate(pois, self._itin(), accommodations=ACCOMMODATIONS,
-                     must_do=["日月潭遊湖賞景"], advisory={"items": []})
+                     must_do=["日月潭遊湖賞景"], advisory={"items": []},
+                     **rederive_kwargs())
         assert r["status"] == "pass", r["failures"]
         # P4: chosen lodging resolved from accommodations, not flagged unknown
         assert not any("unknown POI 'hotel-lili'" in f for f in r["failures"])

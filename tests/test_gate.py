@@ -1,5 +1,6 @@
 # tests/test_gate.py
 from scripts.gate import run_gate
+from tests.mech_fixtures import rederive_kwargs
 
 def _poi(pid, geo=True, status="verified", closed_days=None):
     d = {"id": pid, "verify_status": status}
@@ -22,7 +23,8 @@ def _meal(pid): return {"time": "12:00", "slot": "meal", "poi_id": pid, "text": 
 def _act(pid):  return {"time": "14:00", "slot": "activity", "poi_id": pid, "text": "see"}
 
 def test_gate_pass_when_all_verified_geocoded_with_meal():
-    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
+                 **rederive_kwargs())
     assert r["status"] == "pass"
     assert r["failures"] == []
 
@@ -361,7 +363,8 @@ def test_gate_advisory_present_check_always_in_report_when_present():
 
 def test_gate_pass_with_empty_advisory():
     """advisory={"items": []} -> no 'advisory absent' failure; otherwise-valid plan passes."""
-    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
+                 **rederive_kwargs())
     assert not any("advisory absent" in f for f in r["failures"])
     assert r["status"] == "pass"
     assert r["failures"] == []
@@ -395,7 +398,7 @@ def _kana_hotel_accom(name_zh=None):
 def test_gate_kana_lodging_with_name_zh_passes():   # v0.30.0
     r = run_gate([_poi("a")], _itin([_meal("a")], lodging="h1"),
                  advisory={"items": []}, accommodations=_kana_hotel_accom("車站前旅館"),
-                 facility_needs={"required": []})
+                 facility_needs={"required": []}, **rederive_kwargs())
     assert not any("name_zh" in f for f in r["failures"])
     assert r["status"] == "pass"
 
