@@ -76,3 +76,40 @@ def test_routing_schema_accepts_implausible_and_duration_source(tmp_path):
         encoding="utf-8",
     )
     assert validate_file(str(p))[0] == 0
+
+
+def test_over_cap_wins_over_unsourced_for_every_duration_source():
+    """TW-066 fix-round-1 (Finding 1, project-owner ruling): precedence is
+    implausible > far > unsourced > ok.
+
+    Before this fix, `unsourced` returned before `max_hop_mins` was ever
+    examined, so an over-cap hop carrying only an unlabelled agent guess was
+    silently recorded as `unsourced` -- schema-valid, but NOT a `far`, so the
+    stage skipped the "stop and ask whether to keep or replace the POI" halt.
+    That is the same silent escape TW-066 exists to close, through a
+    different exit. `far` carries a defined user action; `unsourced` only
+    routes back for a source, so when both apply, `far` must win.
+
+    Repro (km=20 'drive': floor=min_plausible_mins(20,'drive')==30, so 90 is
+    not implausible; max_hop_mins=60, so 90 is over the cap):
+    """
+    assert classify_hop(90, max_hop_mins=60, km=20, mode="drive",
+                        duration_source="agent_estimate") == "far"
+    # the sourced twin must agree -- a hop over the cap is over the cap
+    # whether or not someone later cites a timetable for it.
+    assert classify_hop(90, max_hop_mins=60, km=20, mode="drive",
+                        duration_source="sourced_timetable") == "far"
+
+
+def test_unknown_duration_source_is_rejected():
+    """TW-066 fix-round-1 (Finding 3): `DURATION_SOURCES` is not decorative.
+
+    An unrecognized duration_source is rejected outright rather than being
+    silently treated as anything-but-agent_estimate (which would take the
+    sourced path and skip the `unsourced` safeguard -- exactly the kind of
+    silent escape this task exists to close). Matches the codebase's existing
+    convention for an unrecognized enum-like string (see
+    scripts/photo_adapter.py's `unknown photo backend` ValueError).
+    """
+    with pytest.raises(ValueError, match="unknown duration_source"):
+        classify_hop(90, km=20, mode="drive", duration_source="agent_estmiate")

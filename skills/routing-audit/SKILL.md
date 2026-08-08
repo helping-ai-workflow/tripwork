@@ -16,7 +16,7 @@ Cluster verified POIs by district and assess movement feasibility. Produces `tri
 
 ## Stop-on-Confirmation
 
-Any hop flagged `far` -> stop and ask the user whether to keep or replace the POI. Do not silently reorder around it. A hop flagged `implausible` (estimate below the physical floor) -> do not record it; re-estimate or cite a sourced timetable first.
+Any hop flagged `far` -> stop and ask the user whether to keep or replace the POI. Do not silently reorder around it. A hop flagged `implausible` -> record the flag and stop and ask the user for a real source (a routing-engine lookup or a published timetable) before writing a corrected `mins`; never re-estimate past the floor on your own authority.
 
 ## Output
 
@@ -30,7 +30,7 @@ Write `trips/<slug>/routing.yaml`, then validate it:
 |---|---|
 | Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/trip-brief.yaml`. |
 | Output | `trips/<slug>/routing.yaml` (clusters, hops, warnings). |
-| Stop condition | A hop flagged `far` → ask user keep-or-replace. |
+| Stop condition | A hop flagged `far` → ask user keep-or-replace. A hop flagged `implausible` → ask user for a real source. |
 | Next stage | `tripwork:orchestrator`. |
 
 ## Common Mistakes
