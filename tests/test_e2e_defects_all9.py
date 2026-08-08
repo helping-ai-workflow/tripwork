@@ -42,7 +42,8 @@ def _sourced_status(status, as_of="2026-06-15"):
 FERRY = {"id": "ferry", "name_local": "水社碼頭", "name_display": "水社碼頭",
          "name_roman": "Shuishe Pier", "category": "activity", "district": "日月潭",
          "business_status": _sourced_status("OPERATIONAL"), "gmaps_place_id": "ChIJ_ferry",
-         "geocode": {"lat": 23.86, "lng": 120.91}, "sources": _sources()}
+         "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+         "sources": _sources()}
 STAR_MOON = {"id": "star-moon", "name_local": "星月大地", "name_display": "星月大地",
              "category": "meal", "district": "后里",
              "business_status": _sourced_status("CLOSED_PERMANENTLY"),
@@ -53,7 +54,8 @@ NO_SIGNAL = {"id": "no-signal", "name_local": "某餐廳", "name_display": "某�
 RENAMED = {"id": "renamed", "name_local": "星月大地", "name_display": "星月大地",
            "category": "meal", "district": "后里",
            "business_status": _sourced_status("OPERATIONAL"),
-           "geocode": {"lat": 24.3, "lng": 120.7}, "sources": _sources()}
+           "geocode": {"lat": 24.3, "lng": 120.7, "geocode_source": "nominatim"},
+           "sources": _sources()}
 
 ACCOMMODATIONS = {"stops": [{
     "district": "日月潭", "nights": 2, "chosen": "hotel-lili",

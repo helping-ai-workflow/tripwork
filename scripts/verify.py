@@ -16,6 +16,13 @@ from scripts.geocode import normalize_geocode_keys, name_matches
 NO_RESOLVED_NAME = object()
 
 
+# Threaded by verify_poi when the POI's geocode object records no geocode_source.
+# Distinct from None, which keeps its existing meaning: "this caller does not
+# supply the field at all" — 19 direct classify_candidate call sites pass nothing
+# and must stay unaffected. Same split as NO_RESOLVED_NAME one gate over. (I3)
+GEOCODE_SOURCE_MISSING = object()
+
+
 def _distinct_netlocs(sources):
     """Set of distinct lower-cased domains across a candidate's source urls."""
     return {urlsplit(s.get("url", "")).netloc.lower() for s in sources if s.get("url")}
@@ -138,9 +145,15 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
                           supplied a resolved_name to compare against -> 'unverified',
                           not a silent pass). Default True keeps existing callers that
                           never pass this argument unaffected.
-        geocode_source:   optional str, `candidate["geocode"]["geocode_source"]`
-                          (TW-062). Default None never equals 'cluster_fallback',
-                          so existing callers that never pass this are unaffected.
+        geocode_source:   `candidate["geocode"]["geocode_source"]` (TW-062), now
+                          tri-state (I3): a string ('nominatim' /
+                          'nominatim_structured' / 'cluster_fallback') runs Gate
+                          2c normally; GEOCODE_SOURCE_MISSING (threaded by
+                          verify_poi when the POI's geocode carries no
+                          geocode_source) refuses -> 'unverified'; the default
+                          None never equals 'cluster_fallback' and is not
+                          GEOCODE_SOURCE_MISSING, so existing callers that never
+                          pass this argument at all are unaffected.
     """
     sources = candidate.get("sources", [])
     langs = {s.get("lang") for s in sources}
@@ -162,6 +175,17 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # for manual confirmation ('unverified'), never silently dropped ('rejected').
     if not geocoded:
         return "unverified", "geocode unresolved: could not resolve coordinates"
+
+    # Gate 2c's trigger is itself optional, which made the gate skippable by
+    # omission — the identical shape Part 1 closed for resolved_name. A POI that
+    # never records where its coordinate came from cannot be asked whether that
+    # coordinate is a district centroid. 19 of 127 real POIs omit the field. (I3)
+    if geocode_source is GEOCODE_SOURCE_MISSING:
+        return ("unverified",
+                "geocode_source not recorded — Gate 2c (a cluster_fallback centroid "
+                "needs an existence proof independent of the coordinate) cannot run. "
+                "Record geocode.geocode_source: nominatim / nominatim_structured / "
+                "cluster_fallback")
 
     # Gate 2 sub-check (TW-062): a centroid fallback is not a geocode. Nominatim
     # finding nothing must not outrank Nominatim finding a name that disagrees —
@@ -270,10 +294,12 @@ def verify_poi(poi, geocoded, in_claimed_region,
     # classify_candidate now, for the identical reason Gate 2b's input does: an
     # early return here would fire ahead of Gate 1 (sources) and Gate 2
     # (geocoded), which skills/source-verify/SKILL.md:28 documents as running
-    # first. Only the geocode_source STRING is computed here and threaded down;
-    # classify_candidate owns the has_existence_proof(candidate) call and the
-    # decision (review round 2).
-    geo_source = ((normalised.get("geocode") or {}).get("geocode_source") or "")
+    # first. Only the geocode_source STRING (or the GEOCODE_SOURCE_MISSING
+    # sentinel, I3) is computed here and threaded down; classify_candidate owns
+    # the has_existence_proof(candidate) call and the decision (review round 2).
+    geo_source = (normalised.get("geocode") or {}).get("geocode_source") or None
+    if geo_source is None:
+        geo_source = GEOCODE_SOURCE_MISSING
 
     status, note = classify_candidate(
         normalised, geocoded=geocoded, in_claimed_region=in_claimed_region,

@@ -51,10 +51,13 @@ def _itin(rows, date="2026-07-01", lodging=None, **extra):
 # ============================ P1 — operating (Gate 0) =========================
 class TestP1Operating:
     def _cand(self, **extra):
+        # I3: geocode_source: nominatim -- this class is about Gate 0
+        # (operating), isolated from Gate 2c's centroid check by using a real
+        # geocoder-resolved coordinate, not a district centroid.
         c = {"id": "x", "name_local": "店", "name_display": "店",
              "sources": [{"url": "https://a.example", "lang": "zh"},
                          {"url": "https://b.example", "lang": "zh"}],
-             "geocode": {"lat": 1.0, "lng": 2.0}}
+             "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"}}
         c.update(extra)
         return c
 
@@ -109,11 +112,13 @@ class TestP2NameMatch:
         assert "name" in note.lower() and "mismatch" in note.lower()
 
     def test_verify_poi_resolved_name_mismatch_conflicting(self):
+        # I3: geocode_source: nominatim -- this fixture's point is Gate 2b's
+        # name-mismatch check, not Gate 2c's centroid check.
         c = {"id": "x", "name_local": "星月大地", "name_display": "星月大地",
              "business_status": _sourced_status("OPERATIONAL"),
              "sources": [{"url": "https://a.example", "lang": "zh"},
                          {"url": "https://b.example", "lang": "zh"}],
-             "geocode": {"lat": 1.0, "lng": 2.0}}
+             "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"}}
         _, status, note = verify_poi(c, geocoded=True, in_claimed_region=True,
                                      resolved_name="星月驛站, 后里區", today=_TODAY)
         assert status == "conflicting"
