@@ -71,12 +71,15 @@ def _day_has_lodging(day):
 
 def _itinerary_text(itinerary):
     """Every authored free-text field a renderer surfaces: title + checklist + each day
-    label + each row text + each move row's from/to endpoints. Kept a SUPERSET of what the
-    renderers emit so the canonical hygiene scan (and the advisory-topic surfacing check)
-    sees everything — line-short renders the title + labels verbatim and has no gate of its
-    own, and from/to endpoints render into md/html, so omitting any of these would let a
-    leak there ship unchecked. Parts are newline-joined so the per-line kana scan treats
-    each field independently."""
+    label + each row text + each move row's from/to endpoints + each contingency
+    trigger/fallback/note. Kept a SUPERSET of what the renderers emit so the canonical
+    hygiene scan (and the advisory-topic surfacing check) sees everything — line-short
+    renders the title + labels verbatim and has no gate of its own, and from/to endpoints
+    render into md/html, so omitting any of these would let a leak there ship unchecked.
+    contingency is the largest single source of bold-label list items in the corpus
+    (TW-069) — until it reaches this function it is invisible to the jargon, kana and
+    AI-tone scans, even though render_markdown_page renders it verbatim. Parts are
+    newline-joined so the per-line kana scan treats each field independently."""
     parts = [itinerary.get("title", "")]
     parts.extend(itinerary.get("checklist", []))
     for d in itinerary.get("days", []):
@@ -85,6 +88,8 @@ def _itinerary_text(itinerary):
             parts.append(row.get("text", ""))
             parts.append(row.get("from", ""))
             parts.append(row.get("to", ""))
+    for c in itinerary.get("contingency") or []:
+        parts.extend(x for x in (c.get("trigger"), c.get("fallback"), c.get("note")) if x)
     return " \n ".join(p for p in parts if p)
 
 def run_gate(pois, itinerary, accommodations=None, facility_needs=None,

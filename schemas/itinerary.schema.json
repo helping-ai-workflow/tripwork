@@ -25,6 +25,20 @@
         }
       }
     },
+    "contingency": {
+      "type": "array",
+      "description": "Fallbacks per named trigger. itinerary-synthesis has always produced this section (SKILL.md calls it a Required derived section) but had no container, so it was hand-assembled into the markdown and a full re-render would silently lose it. (TW-069)",
+      "items": {
+        "type": "object",
+        "required": ["trigger", "fallback"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": {"type": "string", "minLength": 1},
+          "fallback": {"type": "string", "minLength": 1},
+          "note": {"type": "string"}
+        }
+      }
+    },
     "days": {
       "type": "array",
       "items": {

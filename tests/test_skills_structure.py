@@ -422,6 +422,20 @@ def test_itinerary_synthesis_input_contract_reflects_home_legs():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "empty list if single-base" not in text, \
         "Input row still claims legs.yaml is empty for every single-base trip"
+
+
+def test_itinerary_synthesis_renders_home_legs_on_day_one_and_last_day():
+    """TW-069 Step 5b: Task 1 wired legs into run_gate (rederive_legs re-derives
+    every leg's classify_leg verdict, home legs included — 4 hits for `legs` in
+    scripts/gate.py at this branch's HEAD) and cost-rollup already sums a home
+    leg's fare, but until now nothing in the synthesis contract put it in front
+    of the reader. The Inter-city moves section must say where each half of a
+    `kind: home` leg goes and that its endpoints trace back to trip-brief."""
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "kind: home" in text
+    assert "day 1" in text
+    assert "last day" in text
+    assert "home_origin" in text and "home_return" in text
     assert "home endpoint" in text, \
         "Input row must name the home-endpoint condition that keeps legs.yaml non-empty"
 
