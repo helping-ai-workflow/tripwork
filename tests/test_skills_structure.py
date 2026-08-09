@@ -480,3 +480,16 @@ def test_orchestrator_definitions_name_fingerprint_source():
         "Definitions section must name scripts/orchestration.py::input_fingerprint"
     assert "input_fingerprint.py" in definitions or "orchestration.py" in definitions, \
         "Definitions section must point at where the fingerprint is computed"
+
+
+def test_export_artifact_owns_the_photo_adapter():
+    """grep -rn photo_adapter skills/ returned zero at HEAD: an entire producing
+    stage with a script, a schema, three gates and an e2e test, and no owner."""
+    # NOTE: the module-level constant in this file is `SKILLS` (a pathlib.Path at
+    # tests/test_skills_structure.py:5), NOT `SKILLS_DIR`. An earlier draft wrote
+    # SKILLS_DIR and would have raised NameError — the same brief defect Part 1 hit
+    # three times. Reuse the existing constant; never declare a second one.
+    body = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
+    assert "scripts/photo_adapter.py" in body
+    assert "preferences.photos" in body
+    assert "ONLY writer" in body or "only writer" in body

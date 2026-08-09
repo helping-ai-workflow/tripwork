@@ -26,25 +26,32 @@ lodging** — fold in `scripts/gate.py::chosen_lodging_pois(accommodations)` so 
 the same pool `itinerary-synthesis` and `itinerary-gate` build; never copy hotels into
 canonical `verified-pois.yaml`.
 
-## Photo enrichment (optional)
+## Photo enrichment (owned here, opt-in)
 
-When `trips/<slug>/verified-pois-media.yaml` exists (written by the photo adapter under
-backend `wiki`/`google`; absent under the default backend `none`), overlay it onto the
-poi_map **before any `render_*` call**. `apply_media` is **non-mutating — you MUST capture
-its return**:
+This stage OWNS `trips/<slug>/verified-pois-media.yaml`; `scripts/photo_adapter.py` is its
+ONLY writer. Never hand-author media entries — a hand-written `photo_source: google` entry
+ships a permanently non-distributable deliverable, and the adapter's `google` backend is
+BLOCKED for exactly that reason (no display-surface licence).
 
-`poi_map = apply_media(poi_map, load_media("trips/<slug>/verified-pois-media.yaml"))`
+Run it only when the user asked for photos on this trip (`trip-brief.yaml`
+`preferences.photos: true`); otherwise skip — no side-file, deliverable unchanged.
+
+    python scripts/photo_adapter.py trips/<slug> --backend wiki
+
+Exit 0 written / 1 schema self-check failed (nothing written) / 2 missing input or
+`--backend google`.
+
+Then overlay it onto the poi_map **before any `render_*` call**. `apply_media` is
+**non-mutating — you MUST capture its return**:
+
+    poi_map = apply_media(poi_map, load_media("trips/<slug>/verified-pois-media.yaml"))
+
 from `scripts/media_merge.py`.
 
-This merges `photo` / `photo_attribution` / `photo_source` onto each POI by `poi_id`. It
-is a render-time overlay only — **never write media back into canonical
-`verified-pois.yaml`**, which `source-verify` wholesale-rewrites on every run and would
-clobber it. A photo without attribution or an unsafe `<img src>` is rejected by
-`export-gate`; `photo_source: google` marks the deliverable non-distributable (a clean
-terminal personal variant, not a failure — see export-gate P7).
-
-(`export-gate`'s CLI re-applies the same overlay itself when gating — the
-overlay here is for RENDERING only.)
+**Never write media into canonical `verified-pois.yaml`** — `source-verify` wholesale-rewrites
+it every run and would clobber it. The side-file is the only persistence; the overlay is
+render-time only (`export-gate` re-applies it itself when gating, and rejects an
+unattributed photo or an unsafe `<img src>`).
 
 Return to `tripwork:orchestrator`.
 
@@ -53,6 +60,6 @@ Return to `tripwork:orchestrator`.
 | Field | Value |
 |---|---|
 | Input | `trips/<slug>/itinerary.yaml` (canonical) + `verified-pois.yaml` + optional `verified-pois-media.yaml` (photo side-file) + `gate-report.yaml` (status pass). All adapters render from `itinerary.yaml`; the photo side-file, when present, is overlaid onto the poi_map via `scripts/media_merge.py` before render; Notion runs only after `export-gate` passes. |
-| Output | `trips/<slug>/exports/<slug>-itinerary.md` (+ line-short.txt + `<slug>-itinerary.html`). |
+| Output | `trips/<slug>/exports/<slug>-itinerary.md` (+ `line-short.txt` + `<slug>-itinerary.html`) + optional `verified-pois-media.yaml` (photo side-file, written by `scripts/photo_adapter.py`). |
 | Stop condition | `gate-report` status != pass → do not export; return upstream. |
 | Next stage | `tripwork:orchestrator` (which routes to `export-gate`). |
