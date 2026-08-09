@@ -18,10 +18,12 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   then compares the fresh verdict against the one recorded in the artifact.
   `verdicts_match` measured **zero** mismatches across the four schema-clean consumer
   trips (29 records) — the mechanism costs nothing when the data is already correct.
-  It is also **structurally blind** by design to two shapes: an empty `peak_windows`
-  list and a leg with no `depart` recorded. Only the second check, `verdicts_rederivable`
-  — which asks "could this verdict even be recomputed from what the artifact kept?" —
-  sees those; `verdicts_match` only ever compares two verdicts once both exist.
+  It is also **structurally blind** by design to shapes it cannot even attempt to
+  compare — a non-drive leg with no `depart` recorded, for instance, since
+  `classify_leg` cannot re-derive a `missed_last_service` verdict without one. Only
+  the second check, `verdicts_rederivable` — which asks "could this verdict even be
+  recomputed from what the artifact kept?" — sees that; `verdicts_match` only ever
+  compares two verdicts once both exist.
   Re-derivation proves **internal consistency, never truth**: `classify_hop`'s
   `min_plausible_mins` runs over cluster centroids, and TW-062 already showed those
   centroids can themselves be fictions (a POI's coordinate borrowed from a neighbour).
@@ -31,16 +33,21 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   is absent — previously it passed. This is deliberate (an absent artifact means the
   pipeline ran out of order) but it is a **breaking change for every existing trip
   directory**, not only the two already known to be schema-dirty. See Migration below.
-- **A mechanical AI-tone gate (`no_ai_tone`), shipped as regression locks, not fixes.**
-  `scripts/gate.py` now scans canonical itinerary text (checklist + every row) for four
-  lexicons — slop words, sentence templates, promo clichés, meaning stamps — via
-  `scripts/text_hygiene.py`. Measured against the five canonical itineraries that have
-  one: **32 hits, 32 true positives, zero false positives.** A fifth candidate lexicon,
-  `rule_of_three`, was measured too (21 hits, **21 false positives**) and **dropped** —
-  it is unmechanizable on real Chinese travel prose, not merely imperfect. The em-dash
-  detector is deliberately narrow: the corpus contains 28 non-flagged dash-adjacent
-  characters (22 U+2013, 6 U+FF5E) in legitimate date ranges and opening-hours notation,
-  and widening the pattern to catch them would fail every one of those lines.
+- **A mechanical AI-tone gate (`no_ai_tone`).** `scripts/gate.py` now scans canonical
+  itinerary text (checklist + every row) via `scripts/text_hygiene.py`. Measured
+  against the five canonical itineraries that have one: **32 hits, 32 true positives,
+  zero false positives** — but all 32 are the em-dash and markdown-bold detectors
+  (31 + 1); the em-dash one is deliberately narrow (the corpus contains 28
+  non-flagged dash-adjacent characters — 22 U+2013, 6 U+FF5E — in legitimate date
+  ranges and opening-hours notation, and widening the pattern to catch them would
+  fail every one of those lines). The other **four word-list lexicons — slop words,
+  sentence templates, promo clichés, meaning stamps — measured zero hits on the same
+  five itineraries: 0 true positives and 0 false positives.** They ship as
+  **regression locks, not fixes**: nothing in the shipped corpus currently trips
+  them, so their job this release is to stay silent and catch a future regression,
+  not to have found anything today. A fifth candidate lexicon, `rule_of_three`, was
+  measured too (21 hits, **21 false positives**) and **dropped** — it is
+  unmechanizable on real Chinese travel prose, not merely imperfect.
 - **`source-verify` gets the batch driver it never had (TW-068).** `scripts/source_verify_run.py`
   runs the existing per-candidate decision logic (`verify.py`) over a whole
   `candidates.yaml`, replacing a pattern where every consumer hand-rolled their own
@@ -138,7 +145,7 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
 
 ### Residual, stated rather than fixed here
 
-- `gate.py`'s nine legacy checks (the pre-0.33.0 ones) still derive `passed` by
+- `gate.py`'s thirteen legacy checks (the pre-0.33.0 ones) still derive `passed` by
   substring-scanning a single merged failures list rather than carrying their own
   explicit pass/fail. `no_ai_tone`'s failure messages are the first to embed
   **arbitrary trip text** — an AI-tone snippet — into that shared list. The realistic

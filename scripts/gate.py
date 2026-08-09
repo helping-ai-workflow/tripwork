@@ -293,7 +293,7 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         {"name": "japanese_glossed",
          "passed": not any("no （中文）gloss" in f for f in failures)},
         # `passed` reads the direct return value, not a substring scan of the
-        # merged failures list like the nine checks above. AI-tone snippets embed
+        # merged failures list like the thirteen checks above. AI-tone snippets embed
         # arbitrary trip text, so a substring scan would be the only check in this
         # file whose truth depends on trip content.
         {"name": "no_ai_tone", "passed": not ai_tone},
