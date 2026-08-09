@@ -271,7 +271,7 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 1038 個測試
+pytest                 # 1047 個測試
 ```
 
 - 流水線由 `skills/` 下的 16 個 skill 組成，全程由 `orchestrator` 調度。
@@ -293,9 +293,10 @@ pytest                 # 1038 個測試
   `cost.yaml`／`itinerary.yaml` 重跑一次，跟原本記錄的結果比對，抓「值被改過但沒人重算」的漂移。
   `itinerary-gate` 新增兩個 check：`verdicts_match`（重算值 vs 記錄值是否一致；四個語料乾淨的既有
   行程共 47 筆欄位齊全、可比對，只有 1 筆對不上——日月潭那間沒有存在證明卻標成 verified 的旅館）、
-  `verdicts_rederivable`（欄位夠不夠重算；同一批語料 103 筆裡有 94 筆缺欄位重算不了，其中 19 個路段
-  缺 `duration_source`、56 列行程沒記 `closing_status` 或查不到關店時間、19 間旅館缺
-  `resolved_name`／`geocode_source`——都是 TW-066 之前排的舊行程本來就沒記）。重算只證明**內部一致**、
+  `verdicts_rederivable`（欄位夠不夠重算；同一批語料 103 筆記錄裡，有 94 筆「缺欄位」的問題被指出來，
+  其中 19 個路段缺 `duration_source`、56 列行程沒記 `closing_status` 或查不到關店時間、18 間旅館缺
+  `resolved_name`（其中 1 間連 `geocode_source` 也沒有，所以旅館這一項算出 19 筆）——都是 TW-066
+  之前排的舊行程本來就沒記）。重算只證明**內部一致**、
   不證明**真實**：`classify_hop` 用的 cluster centroid 本身可能是 TW-062 那種借位座標。
   住宿 check-in／退房那種 `slot: lodging` 的列不列入關店 buffer 檢查——旅館 schema 沒有 `hours` 欄位可
   記，抵達時間對不對是 `reception.close` 那條獨立規則管的。連帶行為變更：`legs.yaml`／`routing.yaml`／
@@ -303,8 +304,8 @@ pytest                 # 1038 個測試
   「這個景點沒記關店時間」會導回 `source-verify`（只有它寫得了 `verified-pois.yaml`），不再丟給重寫
   行程也修不好的 `itinerary-synthesis`。
 - **語氣機械檢查（v0.33.0，`scripts/text_hygiene.py` + `gate.py::ai_tone_failures`）：**
-  `itinerary-gate` 新增 `no_ai_tone`，掃 4 個 AI 罐頭語氣詞庫（陳腔套語、句型模板、行銷金句、
-  「意義蓋章」用語）+ 破折號濫用；5 份真實行程實測 32 命中、32 真陽性、0 誤報。曾一併測過的
+  `itinerary-gate` 新增 `no_ai_tone`，掃 5 個 AI 罐頭語氣詞庫（陳腔套語、句型模板、行銷金句、
+  「意義蓋章」用語、機器人客套話）+ 破折號濫用；5 份真實行程實測 32 命中、32 真陽性、0 誤報。曾一併測過的
   「三件式排比」偵測（21 命中、21 全是誤報）證實無法機械化，已捨棄不進本版。
 - **source-verify 批次驅動（TW-068，v0.33.0，`scripts/source_verify_run.py`）：** 一次跑完整份
   `candidates.yaml` 的查證邏輯（`verify.py`），取代每個使用者自己土炮寫 driver（曾各自硬編 9 筆

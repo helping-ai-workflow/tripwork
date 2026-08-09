@@ -45,7 +45,7 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   hits on the same five itineraries: 0 true positives and 0 false positives.** They ship as
   **regression locks, not fixes**: nothing in the shipped corpus currently trips
   them, so their job this release is to stay silent and catch a future regression,
-  not to have found anything today. A fifth candidate lexicon, `rule_of_three`, was
+  not to have found anything today. A sixth candidate lexicon, `rule_of_three`, was
   measured too (21 hits, **21 false positives**) and **dropped** — it is
   unmechanizable on real Chinese travel prose, not merely imperfect.
 - **`source-verify` gets the batch driver it never had (TW-068).** `scripts/source_verify_run.py`
@@ -176,8 +176,12 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   in `verified-pois.yaml` and only source-verify writes it, but the failure previously
   fell through to `tripwork:itinerary-synthesis`, which cannot write the field — so the
   feedback loop could not terminate. Granting each routed stage its best possible fix,
-  all four trips now drain to `pass` in 4-5 rounds; with the route removed they reach a
-  fixed point and never pass (`tests/test_corpus_gate.py` runs both).
+  all four trips now drain to `pass` in 4-5 rounds. With the route removed, the three
+  trips that HAVE missing-hours rows stall on exactly those rows and never pass — yilan
+  at 5, sun-moon-lake at 12, northeast-coast at 10. 2026-08-chiayi has none, so it is
+  the one clean trip that drains either way; it is not evidence for this change.
+  `tests/test_corpus_gate.py` runs the drain on all four and the route-removed
+  counterfactual on yilan.
 - **The gate now FAILS when `legs.yaml`, `routing.yaml` or `cost.yaml` is absent**,
   where it previously passed silently. An absent artifact means the pipeline ran out
   of order, and the gate says so now instead of shrugging. This affects every existing

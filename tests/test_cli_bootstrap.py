@@ -11,11 +11,15 @@ that added the repo root WITHOUT dropping `scripts/` — the same landmine, arme
 waiting for either to gain an import that reaches `requests`. The ledger's CARRY
 line predicted exactly that recurrence.
 
-Structure alone is not the proof, so this file checks two independent things:
-the six entrypoints all route through `scripts/_cli_bootstrap.py` (below), and
-each one actually RUNS from a foreign cwd (test_cli_bootstrap_smoke). A test
-that imported the modules as `scripts.X` could not see this class of defect at
-all — the `__main__` guard means the broken path never executes under import.
+Structure alone is not the proof, so this file checks three independent things:
+the six entrypoints all route through `scripts/_cli_bootstrap.py`
+(test_every_cli_entrypoint_uses_the_shared_bootstrap), each one actually RUNS
+from a foreign cwd (test_every_cli_entrypoint_starts_from_a_foreign_cwd) and
+under `python -P` (test_every_cli_entrypoint_starts_under_isolated_mode), and
+the shadow is really gone from sys.path afterwards in both modes
+(test_the_shadow_stays_disarmed_in_both_modes). A test that imported the modules
+as `scripts.X` could not see this class of defect at all — the `__main__` guard
+means the broken path never executes under import.
 """
 import pathlib
 import re
@@ -57,9 +61,16 @@ def test_every_cli_entrypoint_uses_the_shared_bootstrap(name):
     old repo-root-only shape) fails here."""
     text = (SCRIPTS / name).read_text(encoding="utf-8")
     assert "import _cli_bootstrap" in text, f"{name} does not use the shared bootstrap"
-    # No local re-implementation left behind alongside it.
-    assert "_sys.path.insert" not in text, f"{name} still hand-rolls the path fix"
-    assert "_sys.path.remove" not in text, f"{name} still hand-rolls the path fix"
+    # The two-line preamble that makes the bare import above resolve under
+    # `python -P` / PYTHONSAFEPATH=1, where Python does not auto-add the
+    # script's directory. Without it every CLI dies with ModuleNotFoundError
+    # on its first line (test_every_cli_entrypoint_starts_under_isolated_mode).
+    assert "_bootsys.path.insert" in text, f"{name} lacks the -P-safe preamble"
+    # The POLICY must not be re-inlined: only _cli_bootstrap decides what comes
+    # OFF the path. The preamble only puts scripts/ on so the import resolves.
+    assert "path.remove" not in text, f"{name} still hand-rolls the path fix"
+    assert "parent.parent" not in text.split("import _cli_bootstrap")[0], \
+        f"{name} re-implements the repo-root insert instead of delegating it"
 
 
 def test_the_bootstrap_drops_the_scripts_dir_as_well_as_adding_the_root():
@@ -67,7 +78,10 @@ def test_the_bootstrap_drops_the_scripts_dir_as_well_as_adding_the_root():
     the shape that shipped in next_stage.py and input_fingerprint.py: imports
     resolve, and the `calendar` shadow stays armed."""
     text = (SCRIPTS / "_cli_bootstrap.py").read_text(encoding="utf-8")
-    assert "sys.path.remove(_here)" in text
+    assert "sys.path[:] = [p for p in sys.path if p != _here]" in text, \
+        ("the removal must filter ALL occurrences: each caller's -P preamble "
+         "adds a SECOND copy of scripts/ in normal mode, and list.remove would "
+         "drop only one, leaving the `calendar` shadow armed")
     assert "sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))" in text
 
 
@@ -88,3 +102,46 @@ def test_every_cli_entrypoint_starts_from_a_foreign_cwd(name, tmp_path):
     assert proc.returncode == 0, (name, proc.returncode, proc.stderr)
     assert "usage:" in proc.stdout.lower(), (name, proc.stdout[:200])
     assert "calendar" not in proc.stderr, (name, proc.stderr)
+
+
+@pytest.mark.parametrize("name", _entrypoints_needing_bootstrap())
+def test_every_cli_entrypoint_starts_under_isolated_mode(name, tmp_path):
+    """`python -P` / PYTHONSAFEPATH=1 suppresses the auto-added script directory.
+    The shared helper lives IN that directory, so extracting it initially broke
+    every CLI here with `ModuleNotFoundError: No module named '_cli_bootstrap'` —
+    a regression against the pre-extraction shape, which used a plain inline
+    `sys.path.insert` and never needed to import anything. Each caller's
+    two-line preamble restores it.
+
+    -P is an undocumented invocation with no known consumer, but it is a mode a
+    security-conscious operator reaches for precisely BECAUSE this repo has a
+    stdlib-shadowing module in its script directory."""
+    proc = subprocess.run([sys.executable, "-P", str(SCRIPTS / name), "--help"],
+                          cwd=tmp_path, capture_output=True, text=True)
+    assert proc.returncode == 0, (name, proc.stderr)
+    assert "ModuleNotFoundError" not in proc.stderr, (name, proc.stderr)
+
+
+def test_the_shadow_stays_disarmed_in_both_modes(tmp_path):
+    """The load-bearing half of the -P fix, checked by BEHAVIOUR not by reading.
+
+    In normal mode the preamble adds a second `scripts/` entry beside Python's
+    own, so the helper must remove BOTH — one survivor is enough to re-shadow
+    stdlib `calendar` and kill any CLI that reaches `requests`. Asserts zero
+    survivors and that `calendar` resolves to the stdlib, in both modes."""
+    probe = (
+        "import runpy, sys, pathlib\n"
+        f"here = str(pathlib.Path(r'{SCRIPTS}').resolve())\n"
+        "sys.argv = ['gate.py']\n"
+        "try:\n"
+        f"    runpy.run_path(r'{SCRIPTS / 'gate.py'}', run_name='__main__')\n"
+        "except SystemExit:\n"
+        "    pass\n"
+        "print(sum(1 for p in sys.path if p == here), __import__('calendar').__file__)\n")
+    for args in ([], ["-P"]):
+        proc = subprocess.run([sys.executable, *args, "-c", probe],
+                              cwd=tmp_path, capture_output=True, text=True)
+        assert proc.returncode == 0, (args, proc.stderr)
+        survivors, calendar_file = proc.stdout.strip().splitlines()[-1].split(maxsplit=1)
+        assert survivors == "0", (args, proc.stdout)
+        assert str(SCRIPTS) not in calendar_file, (args, calendar_file)

@@ -263,3 +263,38 @@ def test_cli_forwards_in_claimed_region_through_the_real_geocode_path(tmp_path, 
     poi = {p["id"]: p for p in pois}["far-away"]
     assert poi["verify_status"] == "conflicting", poi
     assert "region" in poi["status_reason"]
+
+
+def test_the_driver_hands_resolve_place_a_pacing_callback(monkeypatch, tmp_path):
+    """I5's guard AT THE DRIVER SITE. Every pacing assertion otherwise lives in
+    tests/test_geocode.py, one level down, against resolve_place's own `pace`
+    parameter — so deleting `pace=lambda: time.sleep(NOMINATIM_DELAY_S)` from
+    scripts/source_verify_run.py::_rate_limited_resolve left the entire suite
+    green. The stub in this file accepts `pace` but never asserted it arrived.
+
+    Asserts three things the mutation would each break: the callback is passed,
+    it is callable, and calling it really sleeps NOMINATIM_DELAY_S (so
+    substituting a no-op lambda to silence this test would also be caught).
+    """
+    import scripts.source_verify_run as svr
+    from scripts.geocode import GeocodeResult
+
+    seen, slept = {}, []
+    monkeypatch.setattr(svr.time, "sleep", lambda s: slept.append(s))
+
+    def spy(name, district=None, country=None, timeout=10, cache=None,
+            name_roman=None, pace=None):
+        seen["pace"] = pace
+        if pace is not None:
+            pace()
+        return (GeocodeResult(23.481, 120.441, "花磚博物館"), "nominatim")
+
+    monkeypatch.setattr(svr, "resolve_place", spy)
+
+    result, source = svr._rate_limited_resolve("花磚博物館", "嘉義市西區", "Taiwan", None)
+    assert source == "nominatim" and result is not None
+    assert seen["pace"] is not None, \
+        "_rate_limited_resolve must hand resolve_place a per-request pacer"
+    assert callable(seen["pace"])
+    assert slept == [svr.NOMINATIM_DELAY_S], \
+        "the pacer must sleep NOMINATIM_DELAY_S, not be a no-op"

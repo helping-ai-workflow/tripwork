@@ -730,8 +730,15 @@ def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
     # C1's regression lock, in two halves.
     #
     # (a) The guard really is exercising the FOLDED pool — otherwise "we call
-    #     poi_pool now" would be unfalsifiable prose. The fold adds exactly 5
-    #     hotel ids the corpus's verified-pois.yaml files do not carry.
+    #     poi_pool now" would be unfalsifiable prose. The fold adds 3 hotel ids
+    #     the corpus's verified-pois.yaml files do not carry
+    #     (yilan lodging-xiangshouyixia, chiayi maison-de-chine, northeast
+    #     fullon-fulong), and those 3 ids back 5 timed rows — 2 in yilan, 3 in
+    #     chiayi, 0 for northeast's, whose hotel is never scheduled by id. Ids
+    #     and rows are different counts; the assertion below counts IDS.
+    #     sun-moon-lake adds none: its two hotels were copied into
+    #     verified-pois.yaml, which is why the `slot` cut and not a
+    #     fold-membership cut is what closes C1.
     #
     # (b) With lodging out of scope, closing scope is now fold-INVARIANT: both
     #     pools put the same 56 rows in scope. That equality is the property C1

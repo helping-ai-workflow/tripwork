@@ -11,6 +11,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
     # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
     # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
     # Must precede every other import: the shadow breaks `import requests` too.
+    import pathlib as _bootpath, sys as _bootsys
+    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
     import _cli_bootstrap        # noqa: F401  (imported for its side effect)
 
 import sys as _sys
@@ -55,15 +57,23 @@ def poi_pool(pois, accommodations):
     ⚠ KNOWN DIVERGENCE, surfaced not fixed (v0.34.0 follow-up). export_gate's
     poi_map builds the same fold with the OPPOSITE precedence — a dict
     comprehension over `pois + chosen_lodging_pois(...)`, so the lodging record
-    wins an id collision instead of losing it. Measured live on
-    2026-07-sun-moon-lake, where `lealea` and `d2-2` exist in BOTH files: the
-    gate verifies the verified-pois record (category / district /
-    gmaps_place_id) while the renderer renders the accommodations candidate
-    (booking / cost / facilities). Each precedence is defensible for its own
-    job, which is why this is not a drive-by fix — flipping export to match
-    would drop `booking` from those two POIs and silently disable
-    export_gate's bookable-link check on them. Unifying the two needs its own
-    design; it is NOT simply "call poi_pool here too".
+    wins an id collision instead of losing it. Two trips have ids in BOTH files
+    and so resolve to a different record in the gate than in the renderer:
+    2026-07-sun-moon-lake (`lealea`, `d2-2`) and hokkaido-7d
+    (`lodge-toya-nonokaze`, `sap-mitsui-garden`, `hak-lavista-bay`). The gate
+    verifies the verified-pois record (category / district / gmaps_place_id);
+    the renderer renders the accommodations candidate (booking / cost /
+    facilities).
+
+    The concrete risk in flipping export to match is NARROWER than the
+    divergence, and lands on hokkaido-7d only: export_gate:182 keys its
+    bookable-link check on `booking.required`, and only hokkaido-7d's
+    `sap-mitsui-garden` and `hak-lavista-bay` set it. sun-moon-lake's two
+    candidates carry a bare `booking: {url}` with no `required`, so that check
+    never fires on them either way. (hokkaido-7d is one of the two trips
+    excluded from the schema-clean four, which is why no corpus guard covers
+    this today.) Each precedence is defensible for its own job; unifying them
+    needs its own design and is NOT simply "call poi_pool here too".
     """
     by_id = {p["id"]: p for p in pois}
     for lp in chosen_lodging_pois(accommodations):
@@ -131,8 +141,8 @@ def _home_legs_rendered_failures(itinerary, legs):
     legs_list = (legs or {}).get("legs") or []
     home_indices = [i for i, lg in enumerate(legs_list) if lg.get("kind") == "home"]
     referenced, malformed = set(), []
-    for d in itinerary.get("days", []):
-        for row in d.get("rows", []):
+    for di, d in enumerate(itinerary.get("days", [])):
+        for j, row in enumerate(d.get("rows", [])):
             li = row.get("leg_index")
             if li is None:
                 continue
@@ -140,11 +150,19 @@ def _home_legs_rendered_failures(itinerary, legs):
             if isinstance(li, int) and not isinstance(li, bool):
                 referenced.add(li)
             else:
-                malformed.append(li)
+                malformed.append((di, j, type(li).__name__))
+    # The malformed VALUE is deliberately not interpolated, and the position is
+    # given as ordinals rather than the day's `date`: this string is routed by
+    # substring match in scripts/orchestration.py::_ROUTES, so any trip-authored
+    # text inside it lets the itinerary decide where its own failure goes.
+    # Reproduced before this was tightened: `leg_index: "legs.yaml absent"`
+    # routed to inter-stop-legs and `"cost.total"` to cost-rollup. Same
+    # principle the no_ai_tone comment below states for check truth. The type
+    # name is a Python builtin, never trip content.
     failures = [
-        f"itinerary row leg_index {li!r} is not an integer — synthesis must "
-        f"reference a recorded leg by its position in legs.yaml"
-        for li in malformed]
+        f"itinerary day {di} row {j}: leg_index is a {tname}, not an integer — "
+        f"synthesis must reference a recorded leg by its position in legs.yaml"
+        for di, j, tname in malformed]
     for i in home_indices:
         if i not in referenced:
             lg = legs_list[i]

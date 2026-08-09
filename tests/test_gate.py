@@ -555,10 +555,32 @@ def test_gate_a_non_integer_leg_index_is_a_gate_failure_not_a_traceback():
                  **rederive_kwargs(legs=_home_leg()))
     assert r["status"] == "fail"
     assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is False
-    assert any("leg_index '0' is not an integer" in f for f in r["failures"])
+    assert any("leg_index is a str, not an integer" in f for f in r["failures"])
     # routes like every other unrendered-home-leg defect: synthesis wrote the row.
     from scripts.orchestration import route_gate_failures
     assert route_gate_failures(r["failures"]) == "tripwork:itinerary-synthesis"
+
+
+def test_gate_a_malformed_leg_index_cannot_choose_its_own_route():
+    """The failure string above is routed by SUBSTRING match
+    (scripts/orchestration.py::_ROUTES), so interpolating the trip-authored
+    value into it would let an itinerary pick the stage its own defect routes
+    to. Reproduced before this was tightened: `leg_index: "legs.yaml absent"`
+    routed to inter-stop-legs and `"cost.total"` to cost-rollup — both wrong,
+    and both chosen by trip content rather than by the defect.
+
+    Every one of these is a synthesis defect (synthesis wrote the row), so every
+    one must route there regardless of what the row says."""
+    from scripts.orchestration import route_gate_failures
+
+    for hostile in ("legs.yaml absent", "cost.total", "routing hop ",
+                    "accommodations.yaml absent", "AI-tone ",
+                    "carries neither hours.close"):
+        itin = _itin([{"slot": "move", "text": "自駕", "leg_index": hostile}])
+        r = run_gate([], itin, advisory={"items": []},
+                     **rederive_kwargs(legs=_home_leg()))
+        assert route_gate_failures(r["failures"]) == "tripwork:itinerary-synthesis", hostile
+        assert not any(hostile in f for f in r["failures"]), hostile
 
 
 def test_gate_leg_index_with_no_legs_yaml_still_reports_the_dangling_reference():

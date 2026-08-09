@@ -35,8 +35,10 @@ _ROUTES = (
     # closure-days paragraph ends "leave `close` absent and let the gate flag
     # it", so this is the stage the flag was always meant to reach. Without this
     # group the failure fell through to itinerary-synthesis, which cannot write
-    # the field: 34 such rows across the four clean trips, and a drain
-    # simulation that reached a fixed point and never passed (C2).
+    # the field: 27 such rows across the four clean trips (yilan 5, sun-moon-lake
+    # 12, chiayi 0, northeast 10), and a drain simulation that reached a fixed
+    # point at exactly those counts and never passed (C2). chiayi has none, so it
+    # is the one clean trip that drains either way.
     #
     # LAST among the producing-stage groups on purpose. verified-pois.yaml is an
     # upstream of routing / accommodations / legs / cost in `_DEPS` below, so

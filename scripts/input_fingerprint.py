@@ -25,6 +25,8 @@ if __name__ == "__main__" and __package__ in (None, ""):
     # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
     # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
     # Must precede every other import: the shadow breaks `import requests` too.
+    import pathlib as _bootpath, sys as _bootsys
+    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
     import _cli_bootstrap        # noqa: F401  (imported for its side effect)
 
 import sys as _sys
