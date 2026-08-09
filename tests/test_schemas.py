@@ -87,6 +87,39 @@ def test_candidate_empty_sources_rejected():
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(bad, schema)
 
+def test_candidate_business_status_bare_string_valid():
+    """Back-compat form. Gate 0 (scripts/verify.py::operating_from_status) treats
+    this as self-attested and never lets it pass — schema-valid is not the same
+    as Gate-0-passable — but it must stay schema-valid for existing trips."""
+    schema = _load_schema("candidates.schema.json")
+    ok = {"candidates": [{"id": "x", "name_local": "엑스", "name_display": "X",
+                          "category": "restaurant", "business_status": "OPERATIONAL",
+                          "sources": [{"url": "https://a.example", "lang": "ko"}]}]}
+    jsonschema.validate(ok, schema)
+
+def test_candidate_business_status_object_valid():
+    """The sourced form (TW-068 fix round 1) — the only shape that can clear
+    Gate 0. Mirrors verified-pois.schema.json's business_status oneOf so the
+    signal survives into the verified artifact unchanged."""
+    schema = _load_schema("candidates.schema.json")
+    ok = {"candidates": [{"id": "x", "name_local": "엑스", "name_display": "X",
+                          "category": "restaurant",
+                          "business_status": {"status": "OPERATIONAL",
+                                              "source_url": "https://a.example/x",
+                                              "as_of": "2026-08-01"},
+                          "sources": [{"url": "https://a.example", "lang": "ko"}]}]}
+    jsonschema.validate(ok, schema)
+
+def test_candidate_business_status_object_missing_as_of_rejected():
+    schema = _load_schema("candidates.schema.json")
+    bad = {"candidates": [{"id": "x", "name_local": "엑스", "name_display": "X",
+                           "category": "restaurant",
+                           "business_status": {"status": "OPERATIONAL",
+                                               "source_url": "https://a.example/x"},
+                           "sources": [{"url": "https://a.example", "lang": "ko"}]}]}
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(bad, schema)
+
 def test_advisory_requires_at_least_one_official_source():
     schema = _load_schema("advisory.schema.json")
     bad = {"items": [{"topic": "battery", "rule": "no overhead bin",

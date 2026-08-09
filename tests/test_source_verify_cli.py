@@ -12,6 +12,35 @@ import yaml
 ROOT = str(pathlib.Path(__file__).resolve().parents[1])
 
 
+def _stub_resolve_place(table):
+    """Build a scripts.geocode.resolve_place-shaped fake from {name:
+    (GeocodeResult_or_None, source_or_None)}. Any name not in `table` is an
+    unresolvable lookup (None, None) — the same shape a real Nominatim miss
+    returns. Used to drive scripts.source_verify_run's real (non-offline)
+    geocode path deterministically, without a network."""
+    def fake(name, district=None, country=None, timeout=10, cache=None, name_roman=None):
+        return table.get(name, (None, None))
+    return fake
+
+
+def _brief(local_lang="zh"):
+    return {"destination": {"country": "TW", "city": "嘉義市", "local_lang": local_lang}}
+
+
+def _candidate(id_, name, claimed_district=None, sources=None):
+    cand = {
+        "id": id_, "name_local": name, "name_display": name,
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": "https://a.example.com/p",
+                            "as_of": datetime.date.today().isoformat()},
+        "sources": sources or [{"url": "https://a.example.com/p", "lang": "zh"},
+                               {"url": "https://b.example.com/q", "lang": "en"}],
+    }
+    if claimed_district is not None:
+        cand["claimed_district"] = claimed_district
+    return cand
+
+
 def test_the_cli_cannot_be_the_only_thing_forwarding_resolved_name():
     """Guard, GREEN at HEAD: Part 1 Task 3 already landed the refusal, so this
     test asserts existing behaviour rather than exercising anything TW-068 adds
@@ -90,3 +119,137 @@ def test_cli_writes_a_schema_valid_artifact_and_forwards_both_gate_arguments(tmp
 
     from scripts.validate_artifact import validate_file
     assert validate_file(str(trip / "verified-pois.yaml"))[0] == 0
+
+
+def test_no_claimed_district_is_unverified_not_conflicting(tmp_path, monkeypatch):
+    """Important finding 1 (fix round 1): a candidate with no claimed_district
+    has nothing to region-check against — destination-research SKILL.md:15
+    explicitly sanctions omitting claimed_district when no source states a
+    location, so this is a routine shape, not malformed input. Before the fix,
+    _geocode_candidate collapsed "never checked" into in_region_flag=False,
+    which Gate 3b (scripts/verify.py:221-222) reports as a genuine region
+    mismatch — a false statement, since no region comparison ever ran. Must
+    come back 'unverified' (undetermined), never 'conflicting' (determined
+    false) — the same undetermined-vs-false split Gate 2b's name_match=None
+    and Gate 2c's GEOCODE_SOURCE_MISSING already enforce one gate over."""
+    from scripts import source_verify_run as svr
+    from scripts.geocode import GeocodeResult
+
+    monkeypatch.setattr(svr.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(svr, "resolve_place", _stub_resolve_place({
+        "花磚博物館": (GeocodeResult(23.481, 120.441, "花磚博物館"), "nominatim"),
+    }))
+
+    trip, work = tmp_path / "trip", tmp_path / "work"
+    trip.mkdir(); work.mkdir()
+    (trip / "trip-brief.yaml").write_text(yaml.safe_dump(_brief(), allow_unicode=True),
+                                          encoding="utf-8")
+    (trip / "candidates.yaml").write_text(yaml.safe_dump(
+        {"candidates": [_candidate("no-district", "花磚博物館")]}, allow_unicode=True),
+        encoding="utf-8")
+
+    code, msgs, out_path, pois = svr.run(str(trip), str(work), offline=False)
+    assert code == 0, msgs
+    poi = {p["id"]: p for p in pois}["no-district"]
+    assert poi["verify_status"] == "unverified"
+    assert "region" in poi["status_reason"]
+
+
+def test_unresolvable_claimed_district_is_unverified_not_conflicting(tmp_path, monkeypatch):
+    """Important finding 1, second sub-case: claimed_district IS present but its
+    own centroid lookup misses (a real Nominatim outcome for an obscure/
+    misspelled district name). Same undetermined-not-false requirement as the
+    no-district case above — the venue's own geocode is clean, there is simply
+    nothing to compare it against."""
+    from scripts import source_verify_run as svr
+    from scripts.geocode import GeocodeResult
+
+    monkeypatch.setattr(svr.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(svr, "resolve_place", _stub_resolve_place({
+        "花磚博物館": (GeocodeResult(23.481, 120.441, "花磚博物館"), "nominatim"),
+        # "嘉義市西區" deliberately absent from the table -> district lookup misses.
+    }))
+
+    trip, work = tmp_path / "trip", tmp_path / "work"
+    trip.mkdir(); work.mkdir()
+    (trip / "trip-brief.yaml").write_text(yaml.safe_dump(_brief(), allow_unicode=True),
+                                          encoding="utf-8")
+    (trip / "candidates.yaml").write_text(yaml.safe_dump(
+        {"candidates": [_candidate("bad-district", "花磚博物館",
+                                   claimed_district="嘉義市西區")]}, allow_unicode=True),
+        encoding="utf-8")
+
+    code, msgs, out_path, pois = svr.run(str(trip), str(work), offline=False)
+    assert code == 0, msgs
+    poi = {p["id"]: p for p in pois}["bad-district"]
+    assert poi["verify_status"] == "unverified"
+    assert "region" in poi["status_reason"]
+
+
+def test_cli_forwards_resolved_name_and_geocode_source_through_the_real_geocode_path(
+        tmp_path, monkeypatch):
+    """Important finding 2: every shipped test reaches _geocode_candidate's
+    non-offline branch through --offline=False... except none of them did —
+    every prior test used --offline, which never touches resolve_place at all,
+    so resolved_name/geocode_source/in_claimed_region forwarding had zero
+    coverage. This drives the real (non-network, monkeypatched at the
+    resolve_place name binding) geocode path end to end and checks the
+    geocoder's actual display_name and source both reached the written
+    artifact — not just that *some* verify_status came out the other end."""
+    from scripts import source_verify_run as svr
+    from scripts.geocode import GeocodeResult
+
+    monkeypatch.setattr(svr.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(svr, "resolve_place", _stub_resolve_place({
+        "嘉義市西區": (GeocodeResult(23.48, 120.44, "嘉義市西區"), "nominatim_structured"),
+        "花磚博物館": (GeocodeResult(23.481, 120.441, "花磚博物館"), "nominatim"),
+    }))
+
+    trip, work = tmp_path / "trip", tmp_path / "work"
+    trip.mkdir(); work.mkdir()
+    (trip / "trip-brief.yaml").write_text(yaml.safe_dump(_brief(), allow_unicode=True),
+                                          encoding="utf-8")
+    (trip / "candidates.yaml").write_text(yaml.safe_dump(
+        {"candidates": [_candidate("verified-path", "花磚博物館",
+                                   claimed_district="嘉義市西區")]}, allow_unicode=True),
+        encoding="utf-8")
+
+    code, msgs, out_path, pois = svr.run(str(trip), str(work), offline=False)
+    assert code == 0, msgs
+    poi = {p["id"]: p for p in pois}["verified-path"]
+    assert poi["verify_status"] == "verified", poi
+    # geocode_source forwarded from the geocoder's own return value, not hardcoded.
+    assert poi["geocode"]["geocode_source"] == "nominatim"
+    assert poi["geocode"]["lat"] == 23.481 and poi["geocode"]["lng"] == 120.441
+
+
+def test_cli_forwards_in_claimed_region_through_the_real_geocode_path(tmp_path, monkeypatch):
+    """Important finding 2, third forwarding: a venue that genuinely geocodes
+    far outside its claimed district's centroid (a real Gate 3b determined-
+    false, distinct from the two undetermined tests above, whose district DOES
+    resolve) must come back 'conflicting', proving in_region's real result —
+    not a hardcoded True — reaches verify_poi."""
+    from scripts import source_verify_run as svr
+    from scripts.geocode import GeocodeResult
+
+    monkeypatch.setattr(svr.time, "sleep", lambda *_: None)
+    monkeypatch.setattr(svr, "resolve_place", _stub_resolve_place({
+        "嘉義市西區": (GeocodeResult(23.48, 120.44, "嘉義市西區"), "nominatim_structured"),
+        # ~14.6km from the district centroid — well outside the 5km default radius.
+        "花磚博物館": (GeocodeResult(23.60, 120.50, "花磚博物館"), "nominatim"),
+    }))
+
+    trip, work = tmp_path / "trip", tmp_path / "work"
+    trip.mkdir(); work.mkdir()
+    (trip / "trip-brief.yaml").write_text(yaml.safe_dump(_brief(), allow_unicode=True),
+                                          encoding="utf-8")
+    (trip / "candidates.yaml").write_text(yaml.safe_dump(
+        {"candidates": [_candidate("far-away", "花磚博物館",
+                                   claimed_district="嘉義市西區")]}, allow_unicode=True),
+        encoding="utf-8")
+
+    code, msgs, out_path, pois = svr.run(str(trip), str(work), offline=False)
+    assert code == 0, msgs
+    poi = {p["id"]: p for p in pois}["far-away"]
+    assert poi["verify_status"] == "conflicting", poi
+    assert "region" in poi["status_reason"]

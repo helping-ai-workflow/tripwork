@@ -13,6 +13,7 @@ Gather a *candidate pool* into `trips/<slug>/candidates.yaml` (schema: `schemas/
 - For each topic in `must_do` + standard categories (food, sights, shopping), search broadly.
 - **Always include local-language queries** (e.g. Korean for Korea) — local sources surface places international sources miss, and a local source is required to pass `source-verify`.
 - Record every source URL with its `lang`. Capture `claimed_district` when a source states a location, but treat it as a claim, not a fact.
+- When a dated source states the venue is currently operating, record the sourced `business_status` object form (`{status, source_url, as_of}`) — a bare string (`business_status: OPERATIONAL`) is schema-valid but self-attested, and will leave the POI `unverified` at `source-verify`'s Gate 0.
 
 ## Caching
 

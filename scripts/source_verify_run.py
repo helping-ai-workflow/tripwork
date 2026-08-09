@@ -125,7 +125,7 @@ def _district_centroid(district, country, cache, offline, district_centroids):
 
 def _geocode_candidate(cand, country, cache, offline, district_centroids, radius_km):
     """Resolve one candidate's coordinates. Returns (geocode_dict_or_None,
-    geocoded, in_region_flag, resolved_name).
+    geocoded, in_region_flag, resolved_name, region_checked).
 
     --offline never calls resolve_place and never sleeps: every candidate comes
     back unresolved, so the geocode gates fail honestly instead of silently
@@ -135,24 +135,38 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     ('nominatim_structured' / 'nominatim' / 'cluster_fallback') — Task 0 made an
     absent value a Gate 2c refusal, so a POI this function actually geocoded
     must never come back without it.
+
+    region_checked is False whenever there was no district centroid to compare
+    against at all — no claimed_district recorded (destination-research
+    SKILL.md sanctions omitting it when no source states a location), or its
+    own centroid lookup missed. classify_candidate's `in_claimed_region`
+    parameter (scripts/verify.py) is a plain bool with no tri-state, so this
+    function must never hand it a bare False that actually means "unknown" —
+    Gate 3b (scripts/verify.py:221-222) would report that as a genuine region
+    mismatch, which is false: no comparison ever ran. So in_region_flag comes
+    back True in that case (nothing to disprove); the caller (run()) reads
+    region_checked and downgrades an otherwise-'verified' result to an honest
+    'unverified' — mirroring Gate 2b's name_match=None and Gate 2c's
+    GEOCODE_SOURCE_MISSING, which the same driver bug (Important finding 1,
+    fix round 1) had reintroduced for this gate alone.
     """
     if offline:
-        return None, False, False, None
+        return None, False, False, None, False
 
     name_local = cand.get("name_local") or cand.get("name_display") or ""
     district = cand.get("claimed_district") or ""
     name_roman = cand.get("name_roman")
 
     centroid = _district_centroid(district, country, cache, offline, district_centroids)
+    region_checked = centroid is not None
 
     result, source = _rate_limited_resolve(name_local, district, country, cache,
                                            name_roman=name_roman)
     if result is not None:
         geo = {"lat": result.lat, "lng": result.lng, "geocode_source": source}
-        in_region_flag = (centroid is not None
-                          and in_region(result.lat, result.lng, centroid[0], centroid[1],
-                                       radius_km))
-        return geo, True, in_region_flag, result.display_name
+        in_region_flag = (in_region(result.lat, result.lng, centroid[0], centroid[1], radius_km)
+                          if region_checked else True)
+        return geo, True, in_region_flag, result.display_name, region_checked
 
     # Nominatim found nothing for the venue itself. Falling back to the
     # district centroid is NOT a general-purpose escape (SKILL.md Gate 2) —
@@ -161,14 +175,15 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     # cluster_fallback POI can reach 'verified'; this function only records
     # where the coordinate came from, it does not decide whether that is
     # enough. The centroid is the district's own point, so it is in-region by
-    # construction; there is no resolved display_name to compare a venue name
+    # construction (region_checked=True: the centroid *is* the comparison
+    # point); there is no resolved display_name to compare a venue name
     # against, so NO_RESOLVED_NAME records "the lookup ran and found nothing to
     # compare" (distinct from None, which means the lookup never ran at all).
     if centroid is not None:
         geo = {"lat": centroid[0], "lng": centroid[1], "geocode_source": "cluster_fallback"}
-        return geo, True, True, NO_RESOLVED_NAME
+        return geo, True, True, NO_RESOLVED_NAME, True
 
-    return None, False, False, NO_RESOLVED_NAME
+    return None, False, False, NO_RESOLVED_NAME, False
 
 
 def _build_poi(cand, official_domains):
@@ -213,13 +228,29 @@ def run(trip_dir, work_dir, offline=False, official_domains=()):
 
     for cand in candidates:
         poi = _build_poi(cand, official_domains)
-        geo, geocoded, in_region_flag, resolved_name = _geocode_candidate(
+        geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
             cand, country, cache, offline, district_centroids, radius_km)
         if geo is not None:
             poi["geocode"] = geo
 
         normalised, status, note = _verify_one(
             poi, geocoded, in_region_flag, local_lang, resolved_name, today)
+
+        # Important finding 1 (fix round 1): _geocode_candidate hands
+        # classify_candidate in_region_flag=True whenever region_checked is
+        # False (nothing to disprove), so an absent/unresolvable
+        # claimed_district never collapses into a false 'conflicting'. That
+        # also means classify_candidate could return 'verified' without the
+        # region ever actually being confirmed — downgrade that specific case
+        # here, honestly, rather than upstream (verify.py's in_claimed_region
+        # is a plain bool with no tri-state to express "unknown" itself).
+        if status == "verified" and not region_checked:
+            status = "unverified"
+            note = ("region membership unconfirmed: no claimed_district was "
+                    "recorded, or its centroid could not be resolved, so the "
+                    "geocoded coordinate was never compared against a claimed "
+                    "region — record a claimed_district, or confirm the "
+                    "venue's district manually")
 
         normalised["verify_status"] = status
         if note:
