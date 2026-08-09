@@ -673,13 +673,47 @@ def test_gate_does_not_re_derive_a_chosen_lodging_on_both_axes():
     """run_gate folds each stop's chosen lodging into by_id (P4). Passing that
     folded pool to rederive_pois instead of the pois LIST would count every
     chosen hotel twice — once here and once on rederive_lodging — silently
-    inflating every migration figure the CHANGELOG quotes."""
+    inflating every migration figure the CHANGELOG quotes.
+
+    fix round 1 (reviewer finding): rederive_kwargs()'s DEFAULT accommodations
+    is {"stops": []} -- no chosen candidate is ever folded into by_id, so the
+    original version of this test (bare **rederive_kwargs()) had nothing to
+    double-count regardless of which pool gate.py passed, and stayed green
+    even with the bug (pois=list(by_id.values())) injected. This version
+    supplies a REAL accommodations doc with a chosen candidate so poi_pool
+    actually folds something in.
+
+    'hotel-x' is built to fail EXACTLY ONE axis under the fix and BOTH axes
+    under the bug: it deliberately omits resolved_name, so rederive_lodging
+    always flags it (Gate 2b not re-derivable) regardless of which pool gate.py
+    uses. It also carries no business_status (accommodations.schema.json has
+    no such field) and a recorded verify_status of 'verified' -- so if it were
+    ALSO folded into the pois axis (the bug), Gate 0 would fail to establish
+    'operating' (business_status is absent) and rederive_pois would flag the
+    SAME id as an unrelated 'superseded' failure, landing 'hotel-x' in BOTH
+    poi_axis and lodging_axis. Under the fix, only the real `pois` list (never
+    hotel-x) reaches rederive_pois, so poi_axis stays empty and the two axes
+    cannot share an id."""
     from scripts.gate import run_gate
     from tests.mech_fixtures import build_gate_inputs, rederive_kwargs
     pois, itin = build_gate_inputs()
-    rep = run_gate(pois, itin, advisory={"items": []}, **rederive_kwargs())
+    accommodations = {"stops": [{
+        "district": "測試區", "nights": 1, "chosen": "hotel-x",
+        "candidates": [{
+            "id": "hotel-x", "name_local": "測試旅館", "name_display": "測試旅館",
+            "verify_status": "verified", "facilities": [],
+            "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"},
+            # resolved_name deliberately ABSENT -- the discriminator (see
+            # docstring above).
+            "sources": [{"url": "https://a.example/hotel-x", "lang": "zh"},
+                        {"url": "https://b.example/hotel-x", "lang": "en"}],
+        }],
+    }]}
+    rep = run_gate(pois, itin, advisory={"items": []},
+                   **rederive_kwargs(accommodations=accommodations))
     poi_axis = [f for f in rep["failures"] if f.startswith("pois[")]
     lodging_axis = [f for f in rep["failures"] if f.startswith("accommodations ")]
+    assert lodging_axis, "fixture must produce a real lodging-axis finding to discriminate against"
     ids = [f.split("'")[1] for f in poi_axis]
     assert len(ids) == len(set(ids))
     assert not (set(ids) & {f.split("'")[3] for f in lodging_axis if "'" in f})
