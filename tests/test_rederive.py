@@ -759,3 +759,92 @@ def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
         unfolded.merge(rederive_closing(itin, bare))
     assert folded_only == 3, "the P4 fold must really be adding hotel ids here"
     assert unfolded.found == total.found == 56
+
+
+def _poi_rec(**over):
+    # NOTE: verified-pois.schema.json carries an allOf conditional —
+    # verify_status: verified REQUIRES `geocode` and sources.minItems 2, and any
+    # other status REQUIRES `status_reason`. An earlier draft of this plan omitted
+    # both and its fixtures failed validation for a reason unrelated to the field
+    # under test. Keep them.
+    p = {"id": "p1", "name_local": "花磚博物館", "name_display": "花磚博物館",
+         "category": "sight", "district": "嘉義市西區",
+         "verify_status": "verified",
+         "business_status": {"status": "OPERATIONAL",
+                             "source_url": "https://a.example.tw/p",
+                             "as_of": "2026-08-05"},
+         "geocode": {"lat": 23.48, "lng": 120.44, "geocode_source": "nominatim"},
+         "resolved_name": "花磚博物館",
+         "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                     {"url": "https://b.example.com/q", "lang": "en"}]}
+    p.update(over)
+    return p
+
+
+def test_a_bare_string_business_status_is_superseded_not_a_mismatch():
+    """TW-070 bucket 1. The input is PRESENT — it is simply in a form 0.32.0
+    superseded — so calling it a missing input would misreport it, and calling it
+    a wrong verdict would blame the agent for a rule change. Measured: 105 of 127
+    corpus POIs land here and nothing else does."""
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([_poi_rec(business_status="OPERATIONAL")])
+    assert out.found == 1
+    assert len(out.superseded) == 1 and "p1" in out.superseded[0]
+    assert out.mismatches == [] and out.missing == []
+
+
+def test_an_absent_resolved_name_is_a_rederivable_gap():
+    """Bucket 2: the input needed to recompute Gate 2b is not recorded at all."""
+    from scripts.rederive import rederive_pois
+    rec = _poi_rec()
+    del rec["resolved_name"]
+    out = rederive_pois([rec])
+    assert len(out.missing) == 1 and "resolved_name" in out.missing[0]
+    assert out.superseded == [] and out.mismatches == []
+
+
+def test_a_resolved_name_naming_another_venue_is_a_mismatch():
+    """Bucket 3: every input is present and the recorded verdict does not follow
+    from them. This is the only bucket that accuses the artifact of being wrong.
+
+    ⚠ An earlier draft used a cluster_fallback POI with no existence proof. That
+    shape can no longer produce a mismatch: Task 2 made a sourced business_status
+    an existence proof, so any POI that clears Gate 0 also clears Gate 2c, and a
+    POI that fails Gate 0 lands in bucket 1 instead. Measured — Gate 2c is
+    unreachable on the POI path. Gate 2b is what still discriminates here.
+    """
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([_poi_rec(resolved_name="嘉義公園")])   # a different venue
+    assert len(out.mismatches) == 1 and "p1" in out.mismatches[0]
+    assert "conflicting" in out.mismatches[0]
+    assert out.superseded == [] and out.missing == []
+
+
+def test_a_correctly_recorded_poi_produces_nothing():
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([_poi_rec()])
+    assert out.found == 1 and out.compared == 1
+    assert (out.mismatches, out.missing, out.superseded) == ([], [], [])
+
+
+def test_a_recorded_unverified_poi_is_not_flagged_merely_for_being_unverified():
+    """The axis reports a verdict that CHANGES, not a verdict that is unwelcome.
+    Measured: 22 of 127 corpus POIs are recorded unverified and re-derive
+    unverified; flagging them would bury the 105 that actually moved."""
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([_poi_rec(verify_status="unverified",
+                                  business_status="OPERATIONAL")])
+    assert (out.mismatches, out.missing, out.superseded) == ([], [], [])
+
+
+def test_run_rederivation_emits_the_third_check():
+    from scripts.rederive import run_rederivation
+    res = run_rederivation({"days": []}, {}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations={"stops": []},
+                           pois=[_poi_rec(business_status="OPERATIONAL")])
+    c = {x["name"]: x for x in res["checks"]}
+    assert c["verdicts_rule_current"]["passed"] is False
+    assert c["verdicts_rule_current"]["examined"] == 1
+    assert c["verdicts_match"]["passed"] is True

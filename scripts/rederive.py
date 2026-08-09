@@ -7,9 +7,12 @@ artifact: the agent was trusted to call them and transcribe the answer. Dogfood
 2026-08 showed what that buys — routing.yaml hop flags typed by hand, a
 gate-report with 13 green checks, and a user catching the errors by eye.
 
-Two orthogonal axes, both emitted as named checks with an examined:N count:
+Three axes, all emitted as named checks with an examined:N count:
   verdicts_match        — recorded verdict == recomputed verdict
   verdicts_rederivable  — every verdict-bearing record carries the inputs needed
+  verdicts_rule_current — the recorded verdict was produced under rules still
+                          in force, not ones a later release superseded
+                          (rederive_pois only, TW-070)
 
 A record whose inputs are MISSING is a verdicts_rederivable FAILURE, never a
 skip. A skipped record is indistinguishable from a green one, which is the exact
@@ -37,7 +40,7 @@ from scripts.cost import sum_costs
 from scripts.distance import classify_hop, haversine_km
 from scripts.hours import closing_status
 from scripts.legs import classify_leg
-from scripts.verify import classify_candidate, name_matches
+from scripts.verify import NO_RESOLVED_NAME, _parse_iso, classify_candidate, name_matches, verify_poi
 
 # Plugin defaults, overridable only from trip-brief. Deliberately NOT recorded
 # per-record: a per-leg threshold would let an agent widen the cap to clear its
@@ -48,19 +51,25 @@ COST_TOL = 0.005
 MIN_BUFFER_MINS = 30
 DEFAULT_VISIT_MINS = 60
 
+# The artifact spelling of verify.NO_RESOLVED_NAME. The sentinel itself is an
+# object() and cannot be serialised; the schema declares this literal. (TW-071)
+NO_RESULT_SENTINEL = "NO_RESULT"
+
 
 class Outcome:
-    """(mismatch failures, missing-input failures, records found, records compared)."""
+    """(mismatch failures, missing-input failures, superseded-rule failures,
+    records found, records compared)."""
 
-    __slots__ = ("mismatches", "missing", "found", "compared")
+    __slots__ = ("mismatches", "missing", "superseded", "found", "compared")
 
     def __init__(self):
-        self.mismatches, self.missing = [], []
+        self.mismatches, self.missing, self.superseded = [], [], []
         self.found = self.compared = 0
 
     def merge(self, other):
         self.mismatches += other.mismatches
         self.missing += other.missing
+        self.superseded += other.superseded
         self.found += other.found
         self.compared += other.compared
         return self
@@ -376,13 +385,110 @@ def rederive_lodging(accommodations, *, local_lang=None):
     return out
 
 
+def _verify_status_of(poi, local_lang, resolved, as_of):
+    """verify_poi against the record's own era. `as_of` None means there is no
+    era to anchor to, in which case the verdict is superseded anyway and the
+    date never reaches a comparison that matters."""
+    return verify_poi(dict(poi), geocoded=bool(poi.get("geocode")),
+                      in_claimed_region=True, local_lang=local_lang,
+                      resolved_name=resolved, today=as_of)[1:]
+
+
+def rederive_pois(pois, *, local_lang=None):
+    """Re-derive each POI's recorded verify_status.
+
+    The sixth axis, and the one 0.33.0 left out: verify_poi is the sole
+    gatekeeper of the iron rule "only verified flows downstream", and the
+    function whose rules changed most across 0.32.0 and 0.33.0 (Gate 0's sourced
+    object, Gate 2b's refusal on an absent resolved_name, Gate 2c's existence
+    proof). Three rules changed and no recorded verdict was ever re-examined.
+
+    Scope is verified-pois records ONLY. Lodging candidates have their own axis
+    (rederive_lodging) and must not be counted twice — so this takes the `pois`
+    LIST, never gate.py's folded `by_id` pool.
+
+    THE CLOCK IS ANCHORED TO THE ARTIFACT, not to wall-clock. The question asked
+    is "was this verdict correct when it was written", using the record's own
+    business_status.as_of era. OPERATING_MAX_AGE_DAYS is 90, so once consumers
+    migrate to the object form — which is exactly what this release asks of them
+    — a wall-clock read would turn a trip's gate red 91 days after verification
+    with no artifact change. That is the calendar-driven class the 0.33.0
+    CHANGELOG cited when deferring R5. Recency is a real concern and gets its own
+    named signal in a later version; it is not silently dropped.
+
+    Two gates are NOT re-derived here, and neither absence is silent: the
+    artifact records neither `in_claimed_region` nor `conflict_detected`, so the
+    permissive values are passed and Gates 3a/3b are invisible to this axis.
+    Recording them was considered and rejected — each new agent-authored field is
+    another self-attestation, which is the defect family this programme exists to
+    shrink.
+
+    Buckets are FIRST-APPLICABLE, in this order, so one record produces at most
+    one failure and the consumer is pointed at the one thing to fix first:
+
+      superseded  — the recorded verdict cannot stand because the rules that
+                    produced it were superseded (today: a bare-string or absent
+                    business_status, superseded by TW-063's object form)
+      missing     — an input needed to recompute is absent from the artifact
+                    (today: no resolved_name recorded at all)
+      mismatches  — every input is present and the verdict does not follow
+
+    The bucket is decided from the RECORDED INPUTS, never by string-matching
+    verify_poi's note. 0.33.0's final review found a trip-authored value
+    interpolated into a routed message could steer routing; a classifier that
+    greps its own error strings has the same shape.
+    """
+    out = Outcome()
+    for poi in pois or []:
+        rec = poi.get("verify_status")
+        if rec is None:
+            continue
+        out.found += 1
+        pid = poi.get("id", "?")
+        bs = poi.get("business_status")
+        sourced = isinstance(bs, dict)
+        as_of = _parse_iso(bs.get("as_of")) if sourced else None
+        recorded_name = poi.get("resolved_name")
+        resolved = (NO_RESOLVED_NAME if recorded_name == NO_RESULT_SENTINEL
+                    else recorded_name)
+        got, _note = _verify_status_of(poi, local_lang, resolved, as_of)
+        if got == rec:
+            out.compared += 1
+            continue
+        if not sourced:
+            out.superseded.append(
+                f"pois[{pid!r}]: recorded verify_status {rec!r} was produced under "
+                f"superseded rules — business_status is not the sourced "
+                f"{{status, source_url, as_of}} form, so the verdict cannot stand "
+                f"today; re-run source-verify for this POI")
+            continue
+        if resolved is None:
+            out.missing.append(
+                f"pois[{pid!r}]: no resolved_name recorded — Gate 2b (name match) "
+                f"is not re-derivable; record the geocoder's display_name, or "
+                f"NO_RESULT to state the lookup ran and found none")
+            continue
+        out.compared += 1
+        out.mismatches.append(
+            f"pois[{pid!r}]: recorded verify_status {rec!r} but verify_poi "
+            f"re-derives {got!r} from the inputs this artifact carries")
+    return out
+
+
 def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
-                     trip_brief=None, accommodations=None):
-    """Return {"checks": [verdicts_match, verdicts_rederivable], "failures": [...]}.
+                     trip_brief=None, accommodations=None, pois=None):
+    """Return {"checks": [verdicts_match, verdicts_rederivable,
+    verdicts_rule_current], "failures": [...]}.
 
     `examined` is deliberately two different numbers: rederivable.examined counts
     every verdict-bearing record found, match.examined only the subset with
     complete inputs. Their difference is how many records the input gaps hid.
+
+    verdicts_rule_current.examined is deliberately the POI axis's OWN found
+    count, not total.found: total.found also carries legs/hops/cost/closing/
+    lodging records, none of which can ever land in `superseded` (only
+    rederive_pois populates that bucket), so reusing total.found here would
+    inflate the denominator with records this check cannot possibly speak to.
     """
     total = Outcome()
     total.merge(rederive_legs(
@@ -402,12 +508,21 @@ def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
     total.merge(rederive_lodging(
         accommodations,
         local_lang=((trip_brief or {}).get("destination") or {}).get("local_lang")))
+    poi_outcome = rederive_pois(
+        pois, local_lang=((trip_brief or {}).get("destination") or {}).get("local_lang"))
+    total.merge(poi_outcome)
     return {
         "checks": [
             {"name": "verdicts_match", "passed": not total.mismatches,
              "examined": total.compared},
             {"name": "verdicts_rederivable", "passed": not total.missing,
              "examined": total.found},
+            # Third axis, 0.34.0. A verdict produced under superseded rules is
+            # neither wrong-on-its-inputs nor missing-an-input; folding it into
+            # either would misreport 105 of 127 corpus records. examined uses
+            # poi_outcome.found (see docstring), not total.found.
+            {"name": "verdicts_rule_current", "passed": not total.superseded,
+             "examined": poi_outcome.found},
         ],
-        "failures": total.mismatches + total.missing,
+        "failures": total.mismatches + total.missing + total.superseded,
     }
