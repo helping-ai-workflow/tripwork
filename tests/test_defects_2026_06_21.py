@@ -27,11 +27,28 @@ def _sourced_status(status, as_of="2026-06-01"):
 
 # --- shared builders (mirror tests/test_gate.py conventions) -------------------
 def _poi(pid, geo=True, status="verified", **extra):
+    """v0.34.0 (TW-070): run_gate now threads `pois` into rederive_pois, so a
+    sourced business_status + geocode_source + resolved_name are needed by
+    default (mirrors tests/test_gate.py's identical migration) -- otherwise
+    every POI built here lands in the 'superseded' bucket the moment it is
+    examined. as_of uses this module's own _sourced_status() default (a fixed
+    literal, matching this file's existing _TODAY convention for write-time
+    verify_poi/classify_candidate calls) rather than a wall-clock read: safe
+    here because rederive_pois anchors its OWN re-check to the record's own
+    business_status.as_of era, never wall-clock (see scripts/rederive.py::
+    rederive_pois's docstring), so this fixture cannot go stale as real time
+    passes. resolved_name mirrors name_local (an exact match) rather than the
+    NO_RESULT sentinel, because this helper -- unlike test_gate.py's -- always
+    gives the POI a real name to match against."""
     d = {"id": pid, "verify_status": status,
          "name_local": extra.pop("name_local", pid),
          "name_display": extra.pop("name_display", pid)}
     if geo:
-        d["geocode"] = {"lat": 1.0, "lng": 2.0}
+        d["geocode"] = {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"}
+    d["business_status"] = _sourced_status("OPERATIONAL")
+    d["resolved_name"] = d["name_local"]
+    d["sources"] = [{"url": "https://a.example/poi", "lang": "zh"},
+                    {"url": "https://b.example/poi", "lang": "en"}]
     d.update(extra)
     return d
 

@@ -1,4 +1,6 @@
 # tests/test_gate.py
+import datetime
+
 from scripts.gate import run_gate
 from tests.mech_fixtures import rederive_kwargs
 
@@ -12,9 +14,38 @@ _HOURS = {"close": "22:00", "last_order": "21:30", "last_entry": "21:30",
 
 
 def _poi(pid, geo=True, status="verified", closed_days=None, hours=None):
+    """v0.34.0 (TW-070): run_gate now threads `pois` into rederive_pois, so
+    every call site in this file re-derives verify_status, not just the ones
+    that opted into **rederive_kwargs(). No call site here ever overrides
+    `status` away from the default "verified", so this fixture carries a
+    sourced business_status + geocode_source + resolved_name by default —
+    the minimum recorded-input set verify_poi needs to re-derive 'verified'
+    for a generic, name-less single-letter test id — instead of every POI
+    in this file landing in the 'superseded' bucket the moment it is
+    examined.
+
+    as_of is computed at CALL time, never a literal (the same trap Task 2's
+    two hardcoded-as_of tests hit): OPERATING_MAX_AGE_DAYS is 90, so a fixed
+    date would flip every 'verified' in this file to a stale-signal mismatch
+    90 days after this file was edited, for a reason unrelated to whatever
+    the test is actually exercising.
+
+    resolved_name="NO_RESULT" is the real sentinel scripts/source_verify_run.py
+    writes when the geocoder ran and returned no display_name — used here
+    (rather than a hand-typed venue name) because these single-letter ids
+    ("a", "b", "hotel1", ...) have no name_local/name_display to match
+    against; NO_RESULT makes Gate 2b's name-match "not disputed" without
+    inventing a name this fixture was never given.
+    """
     d = {"id": pid, "verify_status": status}
     if geo:
-        d["geocode"] = {"lat": 1.0, "lng": 2.0}
+        d["geocode"] = {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"}
+    d["business_status"] = {"status": "OPERATIONAL",
+                            "source_url": "https://source.example/poi",
+                            "as_of": datetime.date.today().isoformat()}
+    d["resolved_name"] = "NO_RESULT"
+    d["sources"] = [{"url": "https://a.example/poi", "lang": "zh"},
+                    {"url": "https://b.example/poi", "lang": "en"}]
     if closed_days is not None:
         d["closed_days"] = closed_days
     if hours is not None:
@@ -447,6 +478,11 @@ def test_gate_kana_lodging_without_name_zh_fails():   # v0.30.0
 #     user-visible contract IS the gate report.
 
 def test_gate_surfaces_rederivation_match_failure_in_report():
+    """examined is 3, not 2 (pre-v0.34.0): _poi("a") now carries a sourced
+    business_status (TW-070) and correctly re-derives 'verified', adding one
+    more COMPARED record on the POI axis on top of the pre-existing
+    legs-mismatch + cost-match pair -- one more true (matching) comparison,
+    not a bug in this test."""
     legs = {"legs": [{"from": "三重", "to": "嘉義市", "mode": "drive",
                       "duration_mins": 400, "status": "ok"}]}
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
@@ -455,7 +491,7 @@ def test_gate_surfaces_rederivation_match_failure_in_report():
                        "line_items": []},
                  trip_brief={"dates": {"start": "2026-08-29", "end": "2026-08-31"}})
     assert r["status"] == "fail"
-    assert {"name": "verdicts_match", "passed": False, "examined": 2} in r["checks"]
+    assert {"name": "verdicts_match", "passed": False, "examined": 3} in r["checks"]
     assert any("drive_too_long" in f and "三重" in f for f in r["failures"])
 
 
@@ -464,10 +500,13 @@ def test_gate_surfaces_rederivation_rederivable_failure_in_report():
     just unverifiable) must also surface as a gate-report FAILURE via
     verdicts_rederivable, never silently absorbed.
 
-    examined is 3, not 2 (pre-v0.33.0): _poi("a") here deliberately carries no
+    examined is 4, not 3 (pre-v0.34.0): _poi("a") here deliberately carries no
     `hours` and _meal("a") no `closing_status`, so on top of the leg gap this
     row is now ALSO a genuine, separate rederivable gap (R4) -- one more true
-    finding on the same axis, not a bug in this test."""
+    finding on the same axis. TW-070 adds a further +1: _poi("a")'s own
+    sourced business_status now makes it a correctly-rederivable POI-axis
+    record too (found, not missing), so it is counted here without adding a
+    new failure of its own -- see verdicts_rule_current below."""
     legs = {"legs": [{"from": "嘉義", "to": "台南", "mode": "rail",
                       "duration_mins": 40, "status": "ok"}]}
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
@@ -476,7 +515,7 @@ def test_gate_surfaces_rederivation_rederivable_failure_in_report():
                        "line_items": []},
                  trip_brief={"dates": {"start": "2026-08-29", "end": "2026-08-31"}})
     assert r["status"] == "fail"
-    assert {"name": "verdicts_rederivable", "passed": False, "examined": 3} in r["checks"]
+    assert {"name": "verdicts_rederivable", "passed": False, "examined": 4} in r["checks"]
     assert any("last_service_exempt" in f for f in r["failures"])
     assert any("closing_status is not re-derivable" in f for f in r["failures"])
 
@@ -604,3 +643,43 @@ def test_gate_home_legs_rendered_check_always_present():
     """always-on, per the fix spec: appears in checks even when legs is None."""
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
     assert "home_legs_rendered" in [c["name"] for c in r["checks"]]
+
+
+# --- verdicts_rule_current (POI axis, v0.34.0): the wiring seam --------------
+
+def test_gate_surfaces_a_superseded_poi_verdict_in_its_report():
+    """The wiring seam. Every rederive_pois test calls the function directly;
+    deleting the `pois=pois` argument in gate.py would leave all of them green.
+    The gate report IS the mechanism's user-visible contract.
+
+    advisory={"items": []} is not decoration: without it run_gate fails for an
+    unrelated reason and the assertions below would pass on a gate that never
+    ran the new axis at all.
+    """
+    from scripts.gate import run_gate
+    from tests.mech_fixtures import build_gate_inputs, rederive_kwargs
+    pois, itin = build_gate_inputs()
+    pois[0]["business_status"] = "OPERATIONAL"      # the superseded bare form
+    pois[0]["verify_status"] = "verified"
+    rep = run_gate(pois, itin, advisory={"items": []}, **rederive_kwargs())
+    checks = {c["name"]: c for c in rep["checks"]}
+    assert rep["status"] == "fail"
+    assert checks["verdicts_rule_current"]["passed"] is False
+    assert checks["verdicts_rule_current"]["examined"] >= 1
+    assert any(pois[0]["id"] in f and "superseded" in f for f in rep["failures"])
+
+
+def test_gate_does_not_re_derive_a_chosen_lodging_on_both_axes():
+    """run_gate folds each stop's chosen lodging into by_id (P4). Passing that
+    folded pool to rederive_pois instead of the pois LIST would count every
+    chosen hotel twice — once here and once on rederive_lodging — silently
+    inflating every migration figure the CHANGELOG quotes."""
+    from scripts.gate import run_gate
+    from tests.mech_fixtures import build_gate_inputs, rederive_kwargs
+    pois, itin = build_gate_inputs()
+    rep = run_gate(pois, itin, advisory={"items": []}, **rederive_kwargs())
+    poi_axis = [f for f in rep["failures"] if f.startswith("pois[")]
+    lodging_axis = [f for f in rep["failures"] if f.startswith("accommodations ")]
+    ids = [f.split("'")[1] for f in poi_axis]
+    assert len(ids) == len(set(ids))
+    assert not (set(ids) & {f.split("'")[3] for f in lodging_axis if "'" in f})

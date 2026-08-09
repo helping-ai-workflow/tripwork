@@ -5,6 +5,7 @@ validator; the itinerary passes run_gate; the exports pass run_export_gate /
 run_html_gate. Shared by test_gate_cli / test_export_gate CLI tests /
 test_next_stage / test_e2e_mechanized_pipeline.
 """
+import datetime
 import os
 import pathlib
 
@@ -108,6 +109,16 @@ def candidates():
 
 
 def verified_pois():
+    # geocode_source + resolved_name + business_status (TW-070, v0.34.0): so
+    # rederive_pois re-derives poi-1 to the SAME 'verified' it's recorded as --
+    # mirrors the geocode_source/resolved_name pair accommodations() already
+    # carries for I2 (rederive_lodging). Without them the record is a genuine
+    # verdicts_rule_current gap (correct behaviour for the real corpus, wrong
+    # for this "everything passes" fixture). business_status.as_of is computed
+    # at CALL time, never a literal: OPERATING_MAX_AGE_DAYS is 90, so a fixed
+    # date would silently turn this fixture stale 90 days after it was written
+    # (the same trap Task 2's two hardcoded-as_of tests hit and had to be
+    # de-fused for).
     return {"pois": [{
         "id": "poi-1", "name_local": "五稜郭", "name_display": "五稜郭",
         "category": "sight", "district": "函館",
@@ -116,7 +127,11 @@ def verified_pois():
             {"url": "https://guide.example/goryokaku", "lang": "zh"},
         ],
         "verify_status": "verified",
-        "geocode": {"lat": 41.796, "lng": 140.757},
+        "geocode": {"lat": 41.796, "lng": 140.757, "geocode_source": "nominatim"},
+        "resolved_name": "五稜郭",
+        "business_status": {"status": "OPERATIONAL",
+                            "source_url": "https://official.example/goryokaku",
+                            "as_of": datetime.date.today().isoformat()},
         # v0.33.0 (R4): both rows below schedule poi-1 at 12:00 with slot "meal",
         # so last_order is what closing_status actually reads; last_entry is also
         # given so the fixture stays valid if a row's slot ever changes to visit.

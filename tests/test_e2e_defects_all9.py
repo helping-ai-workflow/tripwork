@@ -44,6 +44,12 @@ FERRY = {"id": "ferry", "name_local": "水社碼頭", "name_display": "水社碼
          "name_roman": "Shuishe Pier", "category": "activity", "district": "日月潭",
          "business_status": _sourced_status("OPERATIONAL"), "gmaps_place_id": "ChIJ_ferry",
          "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+         # resolved_name (TW-070, v0.34.0): the geocoder's display_name, the
+         # same value test_p1/_verified_pois() already pass as verify_poi's
+         # resolved_name ARGUMENT -- rederive_pois reads it off the POI dict
+         # itself (not a call argument), so without it the record is a
+         # genuine verdicts_rederivable gap (Gate 2b not re-derivable).
+         "resolved_name": "水社碼頭, 日月潭, 南投縣",
          # v0.33.0 (R4): explicit hours, not no_fixed_close -- this fixture schedules
          # ferry with slot "meal" (a lunch stop), so it should stay re-derivable the
          # same way a real itinerary row would be, not opt out via the open-air claim.

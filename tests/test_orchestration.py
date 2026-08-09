@@ -10,6 +10,8 @@ so a rename on either side of the file boundary (e.g. "routing hop X->Y" ->
 "hop X->Y") fails here instead of silently reverting to the itinerary-synthesis
 fall-through this release exists to end.
 """
+import datetime
+
 from scripts.gate import run_gate
 from scripts.orchestration import route_gate_failures
 from scripts.rederive import run_rederivation
@@ -109,8 +111,20 @@ def test_no_resolved_lodging_still_routes_to_synthesis_not_accommodation():
     absent") added to the SAME first _ROUTES entry: rederive_kwargs()'s
     accommodations={"stops": []} default keeps rederive_lodging silent, so
     there is nothing for the new markers to (wrongly) match here -- the entry
-    being first is what makes them safe, and this is what pins that."""
-    pois = [{"id": "a", "verify_status": "verified", "geocode": {"lat": 1, "lng": 2}}]
+    being first is what makes them safe, and this is what pins that.
+
+    POI "a" carries a sourced business_status + geocode_source + resolved_name
+    (TW-070, v0.34.0) so the new POI axis re-derives its recorded 'verified'
+    cleanly too -- without them "pois[" would add a second, unrelated failure
+    and break the single-failure isolation this test depends on."""
+    pois = [{"id": "a", "verify_status": "verified",
+            "geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"},
+            "resolved_name": "NO_RESULT",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://source.example/a",
+                                "as_of": datetime.date.today().isoformat()},
+            "sources": [{"url": "https://a.example/a", "lang": "zh"},
+                        {"url": "https://b.example/a", "lang": "en"}]}]
     itin = {"title": "t", "days": [
         {"date": "2026-06-12", "rows": [{"slot": "meal", "poi_id": "a", "text": "lunch"}]},
         {"date": "2026-06-13", "rows": [{"slot": "meal", "poi_id": "a", "text": "lunch"}]},
@@ -232,3 +246,22 @@ def test_source_verify_group_neither_shadows_nor_is_shadowed():
             if a is b or ta == tb:
                 continue
             assert a not in b, f"marker {a!r} ({ta}) is contained in {b!r} ({tb})"
+
+
+def test_the_superseded_poi_class_routes_to_source_verify():
+    """Built from REAL rederive_pois output, never a string literal: the marker
+    is hand-typed in orchestration.py and the message is hand-typed in
+    rederive.py, and nothing but a test spanning both pins that coupling."""
+    from scripts.orchestration import route_gate_failures
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([{
+        "id": "p1", "name_local": "花磚博物館", "name_display": "花磚博物館",
+        "category": "sight", "district": "嘉義市西區",
+        "verify_status": "verified", "business_status": "OPERATIONAL",
+        "geocode": {"lat": 23.48, "lng": 120.44, "geocode_source": "nominatim"},
+        "resolved_name": "花磚博物館",
+        "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                    {"url": "https://b.example.com/q", "lang": "en"}]}])
+    assert out.superseded, "fixture must produce the class under test"
+    assert route_gate_failures(out.superseded) == "tripwork:source-verify"
+    assert not any("legs[" in f for f in out.superseded)

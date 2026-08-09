@@ -552,13 +552,20 @@ def test_defect_04_lodging_cluster_fallback_no_proof_no_resolved_name(closure):
     """Defect 4 / gate time / rederive_lodging, on BOTH axes.
 
     verdicts_rederivable names the absent resolved_name; verdicts_match names the
-    recorded `verified` that classify_candidate re-derives as `unverified`."""
+    recorded `verified` that classify_candidate re-derives as `unverified`.
+
+    The mismatch marker is scoped to "candidate 'hotel-fallback':", not the
+    bare "recorded verify_status" the pre-v0.34.0 version of this test used:
+    TW-070's POI axis now ALSO produces a "recorded verify_status ... but
+    verify_poi re-derives ..." message for poi-legacy (a different defect,
+    see test_layer_boundary_gate_does_not_catch_the_write_time_defects), and
+    the bare marker would match both, breaking _one()'s exactly-one
+    guarantee for a reason that has nothing to do with lodging."""
     missing = _one(closure.failures, "no resolved_name")
     assert "candidate 'hotel-fallback'" in missing
     assert "Gate 2b (name match) is not re-derivable" in missing
 
-    mismatch = _one(closure.failures, "recorded verify_status")
-    assert "candidate 'hotel-fallback'" in mismatch
+    mismatch = _one(closure.failures, "candidate 'hotel-fallback': recorded verify_status")
     assert "'verified' but classify_candidate re-derives 'unverified'" in mismatch
     assert "cluster_fallback centroid with no existence proof" in mismatch
 
@@ -656,41 +663,69 @@ def test_the_two_rederivation_axes_report_different_examined_counts(closure):
     .examined counts only the subset with complete enough inputs to recompute.
     A fixture where they agree cannot demonstrate the axes are distinct.
 
-    10 found  = 2 legs + 3 hops + 1 cost + 3 timed POI rows + 1 lodging candidate
-     9 compared = the same minus defect 8's mode-less hop, the only record
-                  rederive_hops abandons before out.compared."""
+    15 found  = 2 legs + 3 hops + 1 cost + 3 timed POI rows + 1 lodging candidate
+                + 5 verified-pois.yaml records (v0.34.0, TW-070: rederive_pois
+                examines the WHOLE pois list -- poi-market, poi-museum,
+                poi-legacy, poi-fallback, poi-bare -- not only the three rows
+                the itinerary schedules).
+    14 compared = the same minus defect 8's mode-less hop, the only record
+                  rederive_hops abandons before out.compared. All 5 POI-axis
+                  records ARE compared (including poi-legacy's mismatch --
+                  a wrong verdict is still a completed comparison, only a
+                  genuinely absent input skips it)."""
     rederivable = closure.checks["verdicts_rederivable"]["examined"]
     match = closure.checks["verdicts_match"]["examined"]
-    assert (rederivable, match) == (10, 9)
+    assert (rederivable, match) == (15, 14)
     assert rederivable - match == 1
 
 
 def test_layer_boundary_gate_does_not_catch_the_write_time_defects(closure):
-    """The honest half of this closure: gate.py consumes `verify_status`, it never
-    re-runs verify_poi. poi-legacy carries defect 2 AND is scheduled AND is
-    recorded `verified` -- and the gate says nothing about it. Defect 2 closes
-    only because the write-time layer refuses it (test_defect_02).
+    """Retired-and-rewritten by v0.34.0 (TW-070), exactly as this test's own
+    prior version instructed: 'If a future release teaches the gate to
+    re-verify POIs, this test goes red and should be rewritten, not deleted.'
+    rederive_pois now re-examines the WHOLE verified-pois.yaml list (not only
+    scheduled rows), so poi-legacy's defect-2 gap -- recorded 'verified' with
+    geocode_source absent -- is now ALSO caught at gate time, closing the
+    boundary this test used to pin as permanently open.
 
-    If a future release teaches the gate to re-verify POIs, this test goes red
-    and should be rewritten, not deleted."""
+    Defect 2 still closes FIRST at write time (test_defect_02): a fresh
+    source-verify run over this exact shape refuses the POI before 'verified'
+    is ever recorded. What TW-070 adds is the second line of defense this
+    fixture's own scenario needs -- a driver wrote 'verified', then a field
+    was deleted by hand (a corpus-measured shape, not a contrived one: 19 of
+    127 real POIs omit geocode_source) -- and that hand-edited artifact no
+    longer slips past the gate silently. It surfaces as exactly one POI-axis
+    failure and routes to the SAME destination write-time refusal would have:
+    tripwork:source-verify (scripts/orchestration.py's `pois[` marker)."""
+    from scripts.orchestration import route_gate_failures
+
     assert closure.finished_pois["poi-legacy"]["verify_status"] == "verified"
     assert "poi-legacy" in {r["poi_id"] for d in closure.itinerary["days"]
                             for r in d["rows"] if r.get("poi_id")}
-    assert not [f for f in closure.failures if "poi-legacy" in f]
+    poi_legacy_failures = [f for f in closure.failures if "poi-legacy" in f]
+    assert len(poi_legacy_failures) == 1
+    assert poi_legacy_failures[0].startswith("pois['poi-legacy']")
+    assert route_gate_failures(poi_legacy_failures) == "tripwork:source-verify"
+    # the failure names the record, never the missing field by name -- the
+    # SAME discipline test_defect_02's write-time note already follows.
     assert not [f for f in closure.failures if "geocode_source" in f]
-    # and the two write-time-refused POIs are simply absent from the plan, so the
-    # gate has no reason to mention them either.
+    # and the two write-time-refused POIs are simply absent from the plan, so
+    # the gate has no reason to mention them either.
     assert not [f for f in closure.failures
                 if "poi-fallback" in f or "poi-bare" in f]
 
 
 def test_no_unattributed_gate_failure(closure):
-    """Every gate failure belongs to exactly one of the eight gate-time defects.
-    Without this, a fixture could close all eleven while also emitting failures
-    nobody looked at -- and a later regression would hide inside that noise."""
+    """Every gate failure belongs to exactly one of the eight gate-time defects,
+    or to the new gate-time echo of write-time defect 2 (v0.34.0, TW-070 --
+    see test_layer_boundary_gate_does_not_catch_the_write_time_defects).
+    Without this, a fixture could close all eleven while also emitting
+    failures nobody looked at -- and a later regression would hide inside
+    that noise."""
     markers = {
+        "defect 2 (gate-time echo, TW-070)": "pois['poi-legacy']",
         "defect 4 (rederivable)": "no resolved_name",
-        "defect 4 (match)": "recorded verify_status",
+        "defect 4 (match)": "candidate 'hotel-fallback': recorded verify_status",
         "defect 5": "home leg",
         "defect 6": "recorded flag 'ok' but classify_hop",
         "defect 7": "no duration_source",

@@ -48,7 +48,14 @@ _ROUTES = (
     # its own "carries neither depart+last_service ..." message, so the shorter
     # "carries neither" would steal legs traffic. test_orchestration.py's
     # pairwise-containment property pins that no marker contains another.
-    (("carries neither hours.close",), "tripwork:source-verify"),
+    #
+    # "pois[" (v0.34.0, TW-070): rederive_pois's superseded/mismatch/missing
+    # messages all start "pois[<id>]: ...". Both the no-hours class above and
+    # the superseded-verdict class here are fixed by re-running source-verify
+    # -- hours and verify_status both live in verified-pois.yaml and
+    # source-verify is the only stage that writes it -- so they share this
+    # group rather than adding a seventh.
+    (("carries neither hours.close", "pois["), "tripwork:source-verify"),
     (("AI-tone ",), "tripwork:itinerary-synthesis"),
 )
 

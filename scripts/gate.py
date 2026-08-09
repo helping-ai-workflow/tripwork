@@ -331,7 +331,7 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     # re-derivation failure names the producing stage and must route there.
     rd = run_rederivation(itinerary, by_id, legs=legs, routing=routing,
                           cost=cost, trip_brief=trip_brief,
-                          accommodations=accommodations)
+                          accommodations=accommodations, pois=pois)
     failures.extend(rd["failures"])
 
     checks = [

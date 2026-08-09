@@ -20,6 +20,7 @@ These guards do not run in CI.
 """
 import collections
 import copy
+import datetime
 
 import pytest
 
@@ -40,26 +41,49 @@ CLASSES = (
     ("row_no_closing_status", "no recorded closing_status"),
     ("lodging_no_resolved_name", "no resolved_name"),
     ("lodging_no_geocode_source", "no geocode.geocode_source"),
-    ("lodging_verify_status_mismatch", "recorded verify_status"),
+    # Narrowed from the bare "recorded verify_status" (v0.34.0, TW-070): the
+    # new POI axis's superseded message ALSO contains that phrase ("pois['id']:
+    # recorded verify_status 'verified' was produced under superseded rules
+    # ..."), so the bare marker would double-match every superseded POI and
+    # break _classify's exactly-one invariant. "but classify_candidate
+    # re-derives" is unique to rederive_lodging's own mismatch message.
+    ("lodging_verify_status_mismatch", "but classify_candidate re-derives"),
+    # New axis (v0.34.0, TW-070): rederive_pois re-examines the whole
+    # verified-pois.yaml list, not just scheduled rows. Every corpus hit today
+    # is the SAME subtype -- a bare-string or absent business_status, superseded
+    # by TW-063's sourced object form (105 of 127 records found across these
+    # four trips carry it; see scripts/rederive.py::rederive_pois's docstring).
+    # No corpus hit today is the 'missing' or 'mismatch' subtype, so this
+    # module carries no marker for them -- if a future corpus update produces
+    # one, _classify's assert surfaces it as an unattributed failure instead
+    # of silently absorbing it.
+    ("poi_verdict_superseded", "was produced under superseded rules"),
     ("ai_tone", "AI-tone "),
 )
 
-# Measured through the shipped run_gate after the C1 fix.
+# Measured through the shipped run_gate after the C1 fix, then again after the
+# TW-070 POI axis was wired in (v0.34.0): every count below except
+# poi_verdict_superseded is UNCHANGED from v0.33.0 -- the new axis only adds
+# failures, it does not alter or remove any pre-existing finding.
 # (total, {class: count}) per trip.
 EXPECTED = {
-    "2026-06-yilan": (26, {"hop_no_duration_source": 8, "poi_no_hours": 5,
+    "2026-06-yilan": (57, {"hop_no_duration_source": 8, "poi_no_hours": 5,
                            "row_no_closing_status": 11,
                            "lodging_no_resolved_name": 1,
-                           "lodging_no_geocode_source": 1}),
-    "2026-07-sun-moon-lake": (31, {"hop_no_duration_source": 3, "poi_no_hours": 12,
+                           "lodging_no_geocode_source": 1,
+                           "poi_verdict_superseded": 31}),
+    "2026-07-sun-moon-lake": (60, {"hop_no_duration_source": 3, "poi_no_hours": 12,
                                    "row_no_closing_status": 3,
                                    "lodging_no_resolved_name": 12,
-                                   "lodging_verify_status_mismatch": 1}),
-    "2026-08-chiayi": (32, {"hop_no_duration_source": 6, "row_no_closing_status": 10,
-                            "lodging_no_resolved_name": 3, "ai_tone": 13}),
-    "2026-09-northeast-coast": (36, {"hop_no_duration_source": 2, "poi_no_hours": 10,
+                                   "lodging_verify_status_mismatch": 1,
+                                   "poi_verdict_superseded": 29}),
+    "2026-08-chiayi": (50, {"hop_no_duration_source": 6, "row_no_closing_status": 10,
+                            "lodging_no_resolved_name": 3, "ai_tone": 13,
+                            "poi_verdict_superseded": 18}),
+    "2026-09-northeast-coast": (63, {"hop_no_duration_source": 2, "poi_no_hours": 10,
                                      "row_no_closing_status": 5,
-                                     "lodging_no_resolved_name": 2, "ai_tone": 17}),
+                                     "lodging_no_resolved_name": 2, "ai_tone": 17,
+                                     "poi_verdict_superseded": 27}),
 }
 
 
@@ -104,9 +128,14 @@ def test_the_five_axes_together_pin_the_release_headline_figures():
     same run_gate reports rather than from a separate hand-driven
     run_rederivation — the divergence C1 turned on.
 
-    103 verdict-bearing records found, 47 of them with inputs complete enough to
-    compare, and exactly ONE recorded verdict wrong (2026-07-sun-moon-lake's
-    lodging candidate d2-6, pinned by id in tests/test_rederive.py).
+    230 verdict-bearing records found (103 pre-TW-070 + 127 verified-pois.yaml
+    records the new POI axis now examines), 69 of them with inputs complete
+    enough to compare (47 pre-TW-070 + 22 sourced-but-not-superseded POIs), and
+    exactly ONE recorded verdict wrong (2026-07-sun-moon-lake's lodging
+    candidate d2-6, pinned by id in tests/test_rederive.py) -- the POI axis
+    contributes zero NEW mismatches on this corpus, only the 105-of-127
+    superseded findings verdicts_rule_current reports separately (see EXPECTED
+    above).
     """
     found = compared = 0
     match_failed = []
@@ -117,7 +146,7 @@ def test_the_five_axes_together_pin_the_release_headline_figures():
         if not checks["verdicts_match"]["passed"]:
             match_failed.append(trip)
         assert checks["verdicts_rederivable"]["passed"] is False, trip
-    assert (found, compared) == (103, 47)
+    assert (found, compared) == (230, 69)
     assert match_failed == ["2026-07-sun-moon-lake"]
 
 
@@ -147,11 +176,41 @@ def test_no_failure_class_routes_to_a_stage_that_cannot_write_it(trip):
 
 def _fix_source_verify(a):
     """Records the closing times it left absent (SKILL.md's "go back and find
-    the hours")."""
+    the hours"), and re-verifies every POI (TW-070, v0.34.0): a sourced
+    business_status + geocode_source + resolved_name -- what a real
+    source-verify re-run records -- then RECOMPUTES verify_status from those
+    inputs and overwrites the recorded value, the same "recompute and
+    overwrite" pattern _fix_legs/_fix_routing already use for their own
+    mismatch classes.
+
+    Scoped to every POI, not just the ones this round's report flagged
+    'superseded': a POI recorded 'unverified'/'conflicting' for the CORRECT
+    reason (Gate 0 never established, since business_status was absent) would
+    otherwise still match on this round and only surface its real verdict
+    after business_status is sourced -- exactly what a real re-run does in one
+    visit, not one field at a time. as_of is computed at CALL time, never a
+    literal (OPERATING_MAX_AGE_DAYS is 90) -- and `today=` is threaded through
+    the SAME value into the recompute, so Gate 2c's existence-proof recency
+    check reads the identical era, not wall-clock underneath a synthetic date.
+    """
+    from scripts.verify import verify_poi
+    today = datetime.date.today().isoformat()
     for p in a["pois"]["pois"]:
         h = p.setdefault("hours", {})
         if not h.get("close") and not h.get("no_fixed_close"):
             h["close"], h["as_of"] = "18:00", "2026-08-01"
+        if not isinstance(p.get("business_status"), dict):
+            p["business_status"] = {"status": "OPERATIONAL",
+                                    "source_url": "https://places.example/v1/place",
+                                    "as_of": today}
+        g = p.setdefault("geocode", {})
+        g.setdefault("geocode_source", "nominatim")
+        if "resolved_name" not in p:
+            p["resolved_name"] = p.get("name_local") or p.get("name_display")
+        _, status, _note = verify_poi(p, geocoded=bool(p.get("geocode")),
+                                      in_claimed_region=True,
+                                      resolved_name=p["resolved_name"], today=today)
+        p["verify_status"] = status
 
 
 def _fix_routing(a):
@@ -297,9 +356,14 @@ def test_removing_the_source_verify_route_reproduces_the_non_terminating_drain(
         monkeypatch):
     """The mutation that proves the guard above is load-bearing rather than
     tautological. With the `_ROUTES` source-verify group deleted — the exact
-    shape this branch shipped — the no-hours failures fall through to
-    itinerary-synthesis, which cannot write `hours`, and the drain reaches a
-    fixed point instead of passing.
+    shape this branch shipped — the no-hours failures AND the POI-axis
+    superseded failures (v0.34.0, TW-070 -- both live in verified-pois.yaml,
+    both only source-verify can fix) fall through to itinerary-synthesis,
+    which cannot write either field, and the drain reaches a fixed point
+    instead of passing.
+
+    36, not 5 (pre-TW-070): the fixed point now also strands yilan's 31
+    poi_verdict_superseded failures alongside its original 5 no-hours ones.
     """
     import scripts.orchestration as orchestration
 
@@ -308,5 +372,5 @@ def test_removing_the_source_verify_route_reproduces_the_non_terminating_drain(
     terminated, history = _drain("2026-06-yilan")
     assert terminated is False
     # A genuine fixed point, not merely slow progress: the tail repeats.
-    assert history[-1] == history[-2] == 5
+    assert history[-1] == history[-2] == 36
     assert history[-1] > 0

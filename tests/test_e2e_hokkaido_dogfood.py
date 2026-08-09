@@ -141,10 +141,23 @@ def test_d8_canonical_hygiene_protects_all_renderers_e2e():
     (run_gate), so a leak is blocked BEFORE any renderer runs — line-short.txt (which has
     no gate of its own) is clean by construction. A dirty canonical itinerary fails
     run_gate on both checks; the cleaned one passes and line_short renders clean."""
+    import datetime
+
     from scripts.gate import run_gate
     from scripts.render.line_short import render_line_short
 
-    pois = [{"id": "hak-goryokaku", "verify_status": "verified", "geocode": {"lat": 41.8, "lng": 140.7}}]
+    pois = [{"id": "hak-goryokaku", "verify_status": "verified",
+            "geocode": {"lat": 41.8, "lng": 140.7, "geocode_source": "nominatim"},
+            "resolved_name": "NO_RESULT",
+            # sourced business_status (TW-070, v0.34.0): run_gate now threads
+            # `pois` into rederive_pois, so this record must re-derive its own
+            # recorded 'verified' for `rc` (the clean/pass branch) below. as_of
+            # computed at call time, never a literal.
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://source.example/hak-goryokaku",
+                                "as_of": datetime.date.today().isoformat()},
+            "sources": [{"url": "https://a.example/hak-goryokaku", "lang": "zh"},
+                        {"url": "https://b.example/hak-goryokaku", "lang": "en"}]}]
     dirty = {"title": "北海道", "days": [{"date": "2026-07-01", "label": "D1", "rows": [
         {"slot": "meal", "poi_id": "hak-goryokaku", "text": "午餐(hak-goryokaku) must_do"},   # jargon
         {"slot": "visit", "poi_id": "hak-goryokaku", "text": "スタバ 喝咖啡"},                  # ungloss kana (paren-free line)
