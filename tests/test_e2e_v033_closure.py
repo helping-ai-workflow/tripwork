@@ -1,8 +1,15 @@
 """End-to-end consumer-fixture closure for v0.33.0 (CLAUDE.md pre-ship gate, step 7).
 
-ONE fixture trip that carries all eleven v0.33.0 exit-criterion defects at the
-same time, driven through BOTH real CLIs from a foreign cwd, with one named
-assertion per defect.
+ONE fixture trip that carries all eleven v0.33.0 exit-criterion defect
+TRIGGER SHAPES at the same time, driven through BOTH real CLIs from a foreign
+cwd, with one named assertion per defect. Defect 1's outcome changed under
+TW-072 (v0.34.0, Gate 2c now accepts a sourced business_status as an
+existence proof) — poi-fallback still carries the trigger shape (cluster_
+fallback geocode, no official source, no gmaps_place_id) but the fixture's
+pre-existing sourced business_status now supplies proof #3, so it correctly
+verifies rather than refuses. See test_defect_01's docstring below for the
+full account; the mechanism it originally proved (a cluster_fallback POI with
+NO proof at all must not verify) is still covered at the unit level.
 
 Why both CLIs. The eleven defects do not all live at the same layer, and a
 single `gate.py` run does not exercise both:

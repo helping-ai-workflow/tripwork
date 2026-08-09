@@ -261,6 +261,14 @@ def test_cluster_fallback_without_existence_proof_is_not_verified():
     candidate with no `business_status`, no official source and no
     `gmaps_place_id`, to keep exercising Gate 2c's own no-proof branch in
     isolation from Gate 0.
+
+    This `operating=True`-bypass shape is not purely synthetic: it mirrors a
+    genuinely live caller. `scripts/rederive.py::rederive_lodging` hard-codes
+    `operating=True` and reaches `classify_candidate` without a real Gate 0 in
+    front of it, because lodging has no `business_status` field yet (Task 6).
+    So this test doubles as the regression guard for that path — a lodging
+    `cluster_fallback` candidate with no proof still needs Gate 2c to refuse
+    it today.
     """
     poi = _clean_poi()
     poi.pop("business_status", None)
@@ -418,6 +426,11 @@ def test_recording_geocode_source_still_runs_gate_2c_as_before():
     testing the cluster_fallback sub-check itself. The second half
     (geocode_source='nominatim') never touches has_existence_proof at all —
     it stays on verify_poi, unmigrated, exactly as before.
+
+    Same live-caller note as test_cluster_fallback_without_existence_proof_is_
+    not_verified: this operating=True bypass mirrors rederive_lodging (Task 6
+    has not given lodging a business_status field yet), so this half also
+    doubles as that path's regression guard.
     """
     fallback = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
                                    "geocode_source": "cluster_fallback"})
@@ -472,12 +485,20 @@ def test_a_sourced_business_status_is_an_existence_proof():
     coordinate says this place exists". A dated, sourced first-party statement
     that the venue is OPERATING is exactly that. Accepting it dissolves the
     keyless asymmetry by construction, because Gate 0 already guarantees two
-    keyless routes (a dated official/social statement, or a tel: confirmation)."""
+    keyless routes (a dated official/social statement, or a tel: confirmation).
+
+    `as_of` is computed at run time, not hard-coded: `has_existence_proof`
+    reads recency against wall-clock (the deliberate design decision), so a
+    literal past date would silently flip this test to FAIL once real time
+    crosses OPERATING_MAX_AGE_DAYS past it — same fuse
+    tests/test_e2e_v033_closure.py:87-96's `_sourced_status()` docstring warns
+    about, same fix."""
+    import datetime
     from scripts.verify import has_existence_proof
     poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"}],
            "business_status": {"status": "OPERATIONAL",
                                "source_url": "https://a.example.tw/p",
-                               "as_of": "2026-08-05"}}
+                               "as_of": datetime.date.today().isoformat()}}
     assert has_existence_proof(poi) is True
 
 
@@ -517,14 +538,24 @@ def test_operating_from_status_accepts_an_iso_string_today():
 def test_verify_status_does_not_depend_on_having_an_api_key():
     """The invariant TW-072 exists to restore: the same candidate verified with
     and without a gmaps_place_id must reach the same verify_status, because the
-    keyless route now supplies its own proof."""
+    keyless route now supplies its own proof.
+
+    `as_of` is computed at run time, not hard-coded, for the same reason as
+    test_a_sourced_business_status_is_an_existence_proof above:
+    `has_existence_proof` reads recency against wall-clock regardless of the
+    `today` this test passes to `verify_poi`'s Gate 0 (that is the deliberate
+    difference from Task 3's artifact-anchored axis), so a literal past date
+    would flip only the keyless side of this comparison to FAIL once real time
+    aged it past OPERATING_MAX_AGE_DAYS — the `gmaps_place_id` proof on the
+    keyed side never expires, so the break would look like the invariant
+    itself failing rather than a stale fixture."""
     import datetime
     from scripts.verify import verify_poi
     base = {"id": "x", "name_local": "源興御香屋", "name_display": "源興御香屋",
             "district": "嘉義市西區",
             "business_status": {"status": "OPERATIONAL",
                                 "source_url": "https://a.example.tw/p",
-                                "as_of": "2026-08-05"},
+                                "as_of": datetime.date.today().isoformat()},
             "geocode": {"lat": 23.48, "lng": 120.44,
                         "geocode_source": "cluster_fallback"},
             "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
