@@ -43,6 +43,15 @@ _OPERATING_STATUS = {
 OPERATING_MAX_AGE_DAYS = 90
 
 
+# Google place ids are opaque but never this short; the field is agent-authored
+# and nothing in the plugin writes it, so a shape check is the only thing
+# standing between a stray value and a cleared gate. (TW-072) Measured on the
+# corpus: 86 POIs carry a gmaps_place_id, every one exactly 27 characters, none
+# shorter than 8, and zero lodging candidates carry one at all — the floor
+# demotes nothing real.
+_MIN_PLACE_ID_LEN = 8
+
+
 def _parse_iso(d):
     try:
         return datetime.date.fromisoformat(str(d))
@@ -85,7 +94,7 @@ def operating_from_status(business_status, today=None):
     as_of = _parse_iso(business_status.get("as_of"))
     if as_of is None:
         return None, "business_status has no valid as_of date"
-    ref = today or datetime.date.today()
+    ref = _parse_iso(today) or datetime.date.today()
     age = (ref - as_of).days
     if age > OPERATING_MAX_AGE_DAYS:
         return None, (f"business_status.as_of {as_of.isoformat()} is {age} days old "
@@ -97,14 +106,32 @@ def has_existence_proof(poi):
     """True when something independent of the coordinate says this place exists.
 
     A cluster centroid is the district's midpoint — it is a position, not
-    evidence. Two proofs are accepted because source-verify already collects
-    both: a source the skill flagged `official: true` (its own site or booking
-    page), or a `gmaps_place_id` recorded while the operating check was open
-    (skills/source-verify/SKILL.md:30). (TW-062)
+    evidence. Three proofs are accepted:
+
+      * a source the skill flagged `official: true` (its own site or booking page)
+      * a `gmaps_place_id` of plausible shape
+      * a SOURCED `business_status` — the object form {status, source_url, as_of}
+
+    The third is new in 0.34.0 and is what makes this gate keyless-reachable.
+    Gate 0 documents three routes and only the Places API route yields a
+    place_id, so before this a keyless consumer's cluster_fallback POI had one
+    possible proof (an official source) and cluster_fallback's trigger population
+    is precisely the small venues least likely to have one. Two machines reached
+    different verify_status values for the same restaurant and the artifact did
+    not show it. A dated first-party statement that the venue is operating is
+    evidence that it exists, which is what this function claims to test. (TW-072)
+
+    The bare-string business_status is deliberately NOT accepted: it is
+    self-attested, carries no source_url and no as_of, and admitting it would
+    reopen TW-063 through this gate.
     """
-    if (poi.get("gmaps_place_id") or "").strip():
+    place_id = (poi.get("gmaps_place_id") or "").strip()
+    if len(place_id) >= _MIN_PLACE_ID_LEN:
         return True
-    return any(s.get("official") for s in (poi.get("sources") or []))
+    if any(s.get("official") for s in (poi.get("sources") or [])):
+        return True
+    operating, _ = operating_from_status(poi.get("business_status"))
+    return operating is True
 
 
 def classify_candidate(candidate, geocoded, in_claimed_region,
@@ -134,7 +161,8 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     Args:
         candidate:        dict with 'sources' list, each item having 'lang'. Also
                           read here (Gate 2) via `has_existence_proof(candidate)`
-                          for its `gmaps_place_id` / `sources[].official` fields.
+                          for its `gmaps_place_id` / `sources[].official` /
+                          `business_status` fields (TW-072).
         geocoded:         bool — True if coordinates were successfully resolved.
         in_claimed_region: bool — True if coordinates fall inside the claimed district.
         local_lang:       optional str, ISO-639 code for the destination's local language.

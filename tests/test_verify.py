@@ -248,15 +248,27 @@ def test_cluster_fallback_without_existence_proof_is_not_verified():
 
     Nominatim finding nothing must not be a BETTER outcome than Nominatim
     finding a name that disagrees (which is `conflicting`).
+
+    Migrated for TW-072: `_clean_poi()`'s sourced `business_status` is now
+    itself an existence proof (that is the whole point of the fix) — any
+    business_status that gets `verify_poi` past Gate 0 (operating=True, via a
+    dated, sourced statement) satisfies `has_existence_proof`'s third proof by
+    the same read. So a POI that reaches Gate 2c through `verify_poi` with
+    Gate 0 already passed can no longer arrive proof-less; that combination is
+    now unreachable via the real entry point, which is the asymmetry closing,
+    not a hole. This drops to `classify_candidate` directly, passing
+    `operating=True` the way `verify_poi` would have derived it, on a
+    candidate with no `business_status`, no official source and no
+    `gmaps_place_id`, to keep exercising Gate 2c's own no-proof branch in
+    isolation from Gate 0.
     """
-    _, status, note = verify_poi(_clean_poi(), geocoded=True,
-                                 in_claimed_region=True, local_lang="zh",
-                                 resolved_name="春燕飯館")
+    poi = _clean_poi()
+    poi.pop("business_status", None)
+    status, note = classify_candidate(poi, geocoded=True, in_claimed_region=True,
+                                      local_lang="zh", operating=True,
+                                      geocode_source="cluster_fallback")
     assert status == "unverified"
     assert "cluster_fallback" in note
-    # Discriminating clause: it must fail for the RIGHT reason, not because
-    # Gate 0 tripped on business_status.
-    assert "no business_status signal" not in note
 
 
 def test_cluster_fallback_with_an_official_source_stays_verified():
@@ -396,11 +408,23 @@ def test_recording_geocode_source_still_runs_gate_2c_as_before():
     geocode_source must still run Gate 2c's existing cluster_fallback
     sub-check exactly as before -- centroid + no proof -> unverified with the
     existing centroid message, nominatim -> verified.
+
+    First half migrated for TW-072, same reason as
+    test_cluster_fallback_without_existence_proof_is_not_verified:
+    `_clean_poi()`'s sourced business_status now doubles as existence proof
+    once it clears Gate 0, so `verify_poi` can no longer land on this POI with
+    Gate 0 passed and no proof at the same time. Drops to classify_candidate
+    directly (operating=True, no business_status/official/place_id) to keep
+    testing the cluster_fallback sub-check itself. The second half
+    (geocode_source='nominatim') never touches has_existence_proof at all —
+    it stays on verify_poi, unmigrated, exactly as before.
     """
     fallback = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
                                    "geocode_source": "cluster_fallback"})
-    _, status, note = verify_poi(fallback, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+    fallback.pop("business_status", None)
+    status, note = classify_candidate(fallback, geocoded=True, in_claimed_region=True,
+                                      local_lang="zh", operating=True,
+                                      geocode_source="cluster_fallback")
     assert status == "unverified"
     assert "cluster_fallback" in note
 
@@ -441,3 +465,72 @@ def test_cluster_fallback_does_not_preempt_earlier_gates():
     assert status == "unverified"
     assert "independent sources" in note
     assert "cluster_fallback" not in note
+
+
+def test_a_sourced_business_status_is_an_existence_proof():
+    """TW-072: Gate 2c's stated job is existence — "something independent of the
+    coordinate says this place exists". A dated, sourced first-party statement
+    that the venue is OPERATING is exactly that. Accepting it dissolves the
+    keyless asymmetry by construction, because Gate 0 already guarantees two
+    keyless routes (a dated official/social statement, or a tel: confirmation)."""
+    from scripts.verify import has_existence_proof
+    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"}],
+           "business_status": {"status": "OPERATIONAL",
+                               "source_url": "https://a.example.tw/p",
+                               "as_of": "2026-08-05"}}
+    assert has_existence_proof(poi) is True
+
+
+def test_a_bare_string_business_status_is_not_an_existence_proof():
+    """Guard, GREEN at HEAD: the bare form is self-attested — no source_url, no
+    as_of, nothing to review. It must not become a back door into Gate 2c."""
+    from scripts.verify import has_existence_proof
+    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"}],
+           "business_status": "OPERATIONAL"}
+    assert has_existence_proof(poi) is False
+
+
+def test_a_blank_gmaps_place_id_is_not_an_existence_proof():
+    """gmaps_place_id is agent-authored: grep shows the plugin READS it
+    (verify.py, render/gmaps_links.py) and writes it NOWHERE. It stays an
+    accepted proof but gains a minimum shape so a stray value cannot clear the
+    gate."""
+    from scripts.verify import has_existence_proof
+    assert has_existence_proof({"id": "x", "gmaps_place_id": "   ", "sources": []}) is False
+    assert has_existence_proof({"id": "x", "gmaps_place_id": "y", "sources": []}) is False
+
+
+def test_operating_from_status_accepts_an_iso_string_today():
+    """TW-073: as_of goes through _parse_iso (tolerant), today went straight into
+    date subtraction, so a string raised TypeError from the arithmetic rather
+    than the entry. No production caller is affected —
+    scripts/source_verify_run.py passes a datetime.date — this removes the
+    tripwire for a future --today flag."""
+    import datetime
+    from scripts.verify import operating_from_status
+    bs = {"status": "OPERATIONAL", "source_url": "https://a.example.tw/p",
+          "as_of": "2026-08-05"}
+    assert (operating_from_status(bs, today="2026-08-09")
+            == operating_from_status(bs, today=datetime.date(2026, 8, 9)))
+
+
+def test_verify_status_does_not_depend_on_having_an_api_key():
+    """The invariant TW-072 exists to restore: the same candidate verified with
+    and without a gmaps_place_id must reach the same verify_status, because the
+    keyless route now supplies its own proof."""
+    import datetime
+    from scripts.verify import verify_poi
+    base = {"id": "x", "name_local": "源興御香屋", "name_display": "源興御香屋",
+            "district": "嘉義市西區",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://a.example.tw/p",
+                                "as_of": "2026-08-05"},
+            "geocode": {"lat": 23.48, "lng": 120.44,
+                        "geocode_source": "cluster_fallback"},
+            "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                        {"url": "https://b.example.com/q", "lang": "en"}]}
+    keyed = dict(base, gmaps_place_id="ChIJxxxxxxxxxxxxxxx")
+    today = datetime.date(2026, 8, 9)
+    kw = dict(geocoded=True, in_claimed_region=True, local_lang="zh",
+              resolved_name="源興御香屋", today=today)
+    assert verify_poi(dict(base), **kw)[1] == verify_poi(keyed, **kw)[1]

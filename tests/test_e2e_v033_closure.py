@@ -394,10 +394,12 @@ def test_write_time_cli_runs_from_a_foreign_cwd(closure):
     saved = json.loads((closure.work / "geocode-cache" / "geocode.json")
                        .read_text(encoding="utf-8"))
     assert saved == _geocode_cache()
-    # write-time verdicts: 3 clean, 2 refused.
+    # write-time verdicts: 4 clean, 1 refused. poi-fallback flips to verified
+    # under TW-072 (v0.34.0) — see test_defect_01's docstring below for why
+    # that is the corrected outcome, not a regression of Defect 1's fix.
     assert {p: closure.write_time_pois[p]["verify_status"]
             for p in sorted(closure.write_time_pois)} == {
-        "poi-bare": "unverified", "poi-fallback": "unverified",
+        "poi-bare": "unverified", "poi-fallback": "verified",
         "poi-legacy": "verified", "poi-market": "verified", "poi-museum": "verified"}
 
 
@@ -454,23 +456,48 @@ def test_every_fixture_artifact_is_schema_valid(closure):
 # WRITE TIME — defects 1-3, caught by verify_poi as the artifact is written
 # ---------------------------------------------------------------------------
 
-def test_defect_01_cluster_fallback_with_no_existence_proof(closure):
-    """Defect 1 / write time / verify.py Gate 2c.
+def test_defect_01_cluster_fallback_now_verifies_via_sourced_business_status(closure):
+    """Defect 1 / write time / verify.py Gate 2c — migrated for TW-072 (v0.34.0).
 
-    The real driver produced the cluster_fallback coordinate (no Nominatim hit
-    for the venue, district centroid used instead) and refused it."""
+    ORIGINAL (v0.33.0, TW-062): the real driver produced the cluster_fallback
+    coordinate (no Nominatim hit for the venue, district centroid used
+    instead) with no official source and no gmaps_place_id, and Gate 2c
+    refused it for lack of an existence proof independent of the coordinate.
+
+    WHY THIS FIXTURE NOW VERIFIES, CORRECTLY: poi-fallback has always carried
+    a sourced business_status (`_sourced_status()`) — every candidate in this
+    module does, because that is the only way `verify_poi`'s Gate 0 can
+    establish `operating=True` at all; there is no other route through the
+    real CLI. TW-072 adds that SAME sourced business_status as Gate 2c's third
+    accepted proof, because a dated, sourced statement that the venue is
+    operating is independent evidence that it exists, which is what Gate 2c
+    claims to test. So `operating_from_status` now backs both Gate 0 and Gate
+    2c off the identical field — a POI cannot clear Gate 0 through the real
+    driver without simultaneously supplying Gate 2c's proof. The specific
+    "no official source, no place_id" combination that stayed unverified in
+    v0.33.0 is exactly the keyless asymmetry TW-072 closes, and this fixture
+    demonstrating that flip IS the corrected behaviour, not a Gate 2c
+    regression: Gate 2c still refuses a genuinely proof-less cluster_fallback
+    POI (structural fact re-asserted below), it just no longer treats a
+    sourced business_status as insufficient once Gate 0 already accepted it.
+
+    A genuinely proof-less cluster_fallback POI can no longer be produced by
+    the real driver post-TW-072 (Gate 0 and Gate 2c read the same field), so
+    that branch is now exercised directly against classify_candidate at the
+    unit level: tests/test_verify.py::
+    test_cluster_fallback_without_existence_proof_is_not_verified.
+    """
     poi = closure.write_time_pois["poi-fallback"]
     assert poi["geocode"]["geocode_source"] == "cluster_fallback"
-    assert poi["verify_status"] == "unverified"
-    assert ("geocode is a cluster_fallback centroid with no existence proof"
-            in poi["status_reason"])
-    # and it re-refuses when re-verified from the FINISHED artifact on disk.
+    assert not any(s.get("official") for s in poi["sources"])
+    assert poi["verify_status"] == "verified"
+    assert "status_reason" not in poi
+    # and it re-verifies when re-checked from the FINISHED artifact on disk.
     _, status, note = verify_poi(closure.finished_pois["poi-fallback"],
                                  geocoded=True, in_claimed_region=True,
                                  local_lang=LOCAL_LANG,
                                  resolved_name=NO_RESOLVED_NAME)
-    assert (status, "cluster_fallback centroid with no existence proof" in note) \
-        == ("unverified", True)
+    assert (status, note) == ("verified", "")
 
 
 def test_defect_02_geocode_with_no_geocode_source(closure):
