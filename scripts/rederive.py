@@ -239,9 +239,37 @@ def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
                      default_visit_mins=DEFAULT_VISIT_MINS):
     """Re-derive each timed row's closing_status.
 
-    Scope: rows carrying BOTH a `time` and a `poi_id` that resolves in by_id.
-    Move rows and free-text meals (31 of 94 in the corpus) have no closing
-    verdict to make and are not counted in `examined`.
+    Scope: rows carrying BOTH a `time` and a `poi_id` that resolves in by_id,
+    EXCEPT `slot: lodging` rows. Move rows and free-text meals (31 of 94 in the
+    corpus) have no closing verdict to make and are not counted in `examined`.
+
+    Why lodging is out of scope (C1, the final v0.33.0 whole-branch review).
+    `run_gate` folds each stop's chosen lodging into `by_id` (the P4 rule,
+    scripts/gate.py::poi_pool), so a timed lodging row resolves and this
+    function used to demand `hours.close` or `hours.no_fixed_close` from it.
+    There is nowhere legal to answer: schemas/accommodations.schema.json's
+    candidate items are `additionalProperties: false` and declare no `hours`, so
+    adding one fails validate_artifact with "Additional properties are not
+    allowed ('hours' was unexpected)". The demand shipped unsatisfiable on 5 real
+    consumer rows (2026-06-yilan 2, 2026-08-chiayi 3) whose only escape was
+    deleting the row's `time` — destroying the arrival information.
+
+    The cut is on `slot`, not on "did this id come only from the accommodations
+    fold": 2 further corpus lodging rows (2026-07-sun-moon-lake `lealea`, `d2-2`)
+    resolve through verified-pois.yaml because the consumer copied the hotels
+    there, and they carry no `hours` either. A fold-membership cut would leave
+    those two demanding a closing time from a hotel.
+
+    Nothing is lost. The arrival-vs-reception check for lodging is a separate,
+    already-shipped mechanism reading a field that DOES exist on the lodging
+    schema: `scripts/facilities.py::reception_ok` against
+    `reception: {close, late_checkin}`, owned by accommodation-research
+    (skills/accommodation-research/SKILL.md:73-74) with its own stop condition.
+    What this function transcribes is the visit/meal rule
+    (skills/itinerary-synthesis/SKILL.md's `last_order` / `last_entry` plus a
+    `need_mins` buffer), which has no meaning for a check-in — and none at all
+    for chiayi's two CHECKOUT rows. Re-deriving `reception_ok` is a v0.34.0
+    follow-up; it is a different verdict on a different field, not this one.
 
     hours.no_fixed_close is a recorded CLAIM, not a skip: an open-air place
     genuinely has no closing time, and demanding a fake 23:59 would then flow
@@ -253,6 +281,8 @@ def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
         for j, row in enumerate(day.get("rows") or []):
             t, pid = row.get("time"), row.get("poi_id")
             if not t or not pid or pid not in (by_id or {}):
+                continue
+            if row.get("slot") == "lodging":
                 continue
             out.found += 1
             hours = (by_id[pid].get("hours") or {})

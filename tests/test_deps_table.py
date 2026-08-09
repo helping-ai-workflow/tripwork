@@ -120,3 +120,56 @@ def test_deps_stale_projection_ignores_unprojected_field_changes():
         "trip-brief.yaml": {**old_brief, "must_do": ["雞肉飯"]},
     }
     assert deps_stale(docs.get, "advisory.yaml") == []
+
+
+# --- rule 13.5 routing table (I2) ------------------------------------------
+# Same contract as _DEPS above, applied to the other table scripts/next_stage.py
+# declares the SKILL prose the spec of: "the SKILL prose is the spec; this script
+# is its executable form" (scripts/next_stage.py's module docstring). Before this
+# guard, skills/orchestrator/SKILL.md's rule 13.5 listed TWO destinations while
+# _ROUTES had five, and nothing caught the drift for a whole release.
+# The rows are indented (the table sits inside a numbered list item), so the
+# leading-whitespace allowance is load-bearing, not cosmetic.
+RULE_135_ROW = re.compile(
+    r"^\s*\|\s*\d+\s*\|.+\|\s*`(tripwork:[a-z-]+)`\s*\|\s*$", re.M)
+
+
+def _rule_135_targets():
+    body = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    start = body.index("13.5.")
+    end = body.index("\n14. ", start)
+    rows = RULE_135_ROW.findall(body[start:end])
+    assert rows, "rule 13.5 must document its routing table as numbered rows"
+    return rows
+
+
+def test_rule_13_5_targets_match_the_routes_table():
+    """The SKILL's routing table and `_ROUTES` must agree on WHICH stages exist
+    and in WHAT ORDER — order is load-bearing, because route_gate_failures
+    returns the first matching group, and the accommodation entry being first is
+    a documented deliberate exception.
+
+    Equality both ways, like the _DEPS guard: a stage added to _ROUTES without a
+    SKILL row fails here, and so does a SKILL row for a stage the router does not
+    have. The un-numbered fall-through row is excluded by the regex (it has no
+    leading digit), which is correct — it is the `return` after the loop, not a
+    table entry.
+    """
+    from scripts.orchestration import _ROUTES
+
+    assert _rule_135_targets() == [target for _markers, target in _ROUTES]
+
+
+def test_rule_13_5_names_the_marker_of_every_routes_group():
+    """A target list alone would stay green if a group's MARKERS changed
+    underneath it. Each documented row must also quote enough of its group's
+    markers to identify it — checked as "at least one marker of each group
+    appears in the rule 13.5 prose", so a marker rename that the SKILL does not
+    follow fails here.
+    """
+    from scripts.orchestration import _ROUTES
+
+    body = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    section = body[body.index("13.5."):body.index("\n14. ", body.index("13.5."))]
+    for markers, target in _ROUTES:
+        assert any(m.strip() in section for m in markers), (target, markers)

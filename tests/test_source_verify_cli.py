@@ -17,8 +17,18 @@ def _stub_resolve_place(table):
     (GeocodeResult_or_None, source_or_None)}. Any name not in `table` is an
     unresolvable lookup (None, None) — the same shape a real Nominatim miss
     returns. Used to drive scripts.source_verify_run's real (non-offline)
-    geocode path deterministically, without a network."""
-    def fake(name, district=None, country=None, timeout=10, cache=None, name_roman=None):
+    geocode path deterministically, without a network.
+
+    Accepts and honours `pace` (I5): the driver now hands resolve_place a
+    per-request pacing callback instead of sleeping once per call, so a stub
+    that rejected the keyword would make every test here fail with a TypeError
+    that says nothing about the behaviour under test. Calling it once models a
+    single issued request, which is what a canned table lookup stands in for.
+    """
+    def fake(name, district=None, country=None, timeout=10, cache=None,
+             name_roman=None, pace=None):
+        if pace is not None:
+            pace()
         return table.get(name, (None, None))
     return fake
 

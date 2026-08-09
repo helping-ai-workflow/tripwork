@@ -79,7 +79,8 @@ def geocode_structured(name, city=None, country=None, timeout=10):
     return GeocodeResult(lat=float(top["lat"]), lng=float(top["lon"]),
                          display_name=top.get("display_name", ""))
 
-def resolve_place(name, district=None, country=None, timeout=10, cache=None, name_roman=None):
+def resolve_place(name, district=None, country=None, timeout=10, cache=None,
+                  name_roman=None, pace=None):
     """Multi-tier resolve (structured query first, then free-text fallbacks) with an
     optional per-trip cache.
 
@@ -96,9 +97,23 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None, nam
       3. free-text '<name>' (bare core name)
       4. free-text '<name_roman> <district> <country>' (when name_roman given)
       5. free-text '<name_roman>'                       (when name_roman given)
-    Caller still rate-limits (Nominatim policy <= 1 req/s); this may issue up to
-    five requests on a hard-to-resolve POI, so space them.
+    `pace` is a zero-argument callback invoked once after EVERY request this
+    function actually issues — never on a cache hit, never on a tier that was
+    not reached. Nominatim's policy is <= 1 req/s, and a hard-to-resolve POI
+    walks all five tiers above, so a caller that sleeps once per CALL paces one
+    request and bursts the other four. That is what
+    scripts/source_verify_run.py::_rate_limited_resolve did until v0.33.0, and
+    TW-068 made that driver the SKILL-mandated bulk path over a whole
+    candidates.yaml — the consequence is an IP block on a free public service.
+    Pass `pace=lambda: time.sleep(delay)`; the default `None` is a no-op, so
+    callers that do their own pacing are unaffected.
     """
+    def _paced(fetch, *args, **kwargs):
+        out = fetch(*args, **kwargs)
+        if pace is not None:
+            pace()
+        return out
+
     if not name or not str(name).strip():
         raise ValueError("resolve_place requires a non-empty place name "
                          "(a blank name_local would silently geocode the city itself)")
@@ -116,7 +131,8 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None, nam
                 return (GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")),
                         value["source"])
 
-    result = geocode_structured(name, city=district, country=country, timeout=timeout)
+    result = _paced(geocode_structured, name, city=district, country=country,
+                    timeout=timeout)
     source = "nominatim_structured"
     if result is None:
         attempts = [" ".join(p for p in (name, district, country) if p), name]
@@ -126,7 +142,7 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None, nam
         for q in attempts:
             if not q or not str(q).strip():
                 continue
-            result = geocode(q, timeout=timeout)
+            result = _paced(geocode, q, timeout=timeout)
             if result is not None:
                 break
         source = "nominatim" if result is not None else None

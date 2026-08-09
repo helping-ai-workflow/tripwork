@@ -6,20 +6,14 @@ naked $, broken links, name-not-a-link, and bookable POIs missing an official
 source link. Output shape matches itinerary-gate: {status, checks, failures}
 (reuses schemas/gate-report.schema.json).
 """
-import sys as _sys
-import pathlib as _pathlib
 if __name__ == "__main__" and __package__ in (None, ""):
-    # run as `python scripts/export_gate.py`: make `from scripts.X import ...`
-    # resolve. Also drop the auto-added scripts/ dir from sys.path -- it
-    # shadows the stdlib `calendar` module with scripts/calendar.py for any
-    # bare `import calendar` downstream (main()'s `from scripts.gate import
-    # chosen_lodging_pois` now transitively imports `requests`, whose
-    # http.cookiejar does `from calendar import timegm`). See scripts/gate.py
-    # for the fuller account.
-    _here = str(_pathlib.Path(__file__).resolve().parent)
-    if _here in _sys.path:
-        _sys.path.remove(_here)
-    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
+    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
+    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
+    # Must precede every other import: the shadow breaks `import requests` too.
+    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+
+import sys as _sys
 
 import re
 from urllib.parse import unquote

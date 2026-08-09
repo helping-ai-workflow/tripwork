@@ -54,8 +54,14 @@ def test_decorative_emoji_flagged_but_rating_star_and_hazard_sign_exempt():
     ("希望這對您有幫助！", "chatbot_residue"),
 ])
 def test_zero_hit_lexicons_still_fire_on_their_target(text, kind):
-    """These four lexicons measured 0 TP and 0 FP on real canonical data. They
-    ship as regression locks, not as fixes — the CHANGELOG says so."""
+    """These FIVE lexicons measured 0 TP and 0 FP on real canonical data. They
+    ship as regression locks, not as fixes — the CHANGELOG says so.
+
+    Five, not four: the parametrize below has always covered `chatbot_residue`
+    alongside slop words, sentence templates, promo clichés and meaning stamps,
+    and it measured zero on the same corpus. The prose said "four" in both this
+    docstring and the CHANGELOG, which quietly omitted one of the shipped
+    lexicons from the disclosure."""
     assert kind in _kinds(ai_tone_failures(text))
 
 

@@ -172,3 +172,58 @@ def test_home_leg_unrendered_marker_falls_through_to_synthesis():
     assert any("has no move row" in f for f in failures)
     assert not any("legs[" in f for f in failures)
     assert route_gate_failures(failures) == "tripwork:itinerary-synthesis"
+
+
+def test_no_hours_marker_routes_to_source_verify():
+    """C2 (final whole-branch review): rule 13.5 could not terminate.
+
+    `rederive_closing` emits "POI carries neither hours.close nor
+    hours.no_fixed_close" for every scheduled row whose POI records no closing
+    time -- 34 such rows across the four schema-clean trips. `hours` lives in
+    `verified-pois.yaml`, which ONLY `tripwork:source-verify` writes, and that
+    skill's own SKILL.md:47 ends the paragraph with "leave `close` absent and
+    let the gate flag it". Before this entry `_ROUTES` had no source-verify
+    group, so the failure fell through to `tripwork:itinerary-synthesis` -- a
+    stage that cannot write verified-pois.yaml. Re-running it produced the same
+    failure forever: the reviewer's six-round drain on 2026-06-yilan reached a
+    fixed point at 7 failures and never passed
+    (test_the_no_hours_class_drains_instead_of_looping pins the termination).
+
+    Built from REAL run_rederivation output like the six above, never a string
+    literal.
+    """
+    poi = {"id": "p1", "name_display": "花磚博物館", "verify_status": "verified",
+           "hours": {"typical_visit_mins": 45, "as_of": "2026-08-01"}}
+    itin = {"days": [{"date": "2026-08-29", "rows": [
+        {"time": "13:15", "slot": "visit", "poi_id": "p1", "text": "花磚博物館",
+         "closing_status": "ok"}]}]}
+    res = run_rederivation(itin, {"p1": poi}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations={"stops": []})
+    assert any("carries neither hours.close" in f for f in res["failures"]), \
+        res["failures"]
+    assert route_gate_failures(res["failures"]) == "tripwork:source-verify"
+
+
+def test_source_verify_group_neither_shadows_nor_is_shadowed():
+    """Ordering guard for the entry above. `route_gate_failures` returns the
+    FIRST `_ROUTES` group any failure matches, so a marker that is a substring
+    of another group's marker (or vice versa) silently steals or loses traffic
+    depending only on tuple order. The reviewer verified pairwise containment
+    was clean across the original five; this keeps it clean at six.
+
+    Checked as a property over the real table rather than as a hand-listed
+    matrix, so a marker added in a later release is covered without editing
+    this test.
+    """
+    from scripts.orchestration import _ROUTES
+
+    flat = [(m, target) for markers, target in _ROUTES for m in markers]
+    assert any(t == "tripwork:source-verify" for _, t in flat), \
+        "the source-verify group must exist"
+    for a, ta in flat:
+        for b, tb in flat:
+            if a is b or ta == tb:
+                continue
+            assert a not in b, f"marker {a!r} ({ta}) is contained in {b!r} ({tb})"

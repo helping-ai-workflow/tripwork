@@ -23,22 +23,14 @@ Exit codes (mirrors scripts/gate.py's CLI convention): 0 written and
 schema-valid / 1 written but schema-invalid / 2 bad invocation or missing
 required input.
 """
-import sys as _sys
-import pathlib as _pathlib
 if __name__ == "__main__" and __package__ in (None, ""):
-    # run as `python scripts/source_verify_run.py`: make `from scripts.X import
-    # ...` resolve. Also drop the auto-added scripts/ dir from sys.path -- it
-    # shadows the stdlib `calendar` module with scripts/calendar.py for any bare
-    # `import calendar` downstream. This script imports scripts.verify ->
-    # scripts.geocode -> requests, and requests' http.cookiejar does `from
-    # calendar import timegm`, so the shadow breaks the import chain exactly
-    # the way it broke gate.py and export_gate.py (see scripts/gate.py's fuller
-    # account). Same fix here, applied before those two `from scripts...`
-    # imports below ever run.
-    _here = str(_pathlib.Path(__file__).resolve().parent)
-    if _here in _sys.path:
-        _sys.path.remove(_here)
-    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
+    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
+    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
+    # Must precede every other import: the shadow breaks `import requests` too.
+    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+
+import sys as _sys
 
 import argparse
 import datetime
@@ -49,7 +41,7 @@ import time
 import yaml
 
 from scripts.geocode import in_region, resolve_place
-from scripts.geocode_cache import cache_get, cache_key, load_cache, save_cache
+from scripts.geocode_cache import load_cache, save_cache
 from scripts.validate_artifact import validate_file
 from scripts.verify import NO_RESOLVED_NAME, is_official_url, verify_poi
 
@@ -95,14 +87,20 @@ def _flag_official(source, extra_suffixes):
 
 
 def _rate_limited_resolve(name, district, country, cache, name_roman=None):
-    """resolve_place wrapper that sleeps NOMINATIM_DELAY_S only after a call
-    that actually reached the network — never after a cache hit."""
-    was_hit = cache is not None and cache_get(cache, cache_key(name, district, country))[0]
-    result, source = resolve_place(name, district=district, country=country,
-                                    cache=cache, name_roman=name_roman)
-    if not was_hit:
-        time.sleep(NOMINATIM_DELAY_S)
-    return result, source
+    """resolve_place wrapper that sleeps NOMINATIM_DELAY_S after every request
+    that actually reached the network — never after a cache hit.
+
+    PER REQUEST, not per call (I5). resolve_place walks up to five tiers on a
+    hard-to-resolve POI (scripts/geocode.py's resolution order) and this used to
+    sleep once for the whole call, so four of those five requests went out back
+    to back against a <= 1 req/s policy. Sleeping here for a cache hit was
+    already excluded by a `was_hit` pre-check; the `pace` callback expresses the
+    same guarantee one level down, where it can see how many requests were
+    really issued, and drops the duplicate cache_get that pre-check needed.
+    """
+    return resolve_place(name, district=district, country=country, cache=cache,
+                         name_roman=name_roman,
+                         pace=lambda: time.sleep(NOMINATIM_DELAY_S))
 
 
 def _district_centroid(district, country, cache, offline, district_centroids):

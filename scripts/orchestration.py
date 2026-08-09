@@ -29,6 +29,24 @@ _ROUTES = (
     (("legs[", "legs.yaml absent"), "tripwork:inter-stop-legs"),
     (("routing hop ", "routing.yaml absent"), "tripwork:routing-audit"),
     (("cost.total", "cost.by_category", "cost.yaml absent"), "tripwork:cost-rollup"),
+    # "carries neither hours.close" is rederive_closing's missing-hours marker
+    # (scripts/rederive.py). `hours` lives in verified-pois.yaml and ONLY
+    # source-verify writes that file -- skills/source-verify/SKILL.md's own
+    # closure-days paragraph ends "leave `close` absent and let the gate flag
+    # it", so this is the stage the flag was always meant to reach. Without this
+    # group the failure fell through to itinerary-synthesis, which cannot write
+    # the field: 34 such rows across the four clean trips, and a drain
+    # simulation that reached a fixed point and never passed (C2).
+    #
+    # LAST among the producing-stage groups on purpose. verified-pois.yaml is an
+    # upstream of routing / accommodations / legs / cost in `_DEPS` below, so
+    # re-running source-verify invalidates all four -- fix the cheap downstream
+    # classes first and let the re-gate re-surface this one if it survives.
+    # The marker deliberately keeps the word `hours.close`: rederive_legs emits
+    # its own "carries neither depart+last_service ..." message, so the shorter
+    # "carries neither" would steal legs traffic. test_orchestration.py's
+    # pairwise-containment property pins that no marker contains another.
+    (("carries neither hours.close",), "tripwork:source-verify"),
     (("AI-tone ",), "tripwork:itinerary-synthesis"),
 )
 
@@ -122,6 +140,24 @@ def deps_stale(load, artifact):
     which invalidates verified-pois.yaml, and so on. Treating an absent
     fingerprint as stale would reproduce exactly that. The pressure to record
     fingerprints belongs on the gate (verdicts_rederivable), not on the router.
+
+    UNWIRED IN v0.33.0, and rule 11 is its hand-rolled twin. Do not read "not
+    wired" as "nothing produces the input": skills/travel-advisory/SKILL.md
+    instructs recording input_fingerprints["trip-brief.yaml"] and
+    schemas/advisory.schema.json declares the field. What is missing is DATA —
+    zero artifacts across the six corpus trips record it yet.
+
+    scripts/next_stage.py's rule 11 already performs the equivalent of
+    deps_stale(load, "advisory.yaml") inline, over this module's own
+    ADVISORY_PROJECTION: it reads advisory.yaml's recorded
+    input_fingerprints["trip-brief.yaml"] and compares it against
+    input_fingerprint(brief, ADVISORY_PROJECTION). The two differ only in the
+    absent-fingerprint branch — rule 11 falls back to an mtime compare because it
+    guards a `banned` regulation and must not fail open, while this function is
+    general and does. When a future release wires deps_stale into the router,
+    REPLACE rule 11's inline comparison with a call to it (keeping the mtime
+    fallback as an advisory-specific policy layered on top) rather than leaving
+    two implementations of the same projection to drift apart.
     """
     doc = load(artifact) or {}
     recorded = doc.get("input_fingerprints") or {}

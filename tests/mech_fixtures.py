@@ -5,11 +5,45 @@ validator; the itinerary passes run_gate; the exports pass run_export_gate /
 run_html_gate. Shared by test_gate_cli / test_export_gate CLI tests /
 test_next_stage / test_e2e_mechanized_pipeline.
 """
+import os
 import pathlib
 
 import yaml
 
 SLUG = "2026-08-testtrip"
+
+# The consumer corpus the release's headline measurements were taken against.
+# CONDITIONAL, and read from the environment so it is not pinned to one machine:
+# every guard using it is `skipif`-ed on the directory existing, and CI runs
+# without the corpus (.github/workflows/ci.yml checks out this repo only), so
+# those guards DO NOT RUN in CI. Point TRIPWORK_CORPUS at a checkout of the
+# consumer workspace's `trips/` directory to run them elsewhere.
+CORPUS = pathlib.Path(os.environ.get(
+    "TRIPWORK_CORPUS", "/home/user/hp_workspace/tripwork-workspace/trips"))
+
+# The four trips whose artifacts pass validate_artifact at HEAD. hokkaido-7d and
+# nz-south-island are excluded: both already fail validation (hokkaido routing
+# carries far_hops/max_hop_mins/slug; nz clusters lack district), so they are
+# not a baseline for anything.
+CORPUS_TRIPS = ("2026-06-yilan", "2026-07-sun-moon-lake", "2026-08-chiayi",
+                "2026-09-northeast-coast")
+
+
+def load_trip(trip):
+    """Every artifact of one corpus trip, as the gate CLI would load them
+    (absent optional artifacts become None, exactly like scripts/gate.py's
+    `opt()`)."""
+    d = CORPUS / trip
+
+    def opt(name):
+        p = d / name
+        return yaml.safe_load(p.read_text(encoding="utf-8")) if p.is_file() else None
+
+    return {"pois": opt("verified-pois.yaml"), "itinerary": opt("itinerary.yaml"),
+            "accommodations": opt("accommodations.yaml"),
+            "calendar": opt("calendar.yaml"), "advisory": opt("advisory.yaml"),
+            "legs": opt("legs.yaml"), "routing": opt("routing.yaml"),
+            "cost": opt("cost.yaml"), "brief": opt("trip-brief.yaml") or {}}
 
 MD_DELIVERABLE = """## 測試行程
 

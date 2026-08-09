@@ -538,6 +538,46 @@ def test_gate_home_leg_index_out_of_range_fails():
     assert any("leg_index 5 does not match any recorded leg" in f for f in r["failures"])
 
 
+def test_gate_a_non_integer_leg_index_is_a_gate_failure_not_a_traceback():
+    """Reviewer triage, fix now: `leg_index: "0"` (a string, the shape
+    hand-authored YAML produces) used to raise TypeError out of `run_gate`.
+    `scripts/gate.py::main` does not catch TypeError around run_gate, so the CLI
+    died with a traceback instead of the documented exit 2 — and a gate that
+    CRASHES on bad input is strictly worse than one that fails it, because the
+    consumer gets no failure list at all.
+
+    The schema forbids a non-integer, but `opt()` deliberately does not
+    schema-validate (that is what lets the gate report a fixable failure instead
+    of exiting 2 on a dirty trip), so the value reaches this code verbatim.
+    """
+    itin = _itin([{"slot": "move", "text": "自駕", "leg_index": "0"}])
+    r = run_gate([], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=_home_leg()))
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is False
+    assert any("leg_index '0' is not an integer" in f for f in r["failures"])
+    # routes like every other unrendered-home-leg defect: synthesis wrote the row.
+    from scripts.orchestration import route_gate_failures
+    assert route_gate_failures(r["failures"]) == "tripwork:itinerary-synthesis"
+
+
+def test_gate_leg_index_with_no_legs_yaml_still_reports_the_dangling_reference():
+    """Guard, GREEN at HEAD: docstring reconciliation (reviewer triage, fix
+    now). The docstring said a
+    `legs=None` means "no home-leg data to check either way", but the
+    out-of-range loop still ran with n_legs == 0, so a row carrying a leg_index
+    DID produce a failure. The behaviour is right — a row pointing at leg 0 of a
+    file that is not there is a real dangling reference — so the docstring was
+    corrected to match rather than the loop suppressed. This pins the behaviour
+    the prose now describes.
+    """
+    itin = _itin([{"slot": "move", "text": "自駕", "leg_index": 0}])
+    r = run_gate([], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=None))
+    assert any("leg_index 0 does not match any recorded leg" in f
+               for f in r["failures"])
+
+
 def test_gate_home_legs_rendered_check_always_present():
     """always-on, per the fix spec: appears in checks even when legs is None."""
     r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})

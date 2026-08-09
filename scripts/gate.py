@@ -6,23 +6,14 @@ POI may be scheduled on a closed day; every must_do must be covered; every
 banned/restricted advisory item must be surfaced. Content correctness of the
 sources themselves is source-verify's job; this gate checks the assembled plan.
 """
-import sys as _sys
-import pathlib as _pathlib
 if __name__ == "__main__" and __package__ in (None, ""):
-    # run as `python scripts/gate.py`: make `from scripts.X import ...` resolve.
-    # Python auto-prepends this script's OWN directory (scripts/) to sys.path
-    # before this line ever runs. That directory contains scripts/calendar.py,
-    # which then SHADOWS the stdlib `calendar` module for any bare `import
-    # calendar` anywhere downstream -- http.cookiejar does exactly that
-    # (`from calendar import timegm`), so importing `requests` transitively
-    # (rederive -> verify -> geocode, added by I2's lodging re-derivation)
-    # crashes with "cannot import name 'timegm' from 'calendar'" pointing at
-    # OUR file. Drop the auto-added entry; `scripts.X` imports still resolve
-    # once repo_root is on the path, they never needed scripts/ itself there.
-    _here = str(_pathlib.Path(__file__).resolve().parent)
-    if _here in _sys.path:
-        _sys.path.remove(_here)
-    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
+    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
+    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
+    # Must precede every other import: the shadow breaks `import requests` too.
+    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+
+import sys as _sys
 
 from scripts.facilities import stop_meets_required
 from scripts.calendar import poi_closed_on
@@ -48,6 +39,37 @@ def chosen_lodging_pois(accommodations):
         if chosen is not None:
             out.append(chosen)
     return out
+
+def poi_pool(pois, accommodations):
+    """The id->POI map `run_gate` actually resolves rows against: verified-pois
+    plus each stop's chosen lodging folded in (P4), verified-pois winning on an
+    id collision.
+
+    Extracted so nothing can rebuild it a DIFFERENT way and then claim to have
+    measured the gate. That is exactly how C1 shipped: the corpus guard at
+    tests/test_rederive.py rebuilt `by_id` from verified-pois alone, putting 58
+    rows in closing scope while the shipped gate put 63 there — the 5-row delta
+    was the whole defect, and the guard could not see it because it was
+    measuring a different pool. Call this; do not re-implement the fold.
+
+    ⚠ KNOWN DIVERGENCE, surfaced not fixed (v0.34.0 follow-up). export_gate's
+    poi_map builds the same fold with the OPPOSITE precedence — a dict
+    comprehension over `pois + chosen_lodging_pois(...)`, so the lodging record
+    wins an id collision instead of losing it. Measured live on
+    2026-07-sun-moon-lake, where `lealea` and `d2-2` exist in BOTH files: the
+    gate verifies the verified-pois record (category / district /
+    gmaps_place_id) while the renderer renders the accommodations candidate
+    (booking / cost / facilities). Each precedence is defensible for its own
+    job, which is why this is not a drive-by fix — flipping export to match
+    would drop `booking` from those two POIs and silently disable
+    export_gate's bookable-link check on them. Unifying the two needs its own
+    design; it is NOT simply "call poi_pool here too".
+    """
+    by_id = {p["id"]: p for p in pois}
+    for lp in chosen_lodging_pois(accommodations):
+        by_id.setdefault(lp["id"], lp)
+    return by_id
+
 
 def _referenced_ids(days):
     ids = set()
@@ -78,9 +100,21 @@ def _home_legs_rendered_failures(itinerary, legs):
     Deliberately its OWN check, not folded into verdicts_match/verdicts_rederivable:
     neither axis fits — this is "a consumed input never reached the deliverable",
     not "a recorded verdict is wrong" (verdicts_match) or "an input is missing"
-    (verdicts_rederivable). A `legs=None` (legs.yaml absent) means there is no
-    home-leg data to check either way; that gap is already flagged on the
-    rederivable axis (rederive_legs) and is not duplicated here.
+    (verdicts_rederivable). A `legs=None` (legs.yaml absent) means there are no
+    home legs to look for, so the first loop finds nothing; the SECOND loop
+    still runs with n_legs == 0, so a row carrying a `leg_index` is reported as
+    a dangling reference. That is deliberate and correct — a row pointing at leg
+    0 of a file that is not there IS wrong — and it co-occurs with rederive_legs'
+    "legs.yaml absent", which wins _ROUTES priority, so it adds detail rather
+    than mis-routing.
+
+    A non-integer `leg_index` is a gate FAILURE, never an exception. The schema
+    forbids one, but `main()`'s `opt()` deliberately does not schema-validate
+    (that is what lets a dirty trip get a routed, fixable failure instead of
+    exit 2), so a hand-authored `leg_index: "0"` reaches this code verbatim and
+    used to raise TypeError straight out of run_gate — which main() does not
+    catch, so the CLI died with a traceback and the consumer got no failure list
+    at all.
 
     Endpoints are matched by INDEX, never by string: the corpus shows a leg's
     `from`/`to` and the itinerary row that renders it are NOT the same string in
@@ -96,13 +130,21 @@ def _home_legs_rendered_failures(itinerary, legs):
     """
     legs_list = (legs or {}).get("legs") or []
     home_indices = [i for i, lg in enumerate(legs_list) if lg.get("kind") == "home"]
-    referenced = set()
+    referenced, malformed = set(), []
     for d in itinerary.get("days", []):
         for row in d.get("rows", []):
             li = row.get("leg_index")
-            if li is not None:
+            if li is None:
+                continue
+            # bool is an int subclass; `leg_index: true` is not an index.
+            if isinstance(li, int) and not isinstance(li, bool):
                 referenced.add(li)
-    failures = []
+            else:
+                malformed.append(li)
+    failures = [
+        f"itinerary row leg_index {li!r} is not an integer — synthesis must "
+        f"reference a recorded leg by its position in legs.yaml"
+        for li in malformed]
     for i in home_indices:
         if i not in referenced:
             lg = legs_list[i]
@@ -154,12 +196,11 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         advisory:   optional advisory dict; when given, banned/restricted items must be surfaced.
         must_do:    optional list of POI ids that MUST be scheduled.
     """
-    by_id = {p["id"]: p for p in pois}
     # P4: fold each stop's chosen lodging into the POI pool so a `day.lodging` /
     # lodging-row id referencing a hotel resolves natively (verified-pois win on id
-    # collision). The renderers assemble poi_map the same way (chosen_lodging_pois).
-    for lp in chosen_lodging_pois(accommodations):
-        by_id.setdefault(lp["id"], lp)
+    # collision). The renderers assemble poi_map the same way (chosen_lodging_pois),
+    # and every test that wants to measure THIS pool must call poi_pool (C1).
+    by_id = poi_pool(pois, accommodations)
     days = itinerary.get("days", [])
     referenced = _referenced_ids(days)
 
@@ -293,7 +334,10 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         {"name": "japanese_glossed",
          "passed": not any("no （中文）gloss" in f for f in failures)},
         # `passed` reads the direct return value, not a substring scan of the
-        # merged failures list like the thirteen checks above. AI-tone snippets embed
+        # merged failures list like the other thirteen checks — eight of them
+        # literally above this line, the remaining five appended conditionally
+        # below (no_closed_day_violation, must_do_covered, advisory_items_surfaced,
+        # overnight_stops_have_lodging, required_facilities_met). AI-tone snippets embed
         # arbitrary trip text, so a substring scan would be the only check in this
         # file whose truth depends on trip content.
         {"name": "no_ai_tone", "passed": not ai_tone},

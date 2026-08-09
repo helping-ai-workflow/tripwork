@@ -40,9 +40,9 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   (31 + 1); the em-dash one is deliberately narrow (the corpus contains 28
   non-flagged dash-adjacent characters — 22 U+2013, 6 U+FF5E — in legitimate date
   ranges and opening-hours notation, and widening the pattern to catch them would
-  fail every one of those lines). The other **four word-list lexicons — slop words,
-  sentence templates, promo clichés, meaning stamps — measured zero hits on the same
-  five itineraries: 0 true positives and 0 false positives.** They ship as
+  fail every one of those lines). The other **five word-list lexicons — slop words,
+  sentence templates, promo clichés, meaning stamps, chatbot residue — measured zero
+  hits on the same five itineraries: 0 true positives and 0 false positives.** They ship as
   **regression locks, not fixes**: nothing in the shipped corpus currently trips
   them, so their job this release is to stay silent and catch a future regression,
   not to have found anything today. A fifth candidate lexicon, `rule_of_three`, was
@@ -92,11 +92,20 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   producing skills' Input rows and fails the moment the table and the documentation
   disagree, in both directions (verified by live mutation). The **content predicate
   `deps_stale` is built, unit-tested, and deliberately NOT wired into the router** —
-  `scripts/next_stage.py` imports only `GATE_INPUTS`/`EXPORT_GATE_INPUTS`, never
-  `deps_stale`/`_DEPS`. Two measured reasons: no producing stage records
-  `input_fingerprints` yet, and **zero artifacts across all six corpus trips carry the
-  field at all** — wiring the content check today would change nothing for anyone,
-  because there is nothing yet to compare. `skills/orchestrator/SKILL.md` already
+  `scripts/next_stage.py` imports six names from `scripts/orchestration.py`
+  (`ADVISORY_PROJECTION`, `GATE_INPUTS`, `EXPORT_GATE_INPUTS`, `candidates_stale`,
+  `input_fingerprint`, `route_gate_failures`) and `deps_stale`/`_DEPS` are not among
+  them. The measured reason is data, not machinery: **zero artifacts across all six
+  corpus trips record `input_fingerprints`**, so the fail-open predicate would return
+  an empty list for every edge and could not be validated against anything real. The
+  producing side is NOT missing — `skills/travel-advisory/SKILL.md` already instructs
+  recording `input_fingerprints["trip-brief.yaml"]`, `schemas/advisory.schema.json`
+  already declares the field, and rule 11 in `scripts/next_stage.py` already performs
+  `deps_stale`'s comparison inline for that one edge, over the same
+  `ADVISORY_PROJECTION`. So `deps_stale` is the general form of a check the router
+  already runs in one hand-rolled place; 0.34.0 should unify the two rather than grow a
+  second copy (a note in `scripts/orchestration.py` says so beside the function).
+  `skills/orchestrator/SKILL.md` already
   describes it as "consumed by future stages"; that framing is accurate and this
   release does not change it. What ships live and enforced is the **report tier**:
   rules 13 and 15 (`scripts/next_stage.py`) now compare `gate-report.yaml` /
@@ -130,11 +139,45 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
 
 ### Migration — read this before re-gating an existing trip
 
-- **Re-gating any of the four existing consumer trips now reports 19
-  `verdicts_rederivable` failures**, one per routing hop, all `no duration_source` —
-  every one of those hops predates TW-066, which is what started requiring the field.
-  `verdicts_match` is clean on all 29 re-derived records across the four trips; the gap
-  is **provenance that was never recorded, not verdicts that were wrong.**
+- **Re-gating the four existing consumer trips reports 125 gate failures in total** —
+  26 / 31 / 32 / 36 for yilan / sun-moon-lake / chiayi / northeast-coast. Measured
+  through the shipped `run_gate` over all five re-derivation axes at once, not through
+  a subset:
+
+  | Axis | Examined | Failures |
+  |---|---|---|
+  | `verdicts_rederivable` | 103 verdict-bearing records | 94 |
+  | `verdicts_match` | 47 records with complete inputs | **1** |
+  | `no_ai_tone` | (not a re-derivation axis) | 30 |
+
+  The single `verdicts_match` failure is real and is named in the lodging bullet above:
+  2026-07-sun-moon-lake's candidate `d2-6`, a `cluster_fallback` centroid recorded
+  `verified` with no existence proof. Everything else is **provenance that was never
+  recorded, not verdicts that were wrong**, and the 94 split cleanly: 19 hops with no
+  `duration_source` (they predate TW-066), 56 scheduled rows with no recorded
+  `closing_status` or no `hours.close`, 18 lodging candidates with no `resolved_name`
+  (the field is new in this release) and 1 with no `geocode_source`.
+
+  An earlier draft of this section quoted **19 failures on 29 records**. That figure was
+  measured before the closing and lodging axes existed — it is `rederive_legs` +
+  `rederive_hops` + `rederive_cost` in isolation — and describing the shipped five-axis
+  gate with it understated the migration by a factor of five. `tests/test_corpus_gate.py`
+  now pins every number above against a real `run_gate` report, per trip and per failure
+  class, so the document and the mechanism cannot drift apart again.
+- **A timed `slot: lodging` row is not subject to the closing-buffer check.** The gate
+  folds each stop's chosen lodging into the POI pool (P4), which briefly put check-in and
+  checkout rows in `rederive_closing`'s scope and demanded `hours.close` from them —
+  unsatisfiable, because `schemas/accommodations.schema.json` forbids `hours` on a
+  candidate. The lodging arrival check is a separate mechanism on a field that schema DOES
+  declare (`scripts/facilities.py::reception_ok` against `reception.close`, owned by
+  accommodation-research); re-deriving it is deferred to 0.34.0. Seven corpus rows moved
+  out of scope, which is why the closing figures above read 56 rather than 63.
+- **Rule 13.5 routes the missing-hours class to `tripwork:source-verify`.** `hours` lives
+  in `verified-pois.yaml` and only source-verify writes it, but the failure previously
+  fell through to `tripwork:itinerary-synthesis`, which cannot write the field — so the
+  feedback loop could not terminate. Granting each routed stage its best possible fix,
+  all four trips now drain to `pass` in 4-5 rounds; with the route removed they reach a
+  fixed point and never pass (`tests/test_corpus_gate.py` runs both).
 - **The gate now FAILS when `legs.yaml`, `routing.yaml` or `cost.yaml` is absent**,
   where it previously passed silently. An absent artifact means the pipeline ran out
   of order, and the gate says so now instead of shrugging. This affects every existing
@@ -172,8 +215,20 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   the schema before the corpus migrates would be strictly worse than the gate-level
   enforcement this release already ships.
 - Lodging Gate 0 (needs `accommodations.schema.json` `business_status`).
-- Wiring `deps_stale` into the router, and teaching producing stages to record
-  `input_fingerprints` — neither exists yet, so there is nothing to wire against.
+- **Re-deriving `reception_ok`** — the lodging counterpart of the closing-buffer check.
+  `slot: lodging` rows are out of `rederive_closing`'s scope because `hours` is a
+  verified-pois field a lodging candidate cannot carry; the arrival-vs-reception verdict
+  lives on `reception.close`, which the lodging schema DOES declare, and
+  `scripts/facilities.py::reception_ok` already computes it. What is missing is the
+  artifact-level re-derivation: 3 of 5 chosen lodgings in the corpus record `reception`
+  at all, and only 1 records a `close`, so the axis would be almost entirely a
+  rederivable gap today.
+- Wiring `deps_stale` into the router. The producing side is not missing —
+  `skills/travel-advisory/SKILL.md` instructs recording `input_fingerprints`,
+  `schemas/advisory.schema.json` declares it, and rule 11 already runs the same
+  comparison inline for that edge. What is missing is DATA: no corpus artifact records
+  the field yet, so a wired predicate could not be validated against anything real.
+  The wiring pass should replace rule 11's inline copy, not sit beside it.
 - `gate.py`'s thirteen-legacy-check substring coupling (see Residual above).
 
 ### End-to-end consumer-fixture closure

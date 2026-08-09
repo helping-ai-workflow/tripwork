@@ -17,6 +17,9 @@ writes `trips/<slug>/gate-report.yaml` (exit 0 pass / 1 fail).
   itinerary is `verify_status: verified` in verified-pois. A `conflicting`/`unverified` POI
   fails the gate even though it has a geocode.
 - `referenced_pois_geocoded` — every referenced POI has a non-null `geocode`.
+- `referenced_pois_glossed` — every referenced POI whose name carries a kana run also
+  carries a `name_zh` gloss (`scripts/gate.py::kana_name_without_gloss`). The POI-level
+  twin of `japanese_glossed` below, which scans the itinerary's free text.
 - `days_have_meals` — every day has at least one `slot: meal` row.
 - `overnight_days_have_lodging` — **ALWAYS-ON**, derived from `itinerary.yaml` alone
   (independent of accommodations.yaml): every non-final day must resolve a place to

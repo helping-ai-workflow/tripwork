@@ -8,10 +8,14 @@ stay with the agent. It does not read stage-state.yaml (v1).
 Usage: python scripts/next_stage.py <trip-dir> --work-dir <work/<slug>>
 Output (stdout, YAML): {next: tripwork:<skill>|complete|stop-and-ask, reason: str}
 """
-import sys as _sys
-import pathlib as _pathlib
 if __name__ == "__main__" and __package__ in (None, ""):
-    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
+    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
+    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
+    # Must precede every other import: the shadow breaks `import requests` too.
+    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+
+import sys as _sys
 
 import argparse
 import pathlib

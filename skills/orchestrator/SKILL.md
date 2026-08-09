@@ -92,10 +92,31 @@ on its own. No manual `gate-report.yaml` deletion step is needed any more.
     corpus: four such gaps across four trips, all true positives (e.g. a `verified-pois.yaml`
     527 seconds newer than the gate-report that supposedly gated it).
 13.5. **gate-report.yaml status==fail** -> route by failure class, invalidating the stale
-    gate-report (and the artifact being regenerated): no-meal / unknown-POI / non-verified /
-    geocode / closed-day / must_do / advisory-surface failures -> run `tripwork:itinerary-synthesis`
-    (regenerate itinerary.yaml + itinerary.md); lodging / facility failures -> run
-    `tripwork:accommodation-research`. Then re-run rule 13.
+    gate-report (and the artifact being regenerated). A re-derivation failure names a field
+    only its PRODUCING stage can write — synthesis cannot add `km` to a routing hop, and it
+    cannot add `hours.close` to a POI — so every class routes to the stage that owns the
+    file. The executable form is `_ROUTES` in `scripts/orchestration.py`, matched in this
+    order (`tests/test_deps_table.py::test_rule_13_5_targets_match_the_routes_table` pins
+    this list against it):
+
+    | # | Failure class | Route to |
+    |---|---|---|
+    | 1 | chosen / required-facility lodging failures, and `rederive_lodging`'s `accommodations stop …` / `accommodations.yaml absent` | `tripwork:accommodation-research` |
+    | 2 | `legs[…]` re-derivation failures, `legs.yaml absent` | `tripwork:inter-stop-legs` |
+    | 3 | `routing hop …` re-derivation failures, `routing.yaml absent` | `tripwork:routing-audit` |
+    | 4 | `cost.total` / `cost.by_category` mismatches, `cost.yaml absent` | `tripwork:cost-rollup` |
+    | 5 | a scheduled POI `carries neither hours.close nor hours.no_fixed_close` | `tripwork:source-verify` |
+    | 6 | AI-tone hits | `tripwork:itinerary-synthesis` |
+    | — | everything else (no-meal / unknown-POI / non-verified / geocode / closed-day / must_do / advisory-surface / no-resolved-lodging / unrendered home leg / missing `closing_status`) | `tripwork:itinerary-synthesis` |
+
+    Row 5 is **not** a synthesis defect even though the gate reads it off an itinerary row:
+    `hours` lives in `verified-pois.yaml` and only source-verify writes that file. Routing it
+    to synthesis made the loop non-terminating — synthesis rewrites the itinerary, the same
+    rows re-fail, forever. It sits LAST among the producing-stage rows because
+    `verified-pois.yaml` is an upstream of routing / accommodations / legs / cost in `_DEPS`,
+    so re-running it invalidates all four; fix the cheaper downstream classes first.
+
+    Then re-run rule 13.
 14. gate-report status==pass, no exports/<slug>-itinerary.md -> run `tripwork:export-artifact`.
 15. export deliverable exists, and no export-gate-report.yaml **or the deliverable / any of
     `EXPORT_GATE_INPUTS`** (itinerary / verified-pois / accommodations / verified-pois-media)

@@ -154,6 +154,21 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
                           None never equals 'cluster_fallback' and is not
                           GEOCODE_SOURCE_MISSING, so existing callers that never
                           pass this argument at all are unaffected.
+
+                          A FOURTH value reaches here in practice and is easy to
+                          miss: the empty string. Only `verify_poi` normalises
+                          an absent geocode_source to the GEOCODE_SOURCE_MISSING
+                          sentinel, so a caller that reads the field itself and
+                          passes `gs or ""` skips BOTH the refusal above and the
+                          `cluster_fallback` sub-check. That caller now exists —
+                          `scripts/rederive.py::rederive_lodging` — and it is
+                          CORRECT there, not an oversight: re-derivation reports
+                          the absent field on the verdicts_rederivable axis and
+                          then compares BLIND to it, exactly as it does for a
+                          hop's absent duration_source, so a field new in this
+                          release cannot demote a candidate merely by being new.
+                          A new caller that wants the refusal must pass the
+                          sentinel, not "".
     """
     sources = candidate.get("sources", [])
     langs = {s.get("lang") for s in sources}

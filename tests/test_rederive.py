@@ -210,14 +210,23 @@ def test_hop_km_resolves_endpoints_through_cluster_centroids():
     assert hop_km(routing, {"from": "西區", "to": "不存在"}) is None
 
 
-CORPUS = pathlib.Path("/home/user/hp_workspace/tripwork-workspace/trips")
-IN_SCOPE = ("2026-06-yilan", "2026-07-sun-moon-lake", "2026-08-chiayi",
-            "2026-09-northeast-coast")
+# CONDITIONAL GUARDS (I3). The four tests below are the only ones pinning this
+# release's headline measurements, and they read an EXTERNAL consumer corpus.
+# `.github/workflows/ci.yml` checks out this repo alone, so all four SKIP in CI
+# and "zero skipped" is a statement about a developer machine that has the
+# corpus, not about every checkout. The path is read from TRIPWORK_CORPUS
+# (default: the controller's workspace) so it is not pinned to one machine --
+# before that it was a hardcoded absolute path and no other machine could run
+# them even with a corpus in hand.
+from tests.mech_fixtures import CORPUS, CORPUS_TRIPS as IN_SCOPE
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
 def test_real_trips_have_zero_verdicts_match_failures():
-    """False-positive budget, measured at fd053dd before implementation.
+    """CONDITIONAL guard -- skipped without the consumer corpus, so it does not
+    run in CI (I3).
+
+    False-positive budget, measured at fd053dd before implementation.
 
     verdicts_match: 29 records compared across the four trips, ZERO mismatches —
     6 legs, 19 hops, 4 cost totals. That is the whole claim of this mechanism:
@@ -251,7 +260,10 @@ def test_real_trips_have_zero_verdicts_match_failures():
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
 def test_real_trips_report_exactly_the_measured_rederivable_gap():
-    """The other axis, and the honest half of the budget: the same four trips
+    """CONDITIONAL guard -- skipped without the consumer corpus, so it does not
+    run in CI (I3).
+
+    The other axis, and the honest half of the budget: the same four trips
     have 19 verdicts_rederivable failures, one per hop, all of them
     'no duration_source'.
 
@@ -294,7 +306,10 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
 def test_real_trips_lodging_has_exactly_one_verdicts_match_failure():
-    """Measured at fd053dd (task-9-brief.md's table, 2026-08-09) across the four
+    """CONDITIONAL guard -- skipped without the consumer corpus, so it does not
+    run in CI (I3).
+
+    Measured at fd053dd (task-9-brief.md's table, 2026-08-09) across the four
     schema-clean trips: 18 lodging candidates, all 18 recorded verify_status
     'verified', 14 of them geocode_source cluster_fallback. rederive_lodging
     re-derives Gates 1/2/2b/2c for each -- this is the whole justification for
@@ -466,6 +481,106 @@ def test_rows_without_a_time_or_a_resolving_poi_are_out_of_scope():
     assert c["verdicts_rederivable"]["examined"] == 1
 
 
+def test_a_timed_lodging_row_is_out_of_closing_scope():
+    """C1 (final whole-branch review): `run_gate` folds each stop's chosen
+    lodging into `by_id` (the P4 rule, scripts/gate.py::chosen_lodging_pois), so
+    a timed `slot: lodging` row RESOLVES — and `rederive_closing` then demanded
+    `hours.close` / `hours.no_fixed_close` from a record that has nowhere legal
+    to put either. `schemas/accommodations.schema.json`'s candidate items are
+    `additionalProperties: false` with no `hours` property, so the only way to
+    satisfy the demand fails `validate_artifact`
+    (test_an_accommodations_candidate_cannot_legally_carry_hours below pins
+    that). 5 unsatisfiable rows shipped on real consumer data: 2026-06-yilan 2,
+    2026-08-chiayi 3.
+
+    The cut is on `slot`, deliberately NOT on "did this id come only from the
+    accommodations fold". Measured over the four schema-clean trips: 7 timed
+    lodging rows resolve, and 2 of them (2026-07-sun-moon-lake `lealea` and
+    `d2-2`) resolve through verified-pois.yaml because the consumer copied the
+    hotels there. Those two carry no `hours` either — the same defect in
+    different clothing — so a fold-membership cut would leave them demanding a
+    closing time from a hotel.
+
+    Nothing is lost by the skip: the lodging arrival check is a DIFFERENT,
+    already-shipped mechanism reading a DIFFERENT field —
+    `scripts/facilities.py::reception_ok` against `reception: {close,
+    late_checkin}`, which accommodations.schema.json does declare, owned by
+    accommodation-research (skills/accommodation-research/SKILL.md:73-74).
+    `rederive_closing` transcribes the visit/meal rule (`last_order` /
+    `last_entry` plus a `need_mins` buffer, skills/itinerary-synthesis/SKILL.md),
+    which has no meaning for a check-in and none at all for chiayi's two
+    CHECKOUT rows (08:30 breakfast-before-checkout, 10:45 check out by 11:00).
+    """
+    hotel = {"id": "maison-de-chine", "name_display": "兆品酒店嘉義",
+             "verify_status": "verified",
+             "geocode": {"lat": 23.47, "lng": 120.44,
+                         "geocode_source": "nominatim"}}
+    itin = _itin("15:00", slot="lodging", pid="maison-de-chine")
+    res = run_rederivation(itin, {"maison-de-chine": hotel}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations={"stops": []})
+    c = _checks(res)
+    assert c["verdicts_rederivable"]["passed"] is True, res["failures"]
+    # examined == 1: the filler cost record only. The lodging row is out of
+    # scope, so it never reaches `found`.
+    assert c["verdicts_rederivable"]["examined"] == 1
+
+
+def test_a_lodging_row_is_skipped_even_when_it_records_a_closing_status():
+    """The skip is a SCOPE cut, not a special case of the missing-hours branch.
+    A half-fix that only suppressed the "neither close nor no_fixed_close"
+    message would still pull a lodging row into `compared` the moment someone
+    hand-wrote a closing_status onto it, re-coupling the check to a record whose
+    schema cannot describe closing time at all."""
+    hotel = {"id": "h1", "name_display": "旅店", "verify_status": "verified",
+             "hours": {"close": "23:30", "typical_visit_mins": 30,
+                       "as_of": "2026-08-01"}}
+    itin = _itin("15:00", slot="lodging", pid="h1")
+    itin["days"][0]["rows"][0]["closing_status"] = "ok"
+    res = run_rederivation(itin, {"h1": hotel}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations={"stops": []})
+    c = _checks(res)
+    assert c["verdicts_match"]["examined"] == 1      # the filler cost only
+    assert c["verdicts_rederivable"]["examined"] == 1
+
+
+def test_an_accommodations_candidate_cannot_legally_carry_hours():
+    """The premise C1 rests on, pinned mechanically rather than asserted in
+    prose: there is NO legal place to answer `rederive_closing`'s demand on a
+    lodging record. If a future release adds `hours` to
+    schemas/accommodations.schema.json this test goes red, which is the signal
+    to revisit the scope cut above rather than discover it on consumer data."""
+    import tempfile
+
+    from scripts.validate_artifact import SCHEMAS, validate_file
+
+    cand = {"id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
+            "facilities": [], "sources": [{"url": "https://a.example/x", "lang": "zh"},
+                                          {"url": "https://b.example/x", "lang": "zh"}],
+            "geocode": {"lat": 23.86, "lng": 120.91},
+            "verify_status": "verified",
+            "hours": {"close": "23:30"}}
+
+    def _check(c):
+        body = {"stops": [{"district": "日月潭", "nights": 1, "chosen": "d2-6",
+                           "candidates": [c]}]}
+        with tempfile.TemporaryDirectory() as td:
+            p = pathlib.Path(td) / "accommodations.yaml"
+            p.write_text(yaml.safe_dump(body, allow_unicode=True), encoding="utf-8")
+            return validate_file(p, SCHEMAS / "accommodations.schema.json")
+
+    rc, msgs = _check(cand)
+    assert rc != 0, "accommodations.schema.json must still forbid `hours`"
+    assert len(msgs) == 1 and "'hours' was unexpected" in msgs[0], msgs
+    # Differential: the SAME candidate without `hours` is valid, so the failure
+    # above is attributable to `hours` alone and not to a malformed fixture.
+    clean = {k: v for k, v in cand.items() if k != "hours"}
+    assert _check(clean)[0] == 0, _check(clean)
+
+
 def _accom(candidate):
     return {"stops": [{"district": "日月潭", "nights": 1, "chosen": candidate["id"],
                        "candidates": [candidate]}]}
@@ -543,30 +658,49 @@ def test_absent_accommodations_is_a_rederivable_failure_not_a_skip():
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
 def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
-    """Measured by the controller at fd053dd (task-2-brief.md's corrected table,
-    2026-08-09 — the original draft conflated 'no hours at all' with the scope
-    denominator and got 29 of 94; the real denominator is 58, not 94):
+    """CONDITIONAL guard -- skipped without the consumer corpus, so it does not
+    run in CI (I3).
+
+    Re-measured after the C1 fix (final v0.33.0 whole-branch review), and now
+    against the pool the SHIPPED GATE resolves rows with.
+
+    This guard used to build `by_id` from verified-pois.yaml alone. `run_gate`
+    folds each stop's chosen lodging in (P4), so the guard measured 58 rows in
+    scope while the gate measured 63 — and the 5-row delta WAS C1: five lodging
+    rows the gate demanded `hours.close` from, with nowhere legal to record it.
+    The guard could not see the defect because it was measuring a different
+    pool. It now calls `scripts/gate.py::poi_pool`, the same helper `run_gate`
+    calls, so the two cannot diverge again.
 
         94 itinerary rows total across the four schema-clean trips
       - 31 carry a `time` but no `poi_id` (move rows, free-text meals)
-      -  5 carry a `poi_id` that does not resolve in verified-pois
-      = 58 in scope (`time` AND a resolving `poi_id`)
+      -  0 carry a `poi_id` that resolves in NEITHER source
+      -  7 are `slot: lodging` rows (out of scope, C1 — 5 resolve only through
+           the accommodations fold, 2 through verified-pois.yaml because the
+           consumer copied the hotels there; all 7 carry no `hours`)
+      = 56 in scope (`time` AND a resolving `poi_id` AND not lodging)
 
-    Of the 58: 24 POIs have no `hours` at all, 5 have `hours` but no `close`
-    (29 total land on 'neither close nor no_fixed_close'), and every one of the
-    remaining 29 lands on 'no recorded closing_status' -- 0 rows in the corpus
-    carry a closing_status today, so verdicts_match never gets anything to
-    compare. This is the honest half of the same budget Task 1 Step 8 pinned
-    for legs/hops/cost: 58 verdicts_rederivable failures, 0 verdicts_match
-    failures, 0 compared.
+    Of the 56: every one lands on the rederivable axis and 0 on the match axis —
+    22 POIs have no `hours` at all and 5 have `hours` but no `close` (27 land on
+    'neither close nor no_fixed_close'), and the remaining 29 land on 'no
+    recorded closing_status', because 0 corpus rows carry a closing_status
+    today. 56 verdicts_rederivable failures, 0 verdicts_match failures, 0
+    compared — the honest half of the same budget Task 1 Step 8 pinned for
+    legs/hops/cost. (The pre-C1 figures were 24/5/29 against 58 rows; the two
+    that moved are sun-moon-lake's `lealea` and `d2-2`, hotels sitting in
+    verified-pois.yaml with no `hours` — now out of scope as lodging rows.)
     """
+    from scripts.gate import poi_pool
+
     total = Outcome()
-    rows_total = has_time_no_pid = unresolved_pid = 0
+    rows_total = has_time_no_pid = unresolved_pid = lodging_rows = 0
+    no_hours_at_all = hours_but_no_close = no_closing_status = 0
     for trip in IN_SCOPE:
         d = CORPUS / trip
         itin = yaml.safe_load((d / "itinerary.yaml").read_text(encoding="utf-8"))
         pois = yaml.safe_load((d / "verified-pois.yaml").read_text(encoding="utf-8"))
-        by_id = {p["id"]: p for p in pois.get("pois") or []}
+        acc = yaml.safe_load((d / "accommodations.yaml").read_text(encoding="utf-8"))
+        by_id = poi_pool(pois.get("pois") or [], acc)
         for day in itin.get("days") or []:
             for row in day.get("rows") or []:
                 rows_total += 1
@@ -575,9 +709,46 @@ def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
                     has_time_no_pid += 1
                 elif t and pid and pid not in by_id:
                     unresolved_pid += 1
+                elif t and pid and row.get("slot") == "lodging":
+                    lodging_rows += 1
+                elif t and pid:
+                    hours = by_id[pid].get("hours") or {}
+                    if not hours:
+                        no_hours_at_all += 1
+                    elif not hours.get("close") and not hours.get("no_fixed_close"):
+                        hours_but_no_close += 1
+                    elif "closing_status" not in row:
+                        no_closing_status += 1
         total.merge(rederive_closing(itin, by_id))
-    assert (rows_total, has_time_no_pid, unresolved_pid) == (94, 31, 5)
-    assert total.found == 58, "58 rows must be IN SCOPE, not skipped"
-    assert len(total.missing) == 58
+    assert (rows_total, has_time_no_pid, unresolved_pid) == (94, 31, 0)
+    assert lodging_rows == 7, "C1: every timed lodging row must be out of scope"
+    assert (no_hours_at_all, hours_but_no_close, no_closing_status) == (22, 5, 29)
+    assert total.found == 56, "56 rows must be IN SCOPE, not skipped"
+    assert len(total.missing) == 56
     assert len(total.mismatches) == 0
     assert total.compared == 0, "nothing is comparable while 0 rows carry closing_status"
+    # C1's regression lock, in two halves.
+    #
+    # (a) The guard really is exercising the FOLDED pool — otherwise "we call
+    #     poi_pool now" would be unfalsifiable prose. The fold adds exactly 5
+    #     hotel ids the corpus's verified-pois.yaml files do not carry.
+    #
+    # (b) With lodging out of scope, closing scope is now fold-INVARIANT: both
+    #     pools put the same 56 rows in scope. That equality is the property C1
+    #     restored — before the fix the folded pool put 63 rows in scope against
+    #     the un-folded 58, and the 5-row delta was five unsatisfiable demands.
+    #     If a future change makes these two numbers differ again, the shipped
+    #     gate has started asking a lodging record for a field its schema
+    #     forbids, and this fails instead of the consumer finding out.
+    folded_only = 0
+    unfolded = Outcome()
+    for trip in IN_SCOPE:
+        d = CORPUS / trip
+        itin = yaml.safe_load((d / "itinerary.yaml").read_text(encoding="utf-8"))
+        pois = yaml.safe_load((d / "verified-pois.yaml").read_text(encoding="utf-8"))
+        acc = yaml.safe_load((d / "accommodations.yaml").read_text(encoding="utf-8"))
+        bare = {p["id"]: p for p in pois.get("pois") or []}
+        folded_only += len(set(poi_pool(pois.get("pois") or [], acc)) - set(bare))
+        unfolded.merge(rederive_closing(itin, bare))
+    assert folded_only == 3, "the P4 fold must really be adding hotel ids here"
+    assert unfolded.found == total.found == 56
