@@ -995,3 +995,56 @@ def test_i4_source_url_pattern_rejects_four_chars_of_junk(junk):
     schema = _load_schema("verified-pois.schema.json")
     with pytest.raises(jsonschema.ValidationError):
         jsonschema.validate(_business_status_poi(junk), schema)
+
+
+def test_verified_pois_accepts_a_resolved_name(tmp_path):
+    """TW-071: the POI schema forbade the one field Gate 2b needs to be
+    re-derivable, while accommodations.schema.json:193 declared it. Measured at
+    HEAD: pois[].items is additionalProperties:false with 20 properties and no
+    resolved_name, so an agent holding Nominatim's display_name had nowhere legal
+    to put it."""
+    from scripts.validate_artifact import validate_file
+    p = tmp_path / "verified-pois.yaml"
+    p.write_text(
+        "pois:\n"
+        "  - id: p1\n"
+        "    name_local: 花磚博物館\n"
+        "    name_display: 花磚博物館\n"
+        "    category: sight\n"
+        "    district: 嘉義市西區\n"
+        "    verify_status: verified\n"
+        "    resolved_name: 台灣花磚博物館\n"
+        "    geocode:\n"
+        "      lat: 23.48\n"
+        "      lng: 120.44\n"
+        "    sources:\n"
+        "      - {url: 'https://a.example.tw/p', lang: zh}\n"
+        "      - {url: 'https://b.example.com/q', lang: en}\n",
+        encoding="utf-8")
+    assert validate_file(str(p))[0] == 0
+
+
+def test_verified_pois_accepts_the_no_result_sentinel(tmp_path):
+    """A cluster_fallback POI has no geocoder display_name to record — the driver
+    already passes verify.NO_RESOLVED_NAME on that path
+    (scripts/source_verify_run.py:184). The artifact must be able to say "the
+    lookup ran and found none", because otherwise it is indistinguishable from
+    "nobody looked" and the whole cluster_fallback population sits permanently on
+    verdicts_rederivable with no data fix available."""
+    from scripts.validate_artifact import validate_file
+    p = tmp_path / "verified-pois.yaml"
+    p.write_text(
+        "pois:\n"
+        "  - id: p1\n"
+        "    name_local: 山寨燒烤\n"
+        "    name_display: 山寨燒烤\n"
+        "    category: food\n"
+        "    district: 嘉義市西區\n"
+        "    verify_status: unverified\n"
+        "    resolved_name: NO_RESULT\n"
+        "    status_reason: cluster_fallback centroid with no existence proof\n"
+        "    sources:\n"
+        "      - {url: 'https://a.example.tw/p', lang: zh}\n"
+        "      - {url: 'https://b.example.com/q', lang: en}\n",
+        encoding="utf-8")
+    assert validate_file(str(p))[0] == 0

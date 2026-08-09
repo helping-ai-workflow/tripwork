@@ -186,7 +186,7 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     return None, False, False, NO_RESOLVED_NAME, False
 
 
-def _build_poi(cand, official_domains):
+def _build_poi(cand, official_domains, resolved_name):
     poi = {
         "id": cand.get("id"),
         "name_local": cand.get("name_local", ""),
@@ -199,6 +199,10 @@ def _build_poi(cand, official_domains):
         poi["name_roman"] = cand["name_roman"]
     if cand.get("business_status") is not None:
         poi["business_status"] = cand["business_status"]
+    if resolved_name is NO_RESOLVED_NAME:
+        poi["resolved_name"] = "NO_RESULT"
+    elif resolved_name:
+        poi["resolved_name"] = resolved_name
     return poi
 
 
@@ -227,9 +231,9 @@ def run(trip_dir, work_dir, offline=False, official_domains=()):
     pois = []
 
     for cand in candidates:
-        poi = _build_poi(cand, official_domains)
         geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
             cand, country, cache, offline, district_centroids, radius_km)
+        poi = _build_poi(cand, official_domains, resolved_name)
         if geo is not None:
             poi["geocode"] = geo
 
