@@ -108,7 +108,7 @@ def test_stale_candidates_reverify(tmp_path):
     assert _next(t, w)["next"] == "tripwork:source-verify"
 
 
-def test_rule11_ignored_edit_does_not_derail_a_complete_pipeline(tmp_path):
+def test_rule11_ignored_edit_does_not_derail_to_travel_advisory(tmp_path):
     """TW-067 migration, fix round 1 (was test_rule11_rebrief_re_runs_advisory,
     which encoded the pre-fix 'any mtime bump fires' behaviour; an interim
     revision fixed that but left it a near-duplicate of
@@ -117,15 +117,25 @@ def test_rule11_ignored_edit_does_not_derail_a_complete_pipeline(tmp_path):
     reads itinerary.yaml/gate-report.yaml/export-gate-report.yaml, so fixture
     depth cannot change which branch of rule 11 executes. What full depth CAN
     show, and the through-cost fixture cannot, is the actual dogfood scenario:
-    a harmless brief edit made AFTER an otherwise-COMPLETE pipeline (itinerary
-    synthesized, both gates passed) must not derail it back to
-    travel-advisory. test_rule11_ignores_a_must_do_edit cannot demonstrate
-    this because its fixture never reaches 'complete' in the first place.
+    a harmless-to-ADVISORY brief edit made AFTER an otherwise-COMPLETE pipeline
+    (itinerary synthesized, both gates passed) must not derail it BACK TO
+    TRAVEL-ADVISORY. test_rule11_ignores_a_must_do_edit cannot demonstrate this
+    because its fixture never reaches 'complete' in the first place.
 
     trip-brief.yaml is bumped newer than advisory.yaml on purpose: under the
     pre-fix whole-file-mtime rule that alone would fire rule 11 and the
     pipeline would never reach 'complete', so this fixture also discriminates
-    the fix the same way test_rule11_ignores_a_must_do_edit does."""
+    the fix the same way test_rule11_ignores_a_must_do_edit does.
+
+    Task 7 migration (v0.33.0): this used to assert the whole pipeline stays
+    'complete'. It no longer does, and that is CORRECT, not a regression —
+    trip-brief.yaml is also a genuine `GATE_INPUTS` member now (the gate reads
+    trip_brief for must_do_covered), and the edit above adds a real must_do
+    item the already-passed gate-report never checked. The widened rule 13
+    (mtime, report-tier — see scripts/orchestration.py::GATE_INPUTS) correctly
+    routes back to itinerary-gate instead of silently reporting 'complete' on
+    a report that never saw the new must_do. What must still hold, and is the
+    actual point of this test, is that it does NOT go to travel-advisory."""
     t, w = _full(tmp_path)
     brief = yaml.safe_load((t / "trip-brief.yaml").read_text(encoding="utf-8"))
     fp = input_fingerprint(brief, ADVISORY_PROJECTION)
@@ -138,7 +148,10 @@ def test_rule11_ignored_edit_does_not_derail_a_complete_pipeline(tmp_path):
     _bump(t / "trip-brief.yaml", 3600)           # rewritten well after advisory
 
     got = _next(t, w)
-    assert got["next"] == "complete", got["reason"]
+    assert got["next"] != "tripwork:travel-advisory", got["reason"]
+    # And: the widened rule 13 is what actually fires, not some other rule.
+    assert got["next"] == "tripwork:itinerary-gate", got["reason"]
+    assert "trip-brief.yaml" in got["reason"]
 
 
 def test_rule11_ignores_a_must_do_edit(tmp_path):
@@ -309,3 +322,36 @@ def test_corrupt_scalar_report_routes_back_to_gate(tmp_path):   # v0.30.0 backlo
     _bump(t / "gate-report.yaml", 60)
     got = _next(t, w)
     assert got["next"] == "tripwork:itinerary-gate"
+
+
+def test_rule13_reruns_the_gate_when_any_gate_input_is_newer(tmp_path):
+    """Red at HEAD: rule 13 compares gate-report against itinerary.yaml only, so
+    a re-verify that demotes a scheduled POI leaves the oracle reporting
+    'complete' on a report that never saw it. Measured on the real corpus: four
+    such gaps across four trips, all true positives (e.g. yilan's
+    verified-pois.yaml is 527 seconds newer than the gate-report that
+    supposedly gated it)."""
+    t, w = _full(tmp_path)
+    assert _next(t, w)["next"] == "complete"
+
+    _bump(t / "verified-pois.yaml", 999999)   # re-verify after the gate ran
+    got = _next(t, w)
+    assert got["next"] == "tripwork:itinerary-gate", got["reason"]
+    assert "rule 13" in got["reason"]
+
+
+def test_rule15_reruns_the_export_gate_when_any_export_gate_input_is_newer(tmp_path):
+    """Same widening applied to rule 15 against EXPORT_GATE_INPUTS. Measured 0
+    extra fires on the real corpus (unlike rule 13's 4), but the predicate is
+    exercised here with verified-pois-media.yaml specifically because it is the
+    one EXPORT_GATE_INPUTS member that is NOT also in GATE_INPUTS — bumping any
+    of the other three would make rule 13 fire first and this test would never
+    reach rule 15 at all."""
+    t, w = _full(tmp_path)
+    assert _next(t, w)["next"] == "complete"
+
+    write_artifact(t / "verified-pois-media.yaml", {"media": {}})
+    _bump(t / "verified-pois-media.yaml", 999999)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:export-gate", got["reason"]
+    assert "rule 15" in got["reason"]

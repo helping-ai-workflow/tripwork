@@ -72,3 +72,64 @@ def input_fingerprint(doc, projection):
 # Rule 11's projection: the three fields next_stage.py's own comment already
 # named as the anchor. Kept beside the primitive so the two cannot drift.
 ADVISORY_PROJECTION = ("airline", "dates", "destination")
+
+
+WHOLE_DOC = ()
+
+# _DEPS[<produced artifact>] = {<upstream artifact>: <projection tuple>}
+#
+# DERIVED, not authored: every row is the producing skill's Stage Contract Input
+# row. tests/test_deps_table.py re-parses those rows and asserts equality, so the
+# table and the documentation cannot drift apart.
+#
+# A projection tuple means "only these top-level keys of the upstream invalidate
+# me"; WHOLE_DOC means any change does. Narrow projections matter: chiayi's three
+# brief edits fired 12 of its 35 edges under a whole-document rule.
+_DEPS = {
+    "advisory.yaml": {"trip-brief.yaml": ADVISORY_PROJECTION},
+    "candidates.yaml": {"trip-brief.yaml": WHOLE_DOC},
+    "verified-pois.yaml": {"candidates.yaml": WHOLE_DOC, "trip-brief.yaml": WHOLE_DOC},
+    "routing.yaml": {"verified-pois.yaml": WHOLE_DOC, "trip-brief.yaml": WHOLE_DOC},
+    "accommodations.yaml": {"routing.yaml": WHOLE_DOC, "trip-brief.yaml": WHOLE_DOC},
+    "legs.yaml": {"trip-brief.yaml": WHOLE_DOC, "routing.yaml": WHOLE_DOC,
+                  "accommodations.yaml": WHOLE_DOC},
+    "calendar.yaml": {"trip-brief.yaml": WHOLE_DOC},
+    "seasonal.yaml": {"trip-brief.yaml": WHOLE_DOC, "routing.yaml": WHOLE_DOC,
+                      "accommodations.yaml": WHOLE_DOC},
+    "transit.yaml": {"trip-brief.yaml": WHOLE_DOC, "verified-pois.yaml": WHOLE_DOC},
+    "cost.yaml": {"trip-brief.yaml": WHOLE_DOC, "accommodations.yaml": WHOLE_DOC,
+                  "legs.yaml": WHOLE_DOC},
+    "itinerary.yaml": {},   # synthesis reads nine artifacts; see the note below
+}
+
+# The artifacts each gate CLI actually opens. Rule 13 and rule 15 compare their
+# report against every one of these — not against a single marker file.
+GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "trip-brief.yaml",
+               "accommodations.yaml", "calendar.yaml", "advisory.yaml",
+               "legs.yaml", "routing.yaml", "cost.yaml")
+EXPORT_GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "accommodations.yaml",
+                      "verified-pois-media.yaml")
+
+
+def deps_stale(load, artifact):
+    """Names of upstreams whose projected content no longer matches what
+    `artifact` recorded. FAIL-OPEN: an artifact with no input_fingerprints
+    predates the mechanism and is never called stale.
+
+    Fail-open is deliberate and measured. A naive mtime rule fires on 37 of 174
+    edges across the six real trips and starts a non-terminating cascade on
+    chiayi — destination-research rewrites candidates.yaml with a newer mtime,
+    which invalidates verified-pois.yaml, and so on. Treating an absent
+    fingerprint as stale would reproduce exactly that. The pressure to record
+    fingerprints belongs on the gate (verdicts_rederivable), not on the router.
+    """
+    doc = load(artifact) or {}
+    recorded = doc.get("input_fingerprints") or {}
+    out = []
+    for upstream, projection in (_DEPS.get(artifact) or {}).items():
+        want = recorded.get(upstream)
+        if want is None:
+            continue
+        if want != input_fingerprint(load(upstream) or {}, projection):
+            out.append(upstream)
+    return out

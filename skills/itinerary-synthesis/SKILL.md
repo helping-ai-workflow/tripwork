@@ -169,7 +169,7 @@ Validate the canonical artifact: `python scripts/validate_artifact.py trips/<slu
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml` (empty only if no inter-stop moves and no home endpoints) + `trips/<slug>/calendar.yaml` + `trips/<slug>/seasonal.yaml` + `trips/<slug>/transit.yaml` + `trips/<slug>/cost.yaml` + `trips/<slug>/advisory.yaml`. |
+| Input | verified-pois + routing + accommodations + legs (empty only if no inter-stop moves and no home endpoints) + calendar + seasonal + transit + cost + advisory — all nine trip artifacts, read but deliberately NOT individually tracked as `_DEPS` edges (`scripts/orchestration.py`): re-synthesis is the expensive branch, so this artifact's own freshness is decided by rule 13's report-tier check instead of a research-tier content diff — see `deps_stale`'s docstring. |
 | Output | `trips/<slug>/itinerary.yaml` (canonical) + `trips/<slug>/itinerary.md` (rendered: day tables + contingency + checklist sections). |
 | Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot; a booking whose **lead-time missed** (`lead_time_missed` True); or a travel-day move that re-checks `missed_last_service` at its now-known departure → ask user. |
 | Next stage | `tripwork:orchestrator`. |
