@@ -64,11 +64,28 @@ def test_no_rederive_read_is_forbidden_by_its_schema():
                 got.add(node.args[0].value)
         reads[fn.name] = got
 
-    # function -> which artifact's item object its record-level reads belong to
+    # function -> which artifact's item object its record-level reads belong to.
+    # DISCOVERED, not hard-coded forward: every rederive_* function that exists
+    # must be either owned or explicitly exempt, so a new axis is enrolled the
+    # moment it is written and cannot be forgotten. Hard-coding a name that a
+    # later task creates would instead leave this suite red for every task in
+    # between — which is how the first draft of this plan was wrong.
     OWNER = {"rederive_legs": "legs", "rederive_hops": "routing",
              "rederive_lodging": "accommodations", "rederive_pois": "pois"}
+    # These read wrapper dicts (a cost document, an itinerary + by_id pool),
+    # not a single artifact item, so there is no item schema to check them
+    # against. Exempt with the reason stated, never by silence.
+    EXEMPT = {"rederive_cost", "rederive_closing"}
+
+    found_axes = {n for n in reads if n.startswith("rederive_")}
+    unowned = found_axes - set(OWNER) - EXEMPT
+    assert not unowned, (
+        f"new re-derivation axis {sorted(unowned)} has no OWNER entry — add it "
+        f"(or EXEMPT it with a reason) so its reads are schema-checked")
+
     for fn_name, artifact in OWNER.items():
-        assert fn_name in reads, f"{fn_name} not found — update OWNER"
+        if fn_name not in reads:
+            continue          # not written yet; found_axes above is the ratchet
         fname, pointer = ARTIFACT_ITEMS[artifact]
         declared = set(_item_schema(fname, pointer)["properties"])
         item = _item_schema(fname, pointer)
