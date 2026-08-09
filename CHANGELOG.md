@@ -174,7 +174,7 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
 - Lodging Gate 0 (needs `accommodations.schema.json` `business_status`).
 - Wiring `deps_stale` into the router, and teaching producing stages to record
   `input_fingerprints` — neither exists yet, so there is nothing to wire against.
-- `gate.py`'s nine-legacy-check substring coupling (see Residual above).
+- `gate.py`'s thirteen-legacy-check substring coupling (see Residual above).
 
 Tests: 874 → 980, zero skipped or xfailed throughout.
 
