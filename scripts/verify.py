@@ -307,3 +307,32 @@ def verify_poi(poi, geocoded, in_claimed_region,
         name_match=name_match, geocode_source=geo_source,
     )
     return normalised, status, note
+
+
+# Domain suffixes that are official by construction. Deliberately small and
+# structural — government, academic and transit authorities — rather than an
+# enumeration of venue sites, which cannot be maintained centrally. A trip adds
+# its own venues via extra_suffixes; before this existed, each consumer kept the
+# whole list in its own driver and grew it whenever a gate needed a hotel's site
+# flagged. (TW-068)
+OFFICIAL_DOMAIN_SUFFIXES = (
+    ".gov.tw", ".gov", ".edu.tw", ".edu", ".go.jp", ".lg.jp", ".govt.nz",
+    ".org.tw",
+)
+
+
+def is_official_url(url, extra_suffixes=()):
+    """True when a source URL is the venue's own or an authority's.
+
+    `sources[].official` should be set explicitly by the research stage at the
+    moment it fetches an official page — this is the fallback for URLs where that
+    was not recorded, not a replacement for it.
+    """
+    host = urlsplit(url or "").netloc.lower().split(":")[0]
+    if not host:
+        return False
+    for suf in tuple(OFFICIAL_DOMAIN_SUFFIXES) + tuple(extra_suffixes):
+        s = suf if suf.startswith(".") else "." + suf
+        if host.endswith(s) or host == s.lstrip("."):
+            return True
+    return False
