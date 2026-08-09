@@ -102,3 +102,143 @@ def test_poi_cell_source_url_escapes_paren():   # TW-022
                      "sources": [{"url": "https://e.example/a(b)c", "official": True}]}}
     md = render_day_table(day, poi_map)
     assert "(b)" not in md.split("官網")[1][:40]   # ')' in url must not break the link
+
+
+from scripts.render.markdown import render_markdown_page
+
+ITIN = {
+    "title": "嘉義 3 天 2 夜自駕",
+    "days": [{"date": "2026-08-29", "label": "週六·三重出發 → 嘉義",
+              "lodging": "zhaopin-hotel",
+              "rows": [{"time": "11:30", "slot": "meal", "poi_id": "ahong",
+                        "text": "在地排隊名店"}]}],
+    "contingency": [
+        {"trigger": "颱風/大雨", "fallback": "戶外改室內：南院常設展廳、花磚"},
+        {"trigger": "阿宏師撲空", "note": "來源標週一二休",
+         "fallback": "改噴水雞肉飯小雅旗艦店"},
+    ],
+    "checklist": ["訂房｜兆品酒店嘉義，2 晚 1 房"],
+}
+POIS = {
+    "ahong": {"id": "ahong", "name_display": "阿宏師火雞肉飯", "district": "嘉義市東區",
+              "sources": [{"url": "https://blog.example.tw/a", "official": True}]},
+    # verify_status + booking.required (TW-069 fix round 1, Important 2): without
+    # a verify_status the bookable check never even looks at this POI, so
+    # test_output_passes_the_export_gate previously never called _find_rows at
+    # all. This POI is referenced ONLY via the day's "**宿**：" lodging line
+    # (never a day-table row) AND its own name is a substring of COST's
+    # "兆品酒店嘉義（2晚）" line-item label below — the exact double-edged
+    # fixture that exercises both _find_rows directions at once: the lodging
+    # line must be found (false-negative direction) and the cost table's row
+    # must NOT be mistaken for it (false-positive direction).
+    "zhaopin-hotel": {"id": "zhaopin-hotel", "name_display": "兆品酒店嘉義",
+                      "district": "嘉義市西區", "verify_status": "verified",
+                      "booking": {"required": True},
+                      "sources": [{"url": "https://hotel.example", "official": True}]},
+}
+COST = {"currency": "TWD", "as_of": "2026-08-07", "total": 12700,
+        "line_items": [{"category": "lodging", "label": "兆品酒店嘉義（2晚）", "amount": 5000},
+                       {"category": "transport", "label": "三重→嘉義 油資+國道", "amount": 1000}]}
+
+
+def test_render_markdown_page_is_idempotent():
+    a = render_markdown_page(ITIN, POIS, COST)
+    b = render_markdown_page(ITIN, POIS, COST)
+    assert a == b
+    assert a.endswith("\n") and not a.endswith("\n\n")
+
+
+def test_every_section_is_emitted_and_data_driven():
+    out = render_markdown_page(ITIN, POIS, COST)
+    assert "# 嘉義 3 天 2 夜自駕" in out
+    assert "### 週六·三重出發 → 嘉義" in out
+    assert "**宿**：" in out and "兆品酒店嘉義" in out
+    assert "## 備案 / Contingency" in out
+    assert "颱風/大雨" in out and "戶外改室內" in out
+    assert "（來源標週一二休）" in out          # note rendered when present
+    assert "## 出發前檢查清單" in out and "兆品酒店嘉義，2 晚 1 房" in out
+    assert "## 費用估算" in out and "12,700" in out and "2026-08-07" in out
+
+
+def test_sections_are_omitted_when_their_data_is_absent():
+    """Proves the page is data-driven, not a template with holes."""
+    bare = {"title": "t", "days": ITIN["days"]}
+    out = render_markdown_page(bare, POIS, None)
+    assert "## 備案" not in out
+    assert "## 出發前檢查清單" not in out
+    assert "## 費用估算" not in out
+
+
+def test_lodging_line_omitted_when_unresolvable():   # TW-069 fix round 1, item 5
+    """The brief's most-emphasised safety property (stated three times) had NO
+    test: test_sections_are_omitted_when_their_data_is_absent reuses ITIN["days"],
+    whose lodging id DOES resolve in POIS, so it never reaches the omission
+    branch. This constructs a day whose lodging id is absent from poi_map and
+    asserts both that the lodging line never appears AND that the raw id never
+    leaks into the page (the exact class of leak the hand-rolled consumer
+    renderer's `if not poi: return f"**宿**：{lid}"` produced)."""
+    itin = {"title": "t", "days": [{"date": "2026-08-29", "label": "D1",
+             "lodging": "ghost-hotel-not-in-poi-map",
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ahong",
+                       "text": "午餐"}]}]}
+    out = render_markdown_page(itin, POIS, None)
+    assert "**宿**" not in out
+    assert "ghost-hotel-not-in-poi-map" not in out
+
+
+def test_output_passes_the_export_gate():
+    # run_export_gate's `pois` arg is a LIST of poi dicts (its docstring, and every
+    # other call site in the suite, e.g. test_e2e_hokkaido_dogfood.py:194) — NOT
+    # the {poi_id: poi_dict} map render_markdown_page's poi_map wants. The brief's
+    # draft passed POIS (the map) to both; fixed here to list(POIS.values()).
+    from scripts.export_gate import run_export_gate
+    rep = run_export_gate(render_markdown_page(ITIN, POIS, COST), list(POIS.values()), min_days=1)
+    assert rep["status"] == "pass", rep["failures"]
+
+
+def test_itinerary_schema_accepts_contingency(tmp_path):
+    from scripts.validate_artifact import validate_file
+    p = tmp_path / "itinerary.yaml"
+    p.write_text(
+        "days:\n"
+        "  - date: '2026-08-29'\n"
+        "    rows: []\n"
+        "contingency:\n"
+        "  - trigger: 颱風/大雨\n"
+        "    fallback: 戶外改室內\n",
+        encoding="utf-8",
+    )
+    assert validate_file(str(p))[0] == 0
+
+
+def test_contingency_text_reaches_the_canonical_hygiene_scan():
+    """The technical reason the AI-tone gate is bound to TW-069: without this,
+    the contingency block — the largest single source of bold-label list items in
+    the corpus — is invisible to every canonical check."""
+    from scripts.gate import _itinerary_text
+    text = _itinerary_text({"days": [], "contingency": [
+        {"trigger": "颱風", "fallback": "改室內——南院常設展"}]})
+    assert "颱風" in text and "南院常設展" in text
+
+
+def test_home_leg_move_row_carries_its_own_endpoints():
+    """Guard, GREEN at HEAD (fix round 1): this pins pre-existing render_day_table
+    behaviour (unchanged by TW-069 — the reviewer confirmed it was already green
+    at a3e26f6), not a new mechanism. It is a necessary PRECONDITION for Step 5b's
+    render rule (a `kind: home` leg's own endpoints, once placed on a move row,
+    must actually render as an A→B directions link and not silently degrade to
+    plain text) but proves nothing about whether synthesis ever places that row —
+    that enforcement is the mechanical `home_legs_rendered` gate check
+    (scripts/gate.py::_home_legs_rendered_failures, tests/test_gate.py), not this
+    test. Regressing this would silently break Step 5b even if the gate stayed
+    green, since the gate only checks a row EXISTS (via leg_index), not that it
+    renders correctly."""
+    home_leg = {"from": "三重", "to": "嘉義市", "kind": "home", "mode": "drive",
+                "duration_mins": 190, "status": "ok"}
+    day1 = {"label": "Day 1", "rows": [
+        {"slot": "move", "from": home_leg["from"], "to": home_leg["to"],
+         "text": "自駕南下", "leg_index": 0},
+    ]}
+    md = render_day_table(day1, {})
+    assert f"[🚆 {home_leg['from']}→{home_leg['to']}]" in md
+    assert "自駕南下" in md

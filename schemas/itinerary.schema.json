@@ -25,6 +25,20 @@
         }
       }
     },
+    "contingency": {
+      "type": "array",
+      "description": "Fallbacks per named trigger. itinerary-synthesis has always produced this section (SKILL.md calls it a Required derived section) but had no container, so it was hand-assembled into the markdown and a full re-render would silently lose it. (TW-069)",
+      "items": {
+        "type": "object",
+        "required": ["trigger", "fallback"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": {"type": "string", "minLength": 1},
+          "fallback": {"type": "string", "minLength": 1},
+          "note": {"type": "string"}
+        }
+      }
+    },
     "days": {
       "type": "array",
       "items": {
@@ -79,6 +93,16 @@
                 },
                 "to": {
                   "type": "string"
+                },
+                "closing_status": {
+                  "type": "string",
+                  "enum": ["ok", "tight", "after_last_call", "closed"],
+                  "description": "Verdict synthesis computed via scripts/hours.py::closing_status for this row. Optional in schema for back-compat; required by the itinerary gate on every row carrying both a `time` and a resolving `poi_id`. Without it the closing-buffer iron rule (using-tripwork/SKILL.md:48) has no mechanical form."
+                },
+                "leg_index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Index into legs.yaml's `legs` array that this move row renders. Optional in schema for back-compat; required by the itinerary gate's `home_legs_rendered` check for every `kind: home` leg — without a row referencing it by leg_index, a home leg's classify_leg verdict is checked and its fare is summed, but nothing proves it ever reached the reader. (TW-069)"
                 }
               }
             }

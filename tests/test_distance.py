@@ -58,9 +58,14 @@ def test_sourced_duration_source_without_url_is_still_unsourced():
 
 
 def test_source_url_requirement_respects_the_km_mode_omission_escape():
-    """Guard: the km/mode-omission behaviour is DEFERRED to v0.33.0 on purpose
-    (NOT this fix's scope) -- the legacy 2-arg call form must keep classifying
-    on the threshold alone, with no source_url requirement, exactly as before.
+    """Guard, GREEN at HEAD: classify_hop itself still leaves the km/mode
+    omission open (NOT this fix's scope, and not this function's job to close)
+    -- the legacy 2-arg call form must keep classifying on the threshold
+    alone, with no source_url requirement, exactly as before. v0.33.0 closes
+    the escape one layer up: scripts/rederive.py::rederive_hops fails
+    verdicts_rederivable for a hop with no mode or no resolvable centroid.
+    Regression this guards: classify_hop silently repealing its own
+    back-compat 2-arg contract for existing callers/tests.
     """
     assert classify_hop(31, duration_source="sourced_timetable") == "ok"
     assert classify_hop(31, duration_source="map_estimate") == "ok"

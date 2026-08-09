@@ -161,3 +161,69 @@ def test_normalize_lon_long_agree_collapses():
     from scripts.geocode import normalize_geocode_keys
     result = normalize_geocode_keys({"lat": 42.0, "lon": 140.0, "long": 140.0})
     assert result == {"lat": 42.0, "lng": 140.0}
+
+
+def test_resolve_place_paces_every_request_not_just_the_call(monkeypatch):
+    """I5 (final v0.33.0 whole-branch review): `resolve_place`'s own docstring
+    has always said it "may issue up to five requests on a hard-to-resolve POI,
+    so space them" — and nothing did. `scripts/source_verify_run.py`'s
+    `_rate_limited_resolve` slept ONCE per whole call, so a candidate that fell
+    all the way through the multi-tier fallback burst five Nominatim requests
+    back to back. Nominatim's policy is <= 1 req/s and the penalty is an IP
+    block on a free public service.
+
+    Pre-existing in `resolve_place`, but TW-068 made
+    `python scripts/source_verify_run.py <trip>` the SKILL-mandated bulk path
+    over a whole candidates.yaml, so the burst went from a hand-driven
+    possibility to the documented default.
+
+    The `pace` callback fires once per request actually issued — never on a
+    cache hit, never on a tier that was not reached.
+    """
+    import scripts.geocode as geocode
+
+    calls = {"structured": 0, "free": 0, "pace": 0}
+
+    def fake_structured(*a, **kw):
+        calls["structured"] += 1
+        return None
+
+    def fake_geocode(*a, **kw):
+        calls["free"] += 1
+        return None
+
+    monkeypatch.setattr(geocode, "geocode_structured", fake_structured)
+    monkeypatch.setattr(geocode, "geocode", fake_geocode)
+
+    result, source = geocode.resolve_place(
+        "難解的店", district="嘉義市西區", country="Taiwan", name_roman="Hard Shop",
+        pace=lambda: calls.__setitem__("pace", calls["pace"] + 1))
+
+    assert (result, source) == (None, None)
+    # 1 structured + 4 free-text attempts = the five the docstring warns about.
+    assert (calls["structured"], calls["free"]) == (1, 4)
+    assert calls["pace"] == 5, "every issued request must be paced, not just the call"
+
+
+def test_resolve_place_never_paces_a_cache_hit(monkeypatch):
+    """The other half of the contract: a cached answer issues no request, so it
+    must cost no delay. `_rate_limited_resolve`'s old `was_hit` pre-check
+    existed only to express this; moving the pacing inside `resolve_place`
+    keeps the same guarantee at the request level instead of the call level."""
+    import scripts.geocode as geocode
+
+    def boom(*a, **kw):                     # pragma: no cover - must not run
+        raise AssertionError("a cache hit must not touch the network")
+
+    monkeypatch.setattr(geocode, "geocode_structured", boom)
+    monkeypatch.setattr(geocode, "geocode", boom)
+
+    paced = []
+    key = geocode.cache_key("五稜郭", "函館市", "Japan")
+    cache = {key: {"lat": 41.7, "lng": 140.7, "display_name": "五稜郭",
+                   "source": "nominatim"}}
+    result, source = geocode.resolve_place("五稜郭", district="函館市",
+                                           country="Japan", cache=cache,
+                                           pace=lambda: paced.append(1))
+    assert source == "nominatim" and result is not None
+    assert paced == []

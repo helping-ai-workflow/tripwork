@@ -408,11 +408,39 @@ def _day_html(day: dict, poi_map: dict, idx: int) -> str:
     )
 
 
+def _contingency_html(itin: dict) -> str:
+    """## 備案 / Contingency section (TW-069 fix round 1, Important 3): mirrors
+    the checklist section immediately below. render_html_page rendered
+    `checklist` but had NO section for the newer canonical `contingency`
+    container (Task 4 gave markdown one, scripts/render/markdown.py's
+    render_markdown_page) — so once itinerary-synthesis starts writing 備案
+    into `contingency` per that task's SKILL.md update, the markdown deliverable
+    would render it and the HTML deliverable would silently drop it: two
+    adapters diverging on the same canonical artifact. Heading text matches
+    render_markdown_page's "備案 / Contingency" (not the bare "備案" the
+    pre-existing legend already uses for the inline ▸-marker convention, to
+    keep the two mechanisms textually distinguishable). Escaped like every
+    other free-text field; omitted entirely when contingency is absent."""
+    contingency = itin.get("contingency") or []
+    if not contingency:
+        return ""
+    items = []
+    for c in contingency:
+        trigger = _html_escape(c.get("trigger", ""))
+        fallback = _html_escape(c.get("fallback", ""))
+        note = c.get("note")
+        note_part = f"（{_html_escape(note)}）" if note else ""
+        items.append(f"<li><strong>{trigger}</strong>{note_part}：{fallback}</li>")
+    return (f'<h2 class="sec">🧭 備案 / Contingency</h2>'
+            f'<div class="chk"><ul>{"".join(items)}</ul></div>')
+
+
 def render_html_page(itin: dict, poi_map: dict) -> str:
     """Render a complete, self-contained HTML page from an itinerary dict.
 
     Args:
-        itin:    Canonical itinerary dict — {title, checklist:[], days:[{date,label,lodging,rows:[...]}]}
+        itin:    Canonical itinerary dict — {title, checklist:[], contingency:[],
+                 days:[{date,label,lodging,rows:[...]}]}
         poi_map: {poi_id: poi_dict} for resolving POI ids in rows AND day lodging.
 
     Returns:
@@ -424,6 +452,7 @@ def render_html_page(itin: dict, poi_map: dict) -> str:
     hero = _hero_html(itin, poi_map)
     overview = _overview_html(days, poi_map)
     day_cards = "".join(_day_html(d, poi_map, i) for i, d in enumerate(days, start=1))
+    contingency_html = _contingency_html(itin)
 
     checklist = itin.get("checklist") or []
     cl = ""
@@ -446,6 +475,7 @@ def render_html_page(itin: dict, poi_map: dict) -> str:
         f'{_LEGEND}'
         f'<h2 class="sec">每日行程</h2>'
         f'{day_cards}'
+        f'{contingency_html}'
         f'{cl}'
         f'<footer>景點 / 住宿均經 source-verify 驗證（≥2 來源含在地語）。本頁離線可開。</footer>'
         f'</div></body>'

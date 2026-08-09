@@ -24,6 +24,7 @@
           },
           "centroid": {
             "type": "object",
+            "description": "The cluster's representative point, used to compute a hop's straight-line km and thus its min_plausible_mins floor. Optional in schema (old routing.yaml stays valid); required by the itinerary gate's verdicts_rederivable check for every district a hop names as an endpoint -- scripts/rederive.py::hop_km returns None without it, and rederive_hops fails the hop rather than silently skipping the floor.",
             "required": [
               "lat",
               "lng"
@@ -70,7 +71,8 @@
             "type": "string"
           },
           "mode": {
-            "type": "string"
+            "type": "string",
+            "description": "Travel mode, used as the min_plausible_mins speed floor's key. Optional in schema (old routing.yaml stays valid); required by the itinerary gate's verdicts_rederivable check -- a hop with no mode cannot have its floor recomputed and scripts/rederive.py::rederive_hops fails it rather than silently degrading to a threshold-only compare."
           },
           "mins": {
             "type": "number"

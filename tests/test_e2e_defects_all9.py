@@ -21,6 +21,7 @@ from scripts.cost import lodging_line_amount, sum_costs, over_budget
 from scripts.export_gate import run_export_gate, run_html_gate
 from scripts.render.gmaps_links import maps_url
 from scripts.render.html_page import render_html_page
+from tests.mech_fixtures import rederive_kwargs
 
 SCHEMAS = pathlib.Path(__file__).resolve().parent.parent / "schemas"
 
@@ -42,7 +43,13 @@ def _sourced_status(status, as_of="2026-06-15"):
 FERRY = {"id": "ferry", "name_local": "水社碼頭", "name_display": "水社碼頭",
          "name_roman": "Shuishe Pier", "category": "activity", "district": "日月潭",
          "business_status": _sourced_status("OPERATIONAL"), "gmaps_place_id": "ChIJ_ferry",
-         "geocode": {"lat": 23.86, "lng": 120.91}, "sources": _sources()}
+         "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+         # v0.33.0 (R4): explicit hours, not no_fixed_close -- this fixture schedules
+         # ferry with slot "meal" (a lunch stop), so it should stay re-derivable the
+         # same way a real itinerary row would be, not opt out via the open-air claim.
+         "hours": {"close": "22:00", "last_order": "21:30", "typical_visit_mins": 60,
+                   "as_of": "2026-06-15"},
+         "sources": _sources()}
 STAR_MOON = {"id": "star-moon", "name_local": "星月大地", "name_display": "星月大地",
              "category": "meal", "district": "后里",
              "business_status": _sourced_status("CLOSED_PERMANENTLY"),
@@ -53,14 +60,20 @@ NO_SIGNAL = {"id": "no-signal", "name_local": "某餐廳", "name_display": "某�
 RENAMED = {"id": "renamed", "name_local": "星月大地", "name_display": "星月大地",
            "category": "meal", "district": "后里",
            "business_status": _sourced_status("OPERATIONAL"),
-           "geocode": {"lat": 24.3, "lng": 120.7}, "sources": _sources()}
+           "geocode": {"lat": 24.3, "lng": 120.7, "geocode_source": "nominatim"},
+           "sources": _sources()}
 
+# geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging re-derives
+# hotel-lili to the recorded 'verified' instead of flagging it as a
+# verdicts_rederivable gap -- this fixture predates both fields.
 ACCOMMODATIONS = {"stops": [{
     "district": "日月潭", "nights": 2, "chosen": "hotel-lili",
     "candidates": [{
         "id": "hotel-lili", "name_local": "力麗溫德姆溫泉酒店",
         "name_display": "力麗溫德姆溫泉酒店", "verify_status": "verified",
-        "facilities": [], "geocode": {"lat": 23.86, "lng": 120.92},
+        "facilities": [],
+        "geocode": {"lat": 23.86, "lng": 120.92, "geocode_source": "nominatim"},
+        "resolved_name": "力麗溫德姆溫泉酒店",
         "cost": {"amount": 3000, "currency": "TWD", "basis": "per_night", "rooms": 2},
         "sources": _sources()}]}]}
 
@@ -139,16 +152,19 @@ class TestE2EAllNineDefects:
     def _itin(self):
         return {"title": "日月潭 3D2N", "days": [
             {"date": "2026-07-01", "label": "D1",
-             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐"}],
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐",
+                       "closing_status": "ok"}],
              "lodging": "hotel-lili"},
             {"date": "2026-07-02", "label": "D2",
-             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐"}]},
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ferry", "text": "午餐",
+                       "closing_status": "ok"}]},
         ], "must_do_coverage": {"日月潭遊湖賞景": ["ferry"]}}
 
     def test_p4_p5_gate_passes_with_lodging_and_thematic_must_do(self):
         pois = _verified_pois()             # only ferry survives P1/P2 (P1/P2 closure)
-        r = run_gate(pois, self._itin(), accommodations=ACCOMMODATIONS,
-                     must_do=["日月潭遊湖賞景"], advisory={"items": []})
+        r = run_gate(pois, self._itin(),
+                     must_do=["日月潭遊湖賞景"], advisory={"items": []},
+                     **rederive_kwargs(accommodations=ACCOMMODATIONS))
         assert r["status"] == "pass", r["failures"]
         # P4: chosen lodging resolved from accommodations, not flagged unknown
         assert not any("unknown POI 'hotel-lili'" in f for f in r["failures"])

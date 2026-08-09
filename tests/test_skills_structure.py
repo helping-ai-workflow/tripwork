@@ -426,6 +426,26 @@ def test_itinerary_synthesis_input_contract_reflects_home_legs():
         "Input row must name the home-endpoint condition that keeps legs.yaml non-empty"
 
 
+def test_itinerary_synthesis_renders_home_legs_on_day_one_and_last_day():
+    """TW-069 fix round 1, Important 1: prose alone is not a mechanism (the
+    reviewer proved the Step 5b render test was green at a3e26f6, unmodified by
+    this task). This test only pins the SKILL.md prose contract; the mechanical
+    enforcement is scripts/gate.py::_home_legs_rendered_failures + the
+    home_legs_rendered check (tests/test_gate.py), not this file. Task 1 already
+    wired legs into run_gate (rederive_legs re-derives every leg's classify_leg
+    verdict, home legs included — 4 hits for `legs` in scripts/gate.py at this
+    branch's HEAD) and cost-rollup already sums a home leg's fare; the Inter-city
+    moves section must say where each half of a `kind: home` leg goes, that its
+    endpoints trace back to trip-brief, and that leg_index is what the gate
+    checks."""
+    text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
+    assert "kind: home" in text
+    assert "day 1" in text
+    assert "last day" in text
+    assert "home_origin" in text and "home_return" in text
+    assert "leg_index" in text
+
+
 def test_orchestrator_rule11_describes_fingerprint_not_mtime():
     """C2: TW-067 (task 7) replaced rule 11's implementation with a content
     fingerprint comparison, but left the rule-book prose agents actually read
@@ -460,3 +480,16 @@ def test_orchestrator_definitions_name_fingerprint_source():
         "Definitions section must name scripts/orchestration.py::input_fingerprint"
     assert "input_fingerprint.py" in definitions or "orchestration.py" in definitions, \
         "Definitions section must point at where the fingerprint is computed"
+
+
+def test_export_artifact_owns_the_photo_adapter():
+    """grep -rn photo_adapter skills/ returned zero at HEAD: an entire producing
+    stage with a script, a schema, three gates and an e2e test, and no owner."""
+    # NOTE: the module-level constant in this file is `SKILLS` (a pathlib.Path at
+    # tests/test_skills_structure.py:5), NOT `SKILLS_DIR`. An earlier draft wrote
+    # SKILLS_DIR and would have raised NameError — the same brief defect Part 1 hit
+    # three times. Reuse the existing constant; never declare a second one.
+    body = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
+    assert "scripts/photo_adapter.py" in body
+    assert "preferences.photos" in body
+    assert "ONLY writer" in body or "only writer" in body

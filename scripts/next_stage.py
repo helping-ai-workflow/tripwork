@@ -8,17 +8,24 @@ stay with the agent. It does not read stage-state.yaml (v1).
 Usage: python scripts/next_stage.py <trip-dir> --work-dir <work/<slug>>
 Output (stdout, YAML): {next: tripwork:<skill>|complete|stop-and-ask, reason: str}
 """
-import sys as _sys
-import pathlib as _pathlib
 if __name__ == "__main__" and __package__ in (None, ""):
-    _sys.path.insert(0, str(_pathlib.Path(__file__).resolve().parent.parent))
+    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
+    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
+    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
+    # Must precede every other import: the shadow breaks `import requests` too.
+    import pathlib as _bootpath, sys as _bootsys
+    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
+    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+
+import sys as _sys
 
 import argparse
 import pathlib
 
 import yaml
 
-from scripts.orchestration import (ADVISORY_PROJECTION, candidates_stale,
+from scripts.orchestration import (ADVISORY_PROJECTION, EXPORT_GATE_INPUTS,
+                                    GATE_INPUTS, candidates_stale,
                                     input_fingerprint, route_gate_failures)
 from scripts.validate_artifact import validate_file
 
@@ -112,11 +119,16 @@ def next_stage(trip_dir, work_dir):
         return ("tripwork:itinerary-synthesis",
                 "rule 12: itinerary.yaml exists but is not schema-valid")
 
-    # rule 13
+    # rule 13 — the gate report must be newer than EVERY artifact the gate reads.
+    # Comparing against itinerary.yaml alone let a re-verify that demoted a
+    # scheduled POI leave the oracle reporting 'complete' on a report that never
+    # saw it. Measured on the real corpus: four such gaps across four trips.
     gr = t / "gate-report.yaml"
-    if not gr.is_file() or _newer(itin, gr):
-        return ("tripwork:itinerary-gate",
-                "rule 13: gate-report missing or older than itinerary.yaml")
+    stale_inputs = [n for n in GATE_INPUTS
+                    if (t / n).is_file() and _newer(t / n, gr)] if gr.is_file() else []
+    if not gr.is_file() or stale_inputs:
+        why = f" ({', '.join(stale_inputs)} newer)" if stale_inputs else ""
+        return ("tripwork:itinerary-gate", f"rule 13: gate-report missing or stale{why}")
 
     # rule 13.5
     report = _load(gr)
@@ -132,11 +144,16 @@ def next_stage(trip_dir, work_dir):
     if not md.is_file():
         return "tripwork:export-artifact", "rule 14: no export deliverable"
 
-    # rule 15
+    # rule 15 — same widening as rule 13: the export-gate report must be newer
+    # than both the rendered deliverable AND every artifact export_gate.py reads.
     egr = t / "export-gate-report.yaml"
-    if not egr.is_file() or _newer(md, egr):
-        return ("tripwork:export-gate",
-                "rule 15: export-gate-report missing or older than deliverable")
+    stale_deliverable = egr.is_file() and _newer(md, egr)
+    stale_inputs = [n for n in EXPORT_GATE_INPUTS
+                    if (t / n).is_file() and _newer(t / n, egr)] if egr.is_file() else []
+    if not egr.is_file() or stale_deliverable or stale_inputs:
+        names = ([f"exports/{md.name}"] if stale_deliverable else []) + stale_inputs
+        why = f" ({', '.join(names)} newer)" if names else ""
+        return ("tripwork:export-gate", f"rule 15: export-gate-report missing or stale{why}")
     ereport = _load(egr)
     if ereport.get("status") not in ("pass", "fail"):
         return ("tripwork:export-gate",

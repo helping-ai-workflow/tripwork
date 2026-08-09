@@ -66,8 +66,12 @@ def test_license_allowed_rejects_nc_nd_and_unknown(lic):
 def test_backend_none_returns_none():
     assert fetch_media_entry(_LANDMARK, "none") is None
 
-def test_backend_google_blocked_returns_none():
-    assert fetch_media_entry(_LANDMARK, "google") is None
+def test_backend_google_blocked_raises():
+    # MIGRATED (Task 6): HEAD silently returned None; that silence is what let
+    # 78 hand-written google entries reach 5 real trips undetected. The
+    # backend now refuses loudly instead.
+    with pytest.raises(ValueError, match="google"):
+        fetch_media_entry(_LANDMARK, "google")
 
 def test_unknown_backend_raises():
     with pytest.raises(ValueError):
@@ -175,3 +179,52 @@ def test_build_media_skips_non_landmark(mocker):
     doc = build_media([{"id": "r1", "name_local": "壽司", "category": "restaurant"}], "wiki")
     assert doc["media"] == {}
     get.assert_not_called()
+
+
+# ---- Task 6: photo enrichment gets an owner (CLI + loud google refusal) ----
+
+import subprocess
+import sys
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+
+
+def test_google_backend_refuses_instead_of_returning_an_empty_result():
+    """HEAD returns {'media': {}} — a silent empty result with no refusal and no
+    error. That silence is what let 78 hand-written google entries into 5 real
+    trips and made all 5 deliverables permanently non-distributable."""
+    with pytest.raises(ValueError, match="google"):
+        build_media([{"id": "p1", "name_display": "花磚"}], "google")
+
+
+def test_write_media_sidefile_refuses_to_leave_an_invalid_file_on_disk(tmp_path):
+    """HEAD writes the file and only then fails validation, so an invalid
+    side-file survives to be read by the export gate."""
+    p = tmp_path / "verified-pois-media.yaml"
+    with pytest.raises(ValueError):
+        write_media_sidefile(str(p), {"media": {"poi-1": {}}})
+    assert not p.exists()
+
+
+def test_cli_refuses_google_with_exit_2_and_writes_nothing(tmp_path):
+    trip = tmp_path / "trip"; trip.mkdir()
+    (trip / "verified-pois.yaml").write_text("pois: []\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, "scripts/photo_adapter.py", str(trip),
+                        "--backend", "google"], cwd=str(ROOT), capture_output=True, text=True)
+    assert r.returncode == 2
+    assert not (trip / "verified-pois-media.yaml").exists()
+
+
+def test_cli_missing_input_exits_2(tmp_path):
+    r = subprocess.run([sys.executable, "scripts/photo_adapter.py",
+                        str(tmp_path / "nope"), "--backend", "wiki"],
+                       cwd=str(ROOT), capture_output=True, text=True)
+    assert r.returncode == 2
+
+
+def test_backend_none_is_a_noop_that_exits_zero(tmp_path):
+    trip = tmp_path / "trip"; trip.mkdir()
+    (trip / "verified-pois.yaml").write_text("pois: []\n", encoding="utf-8")
+    r = subprocess.run([sys.executable, "scripts/photo_adapter.py", str(trip),
+                        "--backend", "none"], cwd=str(ROOT), capture_output=True, text=True)
+    assert r.returncode == 0

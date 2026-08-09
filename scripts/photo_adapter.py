@@ -9,9 +9,9 @@ split + key-at-runtime, NOT from where the code lives.
 
   - backend=none   : ships enabled; fetches nothing (default — existing trips unchanged).
   - backend=wiki   : Wikimedia Commons + Openverse; CC-only; safe to distribute.
-  - backend=google : key-gated AND its output is marked non-distributable by the
-    export gate; BLOCKED pending a display-surface ToS resolution — not implemented
-    here (fetch_media_entry returns None).
+  - backend=google : BLOCKED pending a display-surface ToS resolution —
+    fetch_media_entry raises ValueError loudly instead of returning an empty
+    result. It is also not an allowed `--backend` CLI choice (only none/wiki).
 
 Mirrors scripts/geocode.py discipline: a descriptive User-Agent, caller-supplied
 per-source rate limiting (Nominatim/Commons policy <= 1 req/s), a per-trip cache, and
@@ -22,6 +22,18 @@ photo_source mapping (schema enum {wikimedia, openverse, google}): the `wiki` ba
 resolves to source `wikimedia` (Commons) or `openverse`; the `commons` searcher emits
 `wikimedia`, the `openverse` searcher emits `openverse`.
 """
+if __name__ == "__main__" and __package__ in (None, ""):
+    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
+    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
+    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
+    # Must precede every other import: the shadow breaks `import requests` too.
+    import pathlib as _bootpath, sys as _bootsys
+    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
+    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+
+import sys as _sys
+import pathlib as _pathlib
+
 import base64
 import os
 import re
@@ -34,6 +46,9 @@ from scripts.geocode import in_region
 
 USER_AGENT = "tripwork/0.2 (https://github.com/helping-ai-workflow/tripwork)"
 BACKENDS = ("none", "wiki", "google")
+
+SCHEMAS = _pathlib.Path(__file__).resolve().parent.parent / "schemas"
+MEDIA_SCHEMA = SCHEMAS / "verified-pois-media.schema.json"
 
 COMMONS_API = "https://commons.wikimedia.org/w/api.php"
 OPENVERSE_API = "https://api.openverse.org/v1/images/"
@@ -256,16 +271,23 @@ def fetch_media_entry(poi, backend="none", *, sources=("openverse", "commons"),
                       radius_km=5.0, rate_limiters=None, max_results=8, cache=None):
     """Resolve a license-clean, location-matched landmark photo for one POI.
 
-    Returns a media entry {photo, photo_attribution, photo_source} or None (no clean
-    match / backend none|google). `rate_limiters` is an optional {source: RateLimiter}
-    (callers SHOULD pass one per source in production — Commons/Openverse policy).
-    `cache` is an optional dict keyed by poi id, storing the entry or None (negative
-    cache), mirroring geocode.resolve_place.
+    Returns a media entry {photo, photo_attribution, photo_source} or None (backend
+    none, or no clean match under backend wiki). Raises ValueError for backend
+    google (BLOCKED — see module docstring) or any other unknown backend.
+    `rate_limiters` is an optional {source: RateLimiter} (callers SHOULD pass one
+    per source in production — Commons/Openverse policy). `cache` is an optional
+    dict keyed by poi id, storing the entry or None (negative cache), mirroring
+    geocode.resolve_place.
     """
     if backend == "none":
         return None
     if backend == "google":
-        return None   # BLOCKED: no display-surface ToS clearance / no personal-cache exception
+        raise ValueError(
+            "backend 'google' is blocked: Google Maps user photos carry no "
+            "display-surface licence, so an entry sourced that way makes the "
+            "deliverable permanently non-distributable. Five real trips shipped "
+            "78 hand-written google entries while this function silently returned "
+            "an empty result. Use --backend wiki.")
     if backend != "wiki":
         raise ValueError(f"unknown photo backend: {backend!r}")
 
@@ -319,11 +341,113 @@ def build_media(pois, backend="none", *, landmark_only=True, **kw):
 
 
 def write_media_sidefile(path, doc):
-    """Atomically write a media side-file as YAML (mirrors geocode_cache.save_cache)."""
-    parent = os.path.dirname(str(path))
-    if parent:
-        os.makedirs(parent, exist_ok=True)
-    tmp = str(path) + ".tmp"
-    with open(tmp, "w", encoding="utf-8") as fh:
-        yaml.safe_dump(doc, fh, allow_unicode=True, sort_keys=True)
-    os.replace(tmp, path)
+    """Write the media side-file, refusing to leave an invalid one on disk.
+
+    Validating after writing is not equivalent: the invalid file survives to be
+    read by the export gate, which then reports a render-layer defect for what is
+    actually a producer bug.
+
+    The temp file is validated with an EXPLICIT schema_path (MEDIA_SCHEMA =
+    schemas/verified-pois-media.schema.json), not by basename lookup:
+    tempfile.mkstemp() names the temp file randomly, so
+    scripts.validate_artifact.validate_file's SCHEMA_BY_BASENAME dict would never
+    resolve it to this schema (or any schema) -- validate_file would return its
+    OWN usage-error code (2, "unknown artifact basename ...; pass --schema
+    explicitly") regardless of whether doc is actually schema-valid. That would
+    make every self-check fail for the wrong reason: a basename-resolution miss,
+    not a real validity signal. Passing schema_path explicitly sidesteps the
+    basename lookup entirely and is also correct regardless of what final `path`
+    a caller chooses to write to.
+    """
+    import tempfile
+    from scripts.validate_artifact import validate_file
+    parent = os.path.dirname(str(path)) or "."
+    os.makedirs(parent, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(suffix=".yaml", dir=parent)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as fh:
+            yaml.safe_dump(doc, fh, allow_unicode=True, sort_keys=False)
+        rc, msgs = validate_file(tmp, schema_path=MEDIA_SCHEMA)
+        if rc != 0:
+            raise ValueError(f"media side-file failed its schema self-check: {msgs}")
+        os.replace(tmp, path)
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)
+
+
+def main(argv):
+    """CLI: python scripts/photo_adapter.py <trip-dir> --backend {none,wiki}
+    [--dry-run] -- build & write trips/<slug>/verified-pois-media.yaml from
+    trips/<slug>/verified-pois.yaml.
+
+    backend=none (default) is a no-op: existing trips are unchanged and nothing
+    is written, matching fetch_media_entry's own backend=none no-op. backend=wiki
+    resolves each landmark POI's photo via Wikimedia Commons + Openverse and
+    writes the side-file. --dry-run resolves media but writes nothing, reporting
+    the count that WOULD be written.
+
+    'google' is deliberately not an allowed --backend choice -- argparse rejects
+    it with its own usage error, which is exit 2 the same way any other invalid
+    choice is, consistent with fetch_media_entry's loud refusal above.
+
+    Exit 0 written (including the backend=none / --dry-run / nothing-resolved
+    no-op cases) / 1 schema self-check failed, nothing written / 2 missing
+    verified-pois.yaml, unreadable/malformed input, or bad invocation.
+    """
+    import argparse
+    import pathlib
+
+    ap = argparse.ArgumentParser(description=main.__doc__,
+                                 formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument("trip_dir", help="trips/<slug> directory")
+    ap.add_argument("--backend", choices=["none", "wiki"], default="none",
+                    help="photo backend to use (default: none, a no-op)")
+    ap.add_argument("--dry-run", action="store_true",
+                    help="resolve media but write nothing; report what would happen")
+    args = ap.parse_args(argv)
+
+    trip_dir = pathlib.Path(args.trip_dir)
+    in_path = trip_dir / "verified-pois.yaml"
+    if not in_path.is_file():
+        print(f"missing required input: {in_path}", file=_sys.stderr)
+        return 2
+
+    if args.backend == "none":
+        print("photo_adapter: backend=none, nothing to do")
+        return 0
+
+    try:
+        raw = yaml.safe_load(in_path.read_text(encoding="utf-8"))
+    except yaml.YAMLError as exc:
+        print(f"YAML parse error in {in_path}: {exc}", file=_sys.stderr)
+        return 2
+    pois = (raw or {}).get("pois")
+    if not isinstance(pois, list):
+        print(f"{in_path}: 'pois' is not a list", file=_sys.stderr)
+        return 2
+
+    media_doc = build_media(pois, args.backend)
+    n = len(media_doc["media"])
+    out_path = trip_dir / "verified-pois-media.yaml"
+
+    if args.dry_run:
+        print(f"photo_adapter: --dry-run, would write {n} media entries to {out_path}")
+        return 0
+
+    if n == 0:
+        print("photo_adapter: no media resolved, nothing written")
+        return 0
+
+    try:
+        write_media_sidefile(str(out_path), media_doc)
+    except ValueError as exc:
+        print(f"schema self-check failed, nothing written: {exc}", file=_sys.stderr)
+        return 1
+
+    print(f"photo_adapter: wrote {n} media entries to {out_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main(_sys.argv[1:]))

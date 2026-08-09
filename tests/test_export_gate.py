@@ -302,3 +302,58 @@ def test_find_row_ignores_heading_uses_table_row():   # TW-044
     r = run_export_gate(md, [bookable])
     assert r["status"] == "fail"
     assert any("official source link" in f for f in r["failures"])
+
+
+# ── TW-069 fix round 1, Important 2: render_markdown_page vs _find_rows ──────
+# render_markdown_page (Task 4) made two new line shapes reachable that the old
+# table-only _find_rows could not reason about correctly, in opposite directions.
+
+def test_bookable_lodging_line_without_official_source_fails():
+    """FALSE-NEGATIVE direction: a bookable lodging POI referenced ONLY via
+    render_markdown_page's non-table '**宿**：' line (no day-table row) and
+    carrying no official source must still be caught. Before the fix,
+    _find_rows only recognised '|'-prefixed rows, so `rows` came back empty
+    and the check silently skipped it ('POI not scheduled') even though it
+    WAS scheduled — just not on a table row."""
+    from scripts.render.markdown import render_markdown_page
+    hotel = {
+        "id": "hotel-1", "name_local": "無官網旅店", "name_display": "無官網旅店",
+        "verify_status": "verified", "booking": {"required": True}, "sources": [],
+    }
+    itin = {"title": "t", "days": [{"date": "2026-08-29", "label": "D1",
+             "lodging": "hotel-1",
+             "rows": [{"time": "12:00", "slot": "meal", "text": "午餐"}]}]}
+    md = render_markdown_page(itin, {"hotel-1": hotel})
+    assert "**宿**：" in md and "無官網旅店" in md   # confirms the lodging line IS in the doc
+    r = run_export_gate(md, [hotel], min_days=1)
+    assert r["status"] == "fail"
+    assert _names("bookable_has_official_source", r) is False
+    assert any("hotel-1" in f and "official source link" in f for f in r["failures"])
+
+
+def test_bookable_lodging_not_shadowed_by_cost_table_row():
+    """FALSE-POSITIVE direction: a bookable lodging POI WITH a correctly-linked
+    '**宿**：' line must still pass even when cost.yaml's line-item label
+    happens to contain the POI's name as a substring (the real chiayi shape:
+    a lodging cost line item literally reads '兆品酒店嘉義（2晚）', which
+    contains the hotel's own name '兆品酒店嘉義'). Before the fix, that cost
+    TABLE row was counted as a scheduled row (it is '|'-prefixed and contains
+    the name), never carries a link, and so failed the gate on the cost row's
+    account even though the real lodging line carried the official link fine.
+    The fix must not depend on the POI name being absent from the cost label —
+    here it deliberately IS present, and the gate must still pass."""
+    from scripts.render.markdown import render_markdown_page
+    hotel = {
+        "id": "hotel-1", "name_local": "兆品酒店嘉義", "name_display": "兆品酒店嘉義",
+        "verify_status": "verified", "booking": {"required": True},
+        "sources": [{"url": "https://hotel.example", "official": True}],
+    }
+    itin = {"title": "t", "days": [{"date": "2026-08-29", "label": "D1",
+             "lodging": "hotel-1",
+             "rows": [{"time": "12:00", "slot": "meal", "text": "午餐"}]}]}
+    cost = {"currency": "TWD", "as_of": "2026-08-07", "total": 5000,
+            "line_items": [{"category": "lodging", "label": "兆品酒店嘉義（2晚）", "amount": 5000}]}
+    md = render_markdown_page(itin, {"hotel-1": hotel}, cost)
+    assert "兆品酒店嘉義（2晚）" in md   # confirms the trap line item IS in the doc
+    r = run_export_gate(md, [hotel], min_days=1)
+    assert r["status"] == "pass", r["failures"]

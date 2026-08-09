@@ -68,7 +68,8 @@
                   "nominatim",
                   "nominatim_structured",
                   "cluster_fallback"
-                ]
+                ],
+                "description": "Where this coordinate came from. Optional in schema (old verified-pois.yaml stays valid); required by source-verify's own Gate 2c. An absent value is a refusal, not a skip: verify_poi cannot tell 'nobody recorded where this coordinate came from' apart from 'this coordinate is a district centroid', so it returns unverified rather than letting the cluster_fallback existence-proof check go unasked. (I3)"
               },
               "pin_exact": {
                 "type": "boolean",
@@ -160,6 +161,10 @@
               "as_of": {
                 "type": "string",
                 "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              "no_fixed_close": {
+                "type": "boolean",
+                "description": "Sourced claim that this place has no closing time — an open-air beach, lake, park or street. A CLAIM, not an omission: without it a POI with no `close` is indistinguishable from one whose hours were never checked. Recording a fake 23:59 instead would flow into the need_mins arithmetic as if it meant something."
               }
             },
             "additionalProperties": false

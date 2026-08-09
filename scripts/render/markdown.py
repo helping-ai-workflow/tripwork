@@ -78,3 +78,97 @@ def render_day_table(day, poi_map):
             cell = md_escape(text)
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"
+
+
+def _amount(n):
+    """Format a cost number with thousands separators. Integral values (5000 or
+    5000.0) render without a decimal point; anything else keeps its fraction."""
+    if float(n) == int(n):
+        return f"{int(n):,}"
+    return f"{n:,}"
+
+
+def render_markdown_page(itin, poi_map, cost=None):
+    """Canonical itinerary.yaml -> the full markdown deliverable page.
+
+    HTML has render_html_page and LINE has render_line_short; until now markdown's
+    highest-level function was render_day_table, so every consumer hand-assembled
+    the 費用估算 / 備案 / 出發前檢查清單 sections around the day tables. A full
+    re-render then silently dropped them, and export-gate had no way to tell the
+    file was not reproducible from itinerary.yaml. This is the page-level
+    entrypoint: a pure function of {itin, poi_map, cost} that emits every section
+    exactly when its data exists, never a template with holes for a human to fill.
+
+    Section order (each omitted entirely when its data is absent):
+      # {title}
+      per day: render_day_table(...) + "**宿**：" lodging line (only when
+        day["lodging"] resolves in poi_map — never falls back to the raw id;
+        see the docstring warning below)
+      ## 備案 / Contingency  (itin["contingency"])
+      ## 出發前檢查清單       (itin["checklist"])
+      ## 費用估算（估算非報價） (cost, when given)
+
+    The lodging line must never fall back to the raw id when it does not resolve —
+    a hand-rolled consumer renderer once did `if not poi: return f"**宿**：{lid}"`,
+    leaking an internal POI id into user-facing text (exactly the class
+    scripts/text_hygiene.py::jargon_failures exists to catch).
+
+    Deliberately NOT emitted, unlike render_html_page: the overview table, the
+    emoji legend, and the footer. Omitting the overview table is not just a style
+    choice — export_gate._find_rows treats every markdown line starting with '|'
+    as a scheduled row, so an overview table would inject phantom rows into the
+    gate's view of the deliverable.
+
+    Args:
+        itin:    Canonical itinerary dict — {title, days, contingency, checklist}.
+        poi_map: {poi_id: poi_dict}, resolving row poi_id AND day.lodging.
+        cost:    Optional canonical cost dict ({currency, as_of, total, line_items}).
+    """
+    lines = [f"# {md_escape(itin.get('title', ''))}", ""]
+
+    for day in itin.get("days", []):
+        lines.append(render_day_table(day, poi_map).rstrip())
+        lines.append("")
+        poi = poi_map.get(day.get("lodging"))
+        if poi:
+            lines.append(f"**宿**：{_poi_cell(poi, '')}")
+            lines.append("")
+
+    contingency = itin.get("contingency")
+    if contingency:
+        lines.append("## 備案 / Contingency")
+        lines.append("")
+        for c in contingency:
+            trigger = md_escape(c.get("trigger", ""))
+            fallback = md_escape(c.get("fallback", ""))
+            note = c.get("note")
+            note_part = f"（{md_escape(note)}）" if note else ""
+            lines.append(f"- **{trigger}**{note_part}：{fallback}")
+        lines.append("")
+
+    checklist = itin.get("checklist")
+    if checklist:
+        lines.append("## 出發前檢查清單")
+        lines.append("")
+        for item in checklist:
+            lines.append(f"- {md_escape(item)}")
+        lines.append("")
+
+    if cost:
+        lines.append("## 費用估算（估算非報價）")
+        lines.append("")
+        lines.append(f"| 項目 | 明細 | 金額 ({md_escape(cost.get('currency', ''))}) |")
+        lines.append("|---|---|---|")
+        for item in cost.get("line_items", []):
+            category = md_escape(item.get("category", ""))
+            label = md_escape(item.get("label", ""))
+            lines.append(f"| {category} | {label} | {_amount(item.get('amount', 0))} |")
+        lines.append(f"| **合計** | | **{_amount(cost.get('total', 0))}** |")
+        lines.append("")
+        lines.append(f"_as\\_of {md_escape(cost.get('as_of', ''))}。估算值非報價。_")
+
+    # rstrip + single trailing "\n": several branches above can end on a blank
+    # "" section-separator (e.g. when cost is absent), which "\n".join already
+    # renders as a trailing newline of its own — normalising here is what keeps
+    # the page ending in exactly one "\n" regardless of which sections fired.
+    return "\n".join(lines).rstrip("\n") + "\n"

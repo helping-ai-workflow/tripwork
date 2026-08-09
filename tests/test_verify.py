@@ -372,6 +372,57 @@ def test_missing_resolved_name_does_not_preempt_earlier_gates():
     assert "resolved_name" not in note
 
 
+def test_gate_2c_refuses_when_geocode_source_is_not_recorded():
+    """I3: Gate 2c's trigger (`geocode.geocode_source`) is itself optional, so a
+    POI that never records where its coordinate came from could skip Gate 2c
+    entirely by omission -- 19 of 127 real POIs across the four schema-clean
+    trips do exactly this.
+
+    RED at HEAD: `verify_poi`'s `geo_source = (... or {}).get("geocode_source")
+    or ""` coerces the absent field to `""`, which never equals
+    `"cluster_fallback"`, so Gate 2c's sub-check never runs and this POI (no
+    existence proof, resolvable name, otherwise clean) reaches 'verified'.
+    """
+    poi = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343})
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "unverified"
+    assert "geocode_source" in note
+
+
+def test_recording_geocode_source_still_runs_gate_2c_as_before():
+    """Guard, GREEN at HEAD: prevents the new GEOCODE_SOURCE_MISSING branch
+    from swallowing the branch it sits beside. A POI that DOES record
+    geocode_source must still run Gate 2c's existing cluster_fallback
+    sub-check exactly as before -- centroid + no proof -> unverified with the
+    existing centroid message, nominatim -> verified.
+    """
+    fallback = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
+                                   "geocode_source": "cluster_fallback"})
+    _, status, note = verify_poi(fallback, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "unverified"
+    assert "cluster_fallback" in note
+
+    resolved = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
+                                   "geocode_source": "nominatim"})
+    _, status, note = verify_poi(resolved, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+    assert note == ""
+
+
+def test_direct_classify_candidate_callers_that_never_pass_geocode_source_are_unaffected():
+    """Guard, GREEN at HEAD: the refusal is threaded from verify_poi, NOT made
+    classify_candidate's default -- 19 direct classify_candidate call sites
+    never pass the geocode_source keyword at all and must keep their current
+    meaning. Same split Part 1 used for name_match (verify.py:253-267).
+    """
+    c = _cand(["a", "b"], ["ko", "zh"])
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
+    assert status == "verified"
+
+
 def test_cluster_fallback_does_not_preempt_earlier_gates():
     """Review Round 2: Gate 2's cluster_fallback sub-check must also obey
     skills/source-verify/SKILL.md:28's documented strict order, mirroring

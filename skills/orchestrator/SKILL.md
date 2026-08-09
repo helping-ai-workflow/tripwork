@@ -29,6 +29,16 @@ Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
   `python scripts/input_fingerprint.py <trip-brief.yaml> <projection>`). The producing
   stage records it as `input_fingerprints["<upstream>.yaml"]` on the derived artifact,
   so staleness reflects real content changes, not incidental file edits/mtimes.
+- **report staleness** (rules 13 & 15, v0.33.0): unlike rule 11, `gate-report.yaml` /
+  `export-gate-report.yaml` staleness is a plain MTIME comparison against every artifact
+  the respective CLI actually opens — `scripts/orchestration.py::GATE_INPUTS` /
+  `EXPORT_GATE_INPUTS` — not just the itinerary/deliverable alone. Report-tier and
+  research-tier staleness deliberately use different predicates: a naive mtime rule on
+  the RESEARCH-tier artifacts (`scripts/orchestration.py::_DEPS` / `deps_stale`, a
+  content-based, fail-open predicate consumed by future stages) fires on 37 of 174 real
+  edges across six trips and starts a non-terminating cascade, so those compare CONTENT
+  instead. Report-tier mtime widening measured 4 true-positive extra fires and 0 false
+  positives across the same corpus — cheap to re-run the gate, so mtime is fine there.
 
 ## Stage Selection
 
@@ -39,9 +49,9 @@ script implements (tests: `tests/test_next_stage.py`). The script does NOT
 handle slug binding (rule 0.5) or stop-on-confirmation — those stay with you.
 A `next: stop-and-ask` output is rule 15's non-retryable branch: halt and ask.
 After fixing DATA for a rule-13.5 accommodation-class failure (lodging/facility),
-delete the stale `gate-report.yaml` yourself before re-running the oracle — the
-script keys rule 13 on `itinerary.yaml` mtime and will not advance past a stale
-fail report on its own.
+just re-run the oracle — the fixing stage rewrites its own artifact with a newer
+mtime than `gate-report.yaml`, and the widened rule 13 (see below) notices that
+on its own. No manual `gate-report.yaml` deletion step is needed any more.
 
 0. If `work/.preflight-completed` is absent → run `tripwork:workspace-shape-preflight` first.
 0.5. **Bind `<slug>` first.** A new request must allocate a `<slug>` that does **not**
@@ -72,14 +82,48 @@ fail report on its own.
     anchor: synthesis rewrites it every run and would loop advisory.
 12. advisory ready, no itinerary.yaml -> run `tripwork:itinerary-synthesis`.
     (The canonical `itinerary.yaml` is the marker, not the derived `itinerary.md`.)
-13. itinerary.yaml exists, and no gate-report.yaml **or itinerary.yaml newer than gate-report.yaml** -> run `tripwork:itinerary-gate`.
+13. itinerary.yaml exists, and no gate-report.yaml **or itinerary.yaml newer than gate-report.yaml**
+    -> run `tripwork:itinerary-gate`. **Widened (v0.33.0):** gate-report.yaml must actually be
+    newer than EVERY artifact `scripts/gate.py::main` reads — `GATE_INPUTS` (verified-pois /
+    trip-brief / accommodations / calendar / advisory / legs / routing / cost), not itinerary.yaml
+    alone — see **report staleness** in Definitions. A re-verify that only demotes a scheduled
+    POI's `verify_status` never touches itinerary.yaml, so the old itinerary-only anchor let such
+    a report stand as "complete" though the gate never saw the demotion; measured on the real
+    corpus: four such gaps across four trips, all true positives (e.g. a `verified-pois.yaml`
+    527 seconds newer than the gate-report that supposedly gated it).
 13.5. **gate-report.yaml status==fail** -> route by failure class, invalidating the stale
-    gate-report (and the artifact being regenerated): no-meal / unknown-POI / non-verified /
-    geocode / closed-day / must_do / advisory-surface failures -> run `tripwork:itinerary-synthesis`
-    (regenerate itinerary.yaml + itinerary.md); lodging / facility failures -> run
-    `tripwork:accommodation-research`. Then re-run rule 13.
+    gate-report (and the artifact being regenerated). A re-derivation failure names a field
+    only its PRODUCING stage can write — synthesis cannot add `km` to a routing hop, and it
+    cannot add `hours.close` to a POI — so every class routes to the stage that owns the
+    file. The executable form is `_ROUTES` in `scripts/orchestration.py`, matched in this
+    order (`tests/test_deps_table.py::test_rule_13_5_targets_match_the_routes_table` pins
+    this list against it):
+
+    | # | Failure class | Route to |
+    |---|---|---|
+    | 1 | chosen / required-facility lodging failures, and `rederive_lodging`'s `accommodations stop …` / `accommodations.yaml absent` | `tripwork:accommodation-research` |
+    | 2 | `legs[…]` re-derivation failures, `legs.yaml absent` | `tripwork:inter-stop-legs` |
+    | 3 | `routing hop …` re-derivation failures, `routing.yaml absent` | `tripwork:routing-audit` |
+    | 4 | `cost.total` / `cost.by_category` mismatches, `cost.yaml absent` | `tripwork:cost-rollup` |
+    | 5 | a scheduled POI `carries neither hours.close nor hours.no_fixed_close` | `tripwork:source-verify` |
+    | 6 | AI-tone hits | `tripwork:itinerary-synthesis` |
+    | — | everything else (no-meal / unknown-POI / non-verified / geocode / closed-day / must_do / advisory-surface / no-resolved-lodging / unrendered home leg / missing `closing_status`) | `tripwork:itinerary-synthesis` |
+
+    Row 5 is **not** a synthesis defect even though the gate reads it off an itinerary row:
+    `hours` lives in `verified-pois.yaml` and only source-verify writes that file. Routing it
+    to synthesis made the loop non-terminating — synthesis rewrites the itinerary, the same
+    rows re-fail, forever. It sits LAST among the producing-stage rows because
+    `verified-pois.yaml` is an upstream of routing / accommodations / legs / cost in `_DEPS`,
+    so re-running it invalidates all four; fix the cheaper downstream classes first.
+
+    Then re-run rule 13.
 14. gate-report status==pass, no exports/<slug>-itinerary.md -> run `tripwork:export-artifact`.
-15. export deliverable exists, no export-gate-report.yaml -> run `tripwork:export-gate`.
+15. export deliverable exists, and no export-gate-report.yaml **or the deliverable / any of
+    `EXPORT_GATE_INPUTS`** (itinerary / verified-pois / accommodations / verified-pois-media)
+    **is newer than export-gate-report.yaml** -> run `tripwork:export-gate`. **Widened
+    (v0.33.0)** the same way as rule 13 — see **report staleness** in Definitions. Measured 0
+    extra fires across the corpus: the report-tier true-positive gap this release closed was
+    entirely on rule 13's side.
     On `export-gate-report` status==fail, branch on `retryable`:
     - **retryable==true** (a render-fixable defect — naked `$`, broken link, 0 rendered
       photos) -> delete the stale export-gate-report and return to `tripwork:export-artifact`

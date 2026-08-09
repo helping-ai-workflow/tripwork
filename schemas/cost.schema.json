@@ -44,6 +44,11 @@
     "total": {
       "type": "number"
     },
+    "by_category": {
+      "type": "object",
+      "additionalProperties": {"type": "number"},
+      "description": "Per-category subtotals as returned by scripts/cost.py::sum_costs. Optional: `total` is the load-bearing verdict and is always re-derived, so this is a strictly-additional cross-check that only runs when present."
+    },
     "budget": {
       "type": "object",
       "properties": {

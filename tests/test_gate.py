@@ -1,12 +1,24 @@
 # tests/test_gate.py
 from scripts.gate import run_gate
+from tests.mech_fixtures import rederive_kwargs
 
-def _poi(pid, geo=True, status="verified", closed_days=None):
+# v0.33.0 (R4): explicit close + last_order + last_entry so a POI opted into the
+# closing-buffer check (via _poi(..., hours=_HOURS)) is re-derivable for a row
+# scheduled by either _meal (12:00) or _act (14:00). Not no_fixed_close: several
+# call sites name their POI "rest1" (a restaurant) and a generic gate fixture
+# should not model "genuinely no closing time" for something meal-shaped.
+_HOURS = {"close": "22:00", "last_order": "21:30", "last_entry": "21:30",
+         "typical_visit_mins": 60, "as_of": "2026-01-01"}
+
+
+def _poi(pid, geo=True, status="verified", closed_days=None, hours=None):
     d = {"id": pid, "verify_status": status}
     if geo:
         d["geocode"] = {"lat": 1.0, "lng": 2.0}
     if closed_days is not None:
         d["closed_days"] = closed_days
+    if hours is not None:
+        d["hours"] = hours
     return d
 
 def _itin(rows, date="2026-06-12", lodging=None, checklist=None):
@@ -18,11 +30,21 @@ def _itin(rows, date="2026-06-12", lodging=None, checklist=None):
         itin["checklist"] = checklist
     return itin
 
-def _meal(pid): return {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
-def _act(pid):  return {"time": "14:00", "slot": "activity", "poi_id": pid, "text": "see"}
+def _meal(pid, closing_status=None):
+    row = {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
+    if closing_status is not None:
+        row["closing_status"] = closing_status
+    return row
+
+def _act(pid, closing_status=None):
+    row = {"time": "14:00", "slot": "activity", "poi_id": pid, "text": "see"}
+    if closing_status is not None:
+        row["closing_status"] = closing_status
+    return row
 
 def test_gate_pass_when_all_verified_geocoded_with_meal():
-    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    r = run_gate([_poi("a", hours=_HOURS)], _itin([_meal("a", closing_status="ok")]),
+                 advisory={"items": []}, **rederive_kwargs())
     assert r["status"] == "pass"
     assert r["failures"] == []
 
@@ -361,7 +383,8 @@ def test_gate_advisory_present_check_always_in_report_when_present():
 
 def test_gate_pass_with_empty_advisory():
     """advisory={"items": []} -> no 'advisory absent' failure; otherwise-valid plan passes."""
-    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    r = run_gate([_poi("a", hours=_HOURS)], _itin([_meal("a", closing_status="ok")]),
+                 advisory={"items": []}, **rederive_kwargs())
     assert not any("advisory absent" in f for f in r["failures"])
     assert r["status"] == "pass"
     assert r["failures"] == []
@@ -382,8 +405,13 @@ def test_gate_banned_item_not_surfaced_still_fails_with_present_advisory():
 # --- v0.30.0: kana-named lodging gloss (product-gap closure) ---
 
 def _kana_hotel_accom(name_zh=None):
+    # geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging
+    # re-derives h1 to the recorded 'verified' instead of flagging it as a
+    # verdicts_rederivable gap -- this fixture predates both fields.
     c = {"id": "h1", "name_local": "駅前ホテル", "name_display": "駅前ホテル",
-         "verify_status": "verified", "geocode": {"lat": 1, "lng": 2},
+         "verify_status": "verified",
+         "geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"},
+         "resolved_name": "駅前ホテル",
          "facilities": [],
          "sources": [{"url": "https://a.example", "lang": "ja"},
                      {"url": "https://b.example", "lang": "zh"}]}
@@ -393,9 +421,10 @@ def _kana_hotel_accom(name_zh=None):
                        "candidates": [c]}]}
 
 def test_gate_kana_lodging_with_name_zh_passes():   # v0.30.0
-    r = run_gate([_poi("a")], _itin([_meal("a")], lodging="h1"),
-                 advisory={"items": []}, accommodations=_kana_hotel_accom("車站前旅館"),
-                 facility_needs={"required": []})
+    r = run_gate([_poi("a", hours=_HOURS)], _itin([_meal("a", closing_status="ok")], lodging="h1"),
+                 advisory={"items": []},
+                 facility_needs={"required": []},
+                 **rederive_kwargs(accommodations=_kana_hotel_accom("車站前旅館")))
     assert not any("name_zh" in f for f in r["failures"])
     assert r["status"] == "pass"
 
@@ -405,3 +434,173 @@ def test_gate_kana_lodging_without_name_zh_fails():   # v0.30.0
                  facility_needs={"required": []})
     assert r["status"] == "fail"
     assert any("h1" in f and "name_zh" in f for f in r["failures"])
+
+
+# --- fix round 1, Important 2: the wiring seam (run_gate must SURFACE
+#     verdict re-derivation, not just accept the kwargs). All 12 rederive.py
+#     unit tests call run_rederivation directly; the 10 migrated call sites
+#     only prove **rederive_kwargs() keeps a passing gate passing. Nothing
+#     asserted that a re-derivation failure actually reaches run_gate's
+#     output -- deleting `checks.extend(rd["checks"])` / `failures.extend(
+#     rd["failures"])` in scripts/gate.py would leave the rest of the suite
+#     green. This is the seam that most needs a test: the mechanism's
+#     user-visible contract IS the gate report.
+
+def test_gate_surfaces_rederivation_match_failure_in_report():
+    legs = {"legs": [{"from": "三重", "to": "嘉義市", "mode": "drive",
+                      "duration_mins": 400, "status": "ok"}]}
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
+                 legs=legs, routing={"clusters": [], "hops": [], "warnings": []},
+                 cost={"currency": "TWD", "as_of": "2026-08-07", "total": 0,
+                       "line_items": []},
+                 trip_brief={"dates": {"start": "2026-08-29", "end": "2026-08-31"}})
+    assert r["status"] == "fail"
+    assert {"name": "verdicts_match", "passed": False, "examined": 2} in r["checks"]
+    assert any("drive_too_long" in f and "三重" in f for f in r["failures"])
+
+
+def test_gate_surfaces_rederivation_rederivable_failure_in_report():
+    """Sibling of the match-axis guard above: a record with GAPS (not wrong,
+    just unverifiable) must also surface as a gate-report FAILURE via
+    verdicts_rederivable, never silently absorbed.
+
+    examined is 3, not 2 (pre-v0.33.0): _poi("a") here deliberately carries no
+    `hours` and _meal("a") no `closing_status`, so on top of the leg gap this
+    row is now ALSO a genuine, separate rederivable gap (R4) -- one more true
+    finding on the same axis, not a bug in this test."""
+    legs = {"legs": [{"from": "嘉義", "to": "台南", "mode": "rail",
+                      "duration_mins": 40, "status": "ok"}]}
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []},
+                 legs=legs, routing={"clusters": [], "hops": [], "warnings": []},
+                 cost={"currency": "TWD", "as_of": "2026-08-07", "total": 0,
+                       "line_items": []},
+                 trip_brief={"dates": {"start": "2026-08-29", "end": "2026-08-31"}})
+    assert r["status"] == "fail"
+    assert {"name": "verdicts_rederivable", "passed": False, "examined": 3} in r["checks"]
+    assert any("last_service_exempt" in f for f in r["failures"])
+    assert any("closing_status is not re-derivable" in f for f in r["failures"])
+
+
+# --- home_legs_rendered (TW-069 fix round 1, Important 1) ------------------
+# The reviewer proved Step 5b's original test (render_day_table on a hand-built
+# move row) was already green, unmodified, at a3e26f6 -- it proved nothing this
+# task did. This is the real mechanism: a kind:home leg is checked (rederive_legs)
+# and its fare is summed (cost-rollup), but neither proves it reached the reader.
+
+def _home_leg(frm="三重", to="嘉義市", duration_mins=190):
+    return {"legs": [{"from": frm, "to": to, "kind": "home", "mode": "drive",
+                      "duration_mins": duration_mins, "status": "ok"}]}
+
+
+def test_gate_home_leg_rendered_passes_when_referenced():
+    move_row = {"slot": "move", "from": "三重", "to": "嘉義市", "text": "自駕南下",
+                "leg_index": 0}
+    itin = _itin([_meal("a", closing_status="ok"), move_row])
+    r = run_gate([_poi("a", hours=_HOURS)], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=_home_leg()))
+    assert r["status"] == "pass", r["failures"]
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is True
+    assert not any("has no move row" in f for f in r["failures"])
+
+
+def test_gate_home_leg_rendered_fails_when_unreferenced():
+    itin = _itin([_meal("a")])   # no row carries leg_index -> the leg is unrendered
+    r = run_gate([_poi("a")], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=_home_leg()))
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is False
+    assert any("home leg 0 (三重->嘉義市) has no move row" in f for f in r["failures"])
+    # the failure message must NOT contain 'legs[' (scripts/orchestration.py's
+    # _ROUTES routes that marker to tripwork:inter-stop-legs -- the wrong
+    # destination for a synthesis-side rendering gap).
+    assert not any("legs[" in f for f in r["failures"])
+
+
+def test_gate_home_leg_rendered_ignores_non_home_legs():
+    """A kind:inter_stop (or absent-kind, default) leg is NOT subject to this
+    check. Measured before specifying the fix: across the four schema-clean
+    corpus trips, 6 legs, all kind-absent (defaulting to inter_stop) -- so this
+    check fires on nothing at HEAD, zero fallout."""
+    legs = {"legs": [{"from": "嘉義", "to": "台南", "mode": "rail",
+                      "duration_mins": 40, "status": "ok"}]}
+    itin = _itin([_meal("a")])
+    r = run_gate([_poi("a")], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=legs))
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is True
+
+
+def test_gate_home_leg_index_out_of_range_fails():
+    itin = _itin([{"slot": "move", "text": "自駕", "leg_index": 5}])
+    r = run_gate([], itin, advisory={"items": []},
+                 **rederive_kwargs(legs={"legs": []}))
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is False
+    assert any("leg_index 5 does not match any recorded leg" in f for f in r["failures"])
+
+
+def test_gate_a_non_integer_leg_index_is_a_gate_failure_not_a_traceback():
+    """Reviewer triage, fix now: `leg_index: "0"` (a string, the shape
+    hand-authored YAML produces) used to raise TypeError out of `run_gate`.
+    `scripts/gate.py::main` does not catch TypeError around run_gate, so the CLI
+    died with a traceback instead of the documented exit 2 — and a gate that
+    CRASHES on bad input is strictly worse than one that fails it, because the
+    consumer gets no failure list at all.
+
+    The schema forbids a non-integer, but `opt()` deliberately does not
+    schema-validate (that is what lets the gate report a fixable failure instead
+    of exiting 2 on a dirty trip), so the value reaches this code verbatim.
+    """
+    itin = _itin([{"slot": "move", "text": "自駕", "leg_index": "0"}])
+    r = run_gate([], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=_home_leg()))
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is False
+    assert any("leg_index is a str, not an integer" in f for f in r["failures"])
+    # routes like every other unrendered-home-leg defect: synthesis wrote the row.
+    from scripts.orchestration import route_gate_failures
+    assert route_gate_failures(r["failures"]) == "tripwork:itinerary-synthesis"
+
+
+def test_gate_a_malformed_leg_index_cannot_choose_its_own_route():
+    """The failure string above is routed by SUBSTRING match
+    (scripts/orchestration.py::_ROUTES), so interpolating the trip-authored
+    value into it would let an itinerary pick the stage its own defect routes
+    to. Reproduced before this was tightened: `leg_index: "legs.yaml absent"`
+    routed to inter-stop-legs and `"cost.total"` to cost-rollup — both wrong,
+    and both chosen by trip content rather than by the defect.
+
+    Every one of these is a synthesis defect (synthesis wrote the row), so every
+    one must route there regardless of what the row says."""
+    from scripts.orchestration import route_gate_failures
+
+    for hostile in ("legs.yaml absent", "cost.total", "routing hop ",
+                    "accommodations.yaml absent", "AI-tone ",
+                    "carries neither hours.close"):
+        itin = _itin([{"slot": "move", "text": "自駕", "leg_index": hostile}])
+        r = run_gate([], itin, advisory={"items": []},
+                     **rederive_kwargs(legs=_home_leg()))
+        assert route_gate_failures(r["failures"]) == "tripwork:itinerary-synthesis", hostile
+        assert not any(hostile in f for f in r["failures"]), hostile
+
+
+def test_gate_leg_index_with_no_legs_yaml_still_reports_the_dangling_reference():
+    """Guard, GREEN at HEAD: docstring reconciliation (reviewer triage, fix
+    now). The docstring said a
+    `legs=None` means "no home-leg data to check either way", but the
+    out-of-range loop still ran with n_legs == 0, so a row carrying a leg_index
+    DID produce a failure. The behaviour is right — a row pointing at leg 0 of a
+    file that is not there is a real dangling reference — so the docstring was
+    corrected to match rather than the loop suppressed. This pins the behaviour
+    the prose now describes.
+    """
+    itin = _itin([{"slot": "move", "text": "自駕", "leg_index": 0}])
+    r = run_gate([], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=None))
+    assert any("leg_index 0 does not match any recorded leg" in f
+               for f in r["failures"])
+
+
+def test_gate_home_legs_rendered_check_always_present():
+    """always-on, per the fix spec: appears in checks even when legs is None."""
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    assert "home_legs_rendered" in [c["name"] for c in r["checks"]]

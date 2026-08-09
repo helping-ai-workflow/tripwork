@@ -14,6 +14,7 @@ from scripts.geocode import resolve_place
 from scripts.gate import run_gate
 from scripts.export_gate import run_export_gate, run_html_gate
 from scripts.render.gmaps_links import maps_url
+from tests.mech_fixtures import rederive_kwargs
 
 # Reference "today" for sourced business_status.as_of recency (TW-063). Fixed
 # so these tests don't rot as the wall clock advances past the 90-day window.
@@ -35,8 +36,18 @@ def _poi(pid, geo=True, status="verified", **extra):
     return d
 
 
-def _meal(pid):
-    return {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
+# v0.33.0 (R4): explicit close + last_order, mirroring tests/test_gate.py's
+# _HOURS. "rest1" names a restaurant -- not a no_fixed_close candidate (see
+# skills/source-verify/SKILL.md's eatery caveat).
+_HOURS = {"close": "22:00", "last_order": "21:30", "last_entry": "21:30",
+         "typical_visit_mins": 60, "as_of": "2026-01-01"}
+
+
+def _meal(pid, closing_status=None):
+    row = {"time": "12:00", "slot": "meal", "poi_id": pid, "text": "lunch"}
+    if closing_status is not None:
+        row["closing_status"] = closing_status
+    return row
 
 
 def _itin(rows, date="2026-07-01", lodging=None, **extra):
@@ -51,10 +62,13 @@ def _itin(rows, date="2026-07-01", lodging=None, **extra):
 # ============================ P1 — operating (Gate 0) =========================
 class TestP1Operating:
     def _cand(self, **extra):
+        # I3: geocode_source: nominatim -- this class is about Gate 0
+        # (operating), isolated from Gate 2c's centroid check by using a real
+        # geocoder-resolved coordinate, not a district centroid.
         c = {"id": "x", "name_local": "店", "name_display": "店",
              "sources": [{"url": "https://a.example", "lang": "zh"},
                          {"url": "https://b.example", "lang": "zh"}],
-             "geocode": {"lat": 1.0, "lng": 2.0}}
+             "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"}}
         c.update(extra)
         return c
 
@@ -109,11 +123,13 @@ class TestP2NameMatch:
         assert "name" in note.lower() and "mismatch" in note.lower()
 
     def test_verify_poi_resolved_name_mismatch_conflicting(self):
+        # I3: geocode_source: nominatim -- this fixture's point is Gate 2b's
+        # name-mismatch check, not Gate 2c's centroid check.
         c = {"id": "x", "name_local": "星月大地", "name_display": "星月大地",
              "business_status": _sourced_status("OPERATIONAL"),
              "sources": [{"url": "https://a.example", "lang": "zh"},
                          {"url": "https://b.example", "lang": "zh"}],
-             "geocode": {"lat": 1.0, "lng": 2.0}}
+             "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"}}
         _, status, note = verify_poi(c, geocoded=True, in_claimed_region=True,
                                      resolved_name="星月驛站, 后里區", today=_TODAY)
         assert status == "conflicting"
@@ -177,10 +193,15 @@ class TestP3GeocodeResilience:
 # ============================ P4 — lodging in gate/render pool ================
 class TestP4LodgingPool:
     def _acc(self):
+        # geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging
+        # re-derives this candidate to the recorded 'verified' instead of
+        # flagging it as a verdicts_rederivable gap.
         return {"stops": [{"district": "日月潭", "nights": 2, "chosen": "hotel-a",
             "candidates": [{
                 "id": "hotel-a", "name_local": "力麗溫德姆", "name_display": "力麗溫德姆",
-                "verify_status": "verified", "geocode": {"lat": 1.0, "lng": 2.0},
+                "verify_status": "verified",
+                "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"},
+                "resolved_name": "力麗溫德姆",
                 "facilities": [],
                 "sources": [{"url": "https://x.example", "lang": "zh"},
                             {"url": "https://y.example", "lang": "zh"}]}]}]}
@@ -193,8 +214,10 @@ class TestP4LodgingPool:
     def test_gate_passes_with_lodging_only_in_accommodations(self):
         # Acceptance: gate passes when day.lodging is an accommodations chosen id,
         # with only verified-pois + accommodations as inputs (no manual merge).
-        r = run_gate([_poi("rest1")], _itin([_meal("rest1")], lodging="hotel-a"),
-                     accommodations=self._acc(), advisory={"items": []})
+        r = run_gate([_poi("rest1", hours=_HOURS)],
+                     _itin([_meal("rest1", closing_status="ok")], lodging="hotel-a"),
+                     advisory={"items": []},
+                     **rederive_kwargs(accommodations=self._acc()))
         assert r["status"] == "pass", r["failures"]
         assert not any("unknown POI 'hotel-a'" in f for f in r["failures"])
 
@@ -210,9 +233,10 @@ class TestP4LodgingPool:
 # ============================ P5 — must_do thematic coverage ==================
 class TestP5MustDo:
     def test_thematic_must_do_covered_passes(self):
-        r = run_gate([_poi("ferry")],
-                     _itin([_meal("ferry")], must_do_coverage={"日月潭遊湖賞景": ["ferry"]}),
-                     must_do=["日月潭遊湖賞景"], advisory={"items": []})
+        r = run_gate([_poi("ferry", hours=_HOURS)],
+                     _itin([_meal("ferry", closing_status="ok")],
+                          must_do_coverage={"日月潭遊湖賞景": ["ferry"]}),
+                     must_do=["日月潭遊湖賞景"], advisory={"items": []}, **rederive_kwargs())
         assert r["status"] == "pass", r["failures"]
         assert {"name": "must_do_covered", "passed": True} in r["checks"]
 

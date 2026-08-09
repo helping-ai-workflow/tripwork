@@ -5,11 +5,45 @@ validator; the itinerary passes run_gate; the exports pass run_export_gate /
 run_html_gate. Shared by test_gate_cli / test_export_gate CLI tests /
 test_next_stage / test_e2e_mechanized_pipeline.
 """
+import os
 import pathlib
 
 import yaml
 
 SLUG = "2026-08-testtrip"
+
+# The consumer corpus the release's headline measurements were taken against.
+# CONDITIONAL, and read from the environment so it is not pinned to one machine:
+# every guard using it is `skipif`-ed on the directory existing, and CI runs
+# without the corpus (.github/workflows/ci.yml checks out this repo only), so
+# those guards DO NOT RUN in CI. Point TRIPWORK_CORPUS at a checkout of the
+# consumer workspace's `trips/` directory to run them elsewhere.
+CORPUS = pathlib.Path(os.environ.get(
+    "TRIPWORK_CORPUS", "/home/user/hp_workspace/tripwork-workspace/trips"))
+
+# The four trips whose artifacts pass validate_artifact at HEAD. hokkaido-7d and
+# nz-south-island are excluded: both already fail validation (hokkaido routing
+# carries far_hops/max_hop_mins/slug; nz clusters lack district), so they are
+# not a baseline for anything.
+CORPUS_TRIPS = ("2026-06-yilan", "2026-07-sun-moon-lake", "2026-08-chiayi",
+                "2026-09-northeast-coast")
+
+
+def load_trip(trip):
+    """Every artifact of one corpus trip, as the gate CLI would load them
+    (absent optional artifacts become None, exactly like scripts/gate.py's
+    `opt()`)."""
+    d = CORPUS / trip
+
+    def opt(name):
+        p = d / name
+        return yaml.safe_load(p.read_text(encoding="utf-8")) if p.is_file() else None
+
+    return {"pois": opt("verified-pois.yaml"), "itinerary": opt("itinerary.yaml"),
+            "accommodations": opt("accommodations.yaml"),
+            "calendar": opt("calendar.yaml"), "advisory": opt("advisory.yaml"),
+            "legs": opt("legs.yaml"), "routing": opt("routing.yaml"),
+            "cost": opt("cost.yaml"), "brief": opt("trip-brief.yaml") or {}}
 
 MD_DELIVERABLE = """## 測試行程
 
@@ -83,6 +117,11 @@ def verified_pois():
         ],
         "verify_status": "verified",
         "geocode": {"lat": 41.796, "lng": 140.757},
+        # v0.33.0 (R4): both rows below schedule poi-1 at 12:00 with slot "meal",
+        # so last_order is what closing_status actually reads; last_entry is also
+        # given so the fixture stays valid if a row's slot ever changes to visit.
+        "hours": {"close": "22:00", "last_order": "21:30", "last_entry": "21:30",
+                  "typical_visit_mins": 60, "as_of": "2026-07-06"},
     }]}
 
 
@@ -96,12 +135,18 @@ def accommodations():
     # Kana-named hotel + name_zh (v0.30.0): exercises the lodging gloss path —
     # the gate's kana_name_without_gloss check on the folded lodging POI is
     # satisfied by name_zh, mirroring verified-pois.
+    # geocode_source + resolved_name (I2, v0.33.0): so run_gate's rederive_lodging
+    # re-derives this candidate to the SAME 'verified' it's recorded as -- without
+    # them the record is a genuine verdicts_rederivable gap (correct behaviour for
+    # the real corpus, wrong for this "everything passes" fixture).
     return {"stops": [{
         "district": "函館", "nights": 1, "chosen": "hotel-1",
         "candidates": [{
             "id": "hotel-1", "name_local": "駅前ホテル",
             "name_display": "駅前ホテル", "name_zh": "車站前旅館",
-            "facilities": [], "geocode": {"lat": 41.77, "lng": 140.73},
+            "facilities": [],
+            "geocode": {"lat": 41.77, "lng": 140.73, "geocode_source": "nominatim"},
+            "resolved_name": "駅前ホテル",
             "sources": [
                 {"url": "https://hotel.example", "lang": "ja", "official": True},
                 {"url": "https://guide.example/hotel", "lang": "zh"},
@@ -139,11 +184,67 @@ def itinerary():
         "days": [
             {"date": "2026-08-01",
              "rows": [{"time": "12:00", "slot": "meal", "poi_id": "poi-1",
-                       "text": "午餐"}],
+                       "text": "午餐", "closing_status": "ok"}],
              "lodging": "hotel-1"},
             {"date": "2026-08-02",
              "rows": [{"time": "12:00", "slot": "meal", "poi_id": "poi-1",
-                       "text": "午餐"}]},
+                       "text": "午餐", "closing_status": "ok"}]},
+        ],
+    }
+
+
+def rederive_kwargs(**over):
+    """The legs/routing/cost/trip_brief/accommodations bundle run_gate needs so
+    verdict re-derivation has something to re-derive. Every existing run_gate
+    call site that asserts status == 'pass' must pass **rederive_kwargs().
+
+    accommodations defaults to {"stops": []} (I2, v0.33.0): rederive_lodging
+    treats an ABSENT accommodations.yaml as a verdicts_rederivable failure, same
+    as legs/routing/cost -- a call site that wants a real lodging fixture must
+    override it explicitly, e.g. **rederive_kwargs(accommodations=MY_ACCOM),
+    never a bare accommodations=MY_ACCOM alongside **rederive_kwargs() (that
+    collides: run_gate() got multiple values for keyword argument
+    'accommodations').
+
+    There is deliberately NO rederive=False switch: an off-switch would make a
+    skipped check indistinguishable from a green one, which is the defect class
+    the mechanism closes.
+    """
+    kw = {
+        "legs": {"legs": []},
+        "routing": {"clusters": [], "hops": [], "warnings": []},
+        "cost": {"currency": "TWD", "as_of": "2026-08-07", "total": 0,
+                 "line_items": []},
+        "trip_brief": {"dates": {"start": "2026-08-29", "end": "2026-08-31"}},
+        "accommodations": {"stops": []},
+    }
+    kw.update(over)
+    return kw
+
+
+def build_gate_inputs():
+    """(pois, itin) pair that PASSES run_gate(advisory={"items": []},
+    **rederive_kwargs()) as-is, so a caller can mutate `itin` in place (e.g.
+    inject an em-dash into a row's text) and attribute any resulting failure
+    to that one mutation.
+
+    Deliberately a single day (not itinerary()'s two-day shape): a single day
+    is its own last day, so the always-on `_day_has_lodging` floor over
+    `days[:-1]` never fires and no `lodging` field is needed -- itinerary()'s
+    day 1 `lodging: "hotel-1"` is REFERENCED (scripts/gate.py::_referenced_ids)
+    but hotel-1 resolves only via a chosen accommodations candidate, which
+    rederive_kwargs()'s default `accommodations={"stops": []}` does not carry,
+    so pairing itinerary() with rederive_kwargs() bare fails on "day
+    references unknown POI 'hotel-1'" independent of any AI-tone content.
+    Confirmed empirically before this fixture was added.
+    """
+    return verified_pois()["pois"], {
+        "title": "測試行程",
+        "checklist": ["battery: spare lithium batteries carry-on only"],
+        "days": [
+            {"date": "2026-08-01",
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "poi-1",
+                       "text": "午餐", "closing_status": "ok"}]},
         ],
     }
 

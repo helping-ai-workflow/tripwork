@@ -189,6 +189,10 @@
                 },
                 "conflict_note": {
                   "type": "string"
+                },
+                "resolved_name": {
+                  "type": "string",
+                  "description": "The display_name the geocoder returned for this hotel, recorded so Gate 2b (name match) can be re-derived from the artifact. Optional in schema for back-compat; required by the itinerary gate. Without it a wrong-but-plausible top hit is indistinguishable from a correct one."
                 }
               },
               "additionalProperties": false,

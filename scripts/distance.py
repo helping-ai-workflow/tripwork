@@ -66,8 +66,13 @@ def classify_hop(mins, max_hop_mins=60, km=None, mode=None,
 
     Without km+mode there is no floor, so provenance cannot change the verdict
     and the legacy 2-arg form keeps its exact meaning -- this is the
-    `km`/`mode` omission escape, and it is DEFERRED to v0.33.0 on purpose:
-    this fix's `source_url` requirement only applies once km+mode are given.
+    `km`/`mode` omission escape, and this function itself still leaves it
+    open on purpose: this fix's `source_url` requirement only applies once
+    km+mode are given. v0.33.0 closes the escape one layer up, at the
+    artifact level: scripts/rederive.py::rederive_hops treats a routing hop
+    with no `mode`, or an endpoint with no resolvable cluster centroid, as a
+    `verdicts_rederivable` FAILURE rather than silently degrading to this
+    function's threshold-only compare.
 
     `duration_source` must be one of DURATION_SOURCES; an unrecognized value
     raises ValueError rather than silently taking the sourced path (which

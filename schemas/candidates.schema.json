@@ -36,13 +36,29 @@
             "type": "string"
           },
           "business_status": {
-            "type": "string",
-            "enum": [
-              "OPERATIONAL",
-              "CLOSED_TEMPORARILY",
-              "CLOSED_PERMANENTLY"
-            ],
-            "description": "Optional sourced operating signal (Google Places businessStatus vocabulary) recorded during research; source-verify enforces it at Gate 0. (P1)"
+            "description": "Optional sourced operating signal (Google Places businessStatus vocabulary) recorded during research; source-verify enforces it at Gate 0. (P1) The bare-string form is retained for back-compat but is SELF-ATTESTED: verify.py's Gate 0 treats it as unauditable and never lets it pass, regardless of value — a candidate can only clear Gate 0 with the object form, {status, source_url, as_of}, mirroring verified-pois.schema.json's own business_status shape so a candidate's sourced signal survives into the verified artifact unchanged. (TW-068 fix round 1: TW-063's fix deferred widening this on the grounds that nothing exercised the gap; scripts/source_verify_run.py now does, so every schema-valid candidates.yaml can reach Gate 0.)",
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+              },
+              {
+                "type": "object",
+                "required": ["status", "source_url", "as_of"],
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^(https?://[^\\s]+|tel:[+0-9][0-9()\\-. ]{5,})$"
+                  },
+                  "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+                }
+              }
+            ]
           },
           "sources": {
             "type": "array",
