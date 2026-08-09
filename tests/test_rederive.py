@@ -810,14 +810,56 @@ def test_a_resolved_name_naming_another_venue_is_a_mismatch():
     ⚠ An earlier draft used a cluster_fallback POI with no existence proof. That
     shape can no longer produce a mismatch: Task 2 made a sourced business_status
     an existence proof, so any POI that clears Gate 0 also clears Gate 2c, and a
-    POI that fails Gate 0 lands in bucket 1 instead. Measured — Gate 2c is
-    unreachable on the POI path. Gate 2b is what still discriminates here.
+    POI that fails Gate 0 lands in bucket 1 instead. Gate 2b is what still
+    discriminates here.
+
+    "Gate 2c is unreachable on the POI path" holds for ANY business_status.as_of,
+    not merely the fixtures this file happens to use — but only as of TW-070 fix
+    round 1. Before that fix, `has_existence_proof` read wall-clock regardless of
+    the anchored `today` verify_poi threaded into Gate 0, so a stale-but-
+    artifact-anchored-fresh POI (Gate 0 passing via `today=as_of`) could still
+    fail Gate 2c independently and land in THIS bucket — the exact
+    calendar-driven mismatch this axis exists to prevent, one gate deeper than
+    Gate 0. See scripts/verify.py::has_existence_proof's `today` note and
+    scripts/verify.py::classify_candidate's Gate 2c call site — both now thread
+    the same anchored `today` verify_poi received, so Gate 0 and Gate 2c can
+    never disagree on the same business_status. This fixture (geocode_source
+    'nominatim', not cluster_fallback) does not exercise that fix directly; it
+    only proves Gate 2b still discriminates. The general claim is proved by
+    scripts/rederive.py's own re-derivation over the corpus (found=127,
+    superseded=105, mismatches=0) and pinned directly by
+    test_gate_2c_stays_unreachable_on_the_poi_path_for_a_very_stale_as_of below,
+    not by this test.
     """
     from scripts.rederive import rederive_pois
     out = rederive_pois([_poi_rec(resolved_name="嘉義公園")])   # a different venue
     assert len(out.mismatches) == 1 and "p1" in out.mismatches[0]
     assert "conflicting" in out.mismatches[0]
     assert out.superseded == [] and out.missing == []
+
+
+def test_gate_2c_stays_unreachable_on_the_poi_path_for_a_very_stale_as_of():
+    """Fix round 1 (TW-070) regression lock. Before threading `today` into
+    has_existence_proof, a cluster_fallback POI whose business_status.as_of was
+    old relative to REAL wall-clock -- but fresh relative to ITSELF, since
+    rederive_pois always anchors today=as_of -- cleared Gate 0 (age 0 against
+    its own era) and then independently failed Gate 2c (has_existence_proof
+    read real wall-clock, saw the same as_of as ancient, found no proof). That
+    produced a false 'conflicting'/'unverified' MISMATCH on a verdict that was
+    correct when written -- the exact calendar-driven redness this axis exists
+    to prevent, one gate deeper than Gate 0. as_of=2020-01-01 is deliberately
+    far enough in the past that this stays a real regression guard for the
+    life of this test, not a fuse that only happens to pass today."""
+    from scripts.rederive import rederive_pois
+    poi = _poi_rec(
+        business_status={"status": "OPERATIONAL",
+                         "source_url": "https://a.example.tw/p",
+                         "as_of": "2020-01-01"},
+        geocode={"lat": 23.48, "lng": 120.44, "geocode_source": "cluster_fallback"},
+    )
+    out = rederive_pois([poi])
+    assert (out.superseded, out.missing, out.mismatches) == ([], [], [])
+    assert out.compared == 1
 
 
 def test_a_correctly_recorded_poi_produces_nothing():
@@ -848,3 +890,45 @@ def test_run_rederivation_emits_the_third_check():
     assert c["verdicts_rule_current"]["passed"] is False
     assert c["verdicts_rule_current"]["examined"] == 1
     assert c["verdicts_match"]["passed"] is True
+
+
+def test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip():
+    """Fix round 1 (TW-070): rederive_pois's first cut looped `pois or []`, so
+    `pois=None` (verified-pois.yaml itself never loaded) silently reported 0
+    found and a green check -- the exact vacuous-true class this module's own
+    opening doctrine exists to close (rederive_legs/hops/cost/lodging all
+    already fail loudly on their artifact being None; this one didn't).
+    Mirrors test_absent_accommodations_is_a_rederivable_failure_not_a_skip."""
+    from scripts.rederive import run_rederivation
+    res = run_rederivation({"days": []}, {}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations={"stops": []},
+                           pois=None)
+    c = {x["name"]: x for x in res["checks"]}
+    assert c["verdicts_rederivable"]["passed"] is False
+    assert any("verified-pois.yaml" in f and "not re-derivable" in f
+              for f in res["failures"])
+
+
+def test_omitting_pois_entirely_is_lenient_not_a_forced_failure():
+    """Fix round 1 (TW-070), the asymmetry `run_rederivation`'s own docstring
+    documents: `pois` defaults to `()`, not `None`, unlike legs/routing/cost/
+    accommodations. Those four are always threaded through by
+    scripts/gate.py::run_gate, so a `None` default is safe -- `pois` is not
+    threaded yet (Task 4's wiring; run_gate already receives its own `pois`
+    argument but does not forward it to run_rederivation at all). Had this
+    default matched the other four, EVERY existing run_gate call -- and every
+    real gate run in production, today -- would report a false
+    'verified-pois.yaml absent' failure on an artifact that plainly is not
+    absent. Omitting `pois=` must stay silent; only an EXPLICIT `pois=None`
+    (test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip, above) means
+    'the artifact is genuinely absent' and reaches the hard failure."""
+    from scripts.rederive import run_rederivation
+    res = run_rederivation({"days": []}, {}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations={"stops": []})
+    c = {x["name"]: x for x in res["checks"]}
+    assert c["verdicts_rederivable"]["passed"] is True
+    assert c["verdicts_rule_current"]["examined"] == 0

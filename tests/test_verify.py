@@ -502,6 +502,54 @@ def test_a_sourced_business_status_is_an_existence_proof():
     assert has_existence_proof(poi) is True
 
 
+def test_has_existence_proof_today_anchors_the_sourced_business_status_proof():
+    """TW-070 fix round 1. `has_existence_proof`'s third proof (a sourced
+    business_status) reads wall-clock by DEFAULT (today=None, unchanged from
+    before this parameter existed — Task 2's deliberate design, a statement
+    nobody has re-checked in three months is no longer reviewable). But a
+    caller re-deriving a FINISHED artifact's own recorded verdict
+    (scripts/rederive.py::rederive_pois) must be able to anchor the recency
+    check to the record's own `business_status.as_of` era instead, exactly the
+    way Gate 0's `operating_from_status` already does — otherwise a statement
+    correct when written silently expires purely from elapsed real time, with
+    no artifact change. A literal past `as_of` is safe here (unlike the sibling
+    test above): the point of this test IS the gap between wall-clock and the
+    anchored date, not incidental to it."""
+    from scripts.verify import has_existence_proof
+    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"}],
+           "business_status": {"status": "OPERATIONAL",
+                               "source_url": "https://a.example.tw/p",
+                               "as_of": "2020-01-01"}}
+    assert has_existence_proof(poi) is False                      # wall-clock: stale
+    assert has_existence_proof(poi, today="2020-01-01") is True   # anchored: fresh
+
+
+def test_classify_candidate_threads_today_into_gate_2c():
+    """TW-070 fix round 1. Before this, `classify_candidate` had no `today`
+    parameter at all, so any caller passing Gate 0 a non-wall-clock `today`
+    (verify_poi's artifact-anchored callers) still had Gate 2c's
+    has_existence_proof reading real wall-clock underneath — the two gates
+    disagreed on which clock to read for the SAME business_status. A
+    cluster_fallback candidate with no proof but a sourced business_status,
+    fresh only relative to itself, must clear Gate 2c when `today` is threaded
+    through, and does not without it (regression half asserted directly, not
+    just via the fix-round report)."""
+    from scripts.verify import classify_candidate
+    c = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                                {"url": "https://b.example.com/q", "lang": "en"}],
+         "business_status": {"status": "OPERATIONAL",
+                             "source_url": "https://a.example.tw/p",
+                             "as_of": "2020-01-01"}}
+    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True,
+                                      operating=True, geocode_source="cluster_fallback",
+                                      today="2020-01-01")
+    assert status == "verified", note
+    status_blind, note_blind = classify_candidate(
+        c, geocoded=True, in_claimed_region=True, operating=True,
+        geocode_source="cluster_fallback")   # today omitted -> wall-clock, stale
+    assert status_blind == "unverified" and "cluster_fallback" in note_blind
+
+
 def test_a_bare_string_business_status_is_not_an_existence_proof():
     """Guard, GREEN at HEAD: the bare form is self-attested — no source_url, no
     as_of, nothing to review. It must not become a back door into Gate 2c."""
@@ -541,14 +589,26 @@ def test_verify_status_does_not_depend_on_having_an_api_key():
     keyless route now supplies its own proof.
 
     `as_of` is computed at run time, not hard-coded, for the same reason as
-    test_a_sourced_business_status_is_an_existence_proof above:
-    `has_existence_proof` reads recency against wall-clock regardless of the
-    `today` this test passes to `verify_poi`'s Gate 0 (that is the deliberate
-    difference from Task 3's artifact-anchored axis), so a literal past date
-    would flip only the keyless side of this comparison to FAIL once real time
-    aged it past OPERATING_MAX_AGE_DAYS — the `gmaps_place_id` proof on the
-    keyed side never expires, so the break would look like the invariant
-    itself failing rather than a stale fixture."""
+    test_a_sourced_business_status_is_an_existence_proof above: a literal past
+    date would flip only the keyless side of this comparison to FAIL once real
+    time aged it past OPERATING_MAX_AGE_DAYS — the `gmaps_place_id` proof on
+    the keyed side never expires, so the break would look like the invariant
+    itself failing rather than a stale fixture.
+
+    CORRECTION (TW-070 fix round 1): this docstring previously claimed
+    `has_existence_proof` reads wall-clock "regardless of the `today` this
+    test passes to verify_poi's Gate 0". That is no longer true on THIS call
+    path — `verify_poi` now threads its own `today` through classify_candidate
+    into has_existence_proof (see scripts/verify.py), so both Gate 0 and Gate
+    2c read the SAME anchor here. The claim was true only about
+    has_existence_proof's OWN default (today=None, unchanged — see
+    test_has_existence_proof_today_anchors_the_sourced_business_status_proof),
+    not about calls that flow through verify_poi. This test's own assertion is
+    unaffected either way: `as_of` (real "now", computed at run time) is always
+    >= the fixed `today=date(2026, 8, 9)` anchor below as real time only moves
+    forward, so age is always <= 0 <= OPERATING_MAX_AGE_DAYS on both readings —
+    the keyless side stays fresh whether it reads wall-clock or the threaded
+    anchor, which is exactly why this fixture never needed to change."""
     import datetime
     from scripts.verify import verify_poi
     base = {"id": "x", "name_local": "源興御香屋", "name_display": "源興御香屋",

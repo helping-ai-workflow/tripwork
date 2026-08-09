@@ -388,8 +388,12 @@ def rederive_lodging(accommodations, *, local_lang=None):
 def _verify_status_of(poi, local_lang, resolved, as_of):
     """verify_poi against the record's own era. `as_of` None means there is no
     era to anchor to, in which case the verdict is superseded anyway and the
-    date never reaches a comparison that matters."""
-    return verify_poi(dict(poi), geocoded=bool(poi.get("geocode")),
+    date never reaches a comparison that matters.
+
+    No `dict(poi)` copy here (fix round 1, cheap cleanup): verify_poi's first
+    step is normalize_and_validate_poi, which already returns a fresh dict —
+    copying before the call was a redundant second copy of the same POI."""
+    return verify_poi(poi, geocoded=bool(poi.get("geocode")),
                       in_claimed_region=True, local_lang=local_lang,
                       resolved_name=resolved, today=as_of)[1:]
 
@@ -437,9 +441,21 @@ def rederive_pois(pois, *, local_lang=None):
     verify_poi's note. 0.33.0's final review found a trip-authored value
     interpolated into a routed message could steer routing; a classifier that
     greps its own error strings has the same shape.
+
+    `pois is None` (verified-pois.yaml itself absent, distinct from an empty
+    but present list) is a verdicts_rederivable FAILURE, matching every
+    sibling axis (rederive_legs/hops/cost/lodging) — never a silent 0-found
+    pass. Fix round 1 (TW-070): the first cut of this function used `pois or
+    []`, which folded that distinction away and reported nothing, contrary to
+    this module's own opening doctrine that a skipped record is
+    indistinguishable from a green one.
     """
     out = Outcome()
-    for poi in pois or []:
+    if pois is None:
+        out.missing.append(
+            "verified-pois.yaml absent — verify_poi verdicts are not re-derivable")
+        return out
+    for poi in pois:
         rec = poi.get("verify_status")
         if rec is None:
             continue
@@ -476,7 +492,7 @@ def rederive_pois(pois, *, local_lang=None):
 
 
 def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
-                     trip_brief=None, accommodations=None, pois=None):
+                     trip_brief=None, accommodations=None, pois=()):
     """Return {"checks": [verdicts_match, verdicts_rederivable,
     verdicts_rule_current], "failures": [...]}.
 
@@ -489,6 +505,24 @@ def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
     lodging records, none of which can ever land in `superseded` (only
     rederive_pois populates that bucket), so reusing total.found here would
     inflate the denominator with records this check cannot possibly speak to.
+
+    `pois` defaults to `()`, NOT `None` — deliberately asymmetric with
+    legs/routing/cost/accommodations, whose `None` defaults are safe because
+    scripts/gate.py::run_gate ALWAYS threads its own legs/routing/cost/
+    accommodations parameters through to this function. `pois` is not yet
+    threaded the same way (Task 4's wiring): run_gate already receives a real
+    `pois` list as its own mandatory first argument but does not forward it
+    here at all — not "might have a bug that leaves it unset", literally never
+    attempts it, today. Had this default been `None` (fix round 1, TW-070),
+    every existing `run_gate` call in the entire test suite — and every real
+    gate run in production — would report a false 'verified-pois.yaml absent'
+    failure on an artifact that is not absent, merely not yet forwarded: a
+    worse defect than the silent no-op being fixed. Omitting `pois=` (what
+    every caller does today) stays lenient — 0 found, nothing to report. A
+    caller that means "the artifact is genuinely absent" says so explicitly
+    with `pois=None`, which still reaches `rederive_pois`'s hard failure
+    unchanged (see test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip
+    and test_omitting_pois_entirely_is_lenient_not_a_forced_failure).
     """
     total = Outcome()
     total.merge(rederive_legs(

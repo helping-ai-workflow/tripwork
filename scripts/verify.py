@@ -102,7 +102,7 @@ def operating_from_status(business_status, today=None):
     return _OPERATING_STATUS[key], ""
 
 
-def has_existence_proof(poi):
+def has_existence_proof(poi, today=None):
     """True when something independent of the coordinate says this place exists.
 
     A cluster centroid is the district's midpoint — it is a position, not
@@ -124,19 +124,31 @@ def has_existence_proof(poi):
     The bare-string business_status is deliberately NOT accepted: it is
     self-attested, carries no source_url and no as_of, and admitting it would
     reopen TW-063 through this gate.
+
+    `today` (TW-070 fix round 1): the third proof's recency check reads
+    wall-clock by DEFAULT (`today=None`, unchanged from before this parameter
+    existed) — a statement nobody has re-checked in three months is no longer
+    reviewable, Task 2's deliberate design. A caller that re-derives a FINISHED
+    artifact's own recorded verdict (scripts/rederive.py::rederive_pois) must
+    anchor to the record's own `business_status.as_of` era instead, the same
+    way `verify_poi` already anchors Gate 0 — otherwise a verdict correct when
+    written silently turns into a false 'conflicting'/'unverified' mismatch as
+    real time passes with no artifact change, one gate deeper than Gate 0's
+    already-anchored read. Passed through from `classify_candidate`, which
+    passes it through from `verify_poi`'s own `today` argument.
     """
     place_id = (poi.get("gmaps_place_id") or "").strip()
     if len(place_id) >= _MIN_PLACE_ID_LEN:
         return True
     if any(s.get("official") for s in (poi.get("sources") or [])):
         return True
-    operating, _ = operating_from_status(poi.get("business_status"))
+    operating, _ = operating_from_status(poi.get("business_status"), today=today)
     return operating is True
 
 
 def classify_candidate(candidate, geocoded, in_claimed_region,
                         local_lang=None, conflict_detected=False, operating=True,
-                        name_match=True, geocode_source=None):
+                        name_match=True, geocode_source=None, today=None):
     """Return (verify_status, note).
 
     Gates are evaluated in strict order (spec §5.1):
@@ -197,6 +209,16 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
                           release cannot demote a candidate merely by being new.
                           A new caller that wants the refusal must pass the
                           sentinel, not "".
+        today:            Threaded into `has_existence_proof`'s recency check on
+                          the sourced `business_status` proof (TW-070 fix round
+                          1). Default None reads wall-clock, unchanged for the
+                          19 direct call sites that never pass this argument.
+                          `verify_poi` forwards its own `today` here, so a
+                          caller re-deriving a finished artifact's recorded
+                          verdict against the record's own `business_status.
+                          as_of` era (not wall-clock) gets that anchoring at
+                          Gate 2c too, not only at Gate 0 — before this fix the
+                          two gates disagreed on which clock to read.
     """
     sources = candidate.get("sources", [])
     langs = {s.get("lang") for s in sources}
@@ -235,7 +257,7 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # which is `conflicting`. Without this, the incentive inverts: the POIs that
     # cannot be resolved are the easiest to pass. Dogfood 2026-08: 8 of 17 chiayi
     # POIs took this path, five of them sharing verbatim-identical coordinates.
-    if geocode_source == "cluster_fallback" and not has_existence_proof(candidate):
+    if geocode_source == "cluster_fallback" and not has_existence_proof(candidate, today=today):
         return ("unverified",
                 "geocode is a cluster_fallback centroid with no existence proof — "
                 "record an official: true source or a gmaps_place_id, or leave the "
@@ -304,6 +326,16 @@ def verify_poi(poi, geocoded, in_claimed_region,
     (never a silent 'verified'); a CLOSED signal -> 'rejected' before geocode gates.
     Otherwise delegates to classify_candidate with the normalised POI.
 
+    `today` anchors BOTH Gate 0's operating-signal recency AND, via
+    classify_candidate, Gate 2c's sourced-business_status existence-proof
+    recency (TW-070 fix round 1) — the same `business_status.as_of` era, read
+    once, used at both gates. Before this fix only Gate 0 was anchored: a
+    caller passing a non-wall-clock `today` (re-deriving a finished artifact
+    against the record's own era, e.g. scripts/rederive.py::rederive_pois)
+    still had Gate 2c silently reading real wall-clock underneath, so a
+    verdict correct when written could flip to a false mismatch purely from
+    elapsed real time. Default None reads wall-clock at both gates, unchanged.
+
     Returns (normalised_poi, verify_status, note).
     """
     normalised, reason = normalize_and_validate_poi(poi)
@@ -347,7 +379,7 @@ def verify_poi(poi, geocoded, in_claimed_region,
     status, note = classify_candidate(
         normalised, geocoded=geocoded, in_claimed_region=in_claimed_region,
         local_lang=local_lang, conflict_detected=conflict_detected, operating=operating,
-        name_match=name_match, geocode_source=geo_source,
+        name_match=name_match, geocode_source=geo_source, today=today,
     )
     return normalised, status, note
 
