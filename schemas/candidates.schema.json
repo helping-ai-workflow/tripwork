@@ -36,7 +36,7 @@
             "type": "string"
           },
           "business_status": {
-            "description": "Optional sourced operating signal (Google Places businessStatus vocabulary) recorded during research; source-verify enforces it at Gate 0. (P1) The bare-string form is retained for back-compat but is SELF-ATTESTED: verify.py's Gate 0 treats it as unauditable and never lets it pass, regardless of value — a candidate can only clear Gate 0 with the object form, {status, source_url, as_of}, mirroring verified-pois.schema.json's own business_status shape so a candidate's sourced signal survives into the verified artifact unchanged. (TW-068 fix round 1: 0.32.0 deferred widening this on the grounds that nothing exercised the gap; scripts/source_verify_run.py now does, so every schema-valid candidates.yaml can reach Gate 0.)",
+            "description": "Optional sourced operating signal (Google Places businessStatus vocabulary) recorded during research; source-verify enforces it at Gate 0. (P1) The bare-string form is retained for back-compat but is SELF-ATTESTED: verify.py's Gate 0 treats it as unauditable and never lets it pass, regardless of value — a candidate can only clear Gate 0 with the object form, {status, source_url, as_of}, mirroring verified-pois.schema.json's own business_status shape so a candidate's sourced signal survives into the verified artifact unchanged. (TW-068 fix round 1: the previous release deferred widening this on the grounds that nothing exercised the gap; scripts/source_verify_run.py now does, so every schema-valid candidates.yaml can reach Gate 0.)",
             "oneOf": [
               {
                 "type": "string",

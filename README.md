@@ -128,7 +128,7 @@ flowchart TB
     SEA --> TRN["transit-detail<br/>市內交通<br/>（尖峰時段/IC卡<br/>站到景點步行）"]
     TRN --> COST["cost-rollup<br/>加總住宿/交通/Pass<br/>+ 雜支，對照預算"]
     COST --> SYN["itinerary-synthesis<br/>排出逐日行程<br/>+ 備案 + 行前清單<br/>（閉館日不排、<br/>假期標人潮）"]
-    SYN --> GATE["itinerary-gate<br/>輸出前的結構檢查"]
+    SYN --> GATE["itinerary-gate<br/>輸出前的結構檢查<br/>+ 重算核對資料<br/>+ 語氣檢查<br/>+ 住宿查證"]
     GATE --> EXP["export-artifact<br/>Markdown / Maps<br/>HTML / LINE"]
     EXP --> EGATE["export-gate ⛔ 關卡<br/>檢查成品連結<br/>格式可正常顯示"]
 ```
@@ -140,7 +140,7 @@ flowchart TB
 | **trip-brief** | 把你說的話整理成日期、住宿、必去清單、預算、成員等參數 |
 | **travel-advisory** ⛔ | 查入境、海關、行動電源等**硬規定**，一律要官方來源並標生效日期；被禁項目醒目提醒並寫進行前清單（在蒐集景點前先確認，被禁項目不會浪費後面的研究） |
 | **destination-research** | 廣泛上網蒐集候選景點／餐廳（**會用當地語言搜尋**，挖出國際網站漏掉的店）。此階段先不信任，只是蒐集 |
-| **source-verify** ⛔ | **招牌關卡**。每個候選地點要：①**還在營業**（永久／暫停營業的會被擋掉；營業狀態一定要附**查證來源與日期**，不是憑印象打勾就算——查不到有來源根據的營業狀態一樣標未驗證、不放進行程）②≥2 個獨立來源（至少 1 個當地語言）③地圖能查到座標、且查到的就是它本人（被改名的鄰店會被擋）④座標落在它聲稱的區域內。全部過才算「已驗證」，才能進行程 |
+| **source-verify** ⛔ | **招牌關卡**。每個候選地點要：①**還在營業**（永久／暫停營業的會被擋掉；營業狀態一定要附**查證來源與日期**，不是憑印象打勾就算——查不到有來源根據的營業狀態一樣標未驗證、不放進行程）②≥2 個獨立來源（至少 1 個當地語言）③地圖能查到座標、且查到的就是它本人（被改名的鄰店會被擋）④座標落在它聲稱的區域內、**且座標的來源要記錄下來**（沒記來源一樣視為未驗證，不會因為漏填就矇混過關）。全部過才算「已驗證」，才能進行程 |
 | **routing-audit** | 把已驗證地點按「區」分群，估算跨區移動時間；太遠（預設 >60 分）會**停下來問你** |
 | **accommodation-research** | 每個過夜鎮研究／查證住宿：已訂的查證+補料，沒訂的推薦 3 家讓你挑；查不到座標用該鎮中心 fallback（免 API key）；確認車位（必備硬擋）、洗衣節奏（軟提示）、晚到 vs 櫃台關門；日文假名旅館名附中文對照 |
 | **inter-stop-legs** | 規劃過夜城市之間的**城際交通**：大眾運輸查哪班車、要不要劃位、轉乘幾次、**末班車**幾點、要不要買 Pass；自駕算車程，**單日開太久**會停下來建議拆兩天。趕不上末班車也會停下來問你 |
@@ -149,8 +149,8 @@ flowchart TB
 | **transit-detail** | 查市內交通的**舒適度細節**：通勤**尖峰時段**（帶長輩/行李避開人擠人）、**IC 卡**（Suica/ICOCA 等，哪買怎麼儲值）、每個景點**從車站走過去要幾分鐘**（太遠提醒改計程車）。全是提醒，不擋流程 |
 | **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×**房數**×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**（預算對照的是整趟總額：住宿＋交通＋雜支）。全部標明是估算（含查詢日期），不是精確報價 |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單** |
-| **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點） |
-| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、離線可看的一頁式 HTML（`exports/<slug>-itinerary.html`，**可選擇為景點疊上授權照片**；可把 Markdown 貼進 Notion）|
+| **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點）。**現在還會**：①把路線時間、花費、關店 buffer 這些數字**重新算一遍**，跟行程裡記錄的核對是否一致，兜不起來就擋下來 ②檢查文案**有沒有 AI 罐頭味**（例如「首選必訪」這種空話、破折號濫用）③連**住宿**的查證狀態（名字有沒有對到、座標有沒有查證來源）也一起核對，不再只查景點 |
+| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、離線可看的一頁式 HTML（`exports/<slug>-itinerary.html`，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion）|
 | **export-gate** | 對輸出的 Markdown 成品做最後機械檢查：每個地點名稱本身是可點連結、**每個 Google Maps 連結都能正常打開（擋掉會失效、打不開的地圖連結）**、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；有問題就退回重產 |
 
 ---
@@ -198,12 +198,14 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 - 某個過夜鎮你**還沒訂住宿** → 推薦 3 家查證過的讓你挑
 - 你訂的旅館**缺必備設施**（例如自駕沒車位） → 停下來問你換不換
 - 你訂的旅館**地圖座標落在別的鎮** → 停下來問你
+- 你訂的旅館**名字或座標查不到可信來源** → 跟景點用同一套查證標準，查不到來源一樣視為未驗證並提醒你（目前**還沒**機械化查證旅館是否還在營業，這塊留給你出發前打電話再確認一次）
 - 開車當天**晚於旅館櫃台關門**又沒 late check-in → 停下來提醒你
 - 某段路在你的旅遊期間**官方公告封閉**（例如雪季的高山公路） → 停下來問你怎麼調
 - 冬天某段車程預計**天黑後才到** → 提醒你那天提早出發（不擋流程）
 - 某段城際交通你會**趕不上末班車** → 停下來問你（提早出發／改隔天／換交通方式）
 - 某段自駕**單日開太久**（超過你設定的上限，預設 5 小時） → 停下來建議你拆兩天
 - 估算總額**超出你設定的預算** → 停下來問你（刪減／降級某項，或接受）
+- 用**比較舊的行程資料夾**接續排（例如中途換過版本、缺了路線／交通／花費檔案）→ 輸出前的品質關卡現在會直接擋下來，不會像以前一樣默默放行；系統會自動導回該補的那一站幫你重新查（路線／交通／花費），不用你自己猜要重跑哪一步
 
 ---
 
@@ -269,7 +271,7 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 804 個測試
+pytest                 # 980 個測試
 ```
 
 - 流水線由 `skills/` 下的 16 個 skill 組成，全程由 `orchestrator` 調度。
@@ -286,6 +288,42 @@ pytest                 # 804 個測試
   驗 schema;`python scripts/gate.py trips/<slug>` / `python scripts/export_gate.py trips/<slug>`
   跑關卡並寫 report;`python scripts/next_stage.py trips/<slug> --work-dir work/<slug>`
   印下一站。exit code:0 pass / 1 fail / 2 用法錯。
+- **驗證結果重算（v0.33.0，`scripts/rederive.py`）：** `run_rederivation` 把 `classify_leg`／
+  `classify_hop`／`sum_costs`／關店 buffer 規則對已記錄的 `legs.yaml`／`routing.yaml`／
+  `cost.yaml`／`itinerary.yaml` 重跑一次，跟原本記錄的結果比對，抓「值被改過但沒人重算」的漂移。
+  `itinerary-gate` 新增兩個 check：`verdicts_match`（重算值 vs 記錄值是否一致；四個語料乾淨的既有
+  行程重算 29 筆全部一致）、`verdicts_rederivable`（欄位夠不夠重算；同一批語料裡 19 個路段因為缺
+  `duration_source`——TW-066 之前排的舊行程本來就沒記——重算不了）。重算只證明**內部一致**、不證明
+  **真實**：`classify_hop` 用的 cluster centroid 本身可能是 TW-062 那種借位座標。連帶行為變更：
+  `legs.yaml`／`routing.yaml`／`cost.yaml` 任一個缺檔，`itinerary-gate` 現在會直接 fail（以前放行），
+  並自動導回對應的產出階段。
+- **語氣機械檢查（v0.33.0，`scripts/text_hygiene.py` + `gate.py::ai_tone_failures`）：**
+  `itinerary-gate` 新增 `no_ai_tone`，掃 4 個 AI 罐頭語氣詞庫（陳腔套語、句型模板、行銷金句、
+  「意義蓋章」用語）+ 破折號濫用；5 份真實行程實測 32 命中、32 真陽性、0 誤報。曾一併測過的
+  「三件式排比」偵測（21 命中、21 全是誤報）證實無法機械化，已捨棄不進本版。
+- **source-verify 批次驅動（TW-068，v0.33.0，`scripts/source_verify_run.py`）：** 一次跑完整份
+  `candidates.yaml` 的查證邏輯（`verify.py`），取代每個使用者自己土炮寫 driver（曾各自硬編 9 筆
+  官方網域清單）。連帶把 `candidates.schema.json` 的 `business_status` 加寬到跟
+  `verified-pois.schema.json` 一樣的 `{status, source_url, as_of}` 物件格式（純加寬，舊的純字串
+  格式仍合法、仍視為自我聲稱、仍不會通過 Gate 0）。
+- **行程頁面入口 + 備案容器 + 回家段落關卡（TW-069，v0.33.0）：**
+  `scripts/render/markdown.py::render_markdown_page` 統一產出整份行程頁面，取代各人自己手刻的
+  render script；`itinerary-synthesis` 寫的備案現在也會進 HTML 檢查清單區塊（之前只有 Markdown
+  有）。新 gate check `home_legs_rendered`：回家的移動段（`legs[].kind: home`）如果已經算進花費跟
+  可行性判斷、卻沒有任何一列行程對應到它，會被抓出來（itinerary row 可選填 `leg_index` 指回
+  `legs[]`）。
+- **`scripts/photo_adapter.py` 拿到自己的 CLI（v0.33.0）：** `main()` 跑完整份 `build_media` +
+  `write_media_sidefile`，寫檔前用 `media.schema.json` 自我驗證一次。動機：語料稽核發現 5 個既有
+  行程總共 78 筆手寫的 `photo_source: google` 媒體紀錄全部繞過 `license_allowed` 授權檢查——
+  雖然 `export-gate` 早就把這 5 份都標成 `distributable: false`，但 gate report 仍然全部顯示
+  `status: pass`，等於沒人真的擋下來。
+- **`_DEPS` 依賴表（v0.33.0，`scripts/orchestration.py`）：** 從每個 skill 的 Stage Contract
+  Input 欄位自動 derive 出「哪個 artifact 依賴哪些檔案」的表，有機械化 drift guard（表跟
+  `SKILL.md` 對不上就會炸，雙向都測過）。**目前只有一半在用**：report 層（rule 13／15，比對
+  `gate-report.yaml`／`export-gate-report.yaml` 是否比它讀過的每一個檔案都新）已經在跑；content
+  層（`deps_stale`，比對內容 fingerprint）已經寫好、有單元測試，但**還沒接進**
+  `scripts/next_stage.py` 的路由——因為目前沒有任何 stage 會寫 `input_fingerprints` 欄位，六個
+  語料 trip 也沒有任何一個檔案帶這個欄位，現在接上去不會改變任何人的行為。
 
 **地圖座標用量限制：** 使用 OSM Nominatim（免 API key），請遵守其使用政策
 （≤ 1 req/s、帶 User-Agent）。`scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流。

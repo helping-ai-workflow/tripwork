@@ -1,5 +1,176 @@
 # Changelog
 
+## 0.33.0 — verdict re-derivation + AI-tone gate + TW-068/TW-069
+
+0.32.0 closed the self-attestation defect **at write time only**: a fixed value could
+no longer be typed past a gate, but nothing re-checked a verdict already sitting in a
+finished artifact. The root cause carried into this release too — pure decision
+functions (`classify_leg`, `classify_hop`, `sum_costs`, the closing-buffer rule)
+existed and nothing ever ran them against a recorded verdict to see whether the two
+still agreed. This release closes that gap for four of the six candidate checks, adds
+a mechanical AI-tone gate, gives `source-verify` and the markdown renderer the batch
+entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the closure
+0.32.0 left open.
+
+- **Re-derivation, for four of six candidate checks (R1–R4).** `scripts/rederive.py`
+  re-runs `classify_leg` over `legs[]`, `classify_hop` over `routing.hops[]`,
+  `sum_costs` over `cost.yaml`, and the closing-buffer rule over every scheduled row,
+  then compares the fresh verdict against the one recorded in the artifact.
+  `verdicts_match` measured **zero** mismatches across the four schema-clean consumer
+  trips (29 records) — the mechanism costs nothing when the data is already correct.
+  It is also **structurally blind** by design to two shapes: an empty `peak_windows`
+  list and a leg with no `depart` recorded. Only the second check, `verdicts_rederivable`
+  — which asks "could this verdict even be recomputed from what the artifact kept?" —
+  sees those; `verdicts_match` only ever compares two verdicts once both exist.
+  Re-derivation proves **internal consistency, never truth**: `classify_hop`'s
+  `min_plausible_mins` runs over cluster centroids, and TW-062 already showed those
+  centroids can themselves be fictions (a POI's coordinate borrowed from a neighbour).
+  A hop can match its own recorded verdict and still be measuring distance between two
+  points that are not where the trip actually goes.
+  `gate.py` now fails the gate outright when `legs.yaml`, `routing.yaml` or `cost.yaml`
+  is absent — previously it passed. This is deliberate (an absent artifact means the
+  pipeline ran out of order) but it is a **breaking change for every existing trip
+  directory**, not only the two already known to be schema-dirty. See Migration below.
+- **A mechanical AI-tone gate (`no_ai_tone`), shipped as regression locks, not fixes.**
+  `scripts/gate.py` now scans canonical itinerary text (checklist + every row) for four
+  lexicons — slop words, sentence templates, promo clichés, meaning stamps — via
+  `scripts/text_hygiene.py`. Measured against the five canonical itineraries that have
+  one: **32 hits, 32 true positives, zero false positives.** A fifth candidate lexicon,
+  `rule_of_three`, was measured too (21 hits, **21 false positives**) and **dropped** —
+  it is unmechanizable on real Chinese travel prose, not merely imperfect. The em-dash
+  detector is deliberately narrow: the corpus contains 28 non-flagged dash-adjacent
+  characters (22 U+2013, 6 U+FF5E) in legitimate date ranges and opening-hours notation,
+  and widening the pattern to catch them would fail every one of those lines.
+- **`source-verify` gets the batch driver it never had (TW-068).** `scripts/source_verify_run.py`
+  runs the existing per-candidate decision logic (`verify.py`) over a whole
+  `candidates.yaml`, replacing a pattern where every consumer hand-rolled their own
+  driver (one hardcoded a 9-entry official-domain allowlist). Running it exposed a
+  latent Gate 0 defect: `candidates.schema.json`'s `business_status` only permitted the
+  bare-string form, which `verify.py` treats as self-attested and **never lets pass** —
+  so no schema-valid `candidates.yaml` could ever produce a single verified POI through
+  this driver. `candidates.schema.json` is widened to the same sourced object form
+  `{status, source_url, as_of}` that `verified-pois.schema.json` already carries
+  (purely additive; a bare string stays schema-valid, still self-attested, still
+  `unverified`).
+- **The markdown renderer gets a page-level entrypoint, and `contingency` gets a
+  container (TW-069).** `render_markdown_page` (`scripts/render/markdown.py`) replaces
+  every consumer's hand-rolled per-trip render script (one silently rendered a missing
+  lodging POI as `**宿**：<id>` with no link). Synthesis now writes 備案 into a
+  `contingency` block, mirrored into the HTML checklist section the same way the
+  existing checklist is. A new gate check, `home_legs_rendered`, closes the gap where a
+  home leg (`legs[].kind: home`) could be fed into cost and feasibility but never
+  actually appear in the rendered itinerary: an itinerary row may now carry an optional
+  `leg_index` linking it back to `legs[]`, and the check fails if a recorded home leg
+  has no row pointing at it. Building the fixture for that check uncovered
+  `export_gate._find_rows` fighting the new markdown page in both directions, and both
+  are fixed: the `**宿**：` line was not `|`-prefixed, so a bookable lodging POI
+  missing its official link silently passed the export gate; the new cost table's
+  `|`-rows carried POI-name substrings, so a bookable POI could get a spurious "row
+  missing official source link" failure even when the link was present elsewhere in
+  the deliverable.
+- **Photo enrichment gets an owner (`scripts/photo_adapter.py`'s CLI, `main`).**
+  Dogfood measurement: five existing trips carry **78 hand-written `photo_source: google`
+  media entries**, every one bypassing `license_allowed` (the adapter's own hard
+  license gate), because nothing ever ran the adapter's decision logic against
+  hand-authored side-files. All five deliverables were already recorded
+  `distributable: false` by `export-gate` — and every one of those five reports still
+  read `status: pass`, so the pipeline shipped them cheerfully. The CLI now runs
+  `build_media` + `write_media_sidefile` end to end and validates its own output
+  against `media.schema.json` before writing, closing the exact "self-check passes
+  because nothing checked the right schema" shape this release exists to close
+  elsewhere.
+- **Exactly which half of `_DEPS` is live.** `scripts/orchestration.py`'s `_DEPS` table
+  (which artifact each skill's Stage Contract declares as Input) and its drift guard
+  are **live and mechanically enforced**: `tests/test_deps_table.py` re-parses all 11
+  producing skills' Input rows and fails the moment the table and the documentation
+  disagree, in both directions (verified by live mutation). The **content predicate
+  `deps_stale` is built, unit-tested, and deliberately NOT wired into the router** —
+  `scripts/next_stage.py` imports only `GATE_INPUTS`/`EXPORT_GATE_INPUTS`, never
+  `deps_stale`/`_DEPS`. Two measured reasons: no producing stage records
+  `input_fingerprints` yet, and **zero artifacts across all six corpus trips carry the
+  field at all** — wiring the content check today would change nothing for anyone,
+  because there is nothing yet to compare. `skills/orchestrator/SKILL.md` already
+  describes it as "consumed by future stages"; that framing is accurate and this
+  release does not change it. What ships live and enforced is the **report tier**:
+  rules 13 and 15 (`scripts/next_stage.py`) now compare `gate-report.yaml` /
+  `export-gate-report.yaml` against **every** artifact the corresponding CLI actually
+  opens (previously a narrower, hand-maintained list), so a report can no longer look
+  fresh while one of its real inputs changed underneath it.
+
+### The three items 0.32.0 published as "Deliberately still open"
+
+- **Gate 2c's optional trigger — CLOSED.** Omitting `geocode.geocode_source` is now an
+  outright refusal (`unverified`), not a silent skip. Measured: 19 of 127 real POIs
+  omitted the field; **none of the 19 was `verified`**, so closing this demotes no
+  existing artifact.
+- **Lodging — Gates 2b and 2c CLOSED; Gate 0 stays open, deferred to 0.34.0.**
+  `itinerary-gate` now re-derives every `accommodations.yaml` candidate's
+  `verify_status` for name-match and geocode-source provenance, so a gate-report
+  failure naming a hotel is new output this release. Gate 0 (operating status) is
+  **not** closed for lodging: `accommodations.schema.json` has no `business_status`
+  field at all, and adding one means redoing TW-063's design for hotels rather than
+  reusing it — that is 0.34.0's work. The measured defect this closure did find in
+  delivered data: `2026-07-sun-moon-lake` candidate `d2-6` is a district centroid with
+  **no existence proof**, and is recorded `verified`. Gates 3a/3b (region match /
+  conflict detection) are not re-derivable for lodging at all today — the artifact
+  records neither `in_claimed_region` nor `conflict_detected`.
+- **`classify_hop`'s `km`/`mode` omission — CLOSED at the artifact layer.** A hop
+  recording no `mode`, or an endpoint with no resolvable cluster centroid, is now a
+  `verdicts_rederivable` failure that routes back to `routing-audit`. The legacy
+  two-argument `classify_hop` call form stays legal at the function layer,
+  deliberately — this release closes the gap where an artifact could omit the
+  provenance fields, not the function's own back-compat surface.
+
+### Migration — read this before re-gating an existing trip
+
+- **Re-gating any of the four existing consumer trips now reports 19
+  `verdicts_rederivable` failures**, one per routing hop, all `no duration_source` —
+  every one of those hops predates TW-066, which is what started requiring the field.
+  `verdicts_match` is clean on all 29 re-derived records across the four trips; the gap
+  is **provenance that was never recorded, not verdicts that were wrong.**
+- **The gate now FAILS when `legs.yaml`, `routing.yaml` or `cost.yaml` is absent**,
+  where it previously passed silently. An absent artifact means the pipeline ran out
+  of order, and the gate says so now instead of shrugging. This affects every existing
+  trip directory that predates this release, not only ones already known to be dirty.
+- **A POI must record `geocode.geocode_source`.** Omitting it used to skip Gate 2c
+  silently; it is now a refusal. 19 real POIs currently omit it, none of them
+  currently `verified` (see above).
+
+### Residual, stated rather than fixed here
+
+- `gate.py`'s nine legacy checks (the pre-0.33.0 ones) still derive `passed` by
+  substring-scanning a single merged failures list rather than carrying their own
+  explicit pass/fail. `no_ai_tone`'s failure messages are the first to embed
+  **arbitrary trip text** — an AI-tone snippet — into that shared list. The realistic
+  collision surface is narrow (the markers are English literals, the corpus is
+  Chinese prose) but the coupling itself is unfixed; converting every check to an
+  explicit per-check failure list is a wider refactor than this release.
+
+### Deferred to 0.34.0
+
+- **R5 (`lead_time_missed`) and R6 (`in_peak`) re-derivation.** R5 needs a wall-clock
+  read (`today_iso`) that no schema field records; naively substituting today's date
+  risks a calendar-driven non-terminating loop (a `False` recorded at synthesis time
+  flips to `True` purely from elapsed days, `verdicts_match` fails, rule 13.5 routes
+  back to synthesis, synthesis rewrites the same itinerary, it fails again) — needs its
+  own freshness-rule design, not naive re-derivation. R6 is vacuously satisfied on 2 of
+  4 valid corpus trips today (`in_peak` returns `False` for every input when
+  `peak_windows` is empty, so the recorded and re-derived values agree on a premise
+  that was never actually true); needs a `no_peak_windows` legitimacy declaration and a
+  narrowed scope before it means anything.
+- **TW-062's `verified-pois.schema.json` `allOf` constraint** (a `cluster_fallback`
+  geocode source paired with `verify_status: verified` must carry an existence-proof
+  source). Deferred so that existing trips carrying this shape (chiayi has 8) get a
+  routed, fixable gate failure rather than a hard `validate_artifact` exit 1 — tightening
+  the schema before the corpus migrates would be strictly worse than the gate-level
+  enforcement this release already ships.
+- Lodging Gate 0 (needs `accommodations.schema.json` `business_status`).
+- Wiring `deps_stale` into the router, and teaching producing stages to record
+  `input_fingerprints` — neither exists yet, so there is nothing to wire against.
+- `gate.py`'s nine-legacy-check substring coupling (see Residual above).
+
+Tests: 874 → 980, zero skipped or xfailed throughout.
+
 ## 0.32.0 — provenance at write time: six dogfood defects, gates that can now fail
 
 A consumer 3D2N dogfood run finished with `gate-report.yaml` 13/13 green and
