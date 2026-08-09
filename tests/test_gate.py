@@ -479,3 +479,66 @@ def test_gate_surfaces_rederivation_rederivable_failure_in_report():
     assert {"name": "verdicts_rederivable", "passed": False, "examined": 3} in r["checks"]
     assert any("last_service_exempt" in f for f in r["failures"])
     assert any("closing_status is not re-derivable" in f for f in r["failures"])
+
+
+# --- home_legs_rendered (TW-069 fix round 1, Important 1) ------------------
+# The reviewer proved Step 5b's original test (render_day_table on a hand-built
+# move row) was already green, unmodified, at a3e26f6 -- it proved nothing this
+# task did. This is the real mechanism: a kind:home leg is checked (rederive_legs)
+# and its fare is summed (cost-rollup), but neither proves it reached the reader.
+
+def _home_leg(frm="三重", to="嘉義市", duration_mins=190):
+    return {"legs": [{"from": frm, "to": to, "kind": "home", "mode": "drive",
+                      "duration_mins": duration_mins, "status": "ok"}]}
+
+
+def test_gate_home_leg_rendered_passes_when_referenced():
+    move_row = {"slot": "move", "from": "三重", "to": "嘉義市", "text": "自駕南下",
+                "leg_index": 0}
+    itin = _itin([_meal("a", closing_status="ok"), move_row])
+    r = run_gate([_poi("a", hours=_HOURS)], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=_home_leg()))
+    assert r["status"] == "pass", r["failures"]
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is True
+    assert not any("has no move row" in f for f in r["failures"])
+
+
+def test_gate_home_leg_rendered_fails_when_unreferenced():
+    itin = _itin([_meal("a")])   # no row carries leg_index -> the leg is unrendered
+    r = run_gate([_poi("a")], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=_home_leg()))
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is False
+    assert any("home leg 0 (三重->嘉義市) has no move row" in f for f in r["failures"])
+    # the failure message must NOT contain 'legs[' (scripts/orchestration.py's
+    # _ROUTES routes that marker to tripwork:inter-stop-legs -- the wrong
+    # destination for a synthesis-side rendering gap).
+    assert not any("legs[" in f for f in r["failures"])
+
+
+def test_gate_home_leg_rendered_ignores_non_home_legs():
+    """A kind:inter_stop (or absent-kind, default) leg is NOT subject to this
+    check. Measured before specifying the fix: across the four schema-clean
+    corpus trips, 6 legs, all kind-absent (defaulting to inter_stop) -- so this
+    check fires on nothing at HEAD, zero fallout."""
+    legs = {"legs": [{"from": "嘉義", "to": "台南", "mode": "rail",
+                      "duration_mins": 40, "status": "ok"}]}
+    itin = _itin([_meal("a")])
+    r = run_gate([_poi("a")], itin, advisory={"items": []},
+                 **rederive_kwargs(legs=legs))
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is True
+
+
+def test_gate_home_leg_index_out_of_range_fails():
+    itin = _itin([{"slot": "move", "text": "自駕", "leg_index": 5}])
+    r = run_gate([], itin, advisory={"items": []},
+                 **rederive_kwargs(legs={"legs": []}))
+    assert r["status"] == "fail"
+    assert next(c["passed"] for c in r["checks"] if c["name"] == "home_legs_rendered") is False
+    assert any("leg_index 5 does not match any recorded leg" in f for f in r["failures"])
+
+
+def test_gate_home_legs_rendered_check_always_present():
+    """always-on, per the fix spec: appears in checks even when legs is None."""
+    r = run_gate([_poi("a")], _itin([_meal("a")]), advisory={"items": []})
+    assert "home_legs_rendered" in [c["name"] for c in r["checks"]]

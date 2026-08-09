@@ -210,6 +210,22 @@ def test_itinerary_checklist_accepted():  # TW-034 surface support
     doc["checklist"] = ["lithium battery: carry-on only", "book restaurant 1 week ahead"]
     jsonschema.validate(doc, schema)
 
+def test_itinerary_row_accepts_leg_index():   # TW-069 fix round 1, Important 1
+    schema = _load_schema("itinerary.schema.json")
+    jsonschema.validate(
+        _itin([{"slot": "move", "text": "自駕南下", "from": "三重", "to": "嘉義市",
+               "leg_index": 0}]), schema)
+
+def test_itinerary_row_leg_index_optional_backward_compat():
+    schema = _load_schema("itinerary.schema.json")
+    jsonschema.validate(_itin([{"slot": "move", "text": "A→B"}]), schema)   # no leg_index
+
+def test_itinerary_row_leg_index_rejects_negative():
+    schema = _load_schema("itinerary.schema.json")
+    with pytest.raises(jsonschema.ValidationError):
+        jsonschema.validate(
+            _itin([{"slot": "move", "text": "x", "leg_index": -1}]), schema)
+
 def _vp_item(**over):
     base = {"id": "x", "name_local": "x", "name_display": "x",
             "category": "restaurant", "district": "x",

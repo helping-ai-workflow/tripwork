@@ -422,22 +422,28 @@ def test_itinerary_synthesis_input_contract_reflects_home_legs():
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "empty list if single-base" not in text, \
         "Input row still claims legs.yaml is empty for every single-base trip"
+    assert "home endpoint" in text, \
+        "Input row must name the home-endpoint condition that keeps legs.yaml non-empty"
 
 
 def test_itinerary_synthesis_renders_home_legs_on_day_one_and_last_day():
-    """TW-069 Step 5b: Task 1 wired legs into run_gate (rederive_legs re-derives
-    every leg's classify_leg verdict, home legs included — 4 hits for `legs` in
-    scripts/gate.py at this branch's HEAD) and cost-rollup already sums a home
-    leg's fare, but until now nothing in the synthesis contract put it in front
-    of the reader. The Inter-city moves section must say where each half of a
-    `kind: home` leg goes and that its endpoints trace back to trip-brief."""
+    """TW-069 fix round 1, Important 1: prose alone is not a mechanism (the
+    reviewer proved the Step 5b render test was green at a3e26f6, unmodified by
+    this task). This test only pins the SKILL.md prose contract; the mechanical
+    enforcement is scripts/gate.py::_home_legs_rendered_failures + the
+    home_legs_rendered check (tests/test_gate.py), not this file. Task 1 already
+    wired legs into run_gate (rederive_legs re-derives every leg's classify_leg
+    verdict, home legs included — 4 hits for `legs` in scripts/gate.py at this
+    branch's HEAD) and cost-rollup already sums a home leg's fare; the Inter-city
+    moves section must say where each half of a `kind: home` leg goes, that its
+    endpoints trace back to trip-brief, and that leg_index is what the gate
+    checks."""
     text = (SKILLS / "itinerary-synthesis" / "SKILL.md").read_text(encoding="utf-8")
     assert "kind: home" in text
     assert "day 1" in text
     assert "last day" in text
     assert "home_origin" in text and "home_return" in text
-    assert "home endpoint" in text, \
-        "Input row must name the home-endpoint condition that keeps legs.yaml non-empty"
+    assert "leg_index" in text
 
 
 def test_orchestrator_rule11_describes_fingerprint_not_mtime():

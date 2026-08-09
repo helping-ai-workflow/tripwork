@@ -310,15 +310,62 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
             "checks": checks, "failures": failures}
 
 
-def _find_rows(md_text, names):
-    """All markdown TABLE rows (lines starting '|') containing any POI name.
+# render_markdown_page's day-level lodging line ("**宿**：<poi cell>") — not
+# table-formatted, so the '|'-prefixed scan below cannot see it on its own.
+_LODGING_LINE_PREFIX = "**宿**："
 
-    Restricting to table rows means a `### Day` heading that merely names the POI no
-    longer shadows the real scheduled row; collecting ALL matching rows means a POI
-    appearing on several days passes if any of its rows carries the official link. (TW-044)
+
+def _find_rows(md_text, names):
+    """Every markdown line that represents a SCHEDULED itinerary row for any of
+    the given POI names: a day-table row ('|'-prefixed, inside a '### ' day
+    section) or a render_markdown_page '**宿**：' lodging line.
+
+    Restricting table rows to '### '-opened sections (TW-069 fix round 1) closes
+    TWO defects render_markdown_page (Task 4) made reachable, in opposite
+    directions:
+
+      - FALSE NEGATIVE: the lodging line is not '|'-prefixed, so the old
+        table-only scan never found a bookable lodging POI referenced ONLY
+        there — `rows` came back empty and the check silently skipped it
+        ("POI not scheduled into this deliverable"), even though it WAS
+        scheduled, just not on a table row. Fixed by matching the lodging
+        line's own literal prefix, independent of table structure.
+
+      - FALSE POSITIVE: the new '## 費用估算' cost table's '|'-prefixed rows
+        CAN legitimately repeat a POI's name inside an upstream-authored
+        cost.yaml line-item label (e.g. a lodging line item "兆品酒店嘉義
+        （2晚）" contains the hotel's name "兆品酒店嘉義") — the old scan
+        counted that as a scheduled row, so a correctly-linked lodging POI
+        FAILED the gate on the cost row's account (a cost row never carries a
+        maps/official link) even though its real lodging line carried the
+        link fine. Fixed STRUCTURALLY, not by excluding names: a '|' row only
+        counts while scanning is inside a day — a '### ' heading opens that
+        window, ANY '## ' heading closes it (whatever that section is
+        called) — so the cost table, which lives under its own '## ' heading,
+        is never eligible regardless of what its labels say. This does not
+        depend on a POI's name being absent from a cost label, which is
+        upstream-authored content this gate does not control.
+
+    A '### ' heading that merely NAMES a POI (TW-044) is still excluded either
+    way — it is never itself a '|'-prefixed or lodging-prefixed line.
     """
-    return [line for line in md_text.splitlines()
-            if line.lstrip().startswith("|") and any(name and name in line for name in names)]
+    rows = []
+    in_day = False
+    for line in md_text.splitlines():
+        stripped = line.lstrip()
+        if stripped.startswith("### "):
+            in_day = True
+            continue
+        if stripped.startswith("## "):
+            in_day = False
+            continue
+        if stripped.startswith(_LODGING_LINE_PREFIX):
+            if any(name and name in line for name in names):
+                rows.append(line)
+            continue
+        if in_day and stripped.startswith("|") and any(name and name in line for name in names):
+            rows.append(line)
+    return rows
 
 
 def merge_reports(md_report, html_report):

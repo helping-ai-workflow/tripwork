@@ -122,8 +122,19 @@ ITIN = {
 POIS = {
     "ahong": {"id": "ahong", "name_display": "阿宏師火雞肉飯", "district": "嘉義市東區",
               "sources": [{"url": "https://blog.example.tw/a", "official": True}]},
+    # verify_status + booking.required (TW-069 fix round 1, Important 2): without
+    # a verify_status the bookable check never even looks at this POI, so
+    # test_output_passes_the_export_gate previously never called _find_rows at
+    # all. This POI is referenced ONLY via the day's "**宿**：" lodging line
+    # (never a day-table row) AND its own name is a substring of COST's
+    # "兆品酒店嘉義（2晚）" line-item label below — the exact double-edged
+    # fixture that exercises both _find_rows directions at once: the lodging
+    # line must be found (false-negative direction) and the cost table's row
+    # must NOT be mistaken for it (false-positive direction).
     "zhaopin-hotel": {"id": "zhaopin-hotel", "name_display": "兆品酒店嘉義",
-                      "district": "嘉義市西區", "sources": []},
+                      "district": "嘉義市西區", "verify_status": "verified",
+                      "booking": {"required": True},
+                      "sources": [{"url": "https://hotel.example", "official": True}]},
 }
 COST = {"currency": "TWD", "as_of": "2026-08-07", "total": 12700,
         "line_items": [{"category": "lodging", "label": "兆品酒店嘉義（2晚）", "amount": 5000},
@@ -156,6 +167,23 @@ def test_sections_are_omitted_when_their_data_is_absent():
     assert "## 備案" not in out
     assert "## 出發前檢查清單" not in out
     assert "## 費用估算" not in out
+
+
+def test_lodging_line_omitted_when_unresolvable():   # TW-069 fix round 1, item 5
+    """The brief's most-emphasised safety property (stated three times) had NO
+    test: test_sections_are_omitted_when_their_data_is_absent reuses ITIN["days"],
+    whose lodging id DOES resolve in POIS, so it never reaches the omission
+    branch. This constructs a day whose lodging id is absent from poi_map and
+    asserts both that the lodging line never appears AND that the raw id never
+    leaks into the page (the exact class of leak the hand-rolled consumer
+    renderer's `if not poi: return f"**宿**：{lid}"` produced)."""
+    itin = {"title": "t", "days": [{"date": "2026-08-29", "label": "D1",
+             "lodging": "ghost-hotel-not-in-poi-map",
+             "rows": [{"time": "12:00", "slot": "meal", "poi_id": "ahong",
+                       "text": "午餐"}]}]}
+    out = render_markdown_page(itin, POIS, None)
+    assert "**宿**" not in out
+    assert "ghost-hotel-not-in-poi-map" not in out
 
 
 def test_output_passes_the_export_gate():
@@ -193,19 +221,23 @@ def test_contingency_text_reaches_the_canonical_hygiene_scan():
     assert "颱風" in text and "南院常設展" in text
 
 
-def test_home_leg_move_row_carries_its_own_endpoints():   # TW-069 Step 5b
-    """A `kind: home` leg's classify_leg verdict is already re-derived (run_gate)
-    and its fare already summed (cost-rollup), but until itinerary-synthesis places
-    it as a first-class move row nothing puts it in front of the reader — the
-    remaining gap is purely about rendering, not about legs-awareness. This proves
-    the render side of that gap is closed: once a day's row carries the home leg's
-    OWN endpoints (day 1 for the outbound leg, the last day for the return leg, per
-    the updated SKILL.md), it renders as an A→B directions link, not text-buried."""
+def test_home_leg_move_row_carries_its_own_endpoints():
+    """Guard, GREEN at HEAD (fix round 1): this pins pre-existing render_day_table
+    behaviour (unchanged by TW-069 — the reviewer confirmed it was already green
+    at a3e26f6), not a new mechanism. It is a necessary PRECONDITION for Step 5b's
+    render rule (a `kind: home` leg's own endpoints, once placed on a move row,
+    must actually render as an A→B directions link and not silently degrade to
+    plain text) but proves nothing about whether synthesis ever places that row —
+    that enforcement is the mechanical `home_legs_rendered` gate check
+    (scripts/gate.py::_home_legs_rendered_failures, tests/test_gate.py), not this
+    test. Regressing this would silently break Step 5b even if the gate stayed
+    green, since the gate only checks a row EXISTS (via leg_index), not that it
+    renders correctly."""
     home_leg = {"from": "三重", "to": "嘉義市", "kind": "home", "mode": "drive",
                 "duration_mins": 190, "status": "ok"}
     day1 = {"label": "Day 1", "rows": [
         {"slot": "move", "from": home_leg["from"], "to": home_leg["to"],
-         "text": "自駕南下"},
+         "text": "自駕南下", "leg_index": 0},
     ]}
     md = render_day_table(day1, {})
     assert f"[🚆 {home_leg['from']}→{home_leg['to']}]" in md

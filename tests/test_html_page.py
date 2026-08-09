@@ -184,6 +184,50 @@ class TestRenderHtmlPageNoChecklist:
 
 
 # ---------------------------------------------------------------------------
+# render_html_page — contingency (TW-069 fix round 1, Important 3)
+# ---------------------------------------------------------------------------
+# Note: the pre-existing legend already contains the bare substring "備案"
+# (the inline ▸-marker convention, "橘框＝當日備案") — every assertion below
+# uses the full "備案 / Contingency" heading text so it cannot false-pass off
+# that unrelated, always-present string.
+
+ITIN_CONTINGENCY = {**ITIN, "contingency": [
+    {"trigger": "颱風/大雨", "fallback": "戶外改室內：南院常設展廳、花磚"},
+    {"trigger": "阿宏師撲空", "note": "來源標週一二休 <備用>", "fallback": "改噴水雞肉飯小雅旗艦店"},
+]}
+
+
+class TestRenderHtmlPageContingency:
+    def setup_method(self):
+        self.html = render_html_page(ITIN_CONTINGENCY, POI_MAP)
+
+    def test_contingency_heading_present(self):
+        assert "備案 / Contingency" in self.html
+
+    def test_contingency_trigger_and_fallback_present(self):
+        assert "颱風/大雨" in self.html
+        assert "戶外改室內" in self.html
+
+    def test_contingency_note_rendered_when_present(self):
+        assert "來源標週一二休" in self.html
+
+    def test_contingency_note_special_char_escaped(self):
+        assert "&lt;備用&gt;" in self.html
+        assert "<備用>" not in self.html
+
+
+class TestRenderHtmlPageNoContingency:
+    def test_no_contingency_section_when_absent(self):
+        html = render_html_page(ITIN, POI_MAP)   # ITIN carries no contingency key at all
+        assert "備案 / Contingency" not in html
+
+    def test_no_contingency_section_when_empty(self):
+        itin_empty = {**ITIN, "contingency": []}
+        html = render_html_page(itin_empty, POI_MAP)
+        assert "備案 / Contingency" not in html
+
+
+# ---------------------------------------------------------------------------
 # Card-style upgrade (v0.17.0) — hero, overview, legend, lodge, alt, slot color
 # ---------------------------------------------------------------------------
 # Rich fixture: lodging that resolves, an alt (▸) row, every slot kind, 2 days.

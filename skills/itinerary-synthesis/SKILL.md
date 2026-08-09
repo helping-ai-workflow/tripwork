@@ -91,7 +91,12 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   while staying invisible to the reader. Render it as a `move` row too: the outbound leg
   on **day 1**, the return leg on the **last day**. The row's `from` / `to` are the leg's
   own endpoints (which trace back to `trip-brief.home_origin` / `home_return`) — never
-  re-derive them from the base district.
+  re-derive them from the base district. **Set the row's `leg_index` to that leg's index
+  in `legs.yaml`'s `legs` array.** This is not optional decoration: `itinerary-gate`'s
+  `home_legs_rendered` check fails whenever a `kind: home` leg has no row referencing it
+  by `leg_index` — matching is by index, never by name, because a leg's recorded
+  `from`/`to` and the row text that describes it are not required to be the same string
+  (e.g. a leg endpoint like `三重（新北）` vs a row's `三重`).
 
 ## Seasonal awareness (reads `seasonal.yaml`)
 

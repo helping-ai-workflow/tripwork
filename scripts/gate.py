@@ -69,6 +69,56 @@ def _day_has_lodging(day):
         return True
     return any(r.get("slot") == "lodging" for r in day.get("rows", []))
 
+def _home_legs_rendered_failures(itinerary, legs):
+    """Every `kind: home` leg in legs.yaml must be referenced by at least one
+    itinerary row's `leg_index` — otherwise its classify_leg verdict is checked
+    (rederive_legs) and its fare is summed (cost-rollup) while nothing ever put
+    it in front of the reader. (TW-069 fix round 1, Important 1)
+
+    Deliberately its OWN check, not folded into verdicts_match/verdicts_rederivable:
+    neither axis fits — this is "a consumed input never reached the deliverable",
+    not "a recorded verdict is wrong" (verdicts_match) or "an input is missing"
+    (verdicts_rederivable). A `legs=None` (legs.yaml absent) means there is no
+    home-leg data to check either way; that gap is already flagged on the
+    rederivable axis (rederive_legs) and is not duplicated here.
+
+    Endpoints are matched by INDEX, never by string: the corpus shows a leg's
+    `from`/`to` and the itinerary row that renders it are NOT the same string in
+    any real trip (e.g. chiayi's leg endpoint '三重（新北）' vs its row '三重') —
+    matching by name would be a false-positive machine the moment anyone records
+    `kind: home`.
+
+    Failure messages deliberately avoid the substring 'legs[' (scripts/rederive.py
+    uses it for missing-input messages that legitimately route to
+    tripwork:inter-stop-legs via scripts/orchestration.py's `_ROUTES`) — an
+    unrendered home leg is a SYNTHESIS defect (nothing wrong with legs.yaml
+    itself), so it must fall through to itinerary-synthesis instead.
+    """
+    legs_list = (legs or {}).get("legs") or []
+    home_indices = [i for i, lg in enumerate(legs_list) if lg.get("kind") == "home"]
+    referenced = set()
+    for d in itinerary.get("days", []):
+        for row in d.get("rows", []):
+            li = row.get("leg_index")
+            if li is not None:
+                referenced.add(li)
+    failures = []
+    for i in home_indices:
+        if i not in referenced:
+            lg = legs_list[i]
+            frm, to = lg.get("from", "?"), lg.get("to", "?")
+            failures.append(
+                f"home leg {i} ({frm}->{to}) has no move row — synthesis must "
+                f"render it on the day it applies to")
+    n_legs = len(legs_list)
+    for li in sorted(referenced):
+        if li < 0 or li >= n_legs:
+            failures.append(
+                f"itinerary row leg_index {li} does not match any recorded leg "
+                f"— synthesis must reference a real index")
+    return failures
+
+
 def _itinerary_text(itinerary):
     """Every authored free-text field a renderer surfaces: title + checklist + each day
     label + each row text + each move row's from/to endpoints + each contingency
@@ -210,6 +260,12 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     ai_tone = ai_tone_failures(hygiene_text)
     failures.extend(ai_tone)
 
+    # TW-069 fix round 1: a `kind: home` leg's verdict is re-derived (below) and
+    # its fare is summed (cost-rollup), but neither of those proves it ever
+    # reached the reader — this is the mechanical form of that render-side gap.
+    home_leg_failures = _home_legs_rendered_failures(itinerary, legs)
+    failures.extend(home_leg_failures)
+
     # Verdict re-derivation (v0.33.0). Every recorded mechanical verdict is
     # recomputed from the inputs the artifact itself carries. Emits its own two
     # checks rather than folding into the substring-matched list below, because a
@@ -241,6 +297,12 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         # arbitrary trip text, so a substring scan would be the only check in this
         # file whose truth depends on trip content.
         {"name": "no_ai_tone", "passed": not ai_tone},
+        # Same direct-return-value style as no_ai_tone (not a substring scan):
+        # home_leg_failures' messages deliberately share no fixed marker with any
+        # other check's messages (see _home_legs_rendered_failures's docstring on
+        # the 'legs[' routing trap), so a substring scan here would be fragile by
+        # construction.
+        {"name": "home_legs_rendered", "passed": not home_leg_failures},
     ]
     checks.extend(rd["checks"])
     if closed_check:

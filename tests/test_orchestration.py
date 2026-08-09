@@ -153,3 +153,22 @@ def test_accommodation_marker_wins_priority_over_a_later_group():
                      facility_needs={"required": []})
     combined = legs_res["failures"] + accom["failures"]
     assert route_gate_failures(combined) == "tripwork:accommodation-research"
+
+
+def test_home_leg_unrendered_marker_falls_through_to_synthesis():
+    """TW-069 fix round 1, Important 1 — the routing trap the fix must avoid:
+    scripts/gate.py::_home_legs_rendered_failures's failure message must NOT
+    contain 'legs[' (that marker's _ROUTES group points at
+    tripwork:inter-stop-legs, the WRONG destination for this defect — nothing
+    is wrong with legs.yaml itself, itinerary-synthesis simply never rendered
+    the leg as a row). Built from the REAL failure string, not a hand-typed
+    literal, so a message-format rename on either side of the file boundary
+    fails here instead of silently mis-routing."""
+    from scripts.gate import _home_legs_rendered_failures
+    legs = {"legs": [{"from": "三重", "to": "嘉義市", "kind": "home", "mode": "drive",
+                      "duration_mins": 190, "status": "ok"}]}
+    itin = {"days": [{"date": "2026-08-29", "rows": []}]}   # no row carries leg_index
+    failures = _home_legs_rendered_failures(itin, legs)
+    assert any("has no move row" in f for f in failures)
+    assert not any("legs[" in f for f in failures)
+    assert route_gate_failures(failures) == "tripwork:itinerary-synthesis"
