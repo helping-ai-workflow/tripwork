@@ -176,7 +176,27 @@ entrypoints they never had (TW-068, TW-069), and gives lodging and Gate 2c the c
   `input_fingerprints` — neither exists yet, so there is nothing to wire against.
 - `gate.py`'s thirteen-legacy-check substring coupling (see Residual above).
 
-Tests: 874 → 980, zero skipped or xfailed throughout.
+### End-to-end consumer-fixture closure
+
+`tests/test_e2e_v033_closure.py` builds ONE fixture trip carrying all eleven of this
+release's exit-criterion defects at once and drives it through both real CLIs from a
+cwd outside the repo, with an absolute script path. It exists because the eleven do
+not all live at the same layer: `scripts/gate.py` consumes the `verify_status`
+already recorded in `verified-pois.yaml` and never re-runs `verify_poi`, so the three
+write-time defects (a `cluster_fallback` POI with no existence proof, a POI whose
+`geocode` records no `geocode_source`, a bare-string `business_status`) are closed by
+`scripts/source_verify_run.py` → `verify_poi` as the artifact is WRITTEN, and the
+other eight by `gate.py` as the finished artifact is GATED. A closure that ran only
+the gate would have reported all eleven green while proving nothing about the first
+three. The layer boundary is asserted in both directions rather than described: the
+fixture schedules a POI carrying the missing-`geocode_source` defect and pins that
+the gate says nothing about it while `verify_poi` refuses it. The run is network-free
+without `--offline` (the per-trip geocode cache is pre-seeded, and a cached miss is
+what makes the `cluster_fallback` branch deterministic) — `--offline` could not be
+used, because it returns before any geocode is built and so can produce neither a
+`cluster_fallback` coordinate nor any coordinate at all.
+
+Tests: 874 → 999, zero skipped or xfailed throughout.
 
 ## 0.32.0 — provenance at write time: six dogfood defects, gates that can now fail
 
