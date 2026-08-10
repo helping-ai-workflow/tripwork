@@ -87,19 +87,19 @@ rather than discovered by audit.
   swapping `calendar-check` and `seasonal-advisory` inside `_CHAIN` now reds that test (it stayed
   green before this fix), and the reverse — editing the README's stage order without updating
   `_CHAIN` — reds it too.
-- **TW-080/081/082 — three specific stale claims, plus a systematic sweep.** A CHANGELOG passage
+- **TW-080/081/082 — three specific stale claims, plus a wider grep-driven pass.** A CHANGELOG passage
   described the `superseded` bucket's routing using only two of the three `business_status` shapes
   that route there (bare-string, absent), silently omitting the third (a dict-shaped but unusable
   value) while phrasing the pair as exhaustive — corrected to name all three, worded to match the
   code's own reason strings (TW-080). `scripts/rederive.py`'s `run_rederivation` docstring (and a
   duplicate in `tests/test_rederive.py`) claimed `run_gate` "does not forward" `pois` — false since
-  v0.34.0 Task 4, which made `scripts/gate.py:332-334` pass `pois=pois` unconditionally; the false
+  v0.34.0 Task 4, which made `scripts/gate.py:333-335` pass `pois=pois` unconditionally; the false
   claim and its dependent consequence were deleted, the still-true part of the surrounding rationale
   kept (TW-081). README's `gmaps_place_id` shape-check line cited an all-corpus count (86)
   inconsistent with the denominator every other figure in its own section used, and both numbers
   were additionally stale; now states both denominators explicitly, measured live: four
   schema-clean trips = 64, all seven corpus trips = 99, both exactly 27 characters (TW-082).
-  A follow-up systematic sweep of every docstring/comment in `tests/`, `scripts/`, `skills/`
+  A follow-up grep-driven pass over `tests/`, `scripts/`, `skills/` for docstrings/comments
   carrying a numeric claim near corpus-shaped language — not another reactive one-site fix — found
   **18 more present-tense corpus figures across 11 files**, of which **4 were outright false**
   against the live corpus, not merely stale: an "0 unresolved" figure recorded as 5 (a full
@@ -129,11 +129,16 @@ rather than discovered by audit.
 **What stays out, recorded rather than silently dropped:**
 
 - A **pre-existing flake**, not introduced by this branch: `tests/test_e2e_mechanized_pipeline.py::test_full_walk_in_new_order`
-  fails intermittently (measured 1/90 and 2/30 across two points on this branch, roughly 1–7%) on an
-  mtime race in rule 13's staleness comparison. `git diff` confirms rule 13 itself is byte-identical
-  across the commits where the rate was sampled. Root-causing it means touching `next_stage.py`
-  machinery this release already changed and had reviewed for a different defect — out of scope for
-  the ten defects here, surfaced for a future release instead.
+  fails intermittently (measured 1/90 and 2/30 across two points on this branch, roughly 1–7%) on the
+  test's own step-by-step `assert got["next"] == expected` walk against `EXPECTED_WALK`. Which step,
+  and why, is not established — no failing run was ever captured with `next_stage.py`'s `reason`
+  string attached (the assertion used to report only the step name), and a follow-up 220-run sample
+  at HEAD reproduced zero failures. `tests/test_e2e_mechanized_pipeline.py::_next` now returns the
+  full `{next, reason}` dict so the next occurrence is diagnosable without another blind rerun hunt.
+  An earlier draft of this entry named the cause as "an mtime race in rule 13's staleness comparison"
+  — that was an inference, never measured, and is withdrawn here rather than repeated. Root-causing
+  the actual signature is out of scope for the ten defects here, surfaced for a future release
+  instead.
 - The schema-symmetry guard's failure message names one cause ("the allowlist absorbed every read")
   when an empty coverage set can come from either that or a schema loosened to
   `additionalProperties: true` — reproduced by flipping `routing.schema.json`'s `hops` items to
@@ -141,25 +146,33 @@ rather than discovered by audit.
   ceiling test (`test_the_allowlist_does_not_blind_an_entire_axis`) also only asserts non-empty
   coverage, not a minimum retained fraction — re-adding 6 of `rederive_hops`'s 7 checked names still
   passes it. Both recorded for a future pass, not fixed here.
-- `EXPORT_DELIVERABLES` is single-sourced inside `next_stage.py` only; `export_gate.py` itself (the
-  actual reader/judge) and five test fixtures still build the same filenames with their own
-  f-strings. Renaming the deliverable template would still silently reproduce TW-077 under a new
-  name. Next-version follow-up: have `export_gate.py` import the constant too.
-- `test_no_failure_class_routes_to_a_stage_that_cannot_write_it[2026-08-chiayi]` now iterates an
-  empty failure list (the consumer's chiayi trip is clean today) and so executes zero assertions
-  while still reporting pass — precisely the "a check that cannot fail is indistinguishable from one
-  that passed" shape this whole release is about. Fixing it means recording per-trip counts of each
-  routed failure class in the baseline, a design change rather than a doc fix; deliberately not
-  folded into this release.
+- `EXPORT_DELIVERABLES`, `GATE_INPUTS`, and `EXPORT_GATE_INPUTS` are each single-sourced inside
+  `scripts/orchestration.py` for `next_stage.py`'s own staleness comparisons only; the CLI that
+  actually reads each set of filenames still hand-lists them a second time with its own literals.
+  `export_gate.py`'s `main()` (plus five test fixtures) re-builds `EXPORT_DELIVERABLES`'s and
+  `EXPORT_GATE_INPUTS`'s filenames with its own f-strings/`opt()` calls, and `scripts/gate.py`'s
+  `main()` hand-lists the same nine artifacts `GATE_INPUTS` names, across its two required loads and
+  seven `opt()` calls. Renaming any of these filenames would still silently reproduce TW-077's shape
+  under a new name. Next-version follow-up: have each CLI import the constant it currently
+  re-lists by hand.
+- `test_no_failure_class_routes_to_a_stage_that_cannot_write_it[2026-08-chiayi]` used to iterate an
+  empty failure list (the consumer's chiayi trip is clean today) and so execute zero assertions while
+  still reporting pass — precisely the "a check that cannot fail is indistinguishable from one that
+  passed" shape this whole release is about. Fixed with a two-line addition: before the loop, assert
+  that the failure list's emptiness matches what `tests/corpus-baseline.json`'s per-trip `total`
+  says it should be, so an empty trip is now asserted rather than silently skipped over. The fuller
+  design — recording per-trip counts of each individually routed failure class in the baseline — is
+  a bigger change than this defect needs and stays a next-version follow-up.
 - `scripts/gate.py`'s two-trip id-collision note (POIs and lodging candidates sharing an id within
   `2026-07-sun-moon-lake` and `hokkaido-7d`) was independently recomputed against all seven live trip
   directories during the doc sweep above and still matches exactly; left as an open, id-anchored
   v0.35.0 follow-up note, unchanged.
 
-Tests: 1093 passed with the consumer corpus mounted, 0 failed; 1073 passed + 20 corpus-gated skips
-in CI (no corpus). A committed-only export of the consumer corpus repository reproduces 1093/0
-exactly, identical to the working-tree figure — every corpus number this entry publishes is now
-independently reproducible by anyone with the consumer repo, which v0.34.0's entry could not claim.
+Tests: 1095 passed with the consumer corpus mounted, 0 failed; 1075 passed + 20 corpus-gated skips
+in CI (no corpus). (Post-review fix wave added 2 tests to the original 1093/1073 figures — F1's
+rule-14 required-deliverable test and F12's shipped-`.version-bump.json` `previous` guard — no
+count regressed.) Every corpus number this entry publishes remains independently reproducible by
+anyone with the consumer repo, which v0.34.0's entry could not claim.
 
 ## 0.34.0 — the POI verdict axis, and the two channels it needed
 

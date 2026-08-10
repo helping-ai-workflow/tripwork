@@ -263,6 +263,21 @@ def test_rule13_bogus_status_gate_report_reruns_gate(tmp_path):
     assert "rule 13" in got["reason"]
 
 
+def test_rule14_requires_markdown_deliverable_even_when_html_present(tmp_path):
+    """F1 (v0.35.0 review): rule 14 must require the markdown deliverable
+    specifically (scripts/orchestration.py::REQUIRED_DELIVERABLE), not
+    whichever entry happens to sit first in EXPORT_DELIVERABLES. The HTML
+    deliverable is optional in shipped semantics -- export_gate.py only reads
+    it `if html_path.is_file()` (scripts/export_gate.py) -- so a trip that
+    has an HTML export but no markdown export must still be routed to
+    tripwork:export-artifact, not treated as satisfying rule 14."""
+    t, w = _full(tmp_path)
+    (t / "exports" / f"{SLUG}-itinerary.md").unlink()
+    got = _next(t, w)
+    assert got["next"] == "tripwork:export-artifact"
+    assert "rule 14" in got["reason"]
+
+
 def test_rule15_corrupt_export_gate_report_reruns_gate(tmp_path):
     t, w = _full(tmp_path)
     (t / "export-gate-report.yaml").write_text(

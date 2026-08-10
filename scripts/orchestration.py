@@ -145,7 +145,17 @@ EXPORT_GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "accommodations.ya
 # Rule 15's staleness comparison must cover each one -- miss one and that
 # deliverable can be re-rendered after the report ran without the oracle
 # noticing (TW-077: the HTML was the one rule 15 missed).
-EXPORT_DELIVERABLES = ("{slug}-itinerary.md", "{slug}-itinerary.html")
+#
+# The markdown deliverable is the only REQUIRED one -- export_gate.py hard-fails
+# (missing deliverable) when md_path is absent but only conditionally reads
+# html_path (`if html_path.is_file()`, scripts/export_gate.py). Rule 14 must
+# name REQUIRED_DELIVERABLE explicitly rather than index into this tuple: an
+# earlier version read `deliverables[0]`, which happened to be the markdown
+# file only because of this tuple's declaration order -- swapping the two
+# entries silently made rule 14 require the HTML instead, with the full suite
+# staying green throughout (nothing pinned which entry was required).
+REQUIRED_DELIVERABLE = "{slug}-itinerary.md"
+EXPORT_DELIVERABLES = (REQUIRED_DELIVERABLE, "{slug}-itinerary.html")
 
 
 def deps_stale(load, artifact):

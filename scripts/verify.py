@@ -305,10 +305,12 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     #           counts as an existence proof, a POI whose ONLY evidence is that
     #           statement reaches 'verified' with a district-centroid
     #           coordinate — TW-062's exact shape. Gate 2c would have PASSED
-    #           those records too had it been left in place. Measured: 5 corpus
-    #           records do this after migration (4 chiayi POIs +
-    #           sun-moon-lake's d2-6), all flipping has_existence_proof
-    #           False -> True on the new proof alone.
+    #           those records too had it been left in place. Real corpus
+    #           records do this after migration -- cluster_fallback POIs
+    #           whose only proof is a sourced business_status -- and how many
+    #           is corpus-dependent, not pinned here (regenerate via
+    #           `python -m tests.corpus_measure --write` to see today's
+    #           count).
     # Whether a centroid coordinate deserves 'verified' when the venue is
     # provably real is the coordinate-trustworthiness question v0.34.0
     # explicitly declines to answer (CHANGELOG "What stays out").

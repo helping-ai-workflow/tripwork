@@ -512,8 +512,9 @@ def rederive_pois(pois, *, local_lang=None):
                     (bare-string or absent, superseded by TW-063's object form),
                     or it IS a dict but unusable — an unrecognised status, a
                     blank source_url, an unparseable as_of. The second matters
-                    disproportionately for this release: 127 POIs must now
-                    hand-write {status, source_url, as_of}, and
+                    disproportionately for this release: most corpus POIs
+                    still must hand-write {status, source_url, as_of} to
+                    migrate off the pre-TW-063 form, and
                     verified-pois.schema.json's as_of pattern
                     (^[0-9]{4}-[0-9]{2}-[0-9]{2}$) accepts 2026-02-30, so a
                     typo'd date passes validate_artifact and arrives here.
@@ -558,11 +559,12 @@ def rederive_pois(pois, *, local_lang=None):
         # ⚠ STRICTLY INSIDE the `got != rec` branch, never hoisted above it
         # (I1, final whole-branch review). Testing Gate 0 first reads cleaner —
         # "an unusable input is unusable regardless of the verdict" — and is
-        # wrong: the 22 corpus POIs correctly recorded `unverified` have no
-        # usable business_status precisely BECAUSE that is why they are
-        # unverified, so hoisting reclassifies all 22 from silent agreement
-        # into `superseded` and takes the corpus headline from 127/105 to
-        # 127/127, burying the records that actually moved.
+        # wrong: every corpus POI correctly recorded `unverified` has no usable
+        # business_status precisely BECAUSE that is why it is unverified, so
+        # hoisting would reclassify all of them from silent agreement into
+        # `superseded`, inflating the release headline to look like every POI
+        # changed verdict and burying the ones that genuinely did move under
+        # the ones that did not.
         # (test_a_correctly_recorded_unverified_poi_is_not_hoisted_into_superseded)
         operating, why = operating_from_status(bs, today=as_of)
         if operating is None:

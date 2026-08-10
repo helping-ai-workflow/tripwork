@@ -37,13 +37,17 @@ CLASSES = (
     # v0.34.0 Task 6 retired this class from the corpus entirely: it fires
     # only when a lodging candidate reaches classify_candidate AND its
     # recorded verdict does not match, which now requires a sourced
-    # business_status to reach classify_candidate in the first place. None of
-    # the 18 real lodging candidates carry one, so all 18 (including the one
-    # that used to land here, 2026-07-sun-moon-lake's d2-6) now land in
-    # lodging_verdict_superseded below instead. The marker is kept, unfired,
-    # as a live regression guard: a future corpus update that adds a sourced-
-    # but-wrong business_status would need this class again, and a silently
-    # absent marker would let _classify swallow it into "unattributed".
+    # business_status to reach classify_candidate in the first place. A
+    # candidate that has not (yet) picked up a sourced business_status --
+    # 2026-07-sun-moon-lake's d2-6 was the first observed case, at Task 6
+    # time -- lands in lodging_verdict_superseded below instead of here; how
+    # many of today's corpus candidates fall into that bucket is read from
+    # tests/corpus-baseline.json's gate_aggregate.super_lodging (regenerable
+    # via `python -m tests.corpus_measure --write`), not pinned in this
+    # comment. The marker is kept, unfired, as a live regression guard: a
+    # future corpus update that adds a sourced-but-wrong business_status
+    # would need this class again, and a silently absent marker would let
+    # _classify swallow it into "unattributed".
     ("lodging_verify_status_mismatch", "but classify_candidate re-derives"),
     # POI axis (TW-070) and lodging axis (v0.34.0 Task 6) each get their own
     # marker, discriminated by each message's own tail -- both share "was

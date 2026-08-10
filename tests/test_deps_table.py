@@ -31,9 +31,15 @@ def _declared_inputs(skill):
 
 
 def test_gate_skill_input_row_names_every_artifact_the_cli_opens():
-    """Red at HEAD: itinerary-gate's Input row under-declares what gate.py reads,
-    which is exactly why rule 13's staleness anchor was wrong."""
-    assert _declared_inputs("itinerary-gate") >= set(GATE_INPUTS)
+    """Equality, not superset (F6, v0.35.0 review, matching this test's own twin
+    below): a superset check lets the SKILL's Input row declare a yaml outside
+    GATE_INPUTS without being caught, so the two lists could silently drift
+    apart. Measured 2026-08-10: `_declared_inputs("itinerary-gate") ==
+    set(GATE_INPUTS)` holds on the live SKILL.md, so tightening it costs
+    nothing today and buys the same drift protection
+    test_export_gate_skill_input_row_names_every_artifact_the_cli_opens
+    already has."""
+    assert _declared_inputs("itinerary-gate") == set(GATE_INPUTS)
 
 
 def test_export_gate_skill_input_row_names_every_artifact_the_cli_opens():

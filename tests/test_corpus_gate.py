@@ -71,11 +71,15 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
     Re-measured for v0.34.0 Task 6 (real Gate 0 threaded into rederive_lodging,
     Gate 2c retired). `found` (verdict-bearing records) is UNCHANGED by Task 6
     (Task 6 reclassifies lodging findings; it does not add or remove records
-    to examine). compared drops from 69 (TW-070) to 51: the 18 lodging
+    to examine). compared moved from 69 (TW-070): most of the 18 lodging
     candidates that used to reach a comparison (17 matching + 1 mismatching,
     d2-6) now land in `superseded` before classify_candidate ever runs, since
-    none of them carries a sourced business_status -- there is no `operating`
-    value left to compare with. That is also why the exactly-one-mismatch
+    most do not carry a sourced business_status -- there is no `operating`
+    value left to compare with for those (a candidate that does carry one
+    stays in `compared`, same as any POI). What `compared` reads as today,
+    corpus-wide across every axis, is in tests/corpus-baseline.json's
+    gate_aggregate.compared below, not pinned in this docstring. That is also
+    why the exactly-one-mismatch
     claim TW-070 pinned here is gone: this corpus has ZERO verdicts_match
     mismatches left on any axis (match_failed is empty), not because d2-6 was
     fixed, but because its defect moved from "wrong verdict" to "verdict
@@ -105,6 +109,15 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
     2026-08-chiayi has already disproved. That is replaced by a dict
     equality against the baseline's `checks_passed`, which covers every
     check by name, not just those two.
+
+    F11 (v0.35.0 review): the loop below is a DELIBERATE second
+    implementation of tests/corpus_measure.py::_measure_gate_aggregate --
+    kept as its own hand-written walk on purpose, not refactored to call that
+    helper, because it is the ONLY cross-check that _measure_gate_aggregate
+    itself computes correctly. Calling it from here instead would compare
+    load_baseline()'s baked-in copy against itself -- green regardless of
+    whether the aggregation logic is right. Do not fold this into a shared
+    helper with corpus_measure.py.
     """
     found = compared = examined_rule_current = 0
     super_poi = super_lodging = 0
@@ -161,6 +174,16 @@ def test_the_three_verdict_axes_partition_their_failures():
     baseline. A trip legitimately having zero POI-axis findings (chiayi, once
     the consumer's business_status is sourced) is no longer a failure; a
     vacuous subset check is caught by the baseline's count instead.
+
+    F11 (v0.35.0 review): `poi_ids`/`lodging_ids` below is a DELIBERATE second
+    implementation of tests/corpus_measure.py::_axis_ids's identical string
+    split (that helper's own docstring says as much: "切法與
+    test_the_three_verdict_axes_partition_their_failures 原本的一致"). It is
+    kept as its own literal here, not imported, because it is the ONLY
+    cross-check that _axis_ids parses failure strings correctly -- calling
+    _axis_ids from here would let a parsing bug in _axis_ids agree with
+    itself via load_baseline()'s baked-in copy. Do not replace this with a
+    call to _axis_ids.
     """
     for trip in CORPUS_TRIPS:
         a = load_trip(trip)
@@ -194,6 +217,13 @@ def test_no_failure_class_routes_to_a_stage_that_cannot_write_it(trip):
     the feedback loop could not terminate.
     """
     report = gate(load_trip(trip))
+    # F4 (v0.35.0 review): a clean trip (today: 2026-08-chiayi) has an empty
+    # `failures` list, so the loop below iterates zero times and asserts
+    # nothing -- a parametrization that passes without checking anything is
+    # exactly the "cannot fail" shape this release's own thesis warns about.
+    # Assert that the emptiness itself is what the baseline says it should
+    # be, so an empty trip is asserted rather than silently skipped over.
+    assert (report["failures"] == []) == (BASELINE["per_trip"][trip]["total"] == 0), trip
     for f in report["failures"]:
         if "carries neither hours.close" in f:
             assert route_gate_failures([f]) == "tripwork:source-verify", f
@@ -217,6 +247,15 @@ def test_rule_13_5_drains_instead_of_looping(trip):
     """
     terminated, history = drain(trip)
     assert terminated, f"{trip} did not drain: {history}"
+    # F10 (v0.35.0 review): drain_rounds was the one baseline key no test
+    # other than test_baseline_matches_a_fresh_measurement ever compared to
+    # anything -- self-certified only by that one blanket measure_corpus() ==
+    # load_baseline() equality, which proves the baseline is CURRENT but
+    # gives drain_rounds no test of its own the way every other baseline
+    # figure in this file has. This test already computes `history` from the
+    # same trip via the same drain() helper; pinning its length here against
+    # the baseline gives drain_rounds a second assertion site.
+    assert len(history) == BASELINE["per_trip"][trip]["drain_rounds"], trip
     assert history[-1] == 0
     assert history[0] == BASELINE["per_trip"][trip]["total"]
 

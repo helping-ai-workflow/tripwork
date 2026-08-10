@@ -59,9 +59,14 @@ def _cli(script, *args):
 
 
 def _next(t, w):
+    """Returns the FULL {next, reason} dict, not just `next` -- F5 (v0.35.0
+    review): the caller asserts only `next`, but a flaky mismatch's failure
+    message must carry `reason` too, or diagnosing the next occurrence means
+    re-running the suite dozens of times hunting for a repro. What is
+    asserted is unchanged; only what a failure reports grows."""
     r = _cli("next_stage.py", t, "--work-dir", w)
     assert r.returncode == 0, r.stderr
-    return yaml.safe_load(r.stdout)["next"]
+    return yaml.safe_load(r.stdout)
 
 
 def test_full_walk_in_new_order(tmp_path):
@@ -84,7 +89,8 @@ def test_full_walk_in_new_order(tmp_path):
             assert _cli("export_gate.py", t).returncode == 0
         elif step is not None:
             write_artifact(t / step, DOCS[step]())
-        assert _next(t, w) == expected, f"after {step}"
+        got = _next(t, w)
+        assert got["next"] == expected, f"after {step}: {got}"
 
 
 def test_all_artifacts_pass_validator(tmp_path):

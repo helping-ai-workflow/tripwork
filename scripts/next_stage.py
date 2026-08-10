@@ -26,8 +26,8 @@ import yaml
 
 from scripts.orchestration import (ADVISORY_PROJECTION, EXPORT_DELIVERABLES,
                                     EXPORT_GATE_INPUTS, GATE_INPUTS,
-                                    candidates_stale, input_fingerprint,
-                                    route_gate_failures)
+                                    REQUIRED_DELIVERABLE, candidates_stale,
+                                    input_fingerprint, route_gate_failures)
 from scripts.validate_artifact import validate_file
 
 # (artifact, producing stage, rule tag) in pipeline order — advisory moved to
@@ -141,10 +141,15 @@ def next_stage(trip_dir, work_dir):
         target = route_gate_failures(report.get("failures") or [])
         return target, f"rule 13.5: gate fail routes to {target}"
 
-    # rule 14
+    # rule 14 — the required deliverable is named explicitly (REQUIRED_DELIVERABLE),
+    # not positionally picked from EXPORT_DELIVERABLES: the HTML deliverable is
+    # optional in shipped semantics (export_gate.py only reads it `if
+    # html_path.is_file()`), so a `deliverables[0]` index would silently change
+    # which file rule 14 requires if EXPORT_DELIVERABLES' declaration order ever
+    # changed.
     deliverables = [t / "exports" / name.format(slug=slug)
                     for name in EXPORT_DELIVERABLES]
-    md = deliverables[0]
+    md = t / "exports" / REQUIRED_DELIVERABLE.format(slug=slug)
     if not md.is_file():
         return "tripwork:export-artifact", "rule 14: no export deliverable"
 

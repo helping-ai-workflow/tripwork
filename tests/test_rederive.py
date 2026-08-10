@@ -906,6 +906,16 @@ def test_real_trips_closing_axis_matches_the_baseline():
     """
     from scripts.gate import poi_pool
 
+    # F11 (v0.35.0 review): this bucket-counting loop is a DELIBERATE second
+    # implementation, kept independent of tests/corpus_measure.py's own
+    # `_measure_rederive_axes` closing-axis walk on purpose -- it is the ONLY
+    # cross-check that `corpus_measure.py` itself measures correctly. If this
+    # loop were rewritten to call into `corpus_measure.py` (e.g. "simplify"
+    # by reusing its helper), a bug in that helper would compute the wrong
+    # numbers and this test would compare them against themselves via
+    # `load_baseline()`'s baked-in copy — green for the wrong reason, the
+    # exact hollow-guard shape TW-083 exists to name. Do not fold this into a
+    # shared helper with corpus_measure.py.
     total = Outcome()
     rows_total = has_time_no_pid = unresolved_pid = lodging_rows = 0
     no_hours_at_all = hours_but_no_close = no_closing_status = 0
@@ -1052,9 +1062,10 @@ def test_a_dict_shaped_but_unusable_business_status_is_superseded_not_a_mismatch
     `as_of`, while the identical data in accommodations.yaml was told exactly
     what was wrong.
 
-    This is also the shape the release's own migration mass-produces: 127 POIs
-    must now hand-write {status, source_url, as_of}, and case (3) proves a
-    typo'd date survives schema validation and lands at the gate.
+    This is also the shape the release's own migration mass-produces: most
+    corpus POIs still must hand-write {status, source_url, as_of}, and case
+    (3) proves a typo'd date survives schema validation and lands at the
+    gate.
 
     `why` is interpolated from `operating_from_status`'s four PLUGIN string
     literals (scripts/verify.py), never from trip content, so routing on it is
