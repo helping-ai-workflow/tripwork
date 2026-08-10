@@ -60,17 +60,24 @@ def test_photo_enrichment_deliverable_mentioned():
 
 import re
 
+from scripts.next_stage import _CHAIN
+
 def _mermaid_block():
     m = re.search(r"```mermaid\n(.*?)```", README, re.DOTALL)
     assert m, "README has no ```mermaid block"
     return m.group(1)
 
-# Canonical pipeline order (mirrors the orchestrator SKILL.md Stage Selection order).
-_PIPELINE_ORDER = [
-    "trip-brief", "travel-advisory", "destination-research", "source-verify",
-    "routing-audit", "accommodation-research", "inter-stop-legs", "calendar-check",
-    "seasonal-advisory", "transit-detail", "cost-rollup", "itinerary-synthesis",
-    "itinerary-gate", "export-artifact", "export-gate",
+# Canonical pipeline order.
+# First 11 stages are derived from the shipped `_CHAIN` in scripts/next_stage.py
+# (TW-079: this used to be 15 hand-written literals — a second, hand-kept copy of
+# the same sequence `_CHAIN` already defines, the same rebuilt-subject shape as
+# this release's other defects).
+# The last 4 stay literal because `_CHAIN` only covers through cost-rollup:
+# synthesis, the two gates, and export are each their own rule branch (rules
+# 12-16) in next_stage.py, not part of a shipped sequence constant. If a future
+# release collects them into one, delete these four lines and derive them too.
+_PIPELINE_ORDER = [s.removeprefix("tripwork:") for _a, s, _r in _CHAIN] + [
+    "itinerary-synthesis", "itinerary-gate", "export-artifact", "export-gate",
 ]
 
 def test_tw060_every_stage_in_mermaid_block():
