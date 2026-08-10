@@ -26,40 +26,18 @@ import pytest
 from scripts.orchestration import route_gate_failures
 from tests.mech_fixtures import CORPUS, CORPUS_TRIPS, load_trip
 from tests.corpus_measure import CLASSES, FIX, classify, drain, gate
+from tests.corpus_measure import load_baseline
 
 pytestmark = pytest.mark.skipif(not CORPUS.is_dir(),
                                 reason="consumer corpus not present")
 
-# Measured through the shipped run_gate after the C1 fix, then again after the
-# TW-070 POI axis was wired in (v0.34.0), then again after Task 6 threads a
-# real Gate 0 into rederive_lodging and retires Gate 2c: every count below
-# except lodging_verdict_superseded (new) and lodging_verify_status_mismatch
-# (now zero everywhere -- see the CLASSES comment above) is UNCHANGED from
-# the TW-070 measurement. Task 6 does not alter or remove any OTHER
-# pre-existing finding; it only reclassifies lodging's own.
-# (total, {class: count}) per trip.
-EXPECTED = {
-    "2026-06-yilan": (58, {"hop_no_duration_source": 8, "poi_no_hours": 5,
-                           "row_no_closing_status": 11,
-                           "lodging_no_resolved_name": 1,
-                           "lodging_no_geocode_source": 1,
-                           "lodging_verdict_superseded": 1,
-                           "poi_verdict_superseded": 31}),
-    "2026-07-sun-moon-lake": (71, {"hop_no_duration_source": 3, "poi_no_hours": 12,
-                                   "row_no_closing_status": 3,
-                                   "lodging_no_resolved_name": 12,
-                                   "lodging_verdict_superseded": 12,
-                                   "poi_verdict_superseded": 29}),
-    "2026-08-chiayi": (53, {"hop_no_duration_source": 6, "row_no_closing_status": 10,
-                            "lodging_no_resolved_name": 3,
-                            "lodging_verdict_superseded": 3, "ai_tone": 13,
-                            "poi_verdict_superseded": 18}),
-    "2026-09-northeast-coast": (65, {"hop_no_duration_source": 2, "poi_no_hours": 10,
-                                     "row_no_closing_status": 5,
-                                     "lodging_no_resolved_name": 2,
-                                     "lodging_verdict_superseded": 2, "ai_tone": 17,
-                                     "poi_verdict_superseded": 27}),
-}
+# TW-074: every corpus-derived number below is read from the regenerable
+# tests/corpus-baseline.json (produced by `python -m tests.corpus_measure
+# --write`), not hand-copied into this file. Only structural invariants --
+# properties that must hold no matter what the corpus looks like -- stay
+# inline: classes must partition failures, axis ids must be a subset of
+# their own artifact's raw ids, the drain must terminate.
+BASELINE = load_baseline()
 
 
 @pytest.mark.parametrize("trip", CORPUS_TRIPS)
@@ -71,13 +49,18 @@ def test_the_real_gate_over_a_clean_trip_pins_its_failure_classes(trip):
     The per-class counts are pinned rather than the bare total: a total alone
     stays green when one class silently doubles while another silently empties,
     which is how a gate stops examining things without anyone noticing.
+
+    TW-074: counts are read from tests/corpus-baseline.json (regenerable), no
+    longer literals in this file. The partition property (classes must sum to
+    total) is an invariant and stays here.
     """
+    expected = BASELINE["per_trip"][trip]
     report = gate(load_trip(trip))
-    total, expected = EXPECTED[trip]
-    assert report["status"] == "fail"
-    assert classify(report["failures"]) == expected
-    assert len(report["failures"]) == total
-    assert sum(expected.values()) == total, "the classes must PARTITION the failures"
+    assert report["status"] == expected["status"]
+    assert classify(report["failures"]) == expected["classes"]
+    assert len(report["failures"]) == expected["total"]
+    assert sum(expected["classes"].values()) == expected["total"], \
+        "the classes must PARTITION the failures"
 
 
 def test_the_six_axes_together_pin_the_release_headline_figures():
@@ -112,6 +95,16 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
     that moved findings between trips while preserving the sums would pass
     unnoticed, so they are pinned here as explicit totals instead, counted
     the same way _classify already counts each trip's failures by class.
+
+    TW-074: the totals above and the per-trip `checks_passed` comparison
+    below are both read from tests/corpus-baseline.json rather than hand-
+    copied literals. The per-trip loop used to assert
+    `checks["verdicts_rederivable"]["passed"] is False` and
+    `checks["verdicts_rule_current"]["passed"] is False` directly -- an
+    assumption that the corpus always has a gap on those two axes, which
+    2026-08-chiayi has already disproved. That is replaced by a dict
+    equality against the baseline's `checks_passed`, which covers every
+    check by name, not just those two.
     """
     found = compared = examined_rule_current = 0
     super_poi = super_lodging = 0
@@ -127,12 +120,14 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
         super_lodging += classes.get("lodging_verdict_superseded", 0)
         if not checks["verdicts_match"]["passed"]:
             match_failed.append(trip)
-        assert checks["verdicts_rederivable"]["passed"] is False, trip
-        assert checks["verdicts_rule_current"]["passed"] is False, trip
-    assert (found, compared) == (230, 51)
-    assert (super_poi, super_lodging, super_poi + super_lodging) == (105, 18, 123)
-    assert examined_rule_current == 145, "Step 4a: poi_outcome.found (127) + lodging_outcome.found (18)"
-    assert match_failed == []
+        assert {c["name"]: bool(c["passed"]) for c in report["checks"]} == \
+            BASELINE["per_trip"][trip]["checks_passed"], trip
+    agg = BASELINE["gate_aggregate"]
+    assert (found, compared) == (agg["found"], agg["compared"])
+    assert (super_poi, super_lodging) == (agg["super_poi"], agg["super_lodging"])
+    assert examined_rule_current == agg["examined_rule_current"], \
+        "Step 4a: poi_outcome.found + lodging_outcome.found"
+    assert match_failed == agg["match_failed"]
 
 
 def test_the_three_verdict_axes_partition_their_failures():
@@ -161,6 +156,11 @@ def test_the_three_verdict_axes_partition_their_failures():
     'lodging-xiangshouyixia' (its chosen candidate id, present in neither
     that trip's nor any trip's raw verified-pois.yaml), which the subset
     assertions below catch.
+
+    TW-074: the non-emptiness assertions are replaced by equality against the
+    baseline. A trip legitimately having zero POI-axis findings (chiayi, once
+    the consumer's business_status is sourced) is no longer a failure; a
+    vacuous subset check is caught by the baseline's count instead.
     """
     for trip in CORPUS_TRIPS:
         a = load_trip(trip)
@@ -172,8 +172,11 @@ def test_the_three_verdict_axes_partition_their_failures():
         poi_ids = {f.split("'")[1] for f in report["failures"] if f.startswith("pois[")}
         lodging_ids = {f.split("'")[3] for f in report["failures"]
                        if f.startswith("accommodations ")}
-        assert poi_ids, f"{trip}: no POI-axis findings to discriminate against"
-        assert lodging_ids, f"{trip}: no lodging-axis findings to discriminate against"
+        per = BASELINE["per_trip"][trip]
+        assert len(poi_ids) == per["poi_axis_findings"], trip
+        assert len(lodging_ids) == per["lodging_axis_findings"], trip
+        # Invariant: neither axis's failures may name an id that is not a
+        # genuine member of ITS OWN artifact.
         assert poi_ids <= raw_poi_ids, (trip, poi_ids - raw_poi_ids)
         assert lodging_ids <= raw_lodging_ids, (trip, lodging_ids - raw_lodging_ids)
 
@@ -214,7 +217,8 @@ def test_rule_13_5_drains_instead_of_looping(trip):
     """
     terminated, history = drain(trip)
     assert terminated, f"{trip} did not drain: {history}"
-    assert history[-1] == 0 and history[0] == EXPECTED[trip][0]
+    assert history[-1] == 0
+    assert history[0] == BASELINE["per_trip"][trip]["total"]
 
 
 def test_removing_the_source_verify_route_reproduces_the_non_terminating_drain(
@@ -241,7 +245,8 @@ def test_removing_the_source_verify_route_reproduces_the_non_terminating_drain(
     monkeypatch.setattr(orchestration, "_ROUTES", tuple(
         g for g in orchestration._ROUTES if g[1] != "tripwork:source-verify"))
     terminated, history = drain("2026-06-yilan")
-    assert terminated is False
+    cf = BASELINE["counterfactual"]
+    assert terminated is cf["yilan_without_source_verify_terminated"]
     # A genuine fixed point, not merely slow progress: the tail repeats.
-    assert history[-1] == history[-2] == 36
+    assert history[-1] == history[-2] == cf["yilan_without_source_verify_fixed_point"]
     assert history[-1] > 0
