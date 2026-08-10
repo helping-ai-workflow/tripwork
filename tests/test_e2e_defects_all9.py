@@ -69,9 +69,12 @@ RENAMED = {"id": "renamed", "name_local": "星月大地", "name_display": "星�
            "geocode": {"lat": 24.3, "lng": 120.7, "geocode_source": "nominatim"},
            "sources": _sources()}
 
-# geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging re-derives
-# hotel-lili to the recorded 'verified' instead of flagging it as a
-# verdicts_rederivable gap -- this fixture predates both fields.
+# geocode_source + resolved_name (I2, v0.33.0) + business_status (Task 6,
+# v0.34.0): so rederive_lodging re-derives hotel-lili to the recorded
+# 'verified' instead of flagging it as a verdicts_rederivable /
+# verdicts_rule_current gap -- this fixture predates all three fields.
+# rederive_lodging anchors Gate 0 to the record's own era (not wall-clock),
+# so this file's fixed _sourced_status() literal is safe here too.
 ACCOMMODATIONS = {"stops": [{
     "district": "日月潭", "nights": 2, "chosen": "hotel-lili",
     "candidates": [{
@@ -80,6 +83,7 @@ ACCOMMODATIONS = {"stops": [{
         "facilities": [],
         "geocode": {"lat": 23.86, "lng": 120.92, "geocode_source": "nominatim"},
         "resolved_name": "力麗溫德姆溫泉酒店",
+        "business_status": _sourced_status("OPERATIONAL"),
         "cost": {"amount": 3000, "currency": "TWD", "basis": "per_night", "rooms": 2},
         "sources": _sources()}]}]}
 

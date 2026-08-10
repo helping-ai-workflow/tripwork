@@ -42,47 +42,70 @@ CLASSES = (
     ("lodging_no_resolved_name", "no resolved_name"),
     ("lodging_no_geocode_source", "no geocode.geocode_source"),
     # Narrowed from the bare "recorded verify_status" (v0.34.0, TW-070): the
-    # new POI axis's superseded message ALSO contains that phrase ("pois['id']:
-    # recorded verify_status 'verified' was produced under superseded rules
-    # ..."), so the bare marker would double-match every superseded POI and
-    # break _classify's exactly-one invariant. "but classify_candidate
-    # re-derives" is unique to rederive_lodging's own mismatch message.
+    # POI/lodging superseded messages ALSO contain that phrase ("...: recorded
+    # verify_status 'verified' was produced under superseded rules ..."), so
+    # the bare marker would double-match every superseded record and break
+    # _classify's exactly-one invariant. "but classify_candidate re-derives"
+    # is unique to rederive_lodging's own MISMATCH message (as opposed to its
+    # superseded message, which never reaches classify_candidate at all).
+    #
+    # v0.34.0 Task 6 retired this class from the corpus entirely: it fires
+    # only when a lodging candidate reaches classify_candidate AND its
+    # recorded verdict does not match, which now requires a sourced
+    # business_status to reach classify_candidate in the first place. None of
+    # the 18 real lodging candidates carry one, so all 18 (including the one
+    # that used to land here, 2026-07-sun-moon-lake's d2-6) now land in
+    # lodging_verdict_superseded below instead. The marker is kept, unfired,
+    # as a live regression guard: a future corpus update that adds a sourced-
+    # but-wrong business_status would need this class again, and a silently
+    # absent marker would let _classify swallow it into "unattributed".
     ("lodging_verify_status_mismatch", "but classify_candidate re-derives"),
-    # New axis (v0.34.0, TW-070): rederive_pois re-examines the whole
-    # verified-pois.yaml list, not just scheduled rows. Every corpus hit today
-    # is the SAME subtype -- a bare-string or absent business_status, superseded
-    # by TW-063's sourced object form (105 of 127 records found across these
-    # four trips carry it; see scripts/rederive.py::rederive_pois's docstring).
-    # No corpus hit today is the 'missing' or 'mismatch' subtype, so this
-    # module carries no marker for them -- if a future corpus update produces
-    # one, _classify's assert surfaces it as an unattributed failure instead
-    # of silently absorbing it.
-    ("poi_verdict_superseded", "was produced under superseded rules"),
+    # POI axis (TW-070) and lodging axis (v0.34.0 Task 6) each get their own
+    # marker, discriminated by each message's own tail -- both share "was
+    # produced under superseded rules" as a common substring (see above), but
+    # POI's ends "...re-run source-verify for this POI" and lodging's ends
+    # "...re-run accommodation-research for this candidate". Every corpus hit
+    # on EITHER axis today is the SAME subtype -- a bare-string or absent
+    # business_status, superseded by TW-063's/TW-072's sourced object form
+    # (105 of 127 POI records, 18 of 18 lodging candidates, across these four
+    # trips; see scripts/rederive.py::rederive_pois / rederive_lodging's
+    # docstrings). No corpus hit today is the 'missing' or 'mismatch'
+    # subtype on either axis, so this module carries no marker for them -- if
+    # a future corpus update produces one, _classify's assert surfaces it as
+    # an unattributed failure instead of silently absorbing it.
+    ("poi_verdict_superseded", "re-run source-verify for this POI"),
+    ("lodging_verdict_superseded", "re-run accommodation-research for this candidate"),
     ("ai_tone", "AI-tone "),
 )
 
 # Measured through the shipped run_gate after the C1 fix, then again after the
-# TW-070 POI axis was wired in (v0.34.0): every count below except
-# poi_verdict_superseded is UNCHANGED from v0.33.0 -- the new axis only adds
-# failures, it does not alter or remove any pre-existing finding.
+# TW-070 POI axis was wired in (v0.34.0), then again after Task 6 threads a
+# real Gate 0 into rederive_lodging and retires Gate 2c: every count below
+# except lodging_verdict_superseded (new) and lodging_verify_status_mismatch
+# (now zero everywhere -- see the CLASSES comment above) is UNCHANGED from
+# the TW-070 measurement. Task 6 does not alter or remove any OTHER
+# pre-existing finding; it only reclassifies lodging's own.
 # (total, {class: count}) per trip.
 EXPECTED = {
-    "2026-06-yilan": (57, {"hop_no_duration_source": 8, "poi_no_hours": 5,
+    "2026-06-yilan": (58, {"hop_no_duration_source": 8, "poi_no_hours": 5,
                            "row_no_closing_status": 11,
                            "lodging_no_resolved_name": 1,
                            "lodging_no_geocode_source": 1,
+                           "lodging_verdict_superseded": 1,
                            "poi_verdict_superseded": 31}),
-    "2026-07-sun-moon-lake": (60, {"hop_no_duration_source": 3, "poi_no_hours": 12,
+    "2026-07-sun-moon-lake": (71, {"hop_no_duration_source": 3, "poi_no_hours": 12,
                                    "row_no_closing_status": 3,
                                    "lodging_no_resolved_name": 12,
-                                   "lodging_verify_status_mismatch": 1,
+                                   "lodging_verdict_superseded": 12,
                                    "poi_verdict_superseded": 29}),
-    "2026-08-chiayi": (50, {"hop_no_duration_source": 6, "row_no_closing_status": 10,
-                            "lodging_no_resolved_name": 3, "ai_tone": 13,
+    "2026-08-chiayi": (53, {"hop_no_duration_source": 6, "row_no_closing_status": 10,
+                            "lodging_no_resolved_name": 3,
+                            "lodging_verdict_superseded": 3, "ai_tone": 13,
                             "poi_verdict_superseded": 18}),
-    "2026-09-northeast-coast": (63, {"hop_no_duration_source": 2, "poi_no_hours": 10,
+    "2026-09-northeast-coast": (65, {"hop_no_duration_source": 2, "poi_no_hours": 10,
                                      "row_no_closing_status": 5,
-                                     "lodging_no_resolved_name": 2, "ai_tone": 17,
+                                     "lodging_no_resolved_name": 2,
+                                     "lodging_verdict_superseded": 2, "ai_tone": 17,
                                      "poi_verdict_superseded": 27}),
 }
 
@@ -128,35 +151,54 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
     same run_gate reports rather than from a separate hand-driven
     run_rederivation — the divergence C1 turned on.
 
-    230 verdict-bearing records found (103 pre-TW-070 + 127 verified-pois.yaml
-    records the new POI axis now examines), 69 of them with inputs complete
-    enough to compare (47 pre-TW-070 + 22 sourced-but-not-superseded POIs), and
-    exactly ONE recorded verdict wrong (2026-07-sun-moon-lake's lodging
-    candidate d2-6, pinned by id in tests/test_rederive.py) -- the POI axis
-    contributes zero NEW mismatches on this corpus.
+    Re-measured for v0.34.0 Task 6 (real Gate 0 threaded into rederive_lodging,
+    Gate 2c retired). 230 verdict-bearing records found is UNCHANGED (Task 6
+    reclassifies lodging findings; it does not add or remove records to
+    examine). compared drops from 69 (TW-070) to 51: the 18 lodging
+    candidates that used to reach a comparison (17 matching + 1 mismatching,
+    d2-6) now land in `superseded` before classify_candidate ever runs, since
+    none of them carries a sourced business_status -- there is no `operating`
+    value left to compare with. That is also why the exactly-one-mismatch
+    claim TW-070 pinned here is gone: this corpus has ZERO verdicts_match
+    mismatches left on any axis (match_failed is empty), not because d2-6 was
+    fixed, but because its defect moved from "wrong verdict" to "verdict
+    produced under rules this release supersedes" -- a different, more
+    precise claim about the same record (pinned by id in
+    tests/test_rederive.py::test_real_trips_lodging_is_entirely_superseded_
+    today).
 
-    The sixth axis's OWN headline number is the third assertion: 105 of the
-    127 examined POI verdicts were produced under superseded rules
-    (verdicts_rule_current). Today that 105 is only recoverable by hand-summing
-    EXPECTED's per-trip poi_verdict_superseded values -- a change that moved
-    findings between trips while preserving the sum would pass unnoticed, so
-    it is pinned here as one explicit total instead, counted the same way
-    _classify already counts each trip's failures by class.
+    The sixth axis's OWN headline number is the third assertion: 123 of the
+    145 examined records (105 POI + 18 lodging, both by id count) were
+    produced under superseded rules (verdicts_rule_current) -- up from 105 of
+    127 pre-Task-6, both in numerator (the 18 lodging candidates newly
+    counted) and denominator (Step 4a: `examined` now sums poi_outcome.found +
+    lodging_outcome.found, not poi_outcome.found alone). Today these totals
+    are only recoverable by hand-summing EXPECTED's per-trip
+    poi_verdict_superseded / lodging_verdict_superseded values -- a change
+    that moved findings between trips while preserving the sums would pass
+    unnoticed, so they are pinned here as explicit totals instead, counted
+    the same way _classify already counts each trip's failures by class.
     """
-    found = compared = superseded = 0
+    found = compared = examined_rule_current = 0
+    super_poi = super_lodging = 0
     match_failed = []
     for trip in CORPUS_TRIPS:
         report = _gate(load_trip(trip))
         checks = {c["name"]: c for c in report["checks"]}
         found += checks["verdicts_rederivable"]["examined"]
         compared += checks["verdicts_match"]["examined"]
-        superseded += _classify(report["failures"]).get("poi_verdict_superseded", 0)
+        examined_rule_current += checks["verdicts_rule_current"]["examined"]
+        classes = _classify(report["failures"])
+        super_poi += classes.get("poi_verdict_superseded", 0)
+        super_lodging += classes.get("lodging_verdict_superseded", 0)
         if not checks["verdicts_match"]["passed"]:
             match_failed.append(trip)
         assert checks["verdicts_rederivable"]["passed"] is False, trip
         assert checks["verdicts_rule_current"]["passed"] is False, trip
-    assert (found, compared, superseded) == (230, 69, 105)
-    assert match_failed == ["2026-07-sun-moon-lake"]
+    assert (found, compared) == (230, 51)
+    assert (super_poi, super_lodging, super_poi + super_lodging) == (105, 18, 123)
+    assert examined_rule_current == 145, "Step 4a: poi_outcome.found (127) + lodging_outcome.found (18)"
+    assert match_failed == []
 
 
 def test_the_three_verdict_axes_partition_their_failures():
@@ -298,11 +340,21 @@ def _fix_legs(a):
 
 
 def _fix_accommodation(a):
+    """Records what a real accommodation-research re-run would (I2, v0.33.0),
+    plus a sourced business_status (v0.34.0 Task 6): a lodging candidate can
+    now land in `superseded` exactly like a POI can, and re-running
+    accommodation-research is the only stage that can supply the field. as_of
+    is computed at CALL time, never a literal (OPERATING_MAX_AGE_DAYS is 90)."""
+    today = datetime.date.today().isoformat()
     for stop in (a["accommodations"] or {}).get("stops") or []:
         for c in stop.get("candidates") or []:
             g = c.setdefault("geocode", {"lat": 24.7, "lng": 121.7})
             g["geocode_source"] = "nominatim"
             c["resolved_name"] = c.get("name_local") or c.get("name_display")
+            if not isinstance(c.get("business_status"), dict):
+                c["business_status"] = {"status": "OPERATIONAL",
+                                        "source_url": "https://places.example/v1/place",
+                                        "as_of": today}
             srcs = c.setdefault("sources", [])
             while len({s.get("url", "").split("/")[2] for s in srcs if s.get("url")}) < 2:
                 srcs.append({"url": f"https://s{len(srcs)}.example/x", "lang": "zh"})
@@ -416,6 +468,12 @@ def test_removing_the_source_verify_route_reproduces_the_non_terminating_drain(
 
     36, not 5 (pre-TW-070): the fixed point now also strands yilan's 31
     poi_verdict_superseded failures alongside its original 5 no-hours ones.
+    Still 36, not 37, after Task 6 (v0.34.0): yilan's own lodging_verdict_
+    superseded finding (1, see EXPECTED) is unaffected by this mutation --
+    only the `tripwork:source-verify` route is deleted, and lodging supersession
+    routes to `tripwork:accommodation-research`, a different stage this
+    mutation leaves intact. `_fix_accommodation` still resolves it normally,
+    so it never reaches the fixed point.
     """
     import scripts.orchestration as orchestration
 

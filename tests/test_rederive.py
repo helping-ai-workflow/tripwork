@@ -1,4 +1,5 @@
 """Verdict re-derivation: the artifact's own inputs must reproduce its verdict."""
+import datetime
 import pathlib
 
 import pytest
@@ -305,32 +306,39 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
-def test_real_trips_lodging_has_exactly_one_verdicts_match_failure():
+def test_real_trips_lodging_is_entirely_superseded_today():
     """CONDITIONAL guard -- skipped without the consumer corpus, so it does not
     run in CI (I3).
 
-    Measured at fd053dd (task-9-brief.md's table, 2026-08-09) across the four
-    schema-clean trips: 18 lodging candidates, all 18 recorded verify_status
-    'verified', 14 of them geocode_source cluster_fallback. rederive_lodging
-    re-derives Gates 1/2/2b/2c for each -- this is the whole justification for
-    the task: accommodation-research calls classify_candidate directly and
-    passes none of Part 1's arguments, so operating/name_match/geocode_source
-    all took their permissive defaults and TW-062/TW-063 never applied to
-    hotels at all.
+    Migrated for Task 6 (v0.34.0). Previously (fd053dd, task-9-brief.md's
+    table, 2026-08-09): 18 lodging candidates, all recorded 'verified',
+    rederive_lodging hardcoded operating=True and found exactly one
+    verdicts_match failure -- 2026-07-sun-moon-lake's d2-6, a cluster_fallback
+    centroid with no existence proof, re-deriving 'unverified' via Gate 2c.
 
-    The one real defect this finds: 2026-07-sun-moon-lake candidate d2-6 is a
-    cluster_fallback centroid with no existence proof (no official: true
-    source, no gmaps_place_id), recorded verified, re-derives unverified. The
-    id is asserted explicitly -- a bare count would stay green if a DIFFERENT
-    candidate started failing instead.
+    Re-measured after Step 4 threads a REAL Gate 0 into rederive_lodging: every
+    one of the 18 candidates predates business_status (none of the four
+    schema-clean trips has been re-run through accommodation-research since),
+    so all 18 now land in `superseded`, not `mismatches` -- none of them ever
+    reaches classify_candidate, so Gate 2c (retired in this same task, Step 4b)
+    never gets a chance to run on any of them either. d2-6's old defect is now
+    ONE of these 18 superseded findings, asserted by id so a bare count would
+    not stay green if a DIFFERENT candidate stopped being found. verdicts_match
+    is vacuously green for lodging today (0 compared) -- the honest state of
+    an un-migrated corpus, not a hidden gap: surfacing that explicitly, instead
+    of folding it into a false all-clear, is the whole point of `superseded`
+    as its own axis (verdicts_rule_current, Task 3/4a).
 
-    The other 18 findings are all on the rederivable axis, not the match axis:
-    1 candidate omits geocode_source entirely (a second, pre-TW-062 gap on the
-    same 2026-06-yilan hotel) and 0 of 18 carry resolved_name (the field is
-    new in this release, so every candidate is missing it) -- 1 + 18 == 19.
+    The other 19 findings are unchanged from before this task and still fire
+    regardless of superseded status (the missing-input checks run before the
+    Gate 0 check, see rederive_lodging): 1 candidate omits geocode_source
+    entirely (a second, pre-TW-062 gap on the same 2026-06-yilan hotel) and 0
+    of 18 carry resolved_name (the field is new in an earlier release, so
+    every candidate is missing it) -- 1 + 18 == 19.
     """
-    found = compared = 0
-    mismatches = []
+    found = 0
+    superseded = []
+    other = []
     for trip in IN_SCOPE:
         d = CORPUS / trip
         accommodations = yaml.safe_load(
@@ -341,28 +349,18 @@ def test_real_trips_lodging_has_exactly_one_verdicts_match_failure():
                                cost={"currency": "TWD", "line_items": [], "total": 0},
                                trip_brief=brief, accommodations=accommodations)
         c = _checks(res)
+        assert c["verdicts_match"]["passed"] is True, (trip, res["failures"])
         found += sum(len(stop.get("candidates") or [])
                      for stop in accommodations.get("stops") or [])
-        compared += sum(1 for f in res["failures"]
-                        if "recorded verify_status" in f)
-        mismatches.extend(f for f in res["failures"] if "recorded verify_status" in f)
+        superseded.extend(f for f in res["failures"] if "superseded rules" in f)
+        other.extend(f for f in res["failures"] if "superseded rules" not in f)
     assert found == 18
-    assert len(mismatches) == 1, mismatches
-    assert "'d2-6'" in mismatches[0] and "re-derives 'unverified'" in mismatches[0]
-    assert "existence proof" in mismatches[0]
+    assert len(superseded) == 18, superseded
+    assert any("'d2-6'" in f for f in superseded), superseded
+    assert len(other) == 19, other
 
-    missing_geocode_source = missing_resolved_name = 0
-    for trip in IN_SCOPE:
-        d = CORPUS / trip
-        accommodations = yaml.safe_load(
-            (d / "accommodations.yaml").read_text(encoding="utf-8"))
-        res = run_rederivation({"days": []}, {}, legs={"legs": []},
-                               routing={"clusters": [], "hops": []},
-                               cost={"currency": "TWD", "line_items": [], "total": 0},
-                               accommodations=accommodations)
-        missing_geocode_source += sum("no geocode.geocode_source" in f
-                                      for f in res["failures"])
-        missing_resolved_name += sum("no resolved_name" in f for f in res["failures"])
+    missing_geocode_source = sum("no geocode.geocode_source" in f for f in other)
+    missing_resolved_name = sum("no resolved_name" in f for f in other)
     assert missing_geocode_source == 1
     assert missing_resolved_name == 18
 
@@ -588,8 +586,14 @@ def _accom(candidate):
 
 def _lodging_cand(**over):
     """Two distinct-domain, non-official sources; cluster_fallback geocode; no
-    gmaps_place_id -- the exact shape measured at fd053dd for
-    2026-07-sun-moon-lake candidate d2-6: recorded verified, no existence proof."""
+    gmaps_place_id, no business_status -- the exact shape measured at fd053dd
+    for 2026-07-sun-moon-lake candidate d2-6: recorded verified, no sourced
+    operating signal at all. Since Step 4 (v0.34.0), a candidate in exactly
+    this shape never reaches classify_candidate -- rederive_lodging routes it
+    to `superseded` first (see test_a_bare_string_lodging_business_status_is_
+    superseded). Callers that want to exercise classify_candidate's OTHER
+    gates (1 / 2b) must pass a sourced business_status explicitly, e.g. via
+    _sourced_business_status()."""
     c = {"id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
          "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
                      {"url": "https://b.example/d2-6", "lang": "zh"}],
@@ -599,18 +603,51 @@ def _lodging_cand(**over):
     return c
 
 
-def test_a_cluster_fallback_lodging_candidate_with_no_existence_proof_fails_verdicts_match():
+def _sourced_business_status(**over):
+    """Gate 0's object form, `as_of` computed at build time -- not a literal,
+    same fuse tests/test_e2e_v033_closure.py:87-96's `_sourced_status()` warns
+    about."""
+    bs = {"status": "OPERATIONAL", "source_url": "https://a.example/d2-6",
+         "as_of": datetime.date.today().isoformat()}
+    bs.update(over)
+    return bs
+
+
+def test_a_cluster_fallback_lodging_candidate_with_a_sourced_business_status_verifies():
+    """Migrated for the Gate 2c retirement (2026-08-09 user ruling, Step 4b).
+    Before this task, a cluster_fallback candidate with no official source and
+    no gmaps_place_id failed Gate 2c ('unverified') -- this test used to pin
+    that failure (test_a_cluster_fallback_lodging_candidate_with_no_existence_
+    proof_fails_verdicts_match). It cannot pass any more, and not only because
+    the code branch was deleted: Step 4 threads a REAL Gate 0 into
+    rederive_lodging, and a sourced business_status IS Gate 2c's existence
+    proof (TW-072) -- so any candidate that reaches classify_candidate through
+    rederive_lodging at all (i.e. is not already `superseded`) already clears
+    Gate 2c's old cluster_fallback check by construction, with neither an
+    official source nor a gmaps_place_id. The corpus's real d2-6 (no
+    business_status recorded at all, the shape _lodging_cand() now models) is
+    the other half of the story: it is `superseded`, not a verdicts_match
+    failure -- see test_a_bare_string_lodging_business_status_is_superseded
+    and the corpus guard test_real_trips_lodging_is_entirely_superseded_today
+    below."""
+    cand = _lodging_cand(business_status=_sourced_business_status(),
+                         resolved_name="日月潭旅店")
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
-                           trip_brief=BRIEF, accommodations=_accom(_lodging_cand()))
+                           trip_brief=BRIEF, accommodations=_accom(cand))
     c = _checks(res)
-    assert c["verdicts_match"]["passed"] is False
-    assert any("d2-6" in f and "unverified" in f for f in res["failures"])
+    assert c["verdicts_match"]["passed"] is True
+    assert res["failures"] == []
 
 
 def test_a_lodging_candidate_with_an_official_source_still_passes():
+    """An official source is no longer WHY this passes -- Gate 2c is retired,
+    so it is merely harmless. The sourced business_status alone is sufficient;
+    see test_a_cluster_fallback_lodging_candidate_with_a_sourced_business_
+    status_verifies for the identical claim with no official source at all."""
     cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh", "official": True},
-                                  {"url": "https://b.example/d2-6", "lang": "zh"}])
+                                  {"url": "https://b.example/d2-6", "lang": "zh"}],
+                         business_status=_sourced_business_status())
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
                            trip_brief=BRIEF, accommodations=_accom(cand))
@@ -618,9 +655,15 @@ def test_a_lodging_candidate_with_an_official_source_still_passes():
 
 
 def test_lodging_with_no_geocode_source_is_not_rederivable():
+    # A sourced business_status on both variants: without one, both would land
+    # in `superseded` before classify_candidate ever runs, and the "blind
+    # compare" claim below would hold vacuously (nothing compared either way)
+    # rather than for the reason this test names.
     with_gs = _accom(_lodging_cand(geocode={"lat": 23.86, "lng": 120.91,
-                                            "geocode_source": "nominatim"}))
-    no_gs = _accom(_lodging_cand(geocode={"lat": 23.86, "lng": 120.91}))
+                                            "geocode_source": "nominatim"},
+                                   business_status=_sourced_business_status()))
+    no_gs = _accom(_lodging_cand(geocode={"lat": 23.86, "lng": 120.91},
+                                 business_status=_sourced_business_status()))
     res_with = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                                 cost={"currency": "TWD", "line_items": [], "total": 0},
                                 trip_brief=BRIEF, accommodations=with_gs)
@@ -632,11 +675,13 @@ def test_lodging_with_no_geocode_source_is_not_rederivable():
     assert any("geocode_source" in f for f in res_no["failures"])
     # blind-compare rule: the omission must not flip verdicts_match either way
     assert c_no["verdicts_match"]["passed"] == _checks(res_with)["verdicts_match"]["passed"]
+    assert c_no["verdicts_match"]["passed"] is True, "both must be REAL compares, not vacuous"
 
 
 def test_lodging_with_no_resolved_name_is_not_rederivable():
     cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh", "official": True},
-                                  {"url": "https://b.example/d2-6", "lang": "zh"}])
+                                  {"url": "https://b.example/d2-6", "lang": "zh"}],
+                         business_status=_sourced_business_status())
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
                            trip_brief=BRIEF, accommodations=_accom(cand))
@@ -645,6 +690,63 @@ def test_lodging_with_no_resolved_name_is_not_rederivable():
     assert any("resolved_name" in f for f in res["failures"])
     # not demoted by the missing field: this candidate is otherwise 'verified'
     assert c["verdicts_match"]["passed"] is True
+
+
+def test_a_bare_string_lodging_business_status_is_superseded():
+    """Lodging Gate 0 was deferred in 0.33.0 for want of the field. It exists
+    now, so a hotel gets the same treatment a POI does."""
+    from scripts.rederive import rederive_lodging
+    cand = _lodging_cand(geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+                         resolved_name="日月潭旅店", business_status="OPERATIONAL")
+    out = rederive_lodging(_accom(cand), local_lang="zh")
+    assert len(out.superseded) == 1 and "d2-6" in out.superseded[0]
+
+
+def test_a_sourced_lodging_business_status_is_not_superseded():
+    """`as_of` is computed at build time (not a literal) so this test does not
+    flip PASS->FAIL 90 days after it was written, the same fuse
+    tests/test_e2e_v033_closure.py:87-96's `_sourced_status()` warns about."""
+    from scripts.rederive import rederive_lodging
+    cand = _lodging_cand(
+        geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+        resolved_name="日月潭旅店", business_status=_sourced_business_status())
+    out = rederive_lodging(_accom(cand), local_lang="zh")
+    assert out.superseded == []
+
+
+def test_a_closed_lodging_candidate_is_rejected_not_silently_operating():
+    """Step 4 removes the hardcoded operating=True bypass: a sourced but CLOSED
+    business_status must now demote the candidate through Gate 0, exactly like
+    a POI (TW-005). Before this task every hotel was treated as open no matter
+    what its business_status said."""
+    from scripts.rederive import rederive_lodging
+    cand = _lodging_cand(
+        geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+        resolved_name="日月潭旅店",
+        business_status=_sourced_business_status(status="CLOSED_PERMANENTLY"))
+    out = rederive_lodging(_accom(cand), local_lang="zh")
+    assert out.superseded == []
+    assert len(out.mismatches) == 1 and "rejected" in out.mismatches[0]
+
+
+def test_lodging_gate_0_anchors_to_the_records_own_era_not_wall_clock():
+    """Regression lock, mirroring test_gate_2c_stays_unreachable_on_the_poi_
+    path_for_a_very_stale_as_of on the POI axis. A hotel's business_status.
+    as_of far in the past relative to REAL wall-clock -- but fresh relative to
+    ITSELF, since rederive_lodging must anchor today=as_of exactly as
+    rederive_pois does -- must still clear Gate 0 and re-derive 'verified'.
+    Without the anchor, every lodging candidate verified more than
+    OPERATING_MAX_AGE_DAYS (90) ago would silently fail verdicts_match on wall-
+    clock alone, with no artifact change -- the exact calendar-driven class
+    the 0.33.0 CHANGELOG deferred R5 over, reintroduced for lodging alone."""
+    from scripts.rederive import rederive_lodging
+    cand = _lodging_cand(
+        geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+        resolved_name="日月潭旅店",
+        business_status=_sourced_business_status(as_of="2020-01-01"))
+    out = rederive_lodging(_accom(cand), local_lang="zh")
+    assert (out.superseded, out.missing, out.mismatches) == ([], [], [])
+    assert out.compared == 1
 
 
 def test_absent_accommodations_is_a_rederivable_failure_not_a_skip():
@@ -890,6 +992,38 @@ def test_run_rederivation_emits_the_third_check():
     assert c["verdicts_rule_current"]["passed"] is False
     assert c["verdicts_rule_current"]["examined"] == 1
     assert c["verdicts_match"]["passed"] is True
+
+
+def test_verdicts_rule_current_examined_sums_poi_and_lodging_found_counts():
+    """Step 4a (v0.34.0, Task 6). Task 3 shipped `examined: poi_outcome.found`,
+    correct only while rederive_pois was the sole axis that could produce a
+    `superseded` entry. Step 4 breaks that invariant: rederive_lodging now
+    threads a real Gate 0 too, so a lodging candidate can ALSO land in
+    `superseded` -- and a fixture carrying one alongside a superseded POI
+    proves `examined` must count both axes' found records, not the POI axis
+    alone (which would then report a lodging failure on a check that claims
+    not to have examined lodging at all -- the exact self-inconsistency this
+    release exists to close). NOT total.found (2 legs would also be found by
+    rederive_legs here but neither can ever produce `superseded`, so folding
+    them in would inflate the denominator with records this check cannot
+    speak to)."""
+    from scripts.rederive import run_rederivation
+    legs = {"legs": [{"from": "a", "to": "b", "mode": "drive",
+                      "duration_mins": 100, "status": "ok"}]}
+    lodging_cand = _lodging_cand(
+        geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+        resolved_name="日月潭旅店", business_status="OPERATIONAL")  # bare string: superseded
+    res = run_rederivation({"days": []}, {}, legs=legs,
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           trip_brief=BRIEF, accommodations=_accom(lodging_cand),
+                           pois=[_poi_rec(business_status="OPERATIONAL")])  # bare string too
+    c = {x["name"]: x for x in res["checks"]}
+    assert c["verdicts_rule_current"]["passed"] is False
+    assert c["verdicts_rule_current"]["examined"] == 2          # 1 poi + 1 lodging
+    assert c["verdicts_rule_current"]["examined"] != c["verdicts_rederivable"]["examined"], (
+        "must not silently equal total.found (2 legs + 1 poi + 1 lodging == 4)")
+    assert len(res["failures"]) == 2   # both superseded, no missing/mismatch noise
 
 
 def test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip():

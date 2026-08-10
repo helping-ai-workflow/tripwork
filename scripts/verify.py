@@ -129,13 +129,21 @@ def has_existence_proof(poi, today=None):
     wall-clock by DEFAULT (`today=None`, unchanged from before this parameter
     existed) — a statement nobody has re-checked in three months is no longer
     reviewable, Task 2's deliberate design. A caller that re-derives a FINISHED
-    artifact's own recorded verdict (scripts/rederive.py::rederive_pois) must
-    anchor to the record's own `business_status.as_of` era instead, the same
-    way `verify_poi` already anchors Gate 0 — otherwise a verdict correct when
-    written silently turns into a false 'conflicting'/'unverified' mismatch as
-    real time passes with no artifact change, one gate deeper than Gate 0's
-    already-anchored read. Passed through from `classify_candidate`, which
-    passes it through from `verify_poi`'s own `today` argument.
+    artifact's own recorded verdict must anchor to the record's own
+    `business_status.as_of` era instead, the same way `verify_poi` (Gate 0)
+    and `scripts/rederive.py::rederive_lodging` (Gate 0, since Task 6) already
+    do — otherwise a verdict correct when written silently turns into a false
+    'conflicting'/'unverified' mismatch as real time passes with no artifact
+    change.
+
+    NOT called from `classify_candidate` any more (v0.34.0 Task 6): the
+    cluster_fallback sub-check that called it there is retired — see the
+    comment at its old call site in `classify_candidate` for why it became
+    unreachable through every real caller. This function is retained because
+    tests/test_verify.py exercises it directly as a unit (its own behaviour is
+    unchanged), and because it is still a reasonable general-purpose
+    "does independent evidence say this exists" primitive even with no
+    current production caller.
     """
     place_id = (poi.get("gmaps_place_id") or "").strip()
     if len(place_id) >= _MIN_PLACE_ID_LEN:
@@ -161,9 +169,12 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
             from a site 404 (both measured dead in dogfood). (TW-005)
     Gate 1: >= 2 sources (else 'unverified').
             If local_lang given, at least one source must be in that lang (else 'unverified').
-    Gate 2: geocode must resolve (else 'unverified', D7). A `cluster_fallback`
-            geocode_source with no independent existence proof is treated the
-            same as unresolved — 'unverified' (TW-062).
+    Gate 2: geocode must resolve (else 'unverified', D7). geocode_source must
+            be RECORDED (else 'unverified' — the GEOCODE_SOURCE_MISSING
+            sentinel, I3); a `cluster_fallback` value itself no longer demands
+            extra proof (TW-062's own sub-check retired in v0.34.0 — see the
+            comment at its old call site — because Gate 0 now demands strictly
+            more than that sub-check ever did).
     Gate 2b: name_match must be determined and true (else 'unverified' when
              undetermined, 'conflicting' when a real mismatch — see below).
     Gate 3a: conflict_detected — cross-source disagreement on rating/hours/address
@@ -171,10 +182,7 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     Gate 3b: geocoded point must fall within the claimed region (else 'conflicting').
 
     Args:
-        candidate:        dict with 'sources' list, each item having 'lang'. Also
-                          read here (Gate 2) via `has_existence_proof(candidate)`
-                          for its `gmaps_place_id` / `sources[].official` /
-                          `business_status` fields (TW-072).
+        candidate:        dict with 'sources' list, each item having 'lang'.
         geocoded:         bool — True if coordinates were successfully resolved.
         in_claimed_region: bool — True if coordinates fall inside the claimed district.
         local_lang:       optional str, ISO-639 code for the destination's local language.
@@ -185,40 +193,27 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
                           supplied a resolved_name to compare against -> 'unverified',
                           not a silent pass). Default True keeps existing callers that
                           never pass this argument unaffected.
-        geocode_source:   `candidate["geocode"]["geocode_source"]` (TW-062), now
-                          tri-state (I3): a string ('nominatim' /
-                          'nominatim_structured' / 'cluster_fallback') runs Gate
-                          2c normally; GEOCODE_SOURCE_MISSING (threaded by
-                          verify_poi when the POI's geocode carries no
-                          geocode_source) refuses -> 'unverified'; the default
-                          None never equals 'cluster_fallback' and is not
+        geocode_source:   `candidate["geocode"]["geocode_source"]` (TW-062), now only
+                          checked for PRESENCE (I3): GEOCODE_SOURCE_MISSING
+                          (threaded by verify_poi when the POI's geocode carries
+                          no geocode_source) refuses -> 'unverified'; any string
+                          value ('nominatim' / 'nominatim_structured' /
+                          'cluster_fallback') is accepted without further
+                          distinction — the `cluster_fallback` sub-check that
+                          used to demand extra proof for that one value is
+                          retired (v0.34.0 Task 6, see the comment at its old
+                          call site). The default None never equals
                           GEOCODE_SOURCE_MISSING, so existing callers that never
-                          pass this argument at all are unaffected.
-
-                          A FOURTH value reaches here in practice and is easy to
-                          miss: the empty string. Only `verify_poi` normalises
-                          an absent geocode_source to the GEOCODE_SOURCE_MISSING
-                          sentinel, so a caller that reads the field itself and
-                          passes `gs or ""` skips BOTH the refusal above and the
-                          `cluster_fallback` sub-check. That caller now exists —
-                          `scripts/rederive.py::rederive_lodging` — and it is
-                          CORRECT there, not an oversight: re-derivation reports
-                          the absent field on the verdicts_rederivable axis and
-                          then compares BLIND to it, exactly as it does for a
-                          hop's absent duration_source, so a field new in this
-                          release cannot demote a candidate merely by being new.
-                          A new caller that wants the refusal must pass the
-                          sentinel, not "".
-        today:            Threaded into `has_existence_proof`'s recency check on
-                          the sourced `business_status` proof (TW-070 fix round
-                          1). Default None reads wall-clock, unchanged for the
-                          19 direct call sites that never pass this argument.
-                          `verify_poi` forwards its own `today` here, so a
-                          caller re-deriving a finished artifact's recorded
-                          verdict against the record's own `business_status.
-                          as_of` era (not wall-clock) gets that anchoring at
-                          Gate 2c too, not only at Gate 0 — before this fix the
-                          two gates disagreed on which clock to read.
+                          pass this argument at all are unaffected, and a
+                          caller that reads the field itself and passes
+                          `gs or ""` (`scripts/rederive.py::rederive_lodging`)
+                          also stays unaffected either way.
+        today:            No longer read by this function (v0.34.0 Task 6 — its
+                          sole use was threading into the now-retired
+                          `has_existence_proof` call). Kept in the signature
+                          for the callers that still pass it (`verify_poi`, and
+                          `scripts/rederive.py::rederive_lodging` since Task 6),
+                          so removing it is not part of this change.
     """
     sources = candidate.get("sources", [])
     langs = {s.get("lang") for s in sources}
@@ -241,27 +236,43 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     if not geocoded:
         return "unverified", "geocode unresolved: could not resolve coordinates"
 
-    # Gate 2c's trigger is itself optional, which made the gate skippable by
-    # omission — the identical shape Part 1 closed for resolved_name. A POI that
-    # never records where its coordinate came from cannot be asked whether that
-    # coordinate is a district centroid. 19 of 127 real POIs omit the field. (I3)
+    # geocode_source's presence is its own requirement, independent of the
+    # now-retired cluster_fallback sub-check below (I3): a POI that never
+    # records where its coordinate came from is a provenance gap on its own —
+    # the identical shape Part 1 closed for resolved_name. 19 of 127 real POIs
+    # omit the field.
     if geocode_source is GEOCODE_SOURCE_MISSING:
         return ("unverified",
-                "geocode_source not recorded — Gate 2c (a cluster_fallback centroid "
-                "needs an existence proof independent of the coordinate) cannot run. "
-                "Record geocode.geocode_source: nominatim / nominatim_structured / "
-                "cluster_fallback")
+                "geocode_source not recorded — record geocode.geocode_source: "
+                "nominatim / nominatim_structured / cluster_fallback")
 
-    # Gate 2 sub-check (TW-062): a centroid fallback is not a geocode. Nominatim
-    # finding nothing must not outrank Nominatim finding a name that disagrees —
-    # which is `conflicting`. Without this, the incentive inverts: the POIs that
-    # cannot be resolved are the easiest to pass. Dogfood 2026-08: 8 of 17 chiayi
-    # POIs took this path, five of them sharing verbatim-identical coordinates.
-    if geocode_source == "cluster_fallback" and not has_existence_proof(candidate, today=today):
-        return ("unverified",
-                "geocode is a cluster_fallback centroid with no existence proof — "
-                "record an official: true source or a gmaps_place_id, or leave the "
-                "POI unverified for manual confirmation")
+    # Gate 2's cluster_fallback sub-check (TW-062) is RETIRED as of v0.34.0
+    # Task 6 (user ruling, 2026-08-09), not merely inactive. It required an
+    # existence proof independent of the coordinate (an official source, a
+    # gmaps_place_id, or — since TW-072 — a sourced business_status). Once
+    # TW-072 made a sourced business_status count as that proof, this branch
+    # became unreachable through every real caller: verify_poi's Gate 0
+    # already refuses any POI whose business_status is not sourced, and any
+    # POI it does NOT refuse necessarily carries the same proof this branch
+    # would have checked for — reading the identical field through the
+    # identical `operating_from_status`, anchored to the identical `today`.
+    # scripts/rederive.py::rederive_lodging hard-coded `operating=True` and
+    # bypassed Gate 0 entirely, which is why the branch stayed reachable for
+    # lodging alone; that bypass is removed in the same task (Step 4), so
+    # nothing left in this codebase can reach this branch. Retiring it rather
+    # than shipping a check that cannot fail is the point of this release —
+    # see rederive.py's module docstring and CHANGELOG v0.34.0.
+    #
+    # Safety argument (why this does not reopen TW-062): TW-062 was a district
+    # centroid riding into 'verified' with no independent evidence the place
+    # exists. That path is now blocked by Gate 0 itself, which demands a
+    # DATED, SOURCED statement — strictly more than this branch ever asked
+    # for (an undated official link or a bare place_id both satisfied it).
+    # Pinned by tests/test_verify.py::
+    # test_a_cluster_fallback_poi_with_a_bare_string_business_status_is_still_unverified.
+    #
+    # has_existence_proof() itself is NOT deleted — tests/test_verify.py
+    # exercises it directly as a unit — only this call site is gone.
 
     # Gate 2b (P2): the resolved place must actually correspond to the queried
     # venue. A wrong-but-plausible top hit (renamed nearby place, name drift) is
@@ -365,13 +376,15 @@ def verify_poi(poi, geocoded, in_claimed_region,
     else:
         name_match = name_matches(queried, resolved_name)
 
-    # Gate 2's cluster_fallback sub-check (TW-062) also lives inside
-    # classify_candidate now, for the identical reason Gate 2b's input does: an
-    # early return here would fire ahead of Gate 1 (sources) and Gate 2
-    # (geocoded), which skills/source-verify/SKILL.md:28 documents as running
-    # first. Only the geocode_source STRING (or the GEOCODE_SOURCE_MISSING
-    # sentinel, I3) is computed here and threaded down; classify_candidate owns
-    # the has_existence_proof(candidate) call and the decision (review round 2).
+    # geocode_source's presence check (I3) also lives inside classify_candidate
+    # now, for the identical reason Gate 2b's input does: an early return here
+    # would fire ahead of Gate 1 (sources) and Gate 2 (geocoded), which
+    # skills/source-verify/SKILL.md:28 documents as running first. Only the
+    # geocode_source STRING (or the GEOCODE_SOURCE_MISSING sentinel) is
+    # computed here and threaded down. classify_candidate's cluster_fallback
+    # sub-check (TW-062, and the has_existence_proof(candidate) call it used
+    # to make) is retired as of v0.34.0 Task 6 — see the comment at its old
+    # call site in classify_candidate.
     geo_source = (normalised.get("geocode") or {}).get("geocode_source") or None
     if geo_source is None:
         geo_source = GEOCODE_SOURCE_MISSING

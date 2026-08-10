@@ -436,13 +436,18 @@ def test_gate_banned_item_not_surfaced_still_fails_with_present_advisory():
 # --- v0.30.0: kana-named lodging gloss (product-gap closure) ---
 
 def _kana_hotel_accom(name_zh=None):
-    # geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging
-    # re-derives h1 to the recorded 'verified' instead of flagging it as a
-    # verdicts_rederivable gap -- this fixture predates both fields.
+    # geocode_source + resolved_name (I2, v0.33.0) + business_status (Task 6,
+    # v0.34.0): so rederive_lodging re-derives h1 to the recorded 'verified'
+    # instead of flagging it as a verdicts_rederivable / verdicts_rule_current
+    # gap -- this fixture predates all three fields. as_of computed at call
+    # time, never a literal (OPERATING_MAX_AGE_DAYS is 90).
     c = {"id": "h1", "name_local": "駅前ホテル", "name_display": "駅前ホテル",
          "verify_status": "verified",
          "geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"},
          "resolved_name": "駅前ホテル",
+         "business_status": {"status": "OPERATIONAL",
+                             "source_url": "https://a.example",
+                             "as_of": datetime.date.today().isoformat()},
          "facilities": [],
          "sources": [{"url": "https://a.example", "lang": "ja"},
                      {"url": "https://b.example", "lang": "zh"}]}

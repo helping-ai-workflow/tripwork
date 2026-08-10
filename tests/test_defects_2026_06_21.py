@@ -210,15 +210,19 @@ class TestP3GeocodeResilience:
 # ============================ P4 — lodging in gate/render pool ================
 class TestP4LodgingPool:
     def _acc(self):
-        # geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging
-        # re-derives this candidate to the recorded 'verified' instead of
-        # flagging it as a verdicts_rederivable gap.
+        # geocode_source + resolved_name (I2, v0.33.0) + business_status
+        # (Task 6, v0.34.0): so rederive_lodging re-derives this candidate to
+        # the recorded 'verified' instead of flagging it as a
+        # verdicts_rederivable / verdicts_rule_current gap. as_of uses this
+        # file's own _TODAY convention (rederive_lodging anchors Gate 0 to the
+        # record's own era, not wall-clock, so any literal date is safe here).
         return {"stops": [{"district": "日月潭", "nights": 2, "chosen": "hotel-a",
             "candidates": [{
                 "id": "hotel-a", "name_local": "力麗溫德姆", "name_display": "力麗溫德姆",
                 "verify_status": "verified",
                 "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"},
                 "resolved_name": "力麗溫德姆",
+                "business_status": _sourced_status("OPERATIONAL"),
                 "facilities": [],
                 "sources": [{"url": "https://x.example", "lang": "zh"},
                             {"url": "https://y.example", "lang": "zh"}]}]}]}

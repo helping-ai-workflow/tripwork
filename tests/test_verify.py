@@ -223,7 +223,12 @@ from scripts.verify import verify_poi
 
 def _clean_poi(**over):
     """A POI that passes every other gate, so the only variable is the geocode
-    provenance. business_status is the sourced object form (Task 4)."""
+    provenance. business_status is the sourced object form (Task 4). `as_of`
+    is computed at call time, not a literal (OPERATING_MAX_AGE_DAYS is 90) --
+    the same fuse tests/test_e2e_v033_closure.py:87-96's `_sourced_status()`
+    warns about; a fixed 2026-08-01 would silently turn this fixture's
+    'verified' outcomes into 'unverified' 90 days after it was written, for a
+    reason unrelated to whatever the test in question is checking."""
     poi = {
         "id": "chunyen-restaurant",
         "name_local": "春燕飯館",
@@ -231,7 +236,7 @@ def _clean_poi(**over):
         "district": "嘉義市西區",
         "business_status": {"status": "OPERATIONAL",
                             "source_url": "https://example.gov.tw/x",
-                            "as_of": "2026-08-01"},
+                            "as_of": datetime.date.today().isoformat()},
         "geocode": {"lat": 23.47999, "lng": 120.44343,
                     "geocode_source": "cluster_fallback"},
         "sources": [
@@ -243,48 +248,45 @@ def _clean_poi(**over):
     return poi
 
 
-def test_cluster_fallback_without_existence_proof_is_not_verified():
-    """TW-062: a district centroid is a location, not evidence the place exists.
+def test_cluster_fallback_with_a_bare_string_business_status_is_still_unverified():
+    """TW-062 safety argument for the Gate 2c retirement (2026-08-09 user
+    ruling, v0.34.0 Task 6): retiring a gate one version after adding it needs
+    a regression test, not just a docstring claim. This is that test.
 
-    Nominatim finding nothing must not be a BETTER outcome than Nominatim
-    finding a name that disagrees (which is `conflicting`).
+    Migrated from test_cluster_fallback_without_existence_proof_is_not_verified,
+    which pinned Gate 2c's own no-proof branch by calling classify_candidate
+    directly with a hand-supplied `operating=True` bypass. That branch is
+    deleted now (scripts/verify.py::classify_candidate no longer carries the
+    cluster_fallback-without-proof sub-check), so the old shape cannot be
+    pinned any more — the bypass itself was never the real entry point, and
+    the REAL entry point (verify_poi) never reaches classify_candidate with
+    `operating=True` unless Gate 0 has already been satisfied by a genuine
+    sourced business_status.
 
-    Migrated for TW-072: `_clean_poi()`'s sourced `business_status` is now
-    itself an existence proof (that is the whole point of the fix) — any
-    business_status that gets `verify_poi` past Gate 0 (operating=True, via a
-    dated, sourced statement) satisfies `has_existence_proof`'s third proof by
-    the same read. So a POI that reaches Gate 2c through `verify_poi` with
-    Gate 0 already passed can no longer arrive proof-less; that combination is
-    now unreachable via the real entry point, which is the asymmetry closing,
-    not a hole. This drops to `classify_candidate` directly, passing
-    `operating=True` the way `verify_poi` would have derived it, on a
-    candidate with no `business_status`, no official source and no
-    `gmaps_place_id`, to keep exercising Gate 2c's own no-proof branch in
-    isolation from Gate 0.
-
-    This `operating=True`-bypass shape is not purely synthetic: it mirrors a
-    genuinely live caller. `scripts/rederive.py::rederive_lodging` hard-codes
-    `operating=True` and reaches `classify_candidate` without a real Gate 0 in
-    front of it, because lodging has no `business_status` field yet (Task 6).
-    So this test doubles as the regression guard for that path — a lodging
-    `cluster_fallback` candidate with no proof still needs Gate 2c to refuse
-    it today.
-    """
-    poi = _clean_poi()
-    poi.pop("business_status", None)
-    status, note = classify_candidate(poi, geocoded=True, in_claimed_region=True,
-                                      local_lang="zh", operating=True,
-                                      geocode_source="cluster_fallback")
+    That is exactly why TW-062 stays closed: a district centroid riding into
+    'verified' with no independent evidence the place exists is now blocked
+    by Gate 0 itself, which demands a DATED, SOURCED statement -- strictly
+    more than Gate 2c ever asked for (an undated official link or a bare
+    place_id both satisfied Gate 2c; neither satisfies Gate 0). A
+    cluster_fallback POI whose business_status is the bare, self-attested
+    string never gets far enough to need Gate 2c at all -- it fails Gate 0
+    first, through the real entry point, with no bypass involved."""
+    poi = _clean_poi(business_status="OPERATIONAL")   # bare string: self-attested
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
     assert status == "unverified"
-    assert "cluster_fallback" in note
+    assert "self-attested" in note
 
 
 def test_cluster_fallback_with_an_official_source_stays_verified():
-    """Guard, GREEN at HEAD (over-blocking guard): an official page proves the
-    venue exists, so the approximate coordinate is an acceptable position for
-    it. Prevents Gate 2c from over-blocking a POI that has real existence
-    proof — a regression here would wrongly downgrade a verifiable POI to
-    unverified just because its geocode source is cluster_fallback."""
+    """Guard, GREEN at HEAD. Migrated for the Gate 2c retirement (v0.34.0 Task
+    6): an official source is no longer WHY this passes -- Gate 2c (which used
+    to treat it as one of two accepted existence proofs) is retired, so it is
+    merely harmless now. `_clean_poi()`'s sourced business_status is what
+    clears Gate 0, and that alone is sufficient; see
+    test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_
+    passes for the identical claim with no official source and no
+    gmaps_place_id at all."""
     poi = _clean_poi(sources=[
         {"url": "https://chunyen.example.tw/", "lang": "zh", "official": True},
         {"url": "https://b.example.com/q", "lang": "en"},
@@ -296,15 +298,34 @@ def test_cluster_fallback_with_an_official_source_stays_verified():
 
 
 def test_cluster_fallback_with_a_place_id_stays_verified():
-    """Guard, GREEN at HEAD (over-blocking guard): gmaps_place_id is the other
-    existence proof source-verify already collects
-    (skills/source-verify/SKILL.md:30). Prevents Gate 2c from over-blocking a
-    POI whose existence proof is a place_id rather than an official source —
-    a regression here would wrongly downgrade it to unverified."""
+    """Guard, GREEN at HEAD. Migrated for the Gate 2c retirement (v0.34.0 Task
+    6): gmaps_place_id is no longer WHY this passes -- Gate 2c (which used to
+    treat it as one of two accepted existence proofs) is retired, so it is
+    merely harmless now. `_clean_poi()`'s sourced business_status is what
+    clears Gate 0, and that alone is sufficient; see
+    test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_
+    passes for the identical claim with no place_id and no official source at
+    all."""
     poi = _clean_poi(gmaps_place_id="ChIJ5wJfhyWUbjQRG_DhFBgvW7g")
     _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
                               local_lang="zh", resolved_name="春燕飯館")
     assert status == "verified"
+
+
+def test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_passes():
+    """The direct statement of the Gate 2c retirement (v0.34.0 Task 6,
+    2026-08-09 user ruling): a cluster_fallback POI with NEITHER an official
+    source NOR a gmaps_place_id -- the exact shape that used to fail Gate 2c
+    (test_cluster_fallback_with_a_bare_string_business_status_is_still_
+    unverified's predecessor, before migration) -- now verifies on the
+    strength of `_clean_poi()`'s sourced business_status alone, because that
+    sourced statement IS what Gate 0 demands and there is no separate
+    existence-proof gate left to ask for anything more."""
+    poi = _clean_poi()   # sourced business_status; no official source, no place_id
+    _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+    assert note == ""
 
 
 def test_nominatim_resolved_geocode_is_unaffected():
@@ -410,36 +431,28 @@ def test_gate_2c_refuses_when_geocode_source_is_not_recorded():
     assert "geocode_source" in note
 
 
-def test_recording_geocode_source_still_runs_gate_2c_as_before():
-    """Guard, GREEN at HEAD: prevents the new GEOCODE_SOURCE_MISSING branch
-    from swallowing the branch it sits beside. A POI that DOES record
-    geocode_source must still run Gate 2c's existing cluster_fallback
-    sub-check exactly as before -- centroid + no proof -> unverified with the
-    existing centroid message, nominatim -> verified.
+def test_recording_geocode_source_prevents_the_missing_branch_from_firing():
+    """Guard, GREEN at HEAD: prevents the GEOCODE_SOURCE_MISSING branch from
+    swallowing the branch it sits beside. A POI that DOES record
+    geocode_source -- any value, cluster_fallback included -- must not hit
+    the 'geocode_source not recorded' refusal.
 
-    First half migrated for TW-072, same reason as
-    test_cluster_fallback_without_existence_proof_is_not_verified:
-    `_clean_poi()`'s sourced business_status now doubles as existence proof
-    once it clears Gate 0, so `verify_poi` can no longer land on this POI with
-    Gate 0 passed and no proof at the same time. Drops to classify_candidate
-    directly (operating=True, no business_status/official/place_id) to keep
-    testing the cluster_fallback sub-check itself. The second half
-    (geocode_source='nominatim') never touches has_existence_proof at all —
-    it stays on verify_poi, unmigrated, exactly as before.
-
-    Same live-caller note as test_cluster_fallback_without_existence_proof_is_
-    not_verified: this operating=True bypass mirrors rederive_lodging (Task 6
-    has not given lodging a business_status field yet), so this half also
-    doubles as that path's regression guard.
-    """
+    Migrated for the Gate 2c retirement (v0.34.0 Task 6, formerly
+    test_recording_geocode_source_still_runs_gate_2c_as_before): the
+    cluster_fallback VALUE itself no longer demands extra proof (see
+    test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_
+    passes), so recording 'cluster_fallback' now behaves exactly like
+    recording any other geocode_source string as far as THIS branch is
+    concerned -- both simply skip the missing-field refusal and proceed. No
+    operating=True bypass needed any more either: both halves now go through
+    the real entry point, verify_poi, on `_clean_poi()`'s sourced
+    business_status."""
     fallback = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
                                    "geocode_source": "cluster_fallback"})
-    fallback.pop("business_status", None)
-    status, note = classify_candidate(fallback, geocoded=True, in_claimed_region=True,
-                                      local_lang="zh", operating=True,
-                                      geocode_source="cluster_fallback")
-    assert status == "unverified"
-    assert "cluster_fallback" in note
+    _, status, note = verify_poi(fallback, geocoded=True, in_claimed_region=True,
+                                 local_lang="zh", resolved_name="春燕飯館")
+    assert status == "verified"
+    assert "geocode_source" not in note
 
     resolved = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
                                    "geocode_source": "nominatim"})
@@ -524,30 +537,40 @@ def test_has_existence_proof_today_anchors_the_sourced_business_status_proof():
     assert has_existence_proof(poi, today="2020-01-01") is True   # anchored: fresh
 
 
-def test_classify_candidate_threads_today_into_gate_2c():
-    """TW-070 fix round 1. Before this, `classify_candidate` had no `today`
-    parameter at all, so any caller passing Gate 0 a non-wall-clock `today`
-    (verify_poi's artifact-anchored callers) still had Gate 2c's
-    has_existence_proof reading real wall-clock underneath — the two gates
-    disagreed on which clock to read for the SAME business_status. A
-    cluster_fallback candidate with no proof but a sourced business_status,
-    fresh only relative to itself, must clear Gate 2c when `today` is threaded
-    through, and does not without it (regression half asserted directly, not
-    just via the fix-round report)."""
+def test_classify_candidate_today_is_now_inert_since_gate_2c_retired():
+    """Migrated for the Gate 2c retirement (v0.34.0 Task 6), formerly
+    test_classify_candidate_threads_today_into_gate_2c. Before this,
+    `classify_candidate`'s `today` parameter existed for exactly one reason:
+    threading the caller's anchored clock into `has_existence_proof`'s recency
+    check on the sourced business_status proof (TW-070 fix round 1) -- the
+    ONLY place `today` was ever read inside this function. That call site is
+    gone (see the comment at its old location in classify_candidate), so
+    `today` no longer changes this function's output at all; it is still
+    accepted for callers that pass it (`verify_poi`,
+    `scripts/rederive.py::rederive_lodging`), simply unread.
+
+    The regression this test used to pin -- Gate 0 and Gate 2c disagreeing
+    about which clock to read for the same business_status -- can no longer
+    happen, because there is no second gate left to disagree with Gate 0. The
+    real anchoring concern lives entirely at Gate 0 now, pinned by
+    test_sourced_recent_business_status_verifies /
+    test_business_status_older_than_ninety_days_is_stale above and by
+    tests/test_rederive.py::
+    test_gate_2c_stays_unreachable_on_the_poi_path_for_a_very_stale_as_of and
+    test_lodging_gate_0_anchors_to_the_records_own_era_not_wall_clock."""
     from scripts.verify import classify_candidate
     c = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
                                 {"url": "https://b.example.com/q", "lang": "en"}],
          "business_status": {"status": "OPERATIONAL",
                              "source_url": "https://a.example.tw/p",
                              "as_of": "2020-01-01"}}
-    status, note = classify_candidate(c, geocoded=True, in_claimed_region=True,
-                                      operating=True, geocode_source="cluster_fallback",
-                                      today="2020-01-01")
-    assert status == "verified", note
-    status_blind, note_blind = classify_candidate(
+    status_anchored, _ = classify_candidate(
         c, geocoded=True, in_claimed_region=True, operating=True,
-        geocode_source="cluster_fallback")   # today omitted -> wall-clock, stale
-    assert status_blind == "unverified" and "cluster_fallback" in note_blind
+        geocode_source="cluster_fallback", today="2020-01-01")
+    status_wall_clock, _ = classify_candidate(
+        c, geocoded=True, in_claimed_region=True, operating=True,
+        geocode_source="cluster_fallback")   # today omitted -- no longer matters either way
+    assert status_anchored == status_wall_clock == "verified"
 
 
 def test_a_bare_string_business_status_is_not_an_existence_proof():

@@ -150,10 +150,14 @@ def accommodations():
     # Kana-named hotel + name_zh (v0.30.0): exercises the lodging gloss path —
     # the gate's kana_name_without_gloss check on the folded lodging POI is
     # satisfied by name_zh, mirroring verified-pois.
-    # geocode_source + resolved_name (I2, v0.33.0): so run_gate's rederive_lodging
-    # re-derives this candidate to the SAME 'verified' it's recorded as -- without
-    # them the record is a genuine verdicts_rederivable gap (correct behaviour for
+    # geocode_source + resolved_name (I2, v0.33.0) + business_status (Task 6,
+    # v0.34.0): so run_gate's rederive_lodging re-derives this candidate to the
+    # SAME 'verified' it's recorded as -- without them the record is a genuine
+    # verdicts_rederivable / verdicts_rule_current gap (correct behaviour for
     # the real corpus, wrong for this "everything passes" fixture).
+    # business_status.as_of is computed at CALL time, never a literal, the same
+    # reason verified_pois() above computes its own: a fixed date would
+    # silently turn this fixture stale 90 days after it was written.
     return {"stops": [{
         "district": "函館", "nights": 1, "chosen": "hotel-1",
         "candidates": [{
@@ -162,6 +166,9 @@ def accommodations():
             "facilities": [],
             "geocode": {"lat": 41.77, "lng": 140.73, "geocode_source": "nominatim"},
             "resolved_name": "駅前ホテル",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://hotel.example",
+                                "as_of": datetime.date.today().isoformat()},
             "sources": [
                 {"url": "https://hotel.example", "lang": "ja", "official": True},
                 {"url": "https://guide.example/hotel", "lang": "zh"},

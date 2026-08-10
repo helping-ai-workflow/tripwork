@@ -551,11 +551,23 @@ def test_defect_03_bare_string_business_status(closure):
 def test_defect_04_lodging_cluster_fallback_no_proof_no_resolved_name(closure):
     """Defect 4 / gate time / rederive_lodging, on BOTH axes.
 
-    verdicts_rederivable names the absent resolved_name; verdicts_match names the
-    recorded `verified` that classify_candidate re-derives as `unverified`.
+    verdicts_rederivable names the absent resolved_name; verdicts_rule_current
+    (not verdicts_match -- migrated for the Gate 2c retirement, 2026-08-09 user
+    ruling, v0.34.0 Task 6) names the recorded `verified` produced before
+    business_status existed.
 
-    The mismatch marker is scoped to "candidate 'hotel-fallback':", not the
-    bare "recorded verify_status" the pre-v0.34.0 version of this test used:
+    Before Task 6, hotel-fallback's cluster_fallback geocode with no existence
+    proof reached classify_candidate's Gate 2c directly and re-derived
+    'unverified' there -- a verdicts_match mismatch. Gate 2c is retired now:
+    Step 4 threads a real Gate 0 into rederive_lodging, and this fixture
+    (deliberately unchanged since v0.33.0 -- it still carries no
+    business_status at all) is caught one gate earlier, before Gate 2c would
+    ever have run on it. It lands in `superseded`, not `mismatches` -- the
+    same bucket a POI in the identical shape (a bare or absent business_status)
+    already used on the POI axis (rederive_pois).
+
+    The marker is scoped to "candidate 'hotel-fallback':", not the bare
+    "recorded verify_status" the pre-v0.34.0 version of this test used:
     TW-070's POI axis now ALSO produces a "recorded verify_status ... but
     verify_poi re-derives ..." message for poi-legacy (a different defect,
     see test_layer_boundary_gate_does_not_catch_the_write_time_defects), and
@@ -565,9 +577,9 @@ def test_defect_04_lodging_cluster_fallback_no_proof_no_resolved_name(closure):
     assert "candidate 'hotel-fallback'" in missing
     assert "Gate 2b (name match) is not re-derivable" in missing
 
-    mismatch = _one(closure.failures, "candidate 'hotel-fallback': recorded verify_status")
-    assert "'verified' but classify_candidate re-derives 'unverified'" in mismatch
-    assert "cluster_fallback centroid with no existence proof" in mismatch
+    superseded = _one(closure.failures, "candidate 'hotel-fallback': recorded verify_status")
+    assert "was produced under superseded rules" in superseded
+    assert "business_status is not the sourced" in superseded
 
 
 def test_defect_05_home_leg_never_rendered(closure):
@@ -668,15 +680,20 @@ def test_the_two_rederivation_axes_report_different_examined_counts(closure):
                 examines the WHOLE pois list -- poi-market, poi-museum,
                 poi-legacy, poi-fallback, poi-bare -- not only the three rows
                 the itinerary schedules).
-    14 compared = the same minus defect 8's mode-less hop, the only record
-                  rederive_hops abandons before out.compared. All 5 POI-axis
-                  records ARE compared (including poi-legacy's mismatch --
-                  a wrong verdict is still a completed comparison, only a
-                  genuinely absent input skips it)."""
+    13 compared (was 14 pre-Task-6) = the same minus TWO records that never
+                reach a comparison: defect 8's mode-less hop (rederive_hops
+                abandons it before out.compared, unchanged) AND hotel-fallback
+                (v0.34.0 Task 6: no business_status at all routes it to
+                `superseded` before rederive_lodging ever calls
+                classify_candidate -- there is no `operating` value to compare
+                with). All 5 POI-axis records ARE still compared (including
+                poi-legacy's mismatch -- a wrong verdict is still a completed
+                comparison, only a genuinely absent input or a superseded
+                record skips it)."""
     rederivable = closure.checks["verdicts_rederivable"]["examined"]
     match = closure.checks["verdicts_match"]["examined"]
-    assert (rederivable, match) == (15, 14)
-    assert rederivable - match == 1
+    assert (rederivable, match) == (15, 13)
+    assert rederivable - match == 2
 
 
 def test_layer_boundary_gate_does_not_catch_the_write_time_defects(closure):
@@ -740,10 +757,23 @@ def test_no_unattributed_gate_failure(closure):
     assert len(closure.failures) == len(markers)
 
 
-def test_failing_checks_are_exactly_the_four_v033_mechanisms(closure):
+def test_failing_checks_are_exactly_the_v033_mechanisms_plus_rule_current(closure):
     """The eight gate-time defects must land on their OWN checks and leave every
     legacy check green -- otherwise the fixture is failing the gate for reasons
-    other than the eleven."""
+    other than the eleven.
+
+    Five names, not the original four (renamed from
+    test_failing_checks_are_exactly_the_four_v033_mechanisms): v0.34.0's Task 6
+    threads a real Gate 0 into rederive_lodging, and hotel-fallback (defect 4's
+    fixture, deliberately unchanged since v0.33.0 -- it carries no
+    business_status at all) now lands in `superseded` rather than
+    `mismatches`, so verdicts_rule_current joins the failing list alongside
+    the original four. This is not a new, unattributed failure -- defect 4
+    already accounted for hotel-fallback's one gate failure (see
+    test_defect_04_lodging_cluster_fallback_no_proof_no_resolved_name and
+    test_no_unattributed_gate_failure below); only the check NAME it fails
+    under moved, from verdicts_match to verdicts_rule_current."""
     failed = sorted(c["name"] for c in closure.report["checks"] if not c["passed"])
     assert failed == ["home_legs_rendered", "no_ai_tone",
-                      "verdicts_match", "verdicts_rederivable"]
+                      "verdicts_match", "verdicts_rederivable",
+                      "verdicts_rule_current"]

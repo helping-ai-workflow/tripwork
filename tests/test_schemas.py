@@ -1048,3 +1048,32 @@ def test_verified_pois_accepts_the_no_result_sentinel(tmp_path):
         "      - {url: 'https://b.example.com/q', lang: en}\n",
         encoding="utf-8")
     assert validate_file(str(p))[0] == 0
+
+
+def test_accommodations_accepts_both_business_status_forms(tmp_path):
+    """Back-compat is the point of the oneOf: every accommodations.yaml on disk
+    predates the field, and the object form must be addable without invalidating
+    them."""
+    from scripts.validate_artifact import validate_file
+    head = ("stops:\n"
+            "  - district: 嘉義市西區\n"
+            "    nights: 2\n"
+            "    chosen: h1\n"
+            "    candidates:\n"
+            "      - id: h1\n"
+            "        name_local: 兆品酒店嘉義\n"
+            "        name_display: 兆品酒店嘉義\n"
+            "        facilities: []\n"
+            "        geocode: {lat: 23.48, lng: 120.44}\n"
+            "        verify_status: verified\n"
+            "        sources:\n"
+            "          - {url: 'https://a.example.tw/p', lang: zh}\n"
+            "          - {url: 'https://b.example.com/q', lang: en}\n")
+    for tail in ("        business_status: OPERATIONAL\n",
+                 "        business_status:\n"
+                 "          status: OPERATIONAL\n"
+                 "          source_url: 'https://a.example.tw/p'\n"
+                 "          as_of: '2026-08-05'\n"):
+        p = tmp_path / "accommodations.yaml"
+        p.write_text(head + tail, encoding="utf-8")
+        assert validate_file(str(p))[0] == 0, tail

@@ -4,6 +4,8 @@ A 6-town NZ self-drive: every overnight stop ends with a verified chosen lodging
 parking (required) is met, the laundry coverage advisory is computed, and the gate
 passes. Reproduces the field run that found D1/D7.
 """
+import datetime
+
 from scripts.gate import run_gate
 from scripts.facilities import coverage_gaps, reception_ok
 from scripts.verify import classify_candidate
@@ -13,16 +15,23 @@ FACILITY_NEEDS = {"required": ["parking"],
                   "periodic": [{"facility": "laundry", "max_gap_nights": 2}]}
 
 def _lodge(_id, facilities):
-    # sources/geocode_source/resolved_name (I2, v0.33.0): so rederive_lodging
-    # re-derives every one of these to the recorded 'verified' instead of
-    # flagging it as a verdicts_rederivable gap -- this fixture predates
-    # verify_status/geocode entirely and never carried them.
+    # sources/geocode_source/resolved_name (I2, v0.33.0) + business_status
+    # (Task 6, v0.34.0): so rederive_lodging re-derives every one of these to
+    # the recorded 'verified' instead of flagging it as a verdicts_rederivable
+    # / verdicts_rule_current gap -- this fixture predates verify_status/
+    # geocode entirely and never carried them. as_of computed at call time,
+    # never a literal (rederive_lodging anchors Gate 0 to the record's own
+    # era, but a fresh timestamp keeps this fixture readable as "just
+    # verified" rather than relying on that anchor).
     return {"id": _id, "facilities": facilities, "name_local": _id, "name_display": _id,
             "verify_status": "verified",
             "sources": [{"url": f"https://a.example/{_id}", "lang": "en"},
                         {"url": f"https://b.example/{_id}", "lang": "en"}],
             "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"},
-            "resolved_name": _id}
+            "resolved_name": _id,
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": f"https://a.example/{_id}",
+                                "as_of": datetime.date.today().isoformat()}}
 
 # CHC 1✓ Tekapo 2✗ Wanaka 2✓ TeAnau 2✗ Queenstown 3✓  (laundry coverage)
 ACCOM = {"stops": [
