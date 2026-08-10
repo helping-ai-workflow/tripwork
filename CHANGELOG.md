@@ -1,5 +1,166 @@
 # Changelog
 
+## 0.35.0 — guards that measure what they claim: ten audit defects
+
+An adversarial audit of v0.34.0 found ten defects sharing one root cause: a guard obtained the
+pipeline state it claimed to check by hand-rebuilding an equivalent copy — a literal number, a
+hand-kept list, a manually-summed denominator — instead of calling the shipped function or
+constant. The two copies could then drift apart silently, and every real instance in this release
+did drift: a consumer fixing their own data turned eight guards red for no plugin defect; a
+schema-symmetry allowlist had grown large enough to leave two re-derivation axes with zero fields
+under guard; a staleness check had a blind spot for one of the two files it was supposed to be
+watching. This release closes all ten (TW-074–TW-083) and, because the pattern repeated across
+three releases, writes the rule itself into `CLAUDE.md` so the next instance is caught in review
+rather than discovered by audit.
+
+- **TW-074 — corpus figures stop living as literals inside tests.** Every guard that measured the
+  consumer corpus (`tests/test_corpus_gate.py`, `tests/test_rederive.py`) had its expected numbers
+  typed in by hand at the time it was written. When the consumer later fixed real data using the
+  mechanism v0.34.0 shipped, eight of those guards went red with no plugin defect anywhere — the
+  corpus had changed, not the code. `tests/corpus_measure.py` now provides `measure_corpus()`,
+  built on the same `gate()` / `classify()` / `drain()` machinery the shipped CLI uses, and every
+  migrated guard reads its expected values from `tests/corpus-baseline.json` instead of a literal.
+  **Regenerate the baseline with `python -m tests.corpus_measure --write`** whenever the corpus
+  changes — commit the regenerated diff in the same PR so a human reviews what moved.
+  `tests/test_corpus_baseline_is_current.py` fails the suite if the checked-in baseline and a fresh
+  measurement disagree, so a stale baseline cannot hide. Before trusting the rewritten guards, the
+  original P4-fold deadlock (`scripts/gate.py::poi_pool`) was re-injected by hand: the suite went
+  from 15 passed to 8 failed, confirming the baseline swap had not hollowed the guards out.
+- **TW-075 — published test counts now name the environment they were measured in.** v0.34.0's
+  entry stated "zero skipped or xfailed" for a figure that only holds with the consumer corpus
+  mounted; CI (the environment that actually gates a merge) runs without it and produces a lower
+  passed count plus a batch of corpus-gated skips — the two numbers cannot both be true of the same
+  run. `tests/test_changelog_test_count_is_qualified.py` now requires every `Tests:` line in the
+  **newest** CHANGELOG entry to say `CI` or `corpus`; historical entries are left as the point-in-
+  time record they are. A matching guard requires the README's `pytest` line to carry the same
+  qualifier.
+- **TW-076 — the schema-symmetry allowlist had grown large enough to blind two axes completely.**
+  `tests/test_schema_symmetry.py`'s allowlist — meant to exempt container-wrapper and sub-object
+  field names from the "every field `rederive_*` reads must be schema-declared" check — had grown
+  to 45 names, 12 of them ordinary record fields that had no business being exempt. The practical
+  effect: `rederive_legs` and `rederive_hops` had **zero** fields under guard, meaning TW-071's
+  original deadlock (an unschematized field silently read by a re-derivation axis) could be
+  re-injected into either axis and the full suite would stay green. Trimmed to the 9 names that are
+  genuinely container wrappers or sub-object fields (`as_of`, `candidates`, `centroid`, `clusters`,
+  `district`, `geocode_source`, `hops`, `legs`, `stops`) — two independent derivations of the
+  minimal set (one done ahead of the task, one done from scratch during implementation) agreed
+  exactly. Fields under guard go from 11 to 26 across all axes, `rederive_legs` from 0 to 8 and
+  `rederive_hops` from 0 to 7. Re-injecting TW-071's deadlock now fails immediately
+  (`assert not ['last_service_exempt']`).
+- **TW-077 — rule 15's staleness check now compares every export deliverable, HTML included.**
+  `export_gate.py` reads and judges `exports/<slug>-itinerary.html` whenever it exists
+  (`run_html_gate`), but `scripts/next_stage.py`'s rule 15 only ever compared the markdown
+  deliverable and the four `EXPORT_GATE_INPUTS` yaml files against `export-gate-report.yaml`'s
+  mtime — a re-render that left a stale HTML file (a leftover raw `<script>` tag, say) behind a
+  fresh, passing report was invisible to the oracle. No corpus trip happened to exercise the gap,
+  which is why it stayed latent through two prior releases. `scripts/orchestration.py` gains
+  `EXPORT_DELIVERABLES`, the single source for the `exports/` filename templates; rule 14 and rule
+  15 both read it instead of hard-coding the markdown filename a second time, so rule 15 now names
+  any stale deliverable, not just the markdown one. Safety check: `next_stage.py`'s routing output
+  across all four corpus trips is byte-identical before and after, including the two trips that
+  reach rule 16 and so actually exercise the new HTML comparison — no verdict moved.
+- **TW-078 — `--audit` now catches a manifest that was never bumped, not just one that lags.**
+  `bump_version.py --audit` only grepped every file for the **current** version string, so its one
+  real job — catching drift among the eight version-bearing manifests — had a blind spot for the
+  single most likely real-world failure: a manifest never added to `.version-bump.json`'s file
+  list, therefore never written by `bump()`, therefore stuck on the **previous** version forever,
+  invisible to `--audit`, `--check`, and the whole pytest gate at once. `.version-bump.json` gains a
+  `previous` field that `bump()` maintains explicitly (`cfg["previous"] = cfg["current"]` before
+  overwriting, guarded so re-running `bump()` at the same version cannot clobber it); `audit()` runs
+  a second scan, restricted to undeclared `.json`/`.toml` files, for that previous-version string,
+  reported under its own heading — restricted to manifest-shaped files on purpose, since CHANGELOG
+  and README legitimately reference old versions forever and flagging that would make every future
+  `--audit` noisy. An older `.version-bump.json` with no `previous` field skips the second scan with
+  an explicit `SKIPPED` line rather than silently doing nothing — this release's own thesis, that a
+  check which cannot fail is indistinguishable from one that passed, applies to the release tooling
+  itself. Documented limit, deliberately not built out further: this closes a **one-release**
+  detection window (a manifest stuck at 0.34.0 is caught bumping to 0.35.0; skip straight to 0.36.0
+  and it matches neither scan) — a real version history is scope this task does not take on.
+- **TW-079 — the README mermaid order guard now derives from `_CHAIN`, not a hand-kept list.**
+  `tests/test_readme_freshness.py`'s `_PIPELINE_ORDER` used to be typed in by hand, parallel to
+  `scripts/next_stage.py::_CHAIN` rather than sourced from it — the two could disagree and the
+  guard would never notice. Its first 11 entries now derive directly from `_CHAIN`; the trailing 4
+  (rule branches 12–16: `itinerary-synthesis` through `export-gate`) stay literal with a comment
+  stating why — there is no importable sequence constant covering that stretch. No new test was
+  needed: `test_tw060_mermaid_stage_order_matches_pipeline` becomes load-bearing simply by having
+  its comparison target now be a real derivation instead of a copy. Verified both directions:
+  swapping `calendar-check` and `seasonal-advisory` inside `_CHAIN` now reds that test (it stayed
+  green before this fix), and the reverse — editing the README's stage order without updating
+  `_CHAIN` — reds it too.
+- **TW-080/081/082 — three specific stale claims, plus a systematic sweep.** A CHANGELOG passage
+  described the `superseded` bucket's routing using only two of the three `business_status` shapes
+  that route there (bare-string, absent), silently omitting the third (a dict-shaped but unusable
+  value) while phrasing the pair as exhaustive — corrected to name all three, worded to match the
+  code's own reason strings (TW-080). `scripts/rederive.py`'s `run_rederivation` docstring (and a
+  duplicate in `tests/test_rederive.py`) claimed `run_gate` "does not forward" `pois` — false since
+  v0.34.0 Task 4, which made `scripts/gate.py:332-334` pass `pois=pois` unconditionally; the false
+  claim and its dependent consequence were deleted, the still-true part of the surrounding rationale
+  kept (TW-081). README's `gmaps_place_id` shape-check line cited an all-corpus count (86)
+  inconsistent with the denominator every other figure in its own section used, and both numbers
+  were additionally stale; now states both denominators explicitly, measured live: four
+  schema-clean trips = 64, all seven corpus trips = 99, both exactly 27 characters (TW-082).
+  A follow-up systematic sweep of every docstring/comment in `tests/`, `scripts/`, `skills/`
+  carrying a numeric claim near corpus-shaped language — not another reactive one-site fix — found
+  **18 more present-tense corpus figures across 11 files**, of which **4 were outright false**
+  against the live corpus, not merely stale: an "0 unresolved" figure recorded as 5 (a full
+  inversion, the same shape TW-074 exists to prevent); a "six real trips" denominator that is now
+  seven; a "6 legs, all kind-absent" claim now 7 legs (and no longer all kind-absent, since TW-065
+  legalized `kind: home` on some of them); and a "two excluded trips" comment now three. Every
+  category-(a) hit (a live, unbound, present-tense corpus claim) was de-numbered in favor of
+  pointing at `tests/corpus-baseline.json` or a named commit/task/release anchor; bounded historical
+  records, synthetic-fixture counts, and code-structure counts were left untouched. A final pass
+  re-examined the AI-tone calibration family (~15 sites previously treated as one bounded-historical
+  unit) **per site** rather than by blanket rationale, and found three of those specific claims were
+  themselves outright false — a cited "31 of 32" em-dash hit and a markdown-bold checklist
+  attribution that no longer exist in the live corpus file they named, plus one propagated copy of
+  the same false attribution — each rebound explicitly to v0.33.0, the release whose own CHANGELOG
+  entry carries the point-in-time figures, rather than merely softened.
+- **TW-083 — the rule this release exists to demonstrate, now written down.** `CLAUDE.md` gains
+  "Guards must call their subject, not rebuild it": a guard obtains pipeline state by **calling**
+  the shipped function or constant (`scripts/gate.py::poi_pool`, `scripts/next_stage.py::_CHAIN`,
+  `scripts/orchestration.py::EXPORT_DELIVERABLES`, `tests/corpus_measure.py::measure_corpus`, and
+  siblings), never by hand-assembling an equivalent; where no importable source exists, a literal is
+  allowed but must say why in a comment; and before trusting a new guard, inject the bug it names
+  and confirm it goes red. The rule cites three real instances across three releases as evidence,
+  not hypotheticals: v0.33.0's C1 (a corpus guard hand-built `by_id` from 58 rows while the shipped
+  gate used 63), v0.34.0's inert re-derive guard (a default fixture that folded nothing, staying
+  green through the exact bug it named), and this release's own TW-074/TW-076/TW-079.
+
+**What stays out, recorded rather than silently dropped:**
+
+- A **pre-existing flake**, not introduced by this branch: `tests/test_e2e_mechanized_pipeline.py::test_full_walk_in_new_order`
+  fails intermittently (measured 1/90 and 2/30 across two points on this branch, roughly 1–7%) on an
+  mtime race in rule 13's staleness comparison. `git diff` confirms rule 13 itself is byte-identical
+  across the commits where the rate was sampled. Root-causing it means touching `next_stage.py`
+  machinery this release already changed and had reviewed for a different defect — out of scope for
+  the ten defects here, surfaced for a future release instead.
+- The schema-symmetry guard's failure message names one cause ("the allowlist absorbed every read")
+  when an empty coverage set can come from either that or a schema loosened to
+  `additionalProperties: true` — reproduced by flipping `routing.schema.json`'s `hops` items to
+  permissive and watching the allowlist-shaped message fire with the allowlist untouched. The new
+  ceiling test (`test_the_allowlist_does_not_blind_an_entire_axis`) also only asserts non-empty
+  coverage, not a minimum retained fraction — re-adding 6 of `rederive_hops`'s 7 checked names still
+  passes it. Both recorded for a future pass, not fixed here.
+- `EXPORT_DELIVERABLES` is single-sourced inside `next_stage.py` only; `export_gate.py` itself (the
+  actual reader/judge) and five test fixtures still build the same filenames with their own
+  f-strings. Renaming the deliverable template would still silently reproduce TW-077 under a new
+  name. Next-version follow-up: have `export_gate.py` import the constant too.
+- `test_no_failure_class_routes_to_a_stage_that_cannot_write_it[2026-08-chiayi]` now iterates an
+  empty failure list (the consumer's chiayi trip is clean today) and so executes zero assertions
+  while still reporting pass — precisely the "a check that cannot fail is indistinguishable from one
+  that passed" shape this whole release is about. Fixing it means recording per-trip counts of each
+  routed failure class in the baseline, a design change rather than a doc fix; deliberately not
+  folded into this release.
+- `scripts/gate.py`'s two-trip id-collision note (POIs and lodging candidates sharing an id within
+  `2026-07-sun-moon-lake` and `hokkaido-7d`) was independently recomputed against all seven live trip
+  directories during the doc sweep above and still matches exactly; left as an open, id-anchored
+  v0.35.0 follow-up note, unchanged.
+
+Tests: 1093 passed with the consumer corpus mounted, 0 failed; 1073 passed + 20 corpus-gated skips
+in CI (no corpus). A committed-only export of the consumer corpus repository reproduces 1093/0
+exactly, identical to the working-tree figure — every corpus number this entry publishes is now
+independently reproducible by anyone with the consumer repo, which v0.34.0's entry could not claim.
+
 ## 0.34.0 — the POI verdict axis, and the two channels it needed
 
 v0.33.0 shipped five re-derivation axes — legs, hops, cost, the closing-buffer
