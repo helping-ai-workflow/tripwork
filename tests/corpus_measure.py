@@ -9,6 +9,8 @@ CONDITIONAL：沒有消費端語料時整組 skip（見 mech_fixtures.CORPUS）�
 import collections
 import copy
 import datetime
+import json
+import pathlib
 
 from scripts.gate import poi_pool, run_gate
 from scripts.orchestration import route_gate_failures
@@ -254,3 +256,273 @@ def drain(trip, max_rounds=10):
             return True, history
         FIX[route_gate_failures(report["failures"])](a)
     return False, history
+
+
+# --------------------------------------------------------------------------
+# Baseline: the regenerable snapshot of every corpus-dependent number.
+# --------------------------------------------------------------------------
+
+BASELINE = pathlib.Path(__file__).resolve().parent / "corpus-baseline.json"
+
+
+def load_baseline():
+    return json.loads(BASELINE.read_text(encoding="utf-8"))
+
+
+def _axis_ids(report):
+    """兩條 verdict 軸各自在 failure 字串裡指名的 id。切法與
+    test_the_three_verdict_axes_partition_their_failures 原本的一致。"""
+    poi_ids = {f.split("'")[1] for f in report["failures"] if f.startswith("pois[")}
+    lodging_ids = {f.split("'")[3] for f in report["failures"]
+                   if f.startswith("accommodations ")}
+    return poi_ids, lodging_ids
+
+
+def _measure_trip(trip):
+    a = load_trip(trip)
+    report = gate(a)
+    poi_ids, lodging_ids = _axis_ids(report)
+    terminated, history = drain(trip)
+    return {
+        "status": report["status"],
+        "total": len(report["failures"]),
+        "classes": classify(report["failures"]),
+        # 每個 check 的 passed 直接記下來。不要在測試那端從 class 計數反推
+        # ——class 與 check 不是一對一（poi_no_hours 也落在 rederivable 軸），
+        # 反推出來的推導本身就是一份手搭副本（TW-083）。
+        "checks_passed": {c["name"]: bool(c["passed"]) for c in report["checks"]},
+        "poi_axis_findings": len(poi_ids),
+        "lodging_axis_findings": len(lodging_ids),
+        "drain_terminated": terminated,
+        "drain_rounds": len(history),
+    }
+
+
+def _measure_gate_aggregate():
+    found = compared = examined_rule_current = 0
+    super_poi = super_lodging = 0
+    match_failed = []
+    for trip in CORPUS_TRIPS:
+        report = gate(load_trip(trip))
+        checks = {c["name"]: c for c in report["checks"]}
+        found += checks["verdicts_rederivable"]["examined"]
+        compared += checks["verdicts_match"]["examined"]
+        examined_rule_current += checks["verdicts_rule_current"]["examined"]
+        classes = classify(report["failures"])
+        super_poi += classes.get("poi_verdict_superseded", 0)
+        super_lodging += classes.get("lodging_verdict_superseded", 0)
+        if not checks["verdicts_match"]["passed"]:
+            match_failed.append(trip)
+    return {"found": found, "compared": compared,
+            "examined_rule_current": examined_rule_current,
+            "super_poi": super_poi, "super_lodging": super_lodging,
+            "match_failed": match_failed}
+
+
+def _measure_rederive_axes():
+    import yaml
+
+    from scripts.rederive import (Outcome, rederive_closing, rederive_lodging,
+                                  run_rederivation)
+
+    def _checks(res):
+        return {c["name"]: c for c in res["checks"]}
+
+    # --- verdicts_match 軸：legs / hops / cost --------------------------------
+    legs_seen = hops_seen = costs_seen = compared = 0
+    per_trip_match = {}
+    for trip in CORPUS_TRIPS:
+        d = CORPUS / trip
+        legs = yaml.safe_load((d / "legs.yaml").read_text(encoding="utf-8"))
+        routing = yaml.safe_load((d / "routing.yaml").read_text(encoding="utf-8"))
+        cost = yaml.safe_load((d / "cost.yaml").read_text(encoding="utf-8"))
+        brief = yaml.safe_load((d / "trip-brief.yaml").read_text(encoding="utf-8"))
+        res = run_rederivation({"days": []}, {}, legs=legs, routing=routing,
+                               cost=cost, trip_brief=brief)
+        legs_seen += len(legs.get("legs") or [])
+        hops_seen += len(routing.get("hops") or [])
+        costs_seen += 1
+        compared += _checks(res)["verdicts_match"]["examined"]
+        # 逐趟記，不要 AND 起來——理由與 per_trip_rederivable / per_trip_match_passed
+        # 相同：今天四趟全 True 只是語料現狀，不是不變量，聚合會讓未來任何一趟走樣
+        # 都看不見。這一支餵給 tests/test_rederive.py:253
+        # test_real_trips_have_zero_verdicts_match_failures 逐趟的
+        # `assert c["verdicts_match"]["passed"] is True` 斷言。
+        per_trip_match[trip] = bool(_checks(res)["verdicts_match"]["passed"])
+    match = {"legs_seen": legs_seen, "hops_seen": hops_seen,
+             "costs_seen": costs_seen, "compared": compared,
+             "per_trip_passed": per_trip_match}
+
+    # --- verdicts_rederivable 軸：legs / hops / cost --------------------------
+    total_missing = provenance_missing = 0
+    per_trip_rederivable = {}
+    for trip in CORPUS_TRIPS:
+        d = CORPUS / trip
+        res = run_rederivation(
+            {"days": []}, {},
+            legs=yaml.safe_load((d / "legs.yaml").read_text(encoding="utf-8")),
+            routing=yaml.safe_load((d / "routing.yaml").read_text(encoding="utf-8")),
+            cost=yaml.safe_load((d / "cost.yaml").read_text(encoding="utf-8")),
+            trip_brief=yaml.safe_load((d / "trip-brief.yaml").read_text(encoding="utf-8")),
+            accommodations={"stops": []})
+        total_missing += len(res["failures"])
+        provenance_missing += sum("no duration_source" in f for f in res["failures"])
+        # 逐趟記，不要 AND 起來——chiayi 今天就與另外三趟不同（True vs False），
+        # 聚合會把它蓋掉，正是這個量測要防的「一類靜默清空」。
+        per_trip_rederivable[trip] = bool(_checks(res)["verdicts_rederivable"]["passed"])
+    rederivable = {"total_missing": total_missing,
+                   "provenance_missing": provenance_missing,
+                   "per_trip_passed": per_trip_rederivable}
+
+    # --- 住宿軸 ---------------------------------------------------------------
+    found = 0
+    superseded, other = [], []
+    per_trip_lodging_match = {}
+    for trip in CORPUS_TRIPS:
+        d = CORPUS / trip
+        acc = yaml.safe_load((d / "accommodations.yaml").read_text(encoding="utf-8"))
+        brief = yaml.safe_load((d / "trip-brief.yaml").read_text(encoding="utf-8"))
+        res = run_rederivation({"days": []}, {}, legs={"legs": []},
+                               routing={"clusters": [], "hops": []},
+                               cost={"currency": "TWD", "line_items": [], "total": 0},
+                               trip_brief=brief, accommodations=acc)
+        # 住宿軸的分母要用住宿那條軸自己的函式，且 local_lang 的取法與
+        # scripts/rederive.py:657-659 的 shipped 呼叫逐字相同（TW-083）。
+        # 不可以用 _checks(res)["verdicts_rederivable"]["examined"] —— 那是
+        # total.found，等於 rederive_lodging.found + rederive_cost.found，
+        # 每趟多 1（實測四趟 22 vs 18）。
+        found += rederive_lodging(
+            acc,
+            local_lang=((brief or {}).get("destination") or {}).get("local_lang")).found
+        superseded.extend(f for f in res["failures"] if "superseded rules" in f)
+        other.extend(f for f in res["failures"] if "superseded rules" not in f)
+        # 逐趟記，不要 AND 起來——理由與上面 per_trip_rederivable 相同：今天四趟
+        # 全 True 只是語料現狀，不是不變量，聚合會讓未來任何一趟走樣都看不見。
+        per_trip_lodging_match[trip] = bool(_checks(res)["verdicts_match"]["passed"])
+    lodging = {
+        "found": found,
+        "superseded": len(superseded),
+        "other": len(other),
+        "missing_geocode_source": sum("no geocode.geocode_source" in f for f in other),
+        "missing_resolved_name": sum("no resolved_name" in f for f in other),
+        "superseded_ids": sorted({f.split("'")[3] for f in superseded}),
+        "per_trip_match_passed": per_trip_lodging_match,
+    }
+
+    # --- closing 軸 -----------------------------------------------------------
+    total = Outcome()
+    rows_total = has_time_no_pid = unresolved_pid = lodging_rows = 0
+    no_hours_at_all = hours_but_no_close = no_closing_status = 0
+    for trip in CORPUS_TRIPS:
+        d = CORPUS / trip
+        itin = yaml.safe_load((d / "itinerary.yaml").read_text(encoding="utf-8"))
+        pois = yaml.safe_load((d / "verified-pois.yaml").read_text(encoding="utf-8"))
+        acc = yaml.safe_load((d / "accommodations.yaml").read_text(encoding="utf-8"))
+        by_id = poi_pool(pois.get("pois") or [], acc)
+        for day in itin.get("days") or []:
+            for row in day.get("rows") or []:
+                rows_total += 1
+                t, pid = row.get("time"), row.get("poi_id")
+                if t and not pid:
+                    has_time_no_pid += 1
+                elif t and pid and pid not in by_id:
+                    unresolved_pid += 1
+                elif t and pid and row.get("slot") == "lodging":
+                    lodging_rows += 1
+                elif t and pid:
+                    hours = by_id[pid].get("hours") or {}
+                    if not hours:
+                        no_hours_at_all += 1
+                    elif not hours.get("close") and not hours.get("no_fixed_close"):
+                        hours_but_no_close += 1
+                    elif "closing_status" not in row:
+                        no_closing_status += 1
+        total.merge(rederive_closing(itin, by_id))
+    # C1 的回歸鎖（tests/test_rederive.py:881-892）也是語料相依的，一併量。
+    folded_only = 0
+    unfolded = Outcome()
+    for trip in CORPUS_TRIPS:
+        d = CORPUS / trip
+        itin = yaml.safe_load((d / "itinerary.yaml").read_text(encoding="utf-8"))
+        pois = yaml.safe_load((d / "verified-pois.yaml").read_text(encoding="utf-8"))
+        acc = yaml.safe_load((d / "accommodations.yaml").read_text(encoding="utf-8"))
+        bare = {p["id"]: p for p in pois.get("pois") or []}
+        folded_only += len(set(poi_pool(pois.get("pois") or [], acc)) - set(bare))
+        unfolded.merge(rederive_closing(itin, bare))
+
+    closing = {"rows_total": rows_total, "has_time_no_pid": has_time_no_pid,
+               "unresolved_pid": unresolved_pid, "lodging_rows": lodging_rows,
+               "no_hours_at_all": no_hours_at_all,
+               "hours_but_no_close": hours_but_no_close,
+               "no_closing_status": no_closing_status,
+               "in_scope": total.found,
+               # 這三個是 tests/test_rederive.py:858-860 的斷言，本 plan 撰寫時
+               # 實測為 46 / 0 / 10，而 code 裡寫的是 56 / 0 / 0 —— 少了它們，
+               # Task 4 不可能全綠。missing + compared == in_scope。
+               "missing": len(total.missing),
+               "mismatches": len(total.mismatches),
+               "compared": total.compared,
+               # C1 回歸鎖（:891-892）
+               "folded_only": folded_only,
+               "unfolded_found": unfolded.found}
+
+    return {"match": match, "rederivable": rederivable,
+            "lodging": lodging, "closing": closing}
+
+
+def _measure_counterfactual():
+    """把 `tripwork:source-verify` 這一組從 _ROUTES 拿掉之後，yilan 的 drain 固定點。
+
+    用明示的 save/restore 而不是 monkeypatch：這個函式要能在 pytest 之外被
+    --write 呼叫。try/finally 保證還原，否則同一個 process 裡後續的量測全都是錯的。
+    """
+    import scripts.orchestration as orchestration
+
+    original = orchestration._ROUTES
+    try:
+        orchestration._ROUTES = tuple(
+            g for g in original if g[1] != "tripwork:source-verify")
+        terminated, history = drain("2026-06-yilan")
+    finally:
+        orchestration._ROUTES = original
+    return {"yilan_without_source_verify_terminated": terminated,
+            "yilan_without_source_verify_fixed_point": history[-1]}
+
+
+# --------------------------------------------------------------------------
+# measure_corpus(): every axis, in one call.
+# --------------------------------------------------------------------------
+
+def measure_corpus():
+    """語料相依的每一個數字，全部經由 shipped code 量一次。
+
+    回傳值是純 JSON 可序列化的計數與識別名 —— 沒有 display name、日期、URL 或座標，
+    所以這份輸出可以進 public repo，而語料本身不行。（candidate id 會出現在
+    superseded_ids，那些 id 已逐字存在於 tests/test_rederive.py 的既有註解裡。）
+    """
+    return {
+        "corpus_trips": list(CORPUS_TRIPS),
+        "per_trip": {t: _measure_trip(t) for t in CORPUS_TRIPS},
+        "gate_aggregate": _measure_gate_aggregate(),
+        "rederive_axes": _measure_rederive_axes(),
+        "counterfactual": _measure_counterfactual(),
+    }
+
+
+def _write():
+    BASELINE.write_text(
+        json.dumps(measure_corpus(), indent=2, ensure_ascii=False,
+                   sort_keys=True) + "\n", encoding="utf-8")
+    print(f"wrote {BASELINE}")
+
+
+if __name__ == "__main__":
+    import sys
+    if "--write" not in sys.argv:
+        print(__doc__)
+        print("usage: python -m tests.corpus_measure --write")
+        raise SystemExit(2)
+    if not CORPUS.is_dir():
+        print(f"error: corpus not found at {CORPUS}", file=sys.stderr)
+        raise SystemExit(1)
+    _write()

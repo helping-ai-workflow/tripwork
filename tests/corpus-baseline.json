@@ -1,0 +1,230 @@
+{
+  "corpus_trips": [
+    "2026-06-yilan",
+    "2026-07-sun-moon-lake",
+    "2026-08-chiayi",
+    "2026-09-northeast-coast"
+  ],
+  "counterfactual": {
+    "yilan_without_source_verify_fixed_point": 36,
+    "yilan_without_source_verify_terminated": false
+  },
+  "gate_aggregate": {
+    "compared": 84,
+    "examined_rule_current": 146,
+    "found": 232,
+    "match_failed": [],
+    "super_lodging": 15,
+    "super_poi": 87
+  },
+  "per_trip": {
+    "2026-06-yilan": {
+      "checks_passed": {
+        "advisory_items_surfaced": true,
+        "advisory_present": true,
+        "days_have_meals": true,
+        "home_legs_rendered": true,
+        "japanese_glossed": true,
+        "must_do_covered": true,
+        "no_ai_tone": true,
+        "no_closed_day_violation": true,
+        "no_internal_jargon": true,
+        "overnight_days_have_lodging": true,
+        "overnight_stops_have_lodging": true,
+        "referenced_pois_geocoded": true,
+        "referenced_pois_glossed": true,
+        "referenced_pois_verified": true,
+        "required_facilities_met": true,
+        "verdicts_match": true,
+        "verdicts_rederivable": false,
+        "verdicts_rule_current": false
+      },
+      "classes": {
+        "hop_no_duration_source": 8,
+        "lodging_no_geocode_source": 1,
+        "lodging_no_resolved_name": 1,
+        "lodging_verdict_superseded": 1,
+        "poi_no_hours": 5,
+        "poi_verdict_superseded": 31,
+        "row_no_closing_status": 11
+      },
+      "drain_rounds": 5,
+      "drain_terminated": true,
+      "lodging_axis_findings": 1,
+      "poi_axis_findings": 31,
+      "status": "fail",
+      "total": 58
+    },
+    "2026-07-sun-moon-lake": {
+      "checks_passed": {
+        "advisory_items_surfaced": true,
+        "advisory_present": true,
+        "days_have_meals": true,
+        "home_legs_rendered": true,
+        "japanese_glossed": true,
+        "must_do_covered": true,
+        "no_ai_tone": true,
+        "no_closed_day_violation": true,
+        "no_internal_jargon": true,
+        "overnight_days_have_lodging": true,
+        "overnight_stops_have_lodging": true,
+        "referenced_pois_geocoded": true,
+        "referenced_pois_glossed": true,
+        "referenced_pois_verified": true,
+        "required_facilities_met": true,
+        "verdicts_match": true,
+        "verdicts_rederivable": false,
+        "verdicts_rule_current": false
+      },
+      "classes": {
+        "hop_no_duration_source": 3,
+        "lodging_no_resolved_name": 12,
+        "lodging_verdict_superseded": 12,
+        "poi_no_hours": 12,
+        "poi_verdict_superseded": 29,
+        "row_no_closing_status": 3
+      },
+      "drain_rounds": 5,
+      "drain_terminated": true,
+      "lodging_axis_findings": 12,
+      "poi_axis_findings": 29,
+      "status": "fail",
+      "total": 71
+    },
+    "2026-08-chiayi": {
+      "checks_passed": {
+        "advisory_items_surfaced": true,
+        "advisory_present": true,
+        "days_have_meals": true,
+        "home_legs_rendered": true,
+        "japanese_glossed": true,
+        "must_do_covered": true,
+        "no_ai_tone": true,
+        "no_closed_day_violation": true,
+        "no_internal_jargon": true,
+        "overnight_days_have_lodging": true,
+        "overnight_stops_have_lodging": true,
+        "referenced_pois_geocoded": true,
+        "referenced_pois_glossed": true,
+        "referenced_pois_verified": true,
+        "required_facilities_met": true,
+        "verdicts_match": true,
+        "verdicts_rederivable": true,
+        "verdicts_rule_current": true
+      },
+      "classes": {},
+      "drain_rounds": 1,
+      "drain_terminated": true,
+      "lodging_axis_findings": 0,
+      "poi_axis_findings": 0,
+      "status": "pass",
+      "total": 0
+    },
+    "2026-09-northeast-coast": {
+      "checks_passed": {
+        "advisory_items_surfaced": true,
+        "advisory_present": true,
+        "days_have_meals": true,
+        "home_legs_rendered": true,
+        "japanese_glossed": true,
+        "must_do_covered": true,
+        "no_ai_tone": false,
+        "no_closed_day_violation": true,
+        "no_internal_jargon": true,
+        "overnight_days_have_lodging": true,
+        "overnight_stops_have_lodging": true,
+        "referenced_pois_geocoded": true,
+        "referenced_pois_glossed": true,
+        "referenced_pois_verified": true,
+        "required_facilities_met": true,
+        "verdicts_match": true,
+        "verdicts_rederivable": false,
+        "verdicts_rule_current": false
+      },
+      "classes": {
+        "ai_tone": 17,
+        "hop_no_duration_source": 2,
+        "lodging_no_resolved_name": 2,
+        "lodging_verdict_superseded": 2,
+        "poi_no_hours": 10,
+        "poi_verdict_superseded": 27,
+        "row_no_closing_status": 5
+      },
+      "drain_rounds": 5,
+      "drain_terminated": true,
+      "lodging_axis_findings": 2,
+      "poi_axis_findings": 27,
+      "status": "fail",
+      "total": 65
+    }
+  },
+  "rederive_axes": {
+    "closing": {
+      "compared": 10,
+      "folded_only": 3,
+      "has_time_no_pid": 32,
+      "hours_but_no_close": 5,
+      "in_scope": 56,
+      "lodging_rows": 7,
+      "mismatches": 0,
+      "missing": 46,
+      "no_closing_status": 19,
+      "no_hours_at_all": 22,
+      "rows_total": 95,
+      "unfolded_found": 56,
+      "unresolved_pid": 0
+    },
+    "lodging": {
+      "found": 18,
+      "missing_geocode_source": 1,
+      "missing_resolved_name": 15,
+      "other": 16,
+      "per_trip_match_passed": {
+        "2026-06-yilan": true,
+        "2026-07-sun-moon-lake": true,
+        "2026-08-chiayi": true,
+        "2026-09-northeast-coast": true
+      },
+      "superseded": 15,
+      "superseded_ids": [
+        "d2-1",
+        "d2-10",
+        "d2-11",
+        "d2-2",
+        "d2-3",
+        "d2-4",
+        "d2-5",
+        "d2-6",
+        "d2-7",
+        "d2-8",
+        "d2-9",
+        "fullon-fulong",
+        "lealea",
+        "lodging-xiangshouyixia",
+        "yixianju-easyspace"
+      ]
+    },
+    "match": {
+      "compared": 30,
+      "costs_seen": 4,
+      "hops_seen": 19,
+      "legs_seen": 7,
+      "per_trip_passed": {
+        "2026-06-yilan": true,
+        "2026-07-sun-moon-lake": true,
+        "2026-08-chiayi": true,
+        "2026-09-northeast-coast": true
+      }
+    },
+    "rederivable": {
+      "per_trip_passed": {
+        "2026-06-yilan": false,
+        "2026-07-sun-moon-lake": false,
+        "2026-08-chiayi": true,
+        "2026-09-northeast-coast": false
+      },
+      "provenance_missing": 13,
+      "total_missing": 13
+    }
+  }
+}
