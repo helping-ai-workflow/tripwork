@@ -7,7 +7,7 @@ import sys
 import yaml
 
 from scripts.orchestration import ADVISORY_PROJECTION, input_fingerprint
-from tests.mech_fixtures import build_full_trip, write_artifact
+from tests.mech_fixtures import SLUG, build_full_trip, write_artifact
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CLI = ROOT / "scripts" / "next_stage.py"
@@ -355,3 +355,22 @@ def test_rule15_reruns_the_export_gate_when_any_export_gate_input_is_newer(tmp_p
     got = _next(t, w)
     assert got["next"] == "tripwork:export-gate", got["reason"]
     assert "rule 15" in got["reason"]
+
+
+def test_rule_15_flags_an_html_deliverable_newer_than_the_export_gate_report(tmp_path):
+    """TW-077: export_gate.py reads exports/<slug>-itinerary.html and passes
+    judgement on it (scripts/export_gate.py's run_html_gate), but rule 15's
+    staleness comparison only checked the markdown deliverable and
+    EXPORT_GATE_INPUTS' four yaml files. A re-render that leaves a raw
+    <script> tag in the HTML left the oracle reporting 'complete' against a
+    report that never saw that HTML."""
+    t, w = _full(tmp_path)
+    # _full already bumps export-gate-report.yaml to +120s (deliverables must
+    # be older than the report), so the HTML must be bumped past +120 to
+    # register as stale. Use _bump's relative offset like every other test in
+    # this file -- an absolute time.time() would still be older than +120s
+    # and the test could never go green.
+    _bump(t / "exports" / f"{SLUG}-itinerary.html", 180)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:export-gate"
+    assert f"{SLUG}-itinerary.html" in got["reason"]

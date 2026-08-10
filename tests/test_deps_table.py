@@ -37,7 +37,19 @@ def test_gate_skill_input_row_names_every_artifact_the_cli_opens():
 
 
 def test_export_gate_skill_input_row_names_every_artifact_the_cli_opens():
-    assert _declared_inputs("export-gate") >= set(EXPORT_GATE_INPUTS)
+    """Equality, not superset: superset let the SKILL's Input row declare a yaml
+    outside EXPORT_GATE_INPUTS without being caught, so the two lists could
+    silently drift apart.
+
+    This guard does NOT catch TW-077: `ARTIFACT` only matches backticked
+    `[a-z-]+\\.yaml` basenames, so the HTML deliverable
+    (`exports/<slug>-itinerary.html`) is invisible to it on either side --
+    tightening this equality buys nothing for the HTML gap. TW-077 is closed
+    by tests/test_next_stage.py's rule-15 test; this one only makes the
+    yaml-only half of the same table equal in both directions, matching the
+    itinerary-gate/_DEPS guard's own equality discipline.
+    """
+    assert _declared_inputs("export-gate") == set(EXPORT_GATE_INPUTS)
 
 
 def test_deps_rows_match_the_producing_skills_input_rows():

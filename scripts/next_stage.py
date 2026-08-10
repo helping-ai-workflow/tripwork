@@ -24,9 +24,10 @@ import pathlib
 
 import yaml
 
-from scripts.orchestration import (ADVISORY_PROJECTION, EXPORT_GATE_INPUTS,
-                                    GATE_INPUTS, candidates_stale,
-                                    input_fingerprint, route_gate_failures)
+from scripts.orchestration import (ADVISORY_PROJECTION, EXPORT_DELIVERABLES,
+                                    EXPORT_GATE_INPUTS, GATE_INPUTS,
+                                    candidates_stale, input_fingerprint,
+                                    route_gate_failures)
 from scripts.validate_artifact import validate_file
 
 # (artifact, producing stage, rule tag) in pipeline order — advisory moved to
@@ -140,18 +141,22 @@ def next_stage(trip_dir, work_dir):
         return target, f"rule 13.5: gate fail routes to {target}"
 
     # rule 14
-    md = t / "exports" / f"{slug}-itinerary.md"
+    deliverables = [t / "exports" / name.format(slug=slug)
+                    for name in EXPORT_DELIVERABLES]
+    md = deliverables[0]
     if not md.is_file():
         return "tripwork:export-artifact", "rule 14: no export deliverable"
 
     # rule 15 — same widening as rule 13: the export-gate report must be newer
-    # than both the rendered deliverable AND every artifact export_gate.py reads.
+    # than EVERY deliverable export_gate.py judges (md + html, TW-077) AND
+    # every artifact export_gate.py reads.
     egr = t / "export-gate-report.yaml"
-    stale_deliverable = egr.is_file() and _newer(md, egr)
+    stale_deliverables = [d.name for d in deliverables
+                          if d.is_file() and egr.is_file() and _newer(d, egr)]
     stale_inputs = [n for n in EXPORT_GATE_INPUTS
                     if (t / n).is_file() and _newer(t / n, egr)] if egr.is_file() else []
-    if not egr.is_file() or stale_deliverable or stale_inputs:
-        names = ([f"exports/{md.name}"] if stale_deliverable else []) + stale_inputs
+    if not egr.is_file() or stale_deliverables or stale_inputs:
+        names = [f"exports/{n}" for n in stale_deliverables] + stale_inputs
         why = f" ({', '.join(names)} newer)" if names else ""
         return ("tripwork:export-gate", f"rule 15: export-gate-report missing or stale{why}")
     ereport = _load(egr)

@@ -137,6 +137,13 @@ GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "trip-brief.yaml",
 EXPORT_GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "accommodations.yaml",
                       "verified-pois-media.yaml")
 
+# export_gate.py reads and passes judgement on every one of these (scripts/
+# export_gate.py's md_path / html_path), under exports/ with {slug} substituted.
+# Rule 15's staleness comparison must cover each one -- miss one and that
+# deliverable can be re-rendered after the report ran without the oracle
+# noticing (TW-077: the HTML was the one rule 15 missed).
+EXPORT_DELIVERABLES = ("{slug}-itinerary.md", "{slug}-itinerary.html")
+
 
 def deps_stale(load, artifact):
     """Names of upstreams whose projected content no longer matches what
