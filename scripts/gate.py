@@ -70,10 +70,11 @@ def poi_pool(pois, accommodations):
     bookable-link check on `booking.required`, and only hokkaido-7d's
     `sap-mitsui-garden` and `hak-lavista-bay` set it. sun-moon-lake's two
     candidates carry a bare `booking: {url}` with no `required`, so that check
-    never fires on them either way. (hokkaido-7d is one of the two trips
-    excluded from the schema-clean four, which is why no corpus guard covers
-    this today.) Each precedence is defensible for its own job; unifying them
-    needs its own design and is NOT simply "call poi_pool here too".
+    never fires on them either way. (hokkaido-7d is one of the trips excluded
+    from the schema-clean four (tests/mech_fixtures.py::CORPUS_TRIPS), which
+    is why no corpus guard covers this today.) Each precedence is defensible
+    for its own job; unifying them needs its own design and is NOT simply
+    "call poi_pool here too".
     """
     by_id = {p["id"]: p for p in pois}
     for lp in chosen_lodging_pois(accommodations):

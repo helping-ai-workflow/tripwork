@@ -212,16 +212,18 @@ def test_no_hours_marker_routes_to_source_verify():
 
     `rederive_closing` emits "POI carries neither hours.close nor
     hours.no_fixed_close" for every scheduled row whose POI records no closing
-    time -- 27 such rows across the four schema-clean trips (yilan 5,
-    sun-moon-lake 12, chiayi 0, northeast 10), measured after C1 moved the
-    lodging rows out of scope. `hours` lives in `verified-pois.yaml`, which ONLY
+    time -- a real, per-trip-uneven share of rows across the four schema-clean
+    trips (tests/corpus-baseline.json's per_trip `classes.poi_no_hours`; C1
+    already moved the lodging rows out of scope by the time this axis is
+    measured). `hours` lives in `verified-pois.yaml`, which ONLY
     `tripwork:source-verify` writes, and that skill's own SKILL.md:47 ends the
     paragraph with "leave `close` absent and let the gate flag it". Before this
     entry `_ROUTES` had no source-verify group, so the failure fell through to
     `tripwork:itinerary-synthesis` -- a stage that cannot write
     verified-pois.yaml. Re-running it produced the same failure forever: with
-    the group removed, 2026-06-yilan drains [26, 24, 16, 5, 5, ...] and stalls
-    at 5, exactly its no-hours count.
+    the group removed, 2026-06-yilan's drain simulation reaches a fixed point
+    instead of terminating, stalling at exactly its own no-hours count (see the
+    baseline above for the live figure).
     (tests/test_corpus_gate.py::test_rule_13_5_drains_instead_of_looping pins
     the termination, and
     test_removing_the_source_verify_route_reproduces_the_non_terminating_drain

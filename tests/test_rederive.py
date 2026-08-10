@@ -508,9 +508,13 @@ def test_rows_without_a_time_or_a_resolving_poi_are_out_of_scope():
     burying the real closing-buffer signal under noise that was never
     schedulable against a POI's hours in the first place.
 
-    Measured: of 94 corpus rows, 31 carry a `time` but no `poi_id` (move rows,
-    free-text meals) and 5 carry a `poi_id` that does not resolve in
-    verified-pois. Counting either in `examined` would bury the signal.
+    Both scope cuts guard against a real shape, not just this hand-built
+    fixture: move rows / free-text meals are a substantial, live share of
+    every trip's rows (`tests/corpus-baseline.json`'s
+    `rederive_axes.closing.has_time_no_pid`); a `poi_id` that resolves in
+    neither source is tracked by the same baseline (`.unresolved_pid`),
+    whether or not the current corpus happens to exercise it. Counting
+    either in `examined` would bury the signal.
 
     The third row below (`time` + a `poi_id` that is NOT in `by_id`) exercises
     the `pid not in (by_id or {})` disjunct directly — otherwise that branch

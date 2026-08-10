@@ -562,9 +562,12 @@ def test_gate_home_leg_rendered_fails_when_unreferenced():
 
 def test_gate_home_leg_rendered_ignores_non_home_legs():
     """A kind:inter_stop (or absent-kind, default) leg is NOT subject to this
-    check. Measured before specifying the fix: across the four schema-clean
-    corpus trips, 6 legs, all kind-absent (defaulting to inter_stop) -- so this
-    check fires on nothing at HEAD, zero fallout."""
+    check. Before specifying the fix: the great majority of legs across the
+    four schema-clean corpus trips were kind-absent (defaulting to
+    inter_stop) -- so this check was verified against real data to fire on
+    nothing at HEAD for that shape, zero fallout (live leg count is
+    tests/corpus-baseline.json's `rederive_axes.match.legs_seen`, not pinned
+    here; TW-065 later legalized `kind: home` on some of these same legs)."""
     legs = {"legs": [{"from": "嘉義", "to": "台南", "mode": "rail",
                       "duration_mins": 40, "status": "ok"}]}
     itin = _itin([_meal("a")])

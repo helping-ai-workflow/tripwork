@@ -123,7 +123,8 @@ def next_stage(trip_dir, work_dir):
     # rule 13 — the gate report must be newer than EVERY artifact the gate reads.
     # Comparing against itinerary.yaml alone let a re-verify that demoted a
     # scheduled POI leave the oracle reporting 'complete' on a report that never
-    # saw it. Measured on the real corpus: four such gaps across four trips.
+    # saw it. This fires for real on the live corpus, not just a hypothetical
+    # (see skills/orchestrator/SKILL.md's rule 13 note for a named example).
     gr = t / "gate-report.yaml"
     stale_inputs = [n for n in GATE_INPUTS
                     if (t / n).is_file() and _newer(t / n, gr)] if gr.is_file() else []

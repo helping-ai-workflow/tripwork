@@ -327,10 +327,10 @@ def test_corrupt_scalar_report_routes_back_to_gate(tmp_path):   # v0.30.0 backlo
 def test_rule13_reruns_the_gate_when_any_gate_input_is_newer(tmp_path):
     """Red at HEAD: rule 13 compares gate-report against itinerary.yaml only, so
     a re-verify that demotes a scheduled POI leaves the oracle reporting
-    'complete' on a report that never saw it. Measured on the real corpus: four
-    such gaps across four trips, all true positives (e.g. yilan's
-    verified-pois.yaml is 527 seconds newer than the gate-report that
-    supposedly gated it)."""
+    'complete' on a report that never saw it. This fires for real on the live
+    corpus, all true positives (e.g. yilan's verified-pois.yaml was observed
+    527 seconds newer than the gate-report that supposedly gated it) — not
+    pinned here as a trip count."""
     t, w = _full(tmp_path)
     assert _next(t, w)["next"] == "complete"
 
@@ -341,9 +341,10 @@ def test_rule13_reruns_the_gate_when_any_gate_input_is_newer(tmp_path):
 
 
 def test_rule15_reruns_the_export_gate_when_any_export_gate_input_is_newer(tmp_path):
-    """Same widening applied to rule 15 against EXPORT_GATE_INPUTS. Measured 0
-    extra fires on the real corpus (unlike rule 13's 4), but the predicate is
-    exercised here with verified-pois-media.yaml specifically because it is the
+    """Same widening applied to rule 15 against EXPORT_GATE_INPUTS. Rule 15's
+    widening did not add extra fires of its own on the real corpus (unlike
+    rule 13's, which does), but the predicate is exercised here with
+    verified-pois-media.yaml specifically because it is the
     one EXPORT_GATE_INPUTS member that is NOT also in GATE_INPUTS — bumping any
     of the other three would make rule 13 fire first and this test would never
     reach rule 15 at all."""

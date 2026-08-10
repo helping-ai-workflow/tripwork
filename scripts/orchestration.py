@@ -35,10 +35,11 @@ _ROUTES = (
     # closure-days paragraph ends "leave `close` absent and let the gate flag
     # it", so this is the stage the flag was always meant to reach. Without this
     # group the failure fell through to itinerary-synthesis, which cannot write
-    # the field: 27 such rows across the four clean trips (yilan 5, sun-moon-lake
-    # 12, chiayi 0, northeast 10), and a drain simulation that reached a fixed
-    # point at exactly those counts and never passed (C2). chiayi has none, so it
-    # is the one clean trip that drains either way.
+    # the field: a real, per-trip-uneven share of the corpus carries this gap
+    # (tests/corpus-baseline.json's per_trip `classes.poi_no_hours`), and a
+    # drain simulation that reached a fixed point at exactly that count never
+    # passed (C2). chiayi has none, so it is the one clean trip that drains
+    # either way.
     #
     # LAST among the producing-stage groups on purpose. verified-pois.yaml is an
     # upstream of routing / accommodations / legs / cost in `_DEPS` below, so
@@ -110,8 +111,10 @@ WHOLE_DOC = ()
 # table and the documentation cannot drift apart.
 #
 # A projection tuple means "only these top-level keys of the upstream invalidate
-# me"; WHOLE_DOC means any change does. Narrow projections matter: chiayi's three
-# brief edits fired 12 of its 35 edges under a whole-document rule.
+# me"; WHOLE_DOC means any change does. Narrow projections matter: a small
+# handful of chiayi's brief edits fired a disproportionate share of its
+# dependency edges under a whole-document rule (not pinned as a count here —
+# it is illustrative, not a corpus measurement this module re-checks).
 _DEPS = {
     "advisory.yaml": {"trip-brief.yaml": ADVISORY_PROJECTION},
     "candidates.yaml": {"trip-brief.yaml": WHOLE_DOC},
@@ -150,18 +153,20 @@ def deps_stale(load, artifact):
     `artifact` recorded. FAIL-OPEN: an artifact with no input_fingerprints
     predates the mechanism and is never called stale.
 
-    Fail-open is deliberate and measured. A naive mtime rule fires on 37 of 174
-    edges across the six real trips and starts a non-terminating cascade on
-    chiayi — destination-research rewrites candidates.yaml with a newer mtime,
-    which invalidates verified-pois.yaml, and so on. Treating an absent
-    fingerprint as stale would reproduce exactly that. The pressure to record
-    fingerprints belongs on the gate (verdicts_rederivable), not on the router.
+    Fail-open is deliberate and measured. A naive mtime rule fires on a real,
+    substantial fraction of the dependency edges across the live consumer
+    corpus and starts a non-terminating cascade on chiayi — destination-research
+    rewrites candidates.yaml with a newer mtime, which invalidates
+    verified-pois.yaml, and so on. Treating an absent fingerprint as stale
+    would reproduce exactly that. The pressure to record fingerprints belongs
+    on the gate (verdicts_rederivable), not on the router.
 
     UNWIRED IN v0.33.0, and rule 11 is its hand-rolled twin. Do not read "not
     wired" as "nothing produces the input": skills/travel-advisory/SKILL.md
     instructs recording input_fingerprints["trip-brief.yaml"] and
     schemas/advisory.schema.json declares the field. What is missing is DATA —
-    zero artifacts across the six corpus trips record it yet.
+    no artifact in the corpus records it yet (a live fact, not pinned here as
+    a count or a trip total).
 
     scripts/next_stage.py's rule 11 already performs the equivalent of
     deps_stale(load, "advisory.yaml") inline, over this module's own

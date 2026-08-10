@@ -214,7 +214,9 @@ def rederive_cost(cost):
     # scripts/cost.py:22 returns a DICT {"by_category": ..., "total": ...}, not a
     # 2-tuple. Unpacking it as a pair silently binds the two KEY STRINGS, and the
     # comparison below then reads `rec == "total"` — int vs str, mismatching on
-    # every trip. Measured: with the correct read, 4 of 4 clean trips MATCH.
+    # every trip. With the correct read, every clean corpus trip's cost.total
+    # MATCHes sum_costs' re-derivation (see tests/corpus-baseline.json's
+    # `rederive_axes.match.per_trip_passed`, not pinned as a count here).
     summed = sum_costs(cost.get("line_items") or [])
     by_cat, total = summed["by_category"], summed["total"]
     out.compared += 1
@@ -253,8 +255,10 @@ def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
     """Re-derive each timed row's closing_status.
 
     Scope: rows carrying BOTH a `time` and a `poi_id` that resolves in by_id,
-    EXCEPT `slot: lodging` rows. Move rows and free-text meals (31 of 94 in the
-    corpus) have no closing verdict to make and are not counted in `examined`.
+    EXCEPT `slot: lodging` rows. Move rows and free-text meals (a real,
+    non-trivial share of the corpus, tracked in tests/corpus-baseline.json's
+    `rederive_axes.closing.has_time_no_pid`) have no closing verdict to make
+    and are not counted in `examined`.
 
     Why lodging is out of scope (C1, the final v0.33.0 whole-branch review).
     `run_gate` folds each stop's chosen lodging into `by_id` (the P4 rule,

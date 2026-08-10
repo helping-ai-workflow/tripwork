@@ -95,7 +95,8 @@ def test_every_skill_with_an_input_row_is_covered():
 def test_deps_stale_fails_open_when_no_fingerprint_was_recorded():
     """An artifact with no input_fingerprints predates the mechanism and must
     never be called stale — this is what keeps the research tier from
-    reproducing the 37/174 mtime cascade."""
+    reproducing the naive-mtime-rule cascade `deps_stale`'s own docstring
+    describes (scripts/orchestration.py)."""
     docs = {"candidates.yaml": {"candidates": []}, "trip-brief.yaml": {"destination": "A"}}
     assert deps_stale(docs.get, "candidates.yaml") == []
 
