@@ -394,7 +394,8 @@ def _measure_rederive_axes():
         # scripts/rederive.py:657-659 的 shipped 呼叫逐字相同（TW-083）。
         # 不可以用 _checks(res)["verdicts_rederivable"]["examined"] —— 那是
         # total.found，等於 rederive_lodging.found + rederive_cost.found，
-        # 每趟多 1（實測四趟 22 vs 18）。
+        # 每趟多 1（cost 軸自己那筆 found，跟住宿軸無關；兩個 found 都會隨
+        # 語料變動，差值不在此釘死，見 tests/corpus-baseline.json）。
         found += rederive_lodging(
             acc,
             local_lang=((brief or {}).get("destination") or {}).get("local_lang")).found

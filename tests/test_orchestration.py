@@ -159,9 +159,10 @@ def test_ai_tone_marker_routes_to_itinerary_synthesis():
     rather than left to the default branch -- Task 1 made the default branch
     stage-specific, so relying on fall-through would be an accident waiting
     to happen. Built from a REAL ai_tone_failures() output (an em-dash, the
-    same shape as 31 of the 32 real canonical hits), not a hand-typed
-    literal, so a message-format rename on either side of the file boundary
-    fails here."""
+    same shape the corpus's own em-dash hits took at calibration time --
+    see CHANGELOG.md's 0.33.0 entry for the point-in-time count), not a
+    hand-typed literal, so a message-format rename on either side of the file
+    boundary fails here."""
     failures = ai_tone_failures("抵嘉義先吃午餐——阿宏師火雞肉飯（光華總店）")
     assert any(f.startswith("AI-tone ") for f in failures)
     assert route_gate_failures(failures) == "tripwork:itinerary-synthesis"

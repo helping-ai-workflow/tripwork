@@ -549,14 +549,16 @@ def test_a_timed_lodging_row_is_out_of_closing_scope():
     `additionalProperties: false` with no `hours` property, so the only way to
     satisfy the demand fails `validate_artifact`
     (test_an_accommodations_candidate_cannot_legally_carry_hours below pins
-    that). 5 unsatisfiable rows shipped on real consumer data: 2026-06-yilan 2,
-    2026-08-chiayi 3.
+    that). Unsatisfiable rows of exactly this shape ship on real consumer
+    data, not just this fixture.
 
     The cut is on `slot`, deliberately NOT on "did this id come only from the
-    accommodations fold". Measured over the four schema-clean trips: 7 timed
-    lodging rows resolve, and 2 of them (2026-07-sun-moon-lake `lealea` and
-    `d2-2`) resolve through verified-pois.yaml because the consumer copied the
-    hotels there. Those two carry no `hours` either — the same defect in
+    accommodations fold". Timed lodging rows resolve two ways in the real
+    corpus (live total: tests/corpus-baseline.json's
+    `rederive_axes.closing.lodging_rows`): through the accommodations fold,
+    or — for 2026-07-sun-moon-lake's `lealea` and `d2-2` specifically —
+    through verified-pois.yaml, because the consumer copied those two hotels
+    there directly. Those two carry no `hours` either — the same defect in
     different clothing — so a fold-membership cut would leave them demanding a
     closing time from a hotel.
 
