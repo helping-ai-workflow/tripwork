@@ -69,32 +69,33 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
     run_rederivation — the divergence C1 turned on.
 
     Re-measured for v0.34.0 Task 6 (real Gate 0 threaded into rederive_lodging,
-    Gate 2c retired). 230 verdict-bearing records found is UNCHANGED (Task 6
-    reclassifies lodging findings; it does not add or remove records to
-    examine). compared drops from 69 (TW-070) to 51: the 18 lodging
-    candidates that used to reach a comparison (17 matching + 1 mismatching,
-    d2-6) now land in `superseded` before classify_candidate ever runs, since
-    none of them carries a sourced business_status -- there is no `operating`
-    value left to compare with. That is also why the exactly-one-mismatch
-    claim TW-070 pinned here is gone: this corpus has ZERO verdicts_match
-    mismatches left on any axis (match_failed is empty), not because d2-6 was
-    fixed, but because its defect moved from "wrong verdict" to "verdict
-    produced under rules this release supersedes" -- a different, more
-    precise claim about the same record (pinned by id in
-    tests/test_rederive.py::test_real_trips_lodging_is_entirely_superseded_
-    today).
+    Gate 2c retired). `found` (verdict-bearing records) is UNCHANGED by Task 6:
+    Task 6 reclassifies lodging findings between buckets, it does not add or
+    remove records to examine. `compared` DROPS at Task 6, because every
+    lodging candidate that used to reach a comparison (the TW-070 baseline
+    included 2026-07-sun-moon-lake's `d2-6`, a cluster_fallback centroid with
+    no existence proof) now lands in `superseded` before classify_candidate
+    ever runs, since none of them carries a sourced business_status -- there
+    is no `operating` value left to compare with. That is also why the
+    exactly-one-mismatch claim TW-070 pinned here is gone: this corpus can
+    have ZERO verdicts_match mismatches left on any axis (`match_failed`
+    empty), not because `d2-6` was fixed, but because its defect moved from
+    "wrong verdict" to "verdict produced under rules this release supersedes"
+    -- a different, more precise claim about the same record (pinned by id in
+    tests/test_rederive.py::test_real_trips_lodging_axis_matches_the_baseline).
 
-    The sixth axis's OWN headline number is the third assertion: 123 of the
-    145 examined records (105 POI + 18 lodging, both by id count) were
-    produced under superseded rules (verdicts_rule_current) -- up from 105 of
-    127 pre-Task-6, both in numerator (the 18 lodging candidates newly
-    counted) and denominator (Step 4a: `examined` now sums poi_outcome.found +
-    lodging_outcome.found, not poi_outcome.found alone). Today these totals
-    are only recoverable by hand-summing EXPECTED's per-trip
-    poi_verdict_superseded / lodging_verdict_superseded values -- a change
-    that moved findings between trips while preserving the sums would pass
-    unnoticed, so they are pinned here as explicit totals instead, counted
-    the same way _classify already counts each trip's failures by class.
+    The sixth axis's OWN headline number is the third assertion:
+    `examined_rule_current` (POI-found + lodging-found, by id count, Step 4a)
+    against how many of those land in `superseded` (verdicts_rule_current) --
+    Task 6 moved both the numerator (lodging candidates newly counted) and
+    the denominator (`examined` now sums poi_outcome.found +
+    lodging_outcome.found, not poi_outcome.found alone) at once, so neither
+    reads as a bare regression against the pre-Task-6 figures. A change that
+    moved findings between trips while preserving the sums would pass
+    unnoticed if only a total were pinned, so the totals are pinned here
+    explicitly, counted the same way _classify already counts each trip's
+    failures by class -- what those totals equal today lives in
+    tests/corpus-baseline.json, read below, not in this docstring.
 
     TW-074: the totals above and the per-trip `checks_passed` comparison
     below are both read from tests/corpus-baseline.json rather than hand-

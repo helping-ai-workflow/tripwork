@@ -231,9 +231,12 @@ def test_real_trips_have_zero_verdicts_match_failures():
 
     False-positive budget, measured at fd053dd before implementation.
 
-    verdicts_match: 29 records compared across the four trips, ZERO mismatches —
-    6 legs, 19 hops, 4 cost totals. That is the whole claim of this mechanism:
-    it costs nothing on data whose verdicts are right.
+    verdicts_match: every legs/hops/cost record recomputes to the same
+    verdict it was recorded with, by axis (legs, hops, cost totals) — ZERO
+    mismatches. That is the whole claim of this mechanism: it costs nothing
+    on data whose verdicts are right. The compared count and its per-axis
+    split are pinned via tests/corpus-baseline.json (`rederive_axes.match`)
+    below, not repeated here as literals.
 
     The counts are asserted so a silent DROP in coverage fails too — a check that
     examines nothing is the defect this module exists to close.
@@ -279,24 +282,27 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
     run in CI (I3).
 
     The other axis, and the honest half of the budget: the same four trips
-    have 19 verdicts_rederivable failures, one per hop, all of them
-    'no duration_source'.
+    produce verdicts_rederivable failures, one per hop lacking a recorded
+    `duration_source`.
 
     This is a TRUE positive, not noise. Those hops were written before TW-066
     existed, so nothing recorded where their durations came from. Pinning the
-    number means a future change that quietly widens or narrows the gap fails
+    count means a future change that quietly widens or narrows the gap fails
     here instead of drifting.
 
     It is also the km/mode omission escape closing at the artifact layer: a hop
-    that omits mode, or whose endpoint has no centroid, lands in this same list.
-    Today the corpus omits neither, so all 19 failures are provenance ones.
+    that omits mode, or whose endpoint has no centroid, would land in this same
+    list. Whether the corpus currently exercises that path, as opposed to the
+    pure provenance gap, is the `provenance_missing` vs `total_missing` split
+    read from tests/corpus-baseline.json below, not asserted here as a fixed
+    number.
 
     accommodations={"stops": []} (I2): this test is scoped to legs/hops/cost --
     the corpus's OWN, separate lodging rederivable gap is pinned by
-    test_real_trips_lodging_has_exactly_one_verdicts_match_failure below. Passing
-    the real accommodations.yaml here would fold 19 more findings (1 missing
-    geocode_source + 18 missing resolved_name) into this test's 19, doubling the
-    number for a reason unrelated to what this test claims.
+    test_real_trips_lodging_axis_matches_the_baseline below. Passing the real
+    accommodations.yaml here would fold that axis's own missing-geocode_source
+    and missing-resolved_name findings into this test's count, inflating it for
+    a reason unrelated to what this test claims.
 
     TW-074: total_missing / provenance_missing are read from
     tests/corpus-baseline.json rather than hand-copied literals. The per-trip
@@ -343,25 +349,30 @@ def test_real_trips_lodging_axis_matches_the_baseline():
     verdicts_match failure -- 2026-07-sun-moon-lake's d2-6, a cluster_fallback
     centroid with no existence proof, re-deriving 'unverified' via Gate 2c.
 
-    Re-measured after Step 4 threads a REAL Gate 0 into rederive_lodging: every
-    one of the 18 candidates predates business_status (none of the four
-    schema-clean trips has been re-run through accommodation-research since),
-    so all 18 now land in `superseded`, not `mismatches` -- none of them ever
-    reaches classify_candidate, so Gate 2c (retired in this same task, Step 4b)
-    never gets a chance to run on any of them either. d2-6's old defect is now
-    ONE of these 18 superseded findings, asserted by id so a bare count would
-    not stay green if a DIFFERENT candidate stopped being found. verdicts_match
-    is vacuously green for lodging today (0 compared) -- the honest state of
-    an un-migrated corpus, not a hidden gap: surfacing that explicitly, instead
-    of folding it into a false all-clear, is the whole point of `superseded`
-    as its own axis (verdicts_rule_current, Task 3/4a).
+    Re-measured after Step 4 threads a REAL Gate 0 into rederive_lodging: any
+    candidate that still predates business_status (has not been re-run
+    through accommodation-research since) lands in `superseded`, not
+    `mismatches` -- it never reaches classify_candidate, so Gate 2c (retired
+    in this same task, Step 4b) never gets a chance to run on it either.
+    d2-6's old defect is one of these superseded findings, asserted by id
+    (`superseded_ids`) so a bare count would not stay green if a DIFFERENT
+    candidate stopped being found. A vacuously green verdicts_match for
+    lodging (0 compared) would be the honest state of an entirely un-migrated
+    corpus, not a hidden gap: surfacing that explicitly, instead of folding it
+    into a false all-clear, is the whole point of `superseded` as its own axis
+    (verdicts_rule_current, Task 3/4a) -- how many candidates are still
+    un-migrated, versus how many have since re-run through
+    accommodation-research and now compare, is the `found` / `superseded` /
+    `other` split read from tests/corpus-baseline.json below.
 
-    The other 19 findings are unchanged from before this task and still fire
+    The `other` findings are unchanged from before this task and still fire
     regardless of superseded status (the missing-input checks run before the
-    Gate 0 check, see rederive_lodging): 1 candidate omits geocode_source
-    entirely (a second, pre-TW-062 gap on the same 2026-06-yilan hotel) and 0
-    of 18 carry resolved_name (the field is new in an earlier release, so
-    every candidate is missing it) -- 1 + 18 == 19.
+    Gate 0 check, see rederive_lodging): a candidate that omits geocode_source
+    entirely is a second, pre-TW-062 gap on the same 2026-06-yilan hotel
+    (pinned by identity, not just by count); how many candidates still lack
+    resolved_name -- the field is new enough that at Task 6 time none of them
+    carried it -- is the `missing_geocode_source` / `missing_resolved_name`
+    split read from the baseline below.
 
     TW-074: the paragraph above describes the corpus shape as measured at
     Task 6 time; it is no longer the whole story (a later, legitimate corpus
@@ -849,23 +860,29 @@ def test_real_trips_closing_axis_matches_the_baseline():
     pool. It now calls `scripts/gate.py::poi_pool`, the same helper `run_gate`
     calls, so the two cannot diverge again.
 
-        94 itinerary rows total across the four schema-clean trips
-      - 31 carry a `time` but no `poi_id` (move rows, free-text meals)
-      -  0 carry a `poi_id` that resolves in NEITHER source
-      -  7 are `slot: lodging` rows (out of scope, C1 — 5 resolve only through
-           the accommodations fold, 2 through verified-pois.yaml because the
-           consumer copied the hotels there; all 7 carry no `hours`)
-      = 56 in scope (`time` AND a resolving `poi_id` AND not lodging)
+    Every itinerary row across the four schema-clean trips falls into exactly
+    one bucket: a `time` but no `poi_id` (move rows, free-text meals); a
+    `poi_id` that resolves in NEITHER source; a `slot: lodging` row (out of
+    scope, C1 -- whether it resolves only through the accommodations fold or
+    through verified-pois.yaml because the consumer copied the hotel there,
+    every lodging row carries no `hours`); or the remainder -- `time` AND a
+    resolving `poi_id` AND not lodging -- which is what `in_scope` counts.
 
-    Of the 56: every one lands on the rederivable axis and 0 on the match axis —
-    22 POIs have no `hours` at all and 5 have `hours` but no `close` (27 land on
-    'neither close nor no_fixed_close'), and the remaining 29 land on 'no
-    recorded closing_status', because 0 corpus rows carry a closing_status
-    today. 56 verdicts_rederivable failures, 0 verdicts_match failures, 0
-    compared — the honest half of the same budget Task 1 Step 8 pinned for
-    legs/hops/cost. (The pre-C1 figures were 24/5/29 against 58 rows; the two
-    that moved are sun-moon-lake's `lealea` and `d2-2`, hotels sitting in
-    verified-pois.yaml with no `hours` — now out of scope as lodging rows.)
+    Of the in-scope rows, each lands on either the rederivable axis (an input
+    needed to recompute is missing) or the match axis (every input present,
+    verdict compared). When rederivable, the miss splits three ways by why
+    closing_status could not be recomputed: no `hours` recorded at all;
+    `hours` recorded but no `close` (together, 'neither close nor
+    no_fixed_close'); or `hours.close` present but no `closing_status`
+    recorded on the row itself ('no recorded closing_status'). Right after the
+    C1 fix, every in-scope row fell on the rederivable side -- the honest half
+    of the same budget Task 1 Step 8 pinned for legs/hops/cost; TW-074 below
+    explains why that is no longer the whole story. The current split, and how
+    many rows now compare instead of missing entirely, is read from
+    tests/corpus-baseline.json's `rederive_axes.closing` below, not asserted
+    here as fixed figures. (The pre-C1 figures were 24/5/29 against 58 rows;
+    the two that moved are sun-moon-lake's `lealea` and `d2-2`, hotels sitting
+    in verified-pois.yaml with no `hours` — now out of scope as lodging rows.)
 
     TW-074: the paragraphs above describe the corpus shape as measured after
     the C1 fix; it is no longer the whole story (a later, legitimate corpus
@@ -1231,13 +1248,16 @@ def test_omitting_pois_entirely_is_lenient_not_a_forced_failure():
     """Fix round 1 (TW-070), the asymmetry `run_rederivation`'s own docstring
     documents: `pois` defaults to `()`, not `None`, unlike legs/routing/cost/
     accommodations. Those four are always threaded through by
-    scripts/gate.py::run_gate, so a `None` default is safe -- `pois` is not
-    threaded yet (Task 4's wiring; run_gate already receives its own `pois`
-    argument but does not forward it to run_rederivation at all). Had this
-    default matched the other four, EVERY existing run_gate call -- and every
-    real gate run in production, today -- would report a false
-    'verified-pois.yaml absent' failure on an artifact that plainly is not
-    absent. Omitting `pois=` must stay silent; only an EXPLICIT `pois=None`
+    scripts/gate.py::run_gate, so a `None` default is safe -- and since
+    v0.34.0 Task 4's wiring, run_gate forwards its own `pois` argument the
+    same way (`pois=pois`, unconditionally). The asymmetric default still
+    matters for this test suite: most of this module's own
+    run_rederivation() call sites never pass a `pois` argument, because they
+    are exercising legs/hops/cost/closing, not the POI axis. Had this
+    default matched the other four, every one of those calls would report a
+    false 'verified-pois.yaml absent' failure on an artifact those tests
+    never claimed to supply. Omitting `pois=` must stay silent; only an
+    EXPLICIT `pois=None`
     (test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip, above) means
     'the artifact is genuinely absent' and reaches the hard failure."""
     from scripts.rederive import run_rederivation

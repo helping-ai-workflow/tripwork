@@ -448,8 +448,8 @@ def test_geocode_source_missing_refuses_when_not_recorded():
     cluster_fallback-specific proof sub-check was removed; "was geocode_
     source recorded at all" is a distinct, still-enforced requirement). A POI
     that never records where its coordinate came from is a provenance gap on
-    its own -- 19 of 127 real POIs across the four schema-clean trips do
-    exactly this.
+    its own, and a real one, not merely a hypothetical shape -- see
+    tests/test_e2e_v033_closure.py::_candidates' docstring for why.
 
     RED at TW-070-era HEAD (I3's original finding, historical): `verify_poi`'s
     `geo_source = (... or {}).get("geocode_source") or ""` used to coerce the

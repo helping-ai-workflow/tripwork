@@ -45,13 +45,14 @@ OPERATING_MAX_AGE_DAYS = 90
 
 # Google place ids are opaque but never this short; the field is agent-authored
 # and nothing in the plugin writes it, so a shape check is the only thing
-# standing between a stray value and a cleared gate. (TW-072) Measured on the
-# FOUR SCHEMA-CLEAN corpus trips — the same denominator every other figure in
-# this release quotes: 57 POIs carry a gmaps_place_id, every one exactly 27
-# characters, none shorter than 8, and zero lodging candidates carry one at
-# all. Across all six trips (including the two that are not schema-clean) it
-# is 86, also every one exactly 27 — the floor demotes nothing real on either
-# denominator. (M6)
+# standing between a stray value and a cleared gate. (TW-072) Measured against
+# the live corpus, on both the schema-clean trips -- the denominator every
+# other release-note figure uses -- and the full trip set: every real
+# gmaps_place_id is exactly 27 characters, none shorter than 8, and no
+# lodging candidate carries one at all -- the floor demotes nothing real on
+# either denominator. Trip counts and per-denominator totals are not pinned
+# here and will drift as the corpus grows; see CHANGELOG's TW-072 entry for
+# the point-in-time figures measured at ship time. (M6)
 #
 # ⚠ NO PRODUCTION READER as of v0.34.0 (M3/M8). Its only caller is
 # `has_existence_proof`, which lost its production callers when Gate 2c was

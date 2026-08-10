@@ -126,8 +126,11 @@ def _candidates():
     Defect 2 is NOT authored here -- source_verify_run structurally cannot
     produce it (`_geocode_candidate` always writes geocode_source alongside the
     coordinate). It is created below by deleting that one field from poi-legacy's
-    driver-written geocode, which is exactly the shape a hand-rolled consumer
-    driver produces and which 19 of the 127 real corpus POIs carry.
+    driver-written geocode: the shape a hand-rolled consumer driver produces
+    when it writes geocode data outside source_verify_run and never sets
+    geocode_source. Not a hypothetical -- real consumer data has carried this
+    shape -- but how many corpus POIs carry it today is not pinned in this
+    fixture's docstring; it drifts as consumers re-run source-verify.
     """
     ok = _sourced_status()
 
@@ -519,8 +522,9 @@ def test_defect_02_geocode_with_no_geocode_source(closure):
     """Defect 2 / write time / verify.py's GEOCODE_SOURCE_MISSING sentinel.
 
     One-field differential against the driver's own output: poi-legacy is
-    identical in every respect except that geocode_source was deleted, which is
-    what a hand-rolled consumer driver produces (19 of 127 corpus POIs)."""
+    identical in every respect except that geocode_source was deleted, which
+    is what a hand-rolled consumer driver produces (see _candidates' own
+    docstring for why this is a real shape, not a contrived one)."""
     poi = closure.finished_pois["poi-legacy"]
     assert "geocode_source" not in poi["geocode"]
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
@@ -717,8 +721,8 @@ def test_layer_boundary_gate_does_not_catch_the_write_time_defects(closure):
     source-verify run over this exact shape refuses the POI before 'verified'
     is ever recorded. What TW-070 adds is the second line of defense this
     fixture's own scenario needs -- a driver wrote 'verified', then a field
-    was deleted by hand (a corpus-measured shape, not a contrived one: 19 of
-    127 real POIs omit geocode_source) -- and that hand-edited artifact no
+    was deleted by hand (a corpus-measured shape, not a contrived one -- see
+    _candidates' own docstring) -- and that hand-edited artifact no
     longer slips past the gate silently. It surfaces as exactly one POI-axis
     failure and routes to the SAME destination write-time refusal would have:
     tripwork:source-verify (scripts/orchestration.py's `pois[` marker)."""

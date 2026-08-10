@@ -19,8 +19,11 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   as one of three FIRST-APPLICABLE buckets, in this order, so one record
   produces at most one failure and names the one thing to fix first:
   `superseded` (the recorded verdict cannot stand because the rules that
-  produced it were superseded — today: a bare-string or absent
-  `business_status`, superseded by TW-063's object form), `missing` (an input
+  produced it were superseded — today: a `business_status` that is not the
+  sourced `{status, source_url, as_of}` form at all (bare-string or absent,
+  superseded by TW-063's object form), or one that IS that dict shape but
+  unusable — an unrecognised status, a blank `source_url`, or an unparseable
+  `as_of`), `missing` (an input
   needed to recompute is absent — today: no `resolved_name` recorded at all),
   `mismatches` (every input is present and the verdict does not follow). A
   bare-string `business_status` is deliberately **not** folded into `missing`:

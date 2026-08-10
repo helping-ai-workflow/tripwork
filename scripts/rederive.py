@@ -624,19 +624,20 @@ def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
     `pois` defaults to `()`, NOT `None` — deliberately asymmetric with
     legs/routing/cost/accommodations, whose `None` defaults are safe because
     scripts/gate.py::run_gate ALWAYS threads its own legs/routing/cost/
-    accommodations parameters through to this function. `pois` is not yet
-    threaded the same way (Task 4's wiring): run_gate already receives a real
-    `pois` list as its own mandatory first argument but does not forward it
-    here at all — not "might have a bug that leaves it unset", literally never
-    attempts it, today. Had this default been `None` (fix round 1, TW-070),
-    every existing `run_gate` call in the entire test suite — and every real
-    gate run in production — would report a false 'verified-pois.yaml absent'
-    failure on an artifact that is not absent, merely not yet forwarded: a
-    worse defect than the silent no-op being fixed. Omitting `pois=` (what
-    every caller does today) stays lenient — 0 found, nothing to report. A
-    caller that means "the artifact is genuinely absent" says so explicitly
-    with `pois=None`, which still reaches `rederive_pois`'s hard failure
-    unchanged (see test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip
+    accommodations parameters through to this function (and, since v0.34.0
+    Task 4's wiring, its own `pois` too: run_gate passes `pois=pois`
+    unconditionally on its call into this function). The asymmetric default
+    still matters for this module's own test suite: most of
+    `run_rederivation`'s call sites exercise the legs/hops/cost/closing axes
+    and never pass a `pois` argument at all, because the POI axis is not what
+    they are testing. Had this default been `None`, every one of those calls
+    would report a false 'verified-pois.yaml absent' failure on an artifact
+    those tests never claimed to supply: a worse defect than the silent
+    no-op it would replace. Omitting `pois=` stays lenient — 0 found,
+    nothing to report. A caller that means "the artifact is genuinely
+    absent" says so explicitly with `pois=None`, which still reaches
+    `rederive_pois`'s hard failure unchanged (see
+    test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip
     and test_omitting_pois_entirely_is_lenient_not_a_forced_failure).
     """
     total = Outcome()

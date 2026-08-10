@@ -49,15 +49,19 @@ CLASSES = (
     # marker, discriminated by each message's own tail -- both share "was
     # produced under superseded rules" as a common substring (see above), but
     # POI's ends "...re-run source-verify for this POI" and lodging's ends
-    # "...re-run accommodation-research for this candidate". Every corpus hit
-    # on EITHER axis today is the SAME subtype -- a bare-string or absent
-    # business_status, superseded by TW-063's/TW-072's sourced object form
-    # (105 of 127 POI records, 18 of 18 lodging candidates, across these four
-    # trips; see scripts/rederive.py::rederive_pois / rederive_lodging's
-    # docstrings). No corpus hit today is the 'missing' or 'mismatch'
-    # subtype on either axis, so this module carries no marker for them -- if
-    # a future corpus update produces one, _classify's assert surfaces it as
-    # an unattributed failure instead of silently absorbing it.
+    # "...re-run accommodation-research for this candidate". One marker per
+    # axis covers BOTH `superseded` sub-shapes (a business_status that is not
+    # the sourced form at all, or one that IS that dict shape but unusable --
+    # see scripts/rederive.py::rederive_pois / rederive_lodging's
+    # docstrings), because either sub-shape routes through the same tail.
+    # Which sub-shape any given corpus hit actually is, and how many hits
+    # land in `superseded` at all (`super_poi` / `super_lodging`), is read
+    # from tests/corpus-baseline.json's `gate_aggregate` below, not asserted
+    # here. This module carries no marker for a `missing` or `mismatch` hit
+    # on either axis because none has been observed in the corpus yet, not
+    # because none can ever occur -- if a future corpus update produces one,
+    # _classify's assert surfaces it as an unattributed failure instead of
+    # silently absorbing it.
     ("poi_verdict_superseded", "re-run source-verify for this POI"),
     ("lodging_verdict_superseded", "re-run accommodation-research for this candidate"),
     ("ai_tone", "AI-tone "),
