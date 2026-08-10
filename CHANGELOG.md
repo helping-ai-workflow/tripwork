@@ -237,7 +237,7 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   `tripwork:source-verify` (the only stage that writes `verified-pois.yaml`),
   a lodging one to `tripwork:accommodation-research`.
 
-Tests: 1047 → 1082, zero skipped or xfailed.
+Tests: 1047 → 1082 with the consumer corpus mounted; 1063 pass + 19 corpus-gated skips in CI (no corpus).
 
 ## 0.33.0 — verdict re-derivation + AI-tone gate + TW-068/TW-069
 
