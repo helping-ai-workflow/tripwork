@@ -109,9 +109,10 @@ def test_verify_poi_geocode_key_normalised_and_clean_passes_through():
     poi["name_local"] = "洞爺湖ウィンザーホテル"
     poi["district"] = "洞爺湖温泉"
     poi["geocode"] = {"lat": 42.5, "lon": 140.7, "geocode_source": "nominatim"}
-    # I3: this fixture's point is the lon->lng key normalisation, not Gate 2c's
-    # centroid check -- geocode_source: nominatim keeps that isolated (a real
-    # geocoder-resolved coordinate, not a district centroid).
+    # I3: this fixture's point is the lon->lng key normalisation, not the
+    # (v0.34.0-retired) cluster_fallback proof check -- geocode_source:
+    # nominatim keeps that isolated (a real geocoder-resolved coordinate, not
+    # a district centroid).
     # P1/TW-063: Gate 0 needs a sourced {status, source_url, as_of} operating signal.
     poi["business_status"] = {"status": "OPERATIONAL",
                               "source_url": "https://places.example/x",

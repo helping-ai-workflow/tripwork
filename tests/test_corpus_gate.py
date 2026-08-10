@@ -284,8 +284,11 @@ def _fix_source_verify(a):
     after business_status is sourced -- exactly what a real re-run does in one
     visit, not one field at a time. as_of is computed at CALL time, never a
     literal (OPERATING_MAX_AGE_DAYS is 90) -- and `today=` is threaded through
-    the SAME value into the recompute, so Gate 2c's existence-proof recency
-    check reads the identical era, not wall-clock underneath a synthetic date.
+    the SAME value into `verify_poi`, so Gate 0's own recency check reads the
+    identical era as the `as_of` just written, not wall-clock underneath a
+    synthetic date. (Gate 2c, which used to read this same anchor via
+    classify_candidate, is retired as of v0.34.0 Task 6 -- there is no second
+    gate left for `today` to reach.)
     """
     from scripts.verify import verify_poi
     today = datetime.date.today().isoformat()

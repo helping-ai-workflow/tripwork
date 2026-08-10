@@ -308,9 +308,21 @@ def test_tw033_hours_recency_as_of():
     t = _skill("source-verify")
     assert "hours.as_of" in t and ("12 months" in t or "recency" in t.lower())
 
-def test_tw051_centroid_existence_proof():
+def test_tw072_centroid_fallback_subsumed_by_gate_0():
+    """Migrated from test_tw051_centroid_existence_proof (v0.34.0 Task 6 fix
+    round 1, I1). The old assert (`"existence proof" in t and "official" in
+    t`) stopped meaning anything the moment the SKILL's sentence changed from
+    REQUIRING an existence proof to REVOKING that requirement ("needs no
+    existence proof beyond Gate 0") -- the phrase "existence proof" is
+    supplied by the negation, and "official" by unrelated lines elsewhere in
+    the doc, so the guard could no longer tell "requires the proof" apart
+    from "retires the requirement". Both satisfied the old assert. This
+    checks the actual current claim instead: the fallback is subsumed by
+    Gate 0's sourced business_status, not a separate existence check."""
     t = _skill("accommodation-research")
-    assert "existence proof" in t and "official" in t
+    assert "existence proof beyond Gate 0" in t
+    assert "subsumed" in t
+    assert "business_status" in t
 
 def test_tw052_calendar_trip_year_provisional():
     t = _skill("calendar-check")

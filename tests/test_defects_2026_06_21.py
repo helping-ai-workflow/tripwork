@@ -80,8 +80,10 @@ def _itin(rows, date="2026-07-01", lodging=None, **extra):
 class TestP1Operating:
     def _cand(self, **extra):
         # I3: geocode_source: nominatim -- this class is about Gate 0
-        # (operating), isolated from Gate 2c's centroid check by using a real
-        # geocoder-resolved coordinate, not a district centroid.
+        # (operating); a real geocoder-resolved coordinate keeps it off
+        # cluster_fallback (moot for gating purposes since v0.34.0 retired
+        # Gate 2c's separate cluster_fallback proof check, but still the more
+        # representative shape for a Gate-0-focused fixture).
         c = {"id": "x", "name_local": "店", "name_display": "店",
              "sources": [{"url": "https://a.example", "lang": "zh"},
                          {"url": "https://b.example", "lang": "zh"}],
@@ -141,7 +143,8 @@ class TestP2NameMatch:
 
     def test_verify_poi_resolved_name_mismatch_conflicting(self):
         # I3: geocode_source: nominatim -- this fixture's point is Gate 2b's
-        # name-mismatch check, not Gate 2c's centroid check.
+        # name-mismatch check, not the (v0.34.0-retired) cluster_fallback
+        # proof check.
         c = {"id": "x", "name_local": "星月大地", "name_display": "星月大地",
              "business_status": _sourced_status("OPERATIONAL"),
              "sources": [{"url": "https://a.example", "lang": "zh"},

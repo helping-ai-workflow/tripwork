@@ -3,13 +3,17 @@
 ONE fixture trip that carries all eleven v0.33.0 exit-criterion defect
 TRIGGER SHAPES at the same time, driven through BOTH real CLIs from a foreign
 cwd, with one named assertion per defect. Defect 1's outcome changed under
-TW-072 (v0.34.0, Gate 2c now accepts a sourced business_status as an
-existence proof) — poi-fallback still carries the trigger shape (cluster_
-fallback geocode, no official source, no gmaps_place_id) but the fixture's
-pre-existing sourced business_status now supplies proof #3, so it correctly
-verifies rather than refuses. See test_defect_01's docstring below for the
-full account; the mechanism it originally proved (a cluster_fallback POI with
-NO proof at all must not verify) is still covered at the unit level.
+TW-072 (v0.34.0 Task 2, Gate 2c accepted a sourced business_status as an
+existence proof) and again under Task 6 (Gate 2c retired outright, subsumed
+by Gate 0 — see scripts/verify.py::classify_candidate's old call site) —
+poi-fallback still carries the trigger shape (cluster_fallback geocode, no
+official source, no gmaps_place_id) but the fixture's pre-existing sourced
+business_status clears Gate 0 directly, so it correctly verifies rather than
+refuses, with no separate existence-proof gate involved at all any more. See
+test_defect_01's docstring below for the full account; the mechanism it
+originally proved (a cluster_fallback POI with NO proof at all must not
+verify) is still covered at the unit level, now through the real entry point
+(verify_poi) rather than a classify_candidate bypass.
 
 Why both CLIs. The eleven defects do not all live at the same layer, and a
 single `gate.py` run does not exercise both:
@@ -484,15 +488,19 @@ def test_defect_01_cluster_fallback_now_verifies_via_sourced_business_status(clo
     "no official source, no place_id" combination that stayed unverified in
     v0.33.0 is exactly the keyless asymmetry TW-072 closes, and this fixture
     demonstrating that flip IS the corrected behaviour, not a Gate 2c
-    regression: Gate 2c still refuses a genuinely proof-less cluster_fallback
-    POI (structural fact re-asserted below), it just no longer treats a
-    sourced business_status as insufficient once Gate 0 already accepted it.
+    regression.
 
-    A genuinely proof-less cluster_fallback POI can no longer be produced by
-    the real driver post-TW-072 (Gate 0 and Gate 2c read the same field), so
-    that branch is now exercised directly against classify_candidate at the
-    unit level: tests/test_verify.py::
-    test_cluster_fallback_without_existence_proof_is_not_verified.
+    UPDATED for v0.34.0 Task 6: TW-072's finding above — that Gate 0 and
+    Gate 2c could no longer disagree — is exactly why Gate 2c is RETIRED
+    outright in Task 6, not left as a dead branch. There is no live Gate 2c
+    left to "still refuse" a proof-less POI; that safety property now lives
+    entirely at Gate 0 (a bare-string or absent business_status refuses
+    through the real driver, full stop). The unit-level regression for a
+    genuinely proof-less cluster_fallback POI moved with it: tests/
+    test_verify.py::test_cluster_fallback_with_a_bare_string_business_
+    status_is_still_unverified pins the SAME claim through the real entry
+    point (verify_poi), with no classify_candidate bypass needed any more —
+    there is no retired-branch bypass left to demonstrate.
     """
     poi = closure.write_time_pois["poi-fallback"]
     assert poi["geocode"]["geocode_source"] == "cluster_fallback"

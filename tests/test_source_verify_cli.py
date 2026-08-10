@@ -141,7 +141,9 @@ def test_no_claimed_district_is_unverified_not_conflicting(tmp_path, monkeypatch
     mismatch — a false statement, since no region comparison ever ran. Must
     come back 'unverified' (undetermined), never 'conflicting' (determined
     false) — the same undetermined-vs-false split Gate 2b's name_match=None
-    and Gate 2c's GEOCODE_SOURCE_MISSING already enforce one gate over."""
+    and Gate 2's GEOCODE_SOURCE_MISSING sentinel already enforce one gate
+    over (that sentinel's presence check is unrelated to, and survives, the
+    v0.34.0 retirement of Gate 2c's separate cluster_fallback proof check)."""
     from scripts import source_verify_run as svr
     from scripts.geocode import GeocodeResult
 

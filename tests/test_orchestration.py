@@ -73,20 +73,39 @@ def test_lodging_rederivation_mismatch_routes_to_accommodation_research():
     """I2's new markers, "accommodations stop " / "accommodations.yaml absent",
     extend the SAME first _ROUTES entry as "chosen lodging" / "required
     facility" -- this is the mismatch-axis half: a candidate rederive_lodging
-    re-derives differently than recorded (the real d2-6 shape: cluster_fallback,
-    no existence proof) must route back to accommodation-research, same as the
-    pre-existing gate-level lodging checks."""
+    re-derives differently than recorded must route back to
+    accommodation-research, same as the pre-existing gate-level lodging
+    checks.
+
+    Migrated (v0.34.0 Task 6 fix round 1, I2): this fixture used to be
+    cluster_fallback with NO business_status at all, documented as "the real
+    d2-6 shape". After Step 4 threads a real Gate 0 into rederive_lodging,
+    that exact shape produces `superseded`, not `mismatches` -- but this test
+    stayed green regardless, because BOTH message kinds share the same
+    "accommodations stop " routing marker this test checks for. So the
+    docstring's claim went quietly false and, worse, lodging MISMATCH ->
+    accommodation-research routing had no coverage at all. A sourced but
+    CLOSED_PERMANENTLY business_status still produces a genuine mismatch
+    (recorded 'verified', re-derived 'rejected' via Gate 0) without touching
+    the retired Gate 2c, so that shape is used here now -- discriminated from
+    `superseded` by asserting the specific mismatch marker, "but
+    classify_candidate re-derives", not just the shared prefix."""
     accommodations = {"stops": [{"district": "日月潭", "nights": 1, "chosen": "d2-6",
         "candidates": [{
             "id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
             "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
                        {"url": "https://b.example/d2-6", "lang": "zh"}],
             "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "cluster_fallback"},
+            "resolved_name": "日月潭旅店",
+            "business_status": {"status": "CLOSED_PERMANENTLY",
+                                "source_url": "https://a.example/d2-6",
+                                "as_of": datetime.date.today().isoformat()},
             "verify_status": "verified"}]}]}
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
                            accommodations=accommodations)
-    assert any("accommodations stop " in f and "d2-6" in f for f in res["failures"])
+    mismatches = [f for f in res["failures"] if "but classify_candidate re-derives" in f]
+    assert len(mismatches) == 1 and "d2-6" in mismatches[0] and "'rejected'" in mismatches[0]
     assert route_gate_failures(res["failures"]) == "tripwork:accommodation-research"
 
 

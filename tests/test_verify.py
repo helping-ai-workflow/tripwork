@@ -330,9 +330,12 @@ def test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_passes(
 
 def test_nominatim_resolved_geocode_is_unaffected():
     """Guard, GREEN at HEAD (regression guard): the normal path must not
-    tighten. Prevents Gate 2c from firing on a real Nominatim-resolved
-    geocode — a regression here would wrongly downgrade every ordinary
-    verified POI, not just cluster_fallback ones."""
+    tighten. A real Nominatim-resolved geocode (not cluster_fallback) was
+    never subject to the retired Gate 2c sub-check even while it existed —
+    this pins that a regression anywhere in this area (Gate 0's business_
+    status threading, the geocode_source presence check, the now-removed
+    cluster_fallback branch) does not wrongly downgrade an ordinary verified
+    POI, not just cluster_fallback ones."""
     poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
                               "geocode_source": "nominatim"})
     _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
@@ -378,10 +381,12 @@ def test_no_resolved_name_sentinel_passes_gate_2b_when_geocode_actually_resolved
     verify.py's `name_match = True` to `False` for the NO_RESOLVED_NAME branch
     left all pre-existing tests green.
 
-    Here geocoded=True and geocode_source='nominatim' (not cluster_fallback,
-    so Gate 2c's existence-proof sub-check does not confound the result), so
-    execution reaches Gate 2b. NO_RESOLVED_NAME must make it PASS -- not skip,
-    not fail -- all the way through to 'verified'.
+    Here geocoded=True and geocode_source='nominatim' (not cluster_fallback --
+    irrelevant now that Gate 2c's existence-proof sub-check is retired, but
+    keeping the non-cluster_fallback shape means this test's claim is only
+    ever about Gate 2b, unconfounded by any lodging/geocode-source concern),
+    so execution reaches Gate 2b. NO_RESOLVED_NAME must make it PASS -- not
+    skip, not fail -- all the way through to 'verified'.
     """
     from scripts.verify import NO_RESOLVED_NAME
     poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
@@ -413,16 +418,22 @@ def test_missing_resolved_name_does_not_preempt_earlier_gates():
     assert "resolved_name" not in note
 
 
-def test_gate_2c_refuses_when_geocode_source_is_not_recorded():
-    """I3: Gate 2c's trigger (`geocode.geocode_source`) is itself optional, so a
-    POI that never records where its coordinate came from could skip Gate 2c
-    entirely by omission -- 19 of 127 real POIs across the four schema-clean
-    trips do exactly this.
+def test_geocode_source_missing_refuses_when_not_recorded():
+    """I3, originally named test_gate_2c_refuses_when_geocode_source_is_not_
+    recorded -- renamed (v0.34.0 Task 6 fix round 1) because the mechanism
+    this pins is NOT Gate 2c: it is the separate GEOCODE_SOURCE_MISSING
+    refusal, which stayed live through the Gate 2c retirement (only the
+    cluster_fallback-specific proof sub-check was removed; "was geocode_
+    source recorded at all" is a distinct, still-enforced requirement). A POI
+    that never records where its coordinate came from is a provenance gap on
+    its own -- 19 of 127 real POIs across the four schema-clean trips do
+    exactly this.
 
-    RED at HEAD: `verify_poi`'s `geo_source = (... or {}).get("geocode_source")
-    or ""` coerces the absent field to `""`, which never equals
-    `"cluster_fallback"`, so Gate 2c's sub-check never runs and this POI (no
-    existence proof, resolvable name, otherwise clean) reaches 'verified'.
+    RED at TW-070-era HEAD (I3's original finding, historical): `verify_poi`'s
+    `geo_source = (... or {}).get("geocode_source") or ""` used to coerce the
+    absent field to `""`, which never equalled the GEOCODE_SOURCE_MISSING
+    sentinel, so the refusal never ran and this POI (resolvable name,
+    otherwise clean) reached 'verified' regardless of provenance.
     """
     poi = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
@@ -536,41 +547,19 @@ def test_has_existence_proof_today_anchors_the_sourced_business_status_proof():
     assert has_existence_proof(poi) is False                      # wall-clock: stale
     assert has_existence_proof(poi, today="2020-01-01") is True   # anchored: fresh
 
-
-def test_classify_candidate_today_is_now_inert_since_gate_2c_retired():
-    """Migrated for the Gate 2c retirement (v0.34.0 Task 6), formerly
-    test_classify_candidate_threads_today_into_gate_2c. Before this,
-    `classify_candidate`'s `today` parameter existed for exactly one reason:
-    threading the caller's anchored clock into `has_existence_proof`'s recency
-    check on the sourced business_status proof (TW-070 fix round 1) -- the
-    ONLY place `today` was ever read inside this function. That call site is
-    gone (see the comment at its old location in classify_candidate), so
-    `today` no longer changes this function's output at all; it is still
-    accepted for callers that pass it (`verify_poi`,
-    `scripts/rederive.py::rederive_lodging`), simply unread.
-
-    The regression this test used to pin -- Gate 0 and Gate 2c disagreeing
-    about which clock to read for the same business_status -- can no longer
-    happen, because there is no second gate left to disagree with Gate 0. The
-    real anchoring concern lives entirely at Gate 0 now, pinned by
-    test_sourced_recent_business_status_verifies /
-    test_business_status_older_than_ninety_days_is_stale above and by
-    tests/test_rederive.py::
-    test_gate_2c_stays_unreachable_on_the_poi_path_for_a_very_stale_as_of and
-    test_lodging_gate_0_anchors_to_the_records_own_era_not_wall_clock."""
-    from scripts.verify import classify_candidate
-    c = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
-                                {"url": "https://b.example.com/q", "lang": "en"}],
-         "business_status": {"status": "OPERATIONAL",
-                             "source_url": "https://a.example.tw/p",
-                             "as_of": "2020-01-01"}}
-    status_anchored, _ = classify_candidate(
-        c, geocoded=True, in_claimed_region=True, operating=True,
-        geocode_source="cluster_fallback", today="2020-01-01")
-    status_wall_clock, _ = classify_candidate(
-        c, geocoded=True, in_claimed_region=True, operating=True,
-        geocode_source="cluster_fallback")   # today omitted -- no longer matters either way
-    assert status_anchored == status_wall_clock == "verified"
+# test_classify_candidate_threads_today_into_gate_2c (later renamed
+# test_classify_candidate_today_is_now_inert_since_gate_2c_retired) is
+# REMOVED as of v0.34.0 Task 6 fix round 1 (M2), not rewritten: its own fix
+# round 1 predecessor pinned that `today` no longer changed
+# classify_candidate's output, but M2 deletes the parameter outright
+# (`classify_candidate` raises TypeError on an unexpected `today` kwarg now),
+# so there is no "accepted but inert" behaviour left to assert -- the
+# parameter does not exist. The real anchoring concern lives entirely at
+# Gate 0 now, pinned by test_sourced_recent_business_status_verifies /
+# test_business_status_older_than_ninety_days_is_stale above and by
+# tests/test_rederive.py::
+# test_gate_2c_stays_unreachable_on_the_poi_path_for_a_very_stale_as_of and
+# test_lodging_gate_0_anchors_to_the_records_own_era_not_wall_clock.
 
 
 def test_a_bare_string_business_status_is_not_an_existence_proof():

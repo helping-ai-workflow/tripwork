@@ -731,21 +731,50 @@ def test_a_closed_lodging_candidate_is_rejected_not_silently_operating():
 
 def test_lodging_gate_0_anchors_to_the_records_own_era_not_wall_clock():
     """Regression lock, mirroring test_gate_2c_stays_unreachable_on_the_poi_
-    path_for_a_very_stale_as_of on the POI axis. A hotel's business_status.
-    as_of far in the past relative to REAL wall-clock -- but fresh relative to
-    ITSELF, since rederive_lodging must anchor today=as_of exactly as
-    rederive_pois does -- must still clear Gate 0 and re-derive 'verified'.
-    Without the anchor, every lodging candidate verified more than
-    OPERATING_MAX_AGE_DAYS (90) ago would silently fail verdicts_match on wall-
-    clock alone, with no artifact change -- the exact calendar-driven class
-    the 0.33.0 CHANGELOG deferred R5 over, reintroduced for lodging alone."""
+    path_for_a_very_stale_as_of on the POI axis.
+
+    Rebuilt (v0.34.0 Task 6 fix round 1, I3): the original version of this
+    test used a stale `as_of` with `status: OPERATIONAL`, and it was GREEN
+    with or without the anchor -- a surprise-GREEN, this project's own
+    step-4 hard-halt condition, meaning the fixture was wrong, not the code.
+    Reviewer's measurement (reproduced): under the fail-open this module had
+    before M1 (`operating is not False`, which mapped `operating_from_status`
+    returning `None` -- "not established", the shape a wall-clock read of a
+    stale record produces -- to `operating=True` in classify_candidate), an
+    OPERATIONAL-but-stale record reads as "verified" whether the clock is
+    anchored or not: anchored, `operating_from_status` returns `(True, "")`
+    directly; wall-clock, it returns `(None, "stale")`, which the fail-open
+    then ALSO turned into "proceed as operating". Same final verdict either
+    way -- the test could not tell the two code paths apart.
+
+    A stale record with `status: CLOSED_PERMANENTLY` does discriminate, and
+    keeps discriminating after M1 closed the fail-open (`if operating is
+    None: superseded`, unconditionally): anchored (today=as_of, age=0), the
+    status is unambiguous and classify_candidate correctly demotes the
+    recorded 'verified' to a MISMATCH ('rejected'), because Gate 0 CAN be
+    evaluated -- the record's own era says closed, full stop. Wall-clock
+    (hypothetically, without the anchor), the SAME stale `as_of` trips the
+    age>90 branch inside `operating_from_status` regardless of status,
+    returning `None` -- which post-M1 means `superseded`, not a mismatch. A
+    genuinely-recorded-closed hotel would then be filed as "not enough
+    information" instead of "the recorded verdict is wrong", which is a
+    real loss of signal, not merely calendar-driven noise on some OTHER
+    verdict -- confirmed empirically by temporarily reverting the anchor
+    (`today=as_of` -> omitted) and re-running this exact test: it goes RED
+    (`superseded=1, mismatches=0` instead of the asserted `superseded=0,
+    mismatches=1`). See task-6-report.md's I3 section for the pasted
+    before/after."""
     from scripts.rederive import rederive_lodging
     cand = _lodging_cand(
         geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
-        resolved_name="日月潭旅店",
-        business_status=_sourced_business_status(as_of="2020-01-01"))
+        resolved_name="日月潭旅店", verify_status="verified",
+        business_status=_sourced_business_status(
+            status="CLOSED_PERMANENTLY", as_of="2020-01-01"))
     out = rederive_lodging(_accom(cand), local_lang="zh")
-    assert (out.superseded, out.missing, out.mismatches) == ([], [], [])
+    assert out.superseded == [], out.superseded
+    assert out.missing == []
+    assert len(out.mismatches) == 1 and "d2-6" in out.mismatches[0]
+    assert "'rejected'" in out.mismatches[0]
     assert out.compared == 1
 
 

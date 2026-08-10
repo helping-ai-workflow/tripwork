@@ -112,7 +112,9 @@ def has_existence_proof(poi, today=None):
       * a `gmaps_place_id` of plausible shape
       * a SOURCED `business_status` — the object form {status, source_url, as_of}
 
-    The third is new in 0.34.0 and is what makes this gate keyless-reachable.
+    The third was added in 0.34.0 (TW-072) and is what made the check this
+    function used to back (Gate 2c, retired later in the same release — see
+    classify_candidate's old call site) keyless-reachable while it still ran.
     Gate 0 documents three routes and only the Places API route yields a
     place_id, so before this a keyless consumer's cluster_fallback POI had one
     possible proof (an official source) and cluster_fallback's trigger population
@@ -156,7 +158,7 @@ def has_existence_proof(poi, today=None):
 
 def classify_candidate(candidate, geocoded, in_claimed_region,
                         local_lang=None, conflict_detected=False, operating=True,
-                        name_match=True, geocode_source=None, today=None):
+                        name_match=True, geocode_source=None):
     """Return (verify_status, note).
 
     Gates are evaluated in strict order (spec §5.1):
@@ -208,12 +210,16 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
                           caller that reads the field itself and passes
                           `gs or ""` (`scripts/rederive.py::rederive_lodging`)
                           also stays unaffected either way.
-        today:            No longer read by this function (v0.34.0 Task 6 — its
-                          sole use was threading into the now-retired
-                          `has_existence_proof` call). Kept in the signature
-                          for the callers that still pass it (`verify_poi`, and
-                          `scripts/rederive.py::rederive_lodging` since Task 6),
-                          so removing it is not part of this change.
+
+    No `today` parameter (removed fix round 1, M2 — v0.34.0 Task 6 had first
+    kept it as a dead parameter, "no longer read but kept for callers that
+    still pass it"; that was itself a defect, since a dead-but-accepted
+    kwarg silently invites a caller to believe it still does something).
+    Its sole reader was the now-retired Gate 2c `has_existence_proof` call.
+    `verify_poi` still has its OWN `today` argument (Gate 0's recency
+    anchor) and `rederive_lodging` still anchors its own
+    `operating_from_status` call the same way — neither forwards it here
+    any more, because there is nothing left here to forward it to.
     """
     sources = candidate.get("sources", [])
     langs = {s.get("lang") for s in sources}
@@ -255,7 +261,9 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # already refuses any POI whose business_status is not sourced, and any
     # POI it does NOT refuse necessarily carries the same proof this branch
     # would have checked for — reading the identical field through the
-    # identical `operating_from_status`, anchored to the identical `today`.
+    # identical `operating_from_status`, anchored to the identical recency
+    # era (`verify_poi`'s own `today` argument at its Gate 0 call site; this
+    # function no longer accepts a `today` parameter at all, M2).
     # scripts/rederive.py::rederive_lodging hard-coded `operating=True` and
     # bypassed Gate 0 entirely, which is why the branch stayed reachable for
     # lodging alone; that bypass is removed in the same task (Step 4), so
@@ -269,7 +277,7 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # DATED, SOURCED statement — strictly more than this branch ever asked
     # for (an undated official link or a bare place_id both satisfied it).
     # Pinned by tests/test_verify.py::
-    # test_a_cluster_fallback_poi_with_a_bare_string_business_status_is_still_unverified.
+    # test_cluster_fallback_with_a_bare_string_business_status_is_still_unverified.
     #
     # has_existence_proof() itself is NOT deleted — tests/test_verify.py
     # exercises it directly as a unit — only this call site is gone.
@@ -337,15 +345,19 @@ def verify_poi(poi, geocoded, in_claimed_region,
     (never a silent 'verified'); a CLOSED signal -> 'rejected' before geocode gates.
     Otherwise delegates to classify_candidate with the normalised POI.
 
-    `today` anchors BOTH Gate 0's operating-signal recency AND, via
-    classify_candidate, Gate 2c's sourced-business_status existence-proof
-    recency (TW-070 fix round 1) — the same `business_status.as_of` era, read
-    once, used at both gates. Before this fix only Gate 0 was anchored: a
-    caller passing a non-wall-clock `today` (re-deriving a finished artifact
-    against the record's own era, e.g. scripts/rederive.py::rederive_pois)
-    still had Gate 2c silently reading real wall-clock underneath, so a
-    verdict correct when written could flip to a false mismatch purely from
-    elapsed real time. Default None reads wall-clock at both gates, unchanged.
+    `today` anchors Gate 0's operating-signal recency (TW-070 fix round 1) —
+    a caller re-deriving a finished artifact against the record's own era
+    (e.g. scripts/rederive.py::rederive_pois) passes the record's own
+    `business_status.as_of` here instead of leaving this to read real
+    wall-clock, so a verdict correct when written cannot flip to a false
+    mismatch purely from elapsed real time. Default None reads wall-clock.
+
+    Historical note (stale through fix round 1, v0.34.0 Task 6): this
+    docstring used to say `today` ALSO anchored Gate 2c's existence-proof
+    recency via classify_candidate. Gate 2c (and the has_existence_proof call
+    that read `today`) is retired — see the comment at classify_candidate's
+    old call site — so `today` is no longer forwarded there at all;
+    classify_candidate does not even accept the parameter any more (M2).
 
     Returns (normalised_poi, verify_status, note).
     """
@@ -392,7 +404,7 @@ def verify_poi(poi, geocoded, in_claimed_region,
     status, note = classify_candidate(
         normalised, geocoded=geocoded, in_claimed_region=in_claimed_region,
         local_lang=local_lang, conflict_detected=conflict_detected, operating=operating,
-        name_match=name_match, geocode_source=geo_source, today=today,
+        name_match=name_match, geocode_source=geo_source,
     )
     return normalised, status, note
 

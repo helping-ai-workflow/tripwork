@@ -335,15 +335,23 @@ def rederive_lodging(accommodations, *, local_lang=None):
 
     Gate 0 (operating) IS re-derived now (v0.34.0, Task 6): the 0.33.0 deferral
     is closed — accommodations.schema.json carries business_status (the same
-    oneOf as verified-pois.schema.json), so there is something to read. A
-    candidate whose business_status is not the sourced {status, source_url,
-    as_of} form (absent, or the legacy bare string) was verified under rules
-    this release supersedes, exactly like a POI in the same shape
-    (rederive_pois); it goes to the `superseded` bucket and the comparison does
-    not run for it — there is no `operating` value to compare with. A sourced
-    but CLOSED business_status still reaches classify_candidate, now with
-    `operating=False`, so a closed hotel is no longer silently treated as open
-    the way the old hardcoded `operating=True` treated every hotel.
+    oneOf as verified-pois.schema.json), so there is something to read. ANY
+    candidate `operating_from_status` cannot establish (`None`) goes to the
+    `superseded` bucket and the comparison does not run for it — there is no
+    `operating` value to compare with. That covers two distinct shapes, both
+    worded in the failure message: business_status is not the sourced
+    {status, source_url, as_of} form at all (absent, or the legacy bare
+    string — verified under rules this release supersedes, exactly like a POI
+    in the same shape, rederive_pois); or it IS a dict but unusable
+    (unrecognised status / no source_url / unparseable as_of). Fix round 1
+    (M1): an earlier draft only superseded the first shape and silently
+    passed the second to classify_candidate as `operating=True` — the exact
+    "not established defaults to open" shape TW-005/P1 closed for POIs, and
+    this module's own opening doctrine says a skipped record must not be
+    indistinguishable from a green one. A sourced but CLOSED business_status
+    still reaches classify_candidate, now with `operating=False`, so a closed
+    hotel is no longer silently treated as open the way the old hardcoded
+    `operating=True` treated every hotel.
 
     Because a sourced business_status is also Gate 2c's existence proof
     (TW-072), threading real Gate 0 here is what makes Gate 2c unreachable for
@@ -362,14 +370,27 @@ def rederive_lodging(accommodations, *, local_lang=None):
     does for an absent duration_source — so a field new in an earlier release
     cannot demote a candidate merely by being new.
 
-    `today` is anchored to the candidate's OWN `business_status.as_of`, not to
-    wall-clock — the identical reason rederive_pois anchors Gate 0 (see that
-    function's docstring): the question this module asks is "was the verdict
-    correct when it was written", and a wall-clock read would turn a trip's
-    gate red 90+ days after verification with no artifact change, the exact
-    calendar-driven class the 0.33.0 CHANGELOG deferred R5 over. Passing no
-    `today` here (an earlier draft of this function) would have reintroduced
-    that class for lodging alone, one release after it was closed for POIs.
+    `operating_from_status` is anchored to the candidate's OWN
+    `business_status.as_of` (`today=as_of` above), not to wall-clock — the
+    identical reason rederive_pois anchors Gate 0 (see that function's
+    docstring): the question this module asks is "was the verdict correct
+    when it was written". `today` is NOT passed on into `classify_candidate`
+    (fix round 1, M2): its only reader there was the now-retired Gate 2c
+    cluster_fallback branch, so the parameter no longer exists on that
+    function at all.
+
+    Corrected causal claim (fix round 1, I3 review): the anchor's value is
+    NOT "prevents calendar-driven false mismatches" in general — under the
+    pre-M1 fail-open (`operating is not False`), a wall-clock read of a stale
+    record would have returned `None` (not `False`) even for a genuinely
+    CLOSED status, and the fail-open would have silently matched it as
+    operating anyway, which is LENIENCE, not redness. The anchor became
+    load-bearing the moment M1 made `None` always mean `superseded`: without
+    it, ANY record older than OPERATING_MAX_AGE_DAYS — including a perfectly
+    valid, still-correct OPERATIONAL one — would be misclassified as
+    `superseded` purely from elapsed wall-clock time, which IS the
+    calendar-driven class this anchor exists to prevent, just manifesting on
+    a different bucket than originally described.
     """
     out = Outcome()
     if accommodations is None:
@@ -398,19 +419,34 @@ def rederive_lodging(accommodations, *, local_lang=None):
             bs = cand.get("business_status")
             sourced = isinstance(bs, dict)
             as_of = bs.get("as_of") if sourced else None
-            operating, _why = operating_from_status(bs, today=as_of)
-            if operating is None and not sourced:
+            operating, why = operating_from_status(bs, today=as_of)
+            if operating is None:
+                # Fix round 1 (M1): "not established" must never reach
+                # classify_candidate as a silent True. That was the exact
+                # TW-005/P1 shape closed for POIs, and this module's own
+                # opening doctrine is that a skipped record must not be
+                # indistinguishable from a green one. Two distinct reasons
+                # land here, both superseded (this axis is not the mismatch
+                # axis, so neither accuses the artifact of a WRONG verdict —
+                # both say the verdict cannot be re-derived from what is
+                # recorded): the field isn't sourced at all (absent / bare
+                # string), or it IS a dict but unusable (unrecognised status /
+                # no source_url / unparseable as_of — never staleness, which
+                # `today=as_of` above always anchors to zero age).
+                reason = (
+                    "business_status is not the sourced "
+                    "{status, source_url, as_of} form" if not sourced else
+                    f"business_status is dict-shaped but unusable ({why})")
                 out.superseded.append(
                     f"{where}: recorded verify_status "
                     f"{cand.get('verify_status')!r} was produced under superseded "
-                    f"rules — business_status is not the sourced "
-                    f"{{status, source_url, as_of}} form; re-run "
+                    f"rules — {reason}; re-run "
                     f"accommodation-research for this candidate")
                 continue
             got, note = classify_candidate(
                 cand, geocoded=True, in_claimed_region=True, local_lang=local_lang,
-                conflict_detected=False, operating=operating is not False,
-                name_match=name_match, geocode_source=gs or "", today=as_of)
+                conflict_detected=False, operating=operating,
+                name_match=name_match, geocode_source=gs or "")
             out.compared += 1
             rec = cand.get("verify_status")
             if rec != got:
