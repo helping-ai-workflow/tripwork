@@ -191,7 +191,7 @@
                   "type": "string"
                 },
                 "business_status": {
-                  "description": "Operating signal. The object form is the one Gate 0 accepts: {status, source_url, as_of}. The bare string is retained for one version so existing trips keep passing validate_artifact — it is treated as SELF-ATTESTED and yields `unverified`, which routes back to accommodation-research with a fixable message rather than failing validation outright. Copied verbatim from verified-pois.schema.json so the two schemas cannot disagree in detail. (v0.34.0)",
+                  "description": "Operating signal. The object form is the one Gate 0 accepts: {status, source_url, as_of}. The bare string is retained for one version so existing trips keep passing validate_artifact — it is treated as SELF-ATTESTED and yields `unverified`, which routes back to accommodation-research with a fixable message rather than failing validation outright. Copied verbatim from verified-pois.schema.json so the two schemas cannot disagree in detail. (TW-072 — the same object form also satisfies Gate 2c's existence proof, which is why Gate 2c retires as unreachable once lodging carries this field too.)",
                   "oneOf": [
                     {
                       "type": "string",

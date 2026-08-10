@@ -149,7 +149,7 @@ flowchart TB
 | **transit-detail** | 查市內交通的**舒適度細節**：通勤**尖峰時段**（帶長輩/行李避開人擠人）、**IC 卡**（Suica/ICOCA 等，哪買怎麼儲值）、每個景點**從車站走過去要幾分鐘**（太遠提醒改計程車）。全是提醒，不擋流程 |
 | **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×**房數**×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**（預算對照的是整趟總額：住宿＋交通＋雜支）。全部標明是估算（含查詢日期），不是精確報價 |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單** |
-| **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點）。**現在還會**：①把路線時間、花費、關店 buffer 這些數字**重新算一遍**，跟行程裡記錄的核對是否一致，兜不起來就擋下來 ②檢查文案**有沒有 AI 罐頭味**（例如「首選必訪」這種空話、破折號濫用）③連**住宿**的查證狀態（名字有沒有對到、座標有沒有查證來源）也一起核對，不再只查景點 |
+| **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點）。**現在還會**：①把路線時間、花費、關店 buffer 這些數字**重新算一遍**，跟行程裡記錄的核對是否一致，兜不起來就擋下來 ②檢查文案**有沒有 AI 罐頭味**（例如「首選必訪」這種空話、破折號濫用）③連**住宿**的查證狀態（名字有沒有對到、座標有沒有查證來源）也一起核對，不再只查景點 ④**景點與住宿的「已驗證」是不是用現在還算數的規則判定的**——例如營業狀態只是隨口打勾、沒有查證來源與日期，就算當初有記錄，現在也會被判定過時、擋下來重新查證 |
 | **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、LINE 純文字、離線可看的一頁式 HTML（`exports/<slug>-itinerary.html`，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion）|
 | **export-gate** | 對輸出的 Markdown 成品做最後機械檢查：每個地點名稱本身是可點連結、**每個 Google Maps 連結都能正常打開（擋掉會失效、打不開的地圖連結）**、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；有問題就退回重產 |
 
@@ -198,7 +198,8 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 - 某個過夜鎮你**還沒訂住宿** → 推薦 3 家查證過的讓你挑
 - 你訂的旅館**缺必備設施**（例如自駕沒車位） → 停下來問你換不換
 - 你訂的旅館**地圖座標落在別的鎮** → 停下來問你
-- 你訂的旅館**名字或座標查不到可信來源** → 跟景點用同一套查證標準，查不到來源一樣視為未驗證並提醒你（目前**還沒**機械化查證旅館是否還在營業，這塊留給你出發前打電話再確認一次）
+- 你訂的旅館**名字或座標查不到可信來源、或營業狀態沒有來源與日期** → 跟景點用同一套查證標準（含「還在營業」這一項），查不到來源一樣視為未驗證並提醒你
+- 景點或住宿的「已驗證」其實是**用舊規則判定出來的**（例如營業狀態只是隨口打勾、沒有查證來源與日期）→ 品質關卡會擋下來，自動導回去補查證，不會讓過時的驗證結果矇混過關
 - 開車當天**晚於旅館櫃台關門**又沒 late check-in → 停下來提醒你
 - 某段路在你的旅遊期間**官方公告封閉**（例如雪季的高山公路） → 停下來問你怎麼調
 - 冬天某段車程預計**天黑後才到** → 提醒你那天提早出發（不擋流程）
@@ -271,7 +272,7 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 1047 個測試
+pytest                 # 1077 個測試
 ```
 
 - 流水線由 `skills/` 下的 16 個 skill 組成，全程由 `orchestrator` 調度。
@@ -330,6 +331,42 @@ pytest                 # 1047 個測試
   層（`deps_stale`，比對內容 fingerprint）已經寫好、有單元測試，但**還沒接進**
   `scripts/next_stage.py` 的路由——因為目前沒有任何 stage 會寫 `input_fingerprints` 欄位，六個
   語料 trip 也沒有任何一個檔案帶這個欄位，現在接上去不會改變任何人的行為。
+- **地點驗證結果的重算軸（TW-070，v0.34.0，`scripts/rederive.py::rederive_pois`）：** v0.33.0
+  補了 legs/hops/cost/關店/住宿五軸重算，唯獨漏了「已驗證」本身——`verify_status` 是招牌鐵律
+  唯一的守門員，卻從沒被重算過。新 check `verdicts_rule_current` 把每筆 POI 分成三桶（依序判斷，
+  一筆只報一個）：`superseded`（判定當時用的規則已被取代，例如 `business_status` 只是裸字串或
+  沒記）、`missing`（缺 `resolved_name` 導致 Gate 2b 算不出來）、`mismatches`（欄位齊全但重算結果
+  對不上）。語料實測：POI 軸 found 127 / superseded 105；住宿軸（`rederive_lodging` 的 Gate 0
+  半邊，同版新增）found 18 / superseded 18；合計 `verdicts_rule_current` examined 145 /
+  superseded 123。這不是新災情——0.32.0 就公開過重跑 `source-verify` 會讓 100/100 既有已驗證
+  POI 降級，這一版只是把同一個事實提前在關卡就攤開，不用等你重跑查證才發現行程被清空。重算的
+  時鐘錨定在**該筆記錄自己的 `business_status.as_of`**，不是牆上時鐘（跟 R5 被延後的理由相同：
+  `OPERATING_MAX_AGE_DAYS` 是 90，用牆上時鐘會讓一個驗證完全沒變的行程在第 91 天無端變紅）。
+  Gates 3a/3b（區域比對／來源衝突）**不**在這一軸重算範圍內，因為 artifact 本來就沒記
+  `in_claimed_region`／`conflict_detected` 這兩個欄位。
+- **`resolved_name` 終於能記了（TW-071，v0.34.0）：** `verified-pois.schema.json` 之前是
+  `additionalProperties:false` 又沒有這個欄位，Gate 2b（店名比對）該記的東西被 schema 明文禁止
+  ——`accommodations.schema.json` 早就有了。現在 POI 也能記，查無結果記字面 `NO_RESULT`
+  （對應 `verify.NO_RESOLVED_NAME`），跟「沒記」語意不同。同時補上**自動發現**的
+  schema-symmetry ratchet：掃描 `scripts/rederive.py` 裡每個 `rederive_*` 函式，沒被
+  OWNER 對應到 schema、又沒被明文 EXEMPT 就會炸——新軸一寫出來就自動被納管，不會被漏掉。
+- **Gate 2c 被 Gate 0 收編、正式退役（TW-072，v0.34.0）：** Gate 2c 本來要證明「這個點真的存在」，
+  而一個有來源、有日期的營業狀態聲明本身就是那個證明，所以 `has_existence_proof` 現在多接受
+  第三種證據：Gate 0 那組 `{status, source_url, as_of}`。副作用是 Gate 2c 從此**永遠不會被觸發**
+  ——過了 Gate 0 的點必然已經帶著這個證據，沒過 Gate 0 的點根本進不到 Gate 2c——所以直接從
+  `classify_candidate` 刪掉這個分支，不留一段永遠不會跑的死碼。**這不會重開 TW-062**：借用鄰區
+  中心點冒充座標，現在被 Gate 0 單獨擋下，而 Gate 0 要求的「有來源+有日期」比退役前的 Gate 2c
+  （一個未標日期的官方連結，或形狀合格的 `gmaps_place_id`）門檻更高。住宿也同步拿到
+  `accommodations.schema.json` 的 `business_status` 欄位（Gate 0 補上 0.33.0 留下的缺口），所以
+  兩條路徑退役都安全。
+- **`gmaps_place_id` 沒有任何程式碼會寫入它**：全 repo 只有讀（`scripts/verify.py`、
+  `scripts/render/gmaps_links.py`），沒有任何一處是寫——它是 agent 照 SKILL 指示、走 Places API
+  路線時手動記下來的欄位，不是機械回填，所以 TW-072 順便給它加了最小長度的形狀檢查（語料實測
+  86 筆帶 `gmaps_place_id` 的 POI 全部剛好 27 字元）而不是直接信任它。
+- **TW-062 的 `allOf` schema 約束正式從路線圖上拿掉，不是再延一版。** 當初留著不上是為了讓既有
+  行程拿到一個可修的關卡失敗，而不是 `validate_artifact` 直接 exit 1；這一版的第六軸重算本身
+  就是那個「可修的關卡失敗」，兩個一起上會讓較嚴格的 schema 約束搶先擋下、關卡的引導訊息永遠
+  發不出來，所以正式不再排進路線圖。
 
 **地圖座標用量限制：** 使用 OSM Nominatim（免 API key），請遵守其使用政策
 （≤ 1 req/s、帶 User-Agent）。`scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流。

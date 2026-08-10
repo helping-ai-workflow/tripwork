@@ -1,5 +1,183 @@
 # Changelog
 
+## 0.34.0 — the POI verdict axis, and the two channels it needed
+
+v0.33.0 shipped five re-derivation axes — legs, hops, cost, the closing-buffer
+rule, lodging name/geocode provenance — and omitted the one gatekeeping the
+plugin's own iron rule, **only verified flows downstream**: nothing re-examined
+a POI's own `verify_status`. Three gates changed shape across 0.32.0–0.33.0
+(Gate 0's sourced-object `business_status`, Gate 2b's refusal on an absent
+`resolved_name`, Gate 2c's existence proof) and not one recorded `verify_status`
+was ever re-checked against the rules that now govern it. This release closes
+that gap (TW-070) and ships the two channels the new axis needed to exist
+without producing failures no consumer could fix with data (TW-071, TW-072),
+plus a low-severity input-tolerance fix found alongside them (TW-073).
+
+- **The sixth axis (TW-070): `verdicts_rule_current`, and three buckets because
+  a superseded verdict is not a wrong one.** `scripts/rederive.py::rederive_pois`
+  re-derives every `verified-pois.yaml` record's `verify_status` and reports it
+  as one of three FIRST-APPLICABLE buckets, in this order, so one record
+  produces at most one failure and names the one thing to fix first:
+  `superseded` (the recorded verdict cannot stand because the rules that
+  produced it were superseded — today: a bare-string or absent
+  `business_status`, superseded by TW-063's object form), `missing` (an input
+  needed to recompute is absent — today: no `resolved_name` recorded at all),
+  `mismatches` (every input is present and the verdict does not follow). A
+  bare-string `business_status` is deliberately **not** folded into `missing`:
+  it is not an absent input and not a wrong verdict, it is a verdict produced
+  under rules this release supersedes, and reporting it as "missing" would
+  misdescribe what the consumer needs to do. Measured against the four
+  schema-clean corpus trips through the shipped function, not estimated:
+  **found 127, superseded 105, 0 missing, 0 mismatches** — the last two read
+  zero because `superseded` is first-applicable, not because those buckets are
+  untested (both have dedicated fixtures; the corpus alone cannot exercise
+  them). 105 is not 100: the 5 recorded-`conflicting` POIs also change verdict
+  under current rules, on top of the 100 recorded-`verified` ones; the 22
+  unchanged are the POIs already correctly `unverified`. `rederive_lodging`
+  gains the identical Gate 0 half in the same release (see below): **found 18,
+  superseded 18** — every lodging candidate in the corpus, because
+  `accommodations.schema.json` could not even carry a sourced `business_status`
+  before this release. Combined, the `verdicts_rule_current` check reports
+  **examined 145, superseded 123**.
+- **This flood is not new damage.** 0.32.0 already published that re-running
+  `source-verify` demotes **100 of 100** currently-`verified` POIs (see that
+  release's Migration section). This axis does not create that consequence —
+  it makes a consequence that was already true the moment those verdicts were
+  written **visible at gate time**, before a consumer discovers it the hard
+  way, by re-running `source-verify` and watching a finished trip empty out.
+- **The clock is anchored to the artifact, not to wall-clock** — same
+  precedent as the R5 deferral in the 0.33.0 CHANGELOG. `rederive_pois` (and,
+  since Task 6, `rederive_lodging`'s Gate 0 half) asks "was this verdict
+  correct when it was written", reading the record's own
+  `business_status.as_of` era. `OPERATING_MAX_AGE_DAYS` is 90, so a wall-clock
+  read would turn a trip's gate red 91 days after verification with zero
+  artifact change — the exact calendar-driven class 0.33.0 cited when
+  deferring R5. A fix-round leak closed the same class one gate deeper: Gate
+  2c's `has_existence_proof` originally read wall-clock regardless, so a
+  stale `as_of` could flip the re-derived verdict even though Gate 0 itself
+  agreed with the recorded one; `today` now threads into it from the same
+  anchor.
+- **Gates 3a/3b are not re-derived for POIs.** The artifact records neither
+  `in_claimed_region` nor `conflict_detected` — both are computed by the agent
+  at research time and never written back — so the permissive values are
+  passed and a region mismatch or cross-source conflict is invisible to this
+  axis. Recording them was considered and rejected: each new agent-authored
+  field is another self-attestation, the defect family this whole programme
+  exists to shrink.
+- **TW-071 — a POI can finally record `resolved_name`.**
+  `verified-pois.schema.json` was `additionalProperties: false` with no such
+  field, while `accommodations.schema.json` already had it — Gate 2b's own
+  input was schema-illegal to record on a POI, which would have made every
+  re-derived Gate-2b failure permanently unfixable with data the moment
+  `rederive_pois` shipped. Callers now pass the geocoder's `display_name` or
+  the literal `NO_RESULT` sentinel (mirroring `verify.NO_RESOLVED_NAME`) — an
+  absent field still means "nobody looked", distinct from "the lookup ran and
+  found nothing". The same commit adds a **discovered, not hard-coded**
+  schema-symmetry ratchet (`tests/test_schema_symmetry.py`): every
+  `rederive_*` function found in `scripts/rederive.py` must be OWNER-mapped to
+  the schema it reads records from, or explicitly EXEMPT with a stated reason
+  — so a future axis is enrolled in the check the moment it is written,
+  instead of the scan silently staying blind to it.
+- **TW-072 — Gate 2c accepts Gate 0's evidence, and the keyless asymmetry
+  dissolves by construction.** Gate 2c's stated job is existence — "something
+  independent of the coordinate says this place exists" — and a dated, sourced
+  first-party statement that the venue is operating already is that.
+  `has_existence_proof` now accepts a third proof: a `business_status` in the
+  same sourced object form Gate 0 requires. Gate 0 already guaranteed two
+  keyless-reachable routes (a dated official/social statement; a phone
+  confirmation recorded as `tel:`); whichever one a keyless consumer took now
+  satisfies Gate 2c too, so `verify_status` stops being a function of whether
+  the machine happens to carry an API key. `gmaps_place_id` stays an accepted
+  proof and gains a minimum-length shape check (measured: 86 corpus POIs carry
+  one, every one exactly 27 characters, none shorter than 8 — the floor
+  demotes nothing real).
+- **TW-073 — `operating_from_status`'s `today` now tolerates an ISO string.**
+  `as_of` already went through `_parse_iso`; `today` did not, so passing a
+  string raised `TypeError` inside the same function. Now
+  `ref = _parse_iso(today) or date.today()`. No production caller was
+  affected (`source_verify_run.py` always passed a `datetime.date`); this
+  closes a tripwire for any future caller such as a reproducible-testing
+  `--today` flag.
+- **Gate 2c was RETIRED — subsumed by Gate 0, not fixed.** Accepting a sourced
+  `business_status` as an existence proof has a consequence beyond closing the
+  keyless asymmetry: it makes Gate 2c **unreachable** on both paths. A POI (or,
+  once lodging gained the same field, a lodging candidate) that clears Gate 0
+  necessarily already carries a proof identical to what Gate 2c would ask for,
+  read through the identical field; one that Gate 0 refuses never reaches Gate
+  2c at all. This was measured and confirmed — including for a stale `as_of`,
+  after the wall-clock leak above was closed — before the check was deleted
+  from `classify_candidate` rather than left in as dead code that could never
+  fire. **This does not reopen TW-062.** Riding a district centroid into
+  `verified` is still blocked, now by Gate 0 alone, which demands a *dated,
+  sourced* statement — strictly more than the retired check ever asked for (an
+  undated official link, or a bare `gmaps_place_id` of plausible shape, used
+  to be enough for Gate 2c; neither satisfies Gate 0). A release whose whole
+  point is closing "a check that cannot fail is indistinguishable from a check
+  that passed" must not ship an unreachable gate inside itself.
+- **Lodging gets a real Gate 0.** `accommodations.schema.json` gains
+  `business_status` — the identical sourced object form, copied verbatim so
+  the two schemas cannot disagree in detail — closing the 0.33.0 deferral (
+  "Gate 0 stays open, deferred to 0.34.0"). `rederive_lodging` re-derives it
+  for every candidate; a fix-round defect (M1) in the first draft is worth
+  recording on its own: `operating is not False` treated "not established" as
+  operating, the exact "not established defaults to open" shape TW-005/P1
+  already closed for POIs, and it made the anchored-clock fixture pass for the wrong
+  reason (a stale record, read wall-clock, degrades to `None`, and the
+  fail-open then silently matched it as operating — leniency, not the
+  calendar-driven redness the anchor was believed to prevent). Closed by
+  making an unparseable/unsourced `business_status` land in `superseded`
+  unconditionally, never fall through to `classify_candidate` as an implicit
+  `True`.
+- **The one wrong citation in the consumer report, corrected.**
+  `docs/specs/2026-08-09-chiayi-regate-0.33.0-defects.md` (committed with this
+  release, per this repo's convention of shipping the report alongside the
+  release that closes it) states that `gmaps_place_id` is backfilled by an
+  export-stage `scripts/gmaps_media.py`. That module does not exist:
+  `gmaps_place_id` is read in exactly two places (`scripts/verify.py`'s Gate
+  2c and `scripts/render/gmaps_links.py::maps_url`'s deep-link refinement) and
+  **written by no plugin code at all** — it is an agent-authored field, recorded by hand per
+  `skills/source-verify/SKILL.md`'s instruction only when the Places API route
+  was actually used. That is precisely why TW-072 gave it a shape check
+  instead of trusting it as machine-verified.
+- **TW-062's `verified-pois.schema.json` `allOf` constraint leaves the
+  roadmap — SUPERSEDED, not deferred again.** It was held back so that
+  existing trips carrying the shape (a `cluster_fallback` geocode paired with
+  `verify_status: verified` and no existence proof) would get a routed,
+  fixable gate failure instead of a hard `validate_artifact` exit 1. The sixth
+  axis's `superseded` bucket **is** that routed failure. Shipping the schema
+  constraint on top would let the harsher check pre-empt the gentler one — a
+  schema-invalid artifact fails `validate_artifact` before the gate ever runs
+  — so the routing message this whole release is built around would never
+  once be emitted. It is dropped from scope for that reason, not deferred to
+  a future version a second time.
+- **What stays out:** R5 (`lead_time_missed`) and R6 (`in_peak`)
+  re-derivation; re-deriving `reception_ok` (lodging's counterpart of the
+  closing-buffer check); wiring `deps_stale` into the router; `export_gate`
+  rebuilding its P4 lodging fold with the opposite precedence; `resolve_place`'s
+  five-request burst inside one pace interval; the hand-maintained
+  `GATE_INPUTS` / `EXPORT_GATE_INPUTS` mirrors; and the
+  coordinate-trustworthiness question this release's own design notes raise
+  and explicitly decline to answer — a hop or a candidate can match its
+  recorded verdict and still be measuring against a coordinate TW-062 already
+  showed can be a fiction.
+
+### Migration
+
+- **60/60 consumer artifacts across the four clean corpus trips still pass
+  `validate_artifact`** — every schema change this release makes
+  (`resolved_name`, lodging `business_status`) is additive, so nothing on disk
+  needs to change to stay schema-valid.
+- **Re-gating an existing trip will report far more failures than before**,
+  concentrated entirely on `verdicts_rule_current`: 105 of 127 POI records and
+  all 18 lodging candidates in the corpus. As stated above, this is not new
+  breakage — it is 0.32.0's already-published 100-of-100 demotion, surfaced
+  at the gate instead of discovered by re-running `source-verify` cold. Both
+  failure classes route automatically: a POI verdict fix routes to
+  `tripwork:source-verify` (the only stage that writes `verified-pois.yaml`),
+  a lodging one to `tripwork:accommodation-research`.
+
+Tests: 1047 → 1077, zero skipped or xfailed.
+
 ## 0.33.0 — verdict re-derivation + AI-tone gate + TW-068/TW-069
 
 0.32.0 closed the self-attestation defect **at write time only**: a fixed value could
