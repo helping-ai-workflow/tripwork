@@ -123,7 +123,7 @@ def test_the_real_gate_over_a_clean_trip_pins_its_failure_classes(trip):
     assert sum(expected.values()) == total, "the classes must PARTITION the failures"
 
 
-def test_the_five_axes_together_pin_the_release_headline_figures():
+def test_the_six_axes_together_pin_the_release_headline_figures():
     """The aggregate the CHANGELOG's Migration section quotes, read back off the
     same run_gate reports rather than from a separate hand-driven
     run_rederivation — the divergence C1 turned on.
@@ -133,21 +133,73 @@ def test_the_five_axes_together_pin_the_release_headline_figures():
     enough to compare (47 pre-TW-070 + 22 sourced-but-not-superseded POIs), and
     exactly ONE recorded verdict wrong (2026-07-sun-moon-lake's lodging
     candidate d2-6, pinned by id in tests/test_rederive.py) -- the POI axis
-    contributes zero NEW mismatches on this corpus, only the 105-of-127
-    superseded findings verdicts_rule_current reports separately (see EXPECTED
-    above).
+    contributes zero NEW mismatches on this corpus.
+
+    The sixth axis's OWN headline number is the third assertion: 105 of the
+    127 examined POI verdicts were produced under superseded rules
+    (verdicts_rule_current). Today that 105 is only recoverable by hand-summing
+    EXPECTED's per-trip poi_verdict_superseded values -- a change that moved
+    findings between trips while preserving the sum would pass unnoticed, so
+    it is pinned here as one explicit total instead, counted the same way
+    _classify already counts each trip's failures by class.
     """
-    found = compared = 0
+    found = compared = superseded = 0
     match_failed = []
     for trip in CORPUS_TRIPS:
-        checks = {c["name"]: c for c in _gate(load_trip(trip))["checks"]}
+        report = _gate(load_trip(trip))
+        checks = {c["name"]: c for c in report["checks"]}
         found += checks["verdicts_rederivable"]["examined"]
         compared += checks["verdicts_match"]["examined"]
+        superseded += _classify(report["failures"]).get("poi_verdict_superseded", 0)
         if not checks["verdicts_match"]["passed"]:
             match_failed.append(trip)
         assert checks["verdicts_rederivable"]["passed"] is False, trip
-    assert (found, compared) == (230, 69)
+        assert checks["verdicts_rule_current"]["passed"] is False, trip
+    assert (found, compared, superseded) == (230, 69, 105)
     assert match_failed == ["2026-07-sun-moon-lake"]
+
+
+def test_the_three_verdict_axes_partition_their_failures():
+    """No corpus record may be misattributed to the wrong verdict axis.
+
+    The naive form of this guard -- assert poi_ids and lodging_ids never
+    intersect -- is FALSE on this corpus: 2026-07-sun-moon-lake's
+    verified-pois.yaml genuinely duplicates two hotels ('lealea', 'd2-2')
+    that are ALSO the chosen lodging candidates in accommodations.yaml --
+    the consumer copied them there (rederive_closing's own docstring names
+    this exact pair) so both copies fail independently, for unrelated
+    reasons (the POI copy's business_status is superseded; the lodging
+    copy's resolved_name is missing). That is two real, separately-authored
+    records about the same hotel, not one record counted twice, and no
+    assertion should treat it as a defect.
+
+    The invariant that DOES hold everywhere, and is what TW-070 fix round 1's
+    synthetic fixture (tests/test_gate.py:672) actually guards against, is
+    narrower: neither axis's failures may name an id that is not a genuine
+    member of ITS OWN artifact. Under the fold bug that guard catches --
+    run_gate passing poi_pool's folded by_id.values() into rederive_pois
+    instead of the raw pois list -- a chosen lodging candidate NOT
+    independently duplicated in verified-pois.yaml leaks into the POI axis
+    under an id absent from that trip's raw pois list. Reproduced directly
+    against rederive_pois for 2026-06-yilan: the bug phantom-flags
+    'lodging-xiangshouyixia' (its chosen candidate id, present in neither
+    that trip's nor any trip's raw verified-pois.yaml), which the subset
+    assertions below catch.
+    """
+    for trip in CORPUS_TRIPS:
+        a = load_trip(trip)
+        report = _gate(a)
+        raw_poi_ids = {p.get("id") for p in a["pois"]["pois"]}
+        raw_lodging_ids = {c.get("id")
+                           for stop in (a["accommodations"] or {}).get("stops") or []
+                           for c in stop.get("candidates") or []}
+        poi_ids = {f.split("'")[1] for f in report["failures"] if f.startswith("pois[")}
+        lodging_ids = {f.split("'")[3] for f in report["failures"]
+                       if f.startswith("accommodations ")}
+        assert poi_ids, f"{trip}: no POI-axis findings to discriminate against"
+        assert lodging_ids, f"{trip}: no lodging-axis findings to discriminate against"
+        assert poi_ids <= raw_poi_ids, (trip, poi_ids - raw_poi_ids)
+        assert lodging_ids <= raw_lodging_ids, (trip, lodging_ids - raw_lodging_ids)
 
 
 @pytest.mark.parametrize("trip", CORPUS_TRIPS)
