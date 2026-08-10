@@ -956,7 +956,8 @@ def test_real_trips_closing_axis_matches_the_baseline():
     #     fold-membership cut is what closes C1.
     #
     # (b) With lodging out of scope, closing scope is now fold-INVARIANT: both
-    #     pools put the same 56 rows in scope. That equality is the property C1
+    #     pools put the SAME number of rows in scope (asserted below via
+    #     `unfolded.found == total.found`). That equality is the property C1
     #     restored — before the fix the folded pool put 63 rows in scope against
     #     the un-folded 58, and the 5-row delta was five unsatisfiable demands.
     #     If a future change makes these two numbers differ again, the shipped
@@ -1000,8 +1001,9 @@ def _poi_rec(**over):
 def test_a_bare_string_business_status_is_superseded_not_a_mismatch():
     """TW-070 bucket 1. The input is PRESENT — it is simply in a form 0.32.0
     superseded — so calling it a missing input would misreport it, and calling it
-    a wrong verdict would blame the agent for a rule change. Measured: 105 of 127
-    corpus POIs land here and nothing else does."""
+    a wrong verdict would blame the agent for a rule change. On the real corpus
+    this bucket is where nearly every changed verdict lands — `missing` and
+    `mismatches` are the rare exceptions, not the rule."""
     from scripts.rederive import rederive_pois
     out = rederive_pois([_poi_rec(business_status="OPERATIONAL")])
     assert out.found == 1
@@ -1072,12 +1074,12 @@ def test_a_dict_shaped_but_unusable_business_status_is_superseded_not_a_mismatch
 def test_a_correctly_recorded_unverified_poi_is_not_hoisted_into_superseded():
     """I1 guard rail. The Gate 0 test must stay strictly INSIDE the `got != rec`
     branch. Hoisting it above the equality check reads seductively cleaner --
-    "an unusable input is unusable regardless of the verdict" -- but it
-    reclassifies the 22 corpus POIs that are CORRECTLY recorded `unverified`
-    (they have no usable business_status, which is exactly WHY they are
-    unverified) from silent-agreement into `superseded`, taking the release
-    headline from 127/105 to 127/127 and burying the 105 records that actually
-    moved under 22 that did not.
+    "an unusable input is unusable regardless of the verdict" -- but it would
+    reclassify every corpus POI that is CORRECTLY recorded `unverified` (it has
+    no usable business_status, which is exactly WHY it is unverified) from
+    silent-agreement into `superseded`, inflating the release headline to look
+    like every POI changed verdict and burying the ones that genuinely did
+    move under the ones that did not.
 
     A dict-shaped-but-unusable business_status is the sharper form of the same
     trap than the bare string `test_a_recorded_unverified_poi_is_not_flagged_
@@ -1126,9 +1128,9 @@ def test_a_resolved_name_naming_another_venue_is_a_mismatch():
     the same anchored `today` verify_poi received, so Gate 0 and Gate 2c can
     never disagree on the same business_status. This fixture (geocode_source
     'nominatim', not cluster_fallback) does not exercise that fix directly; it
-    only proves Gate 2b still discriminates. The general claim is proved by
-    scripts/rederive.py's own re-derivation over the corpus (found=127,
-    superseded=105, mismatches=0) and pinned directly by
+    only proves Gate 2b still discriminates. The general claim rests on
+    scripts/rederive.py's own re-derivation over the real corpus, not on this
+    narrow fixture, and is pinned directly by
     test_gate_2c_stays_unreachable_on_the_poi_path_for_a_very_stale_as_of below,
     not by this test.
     """
@@ -1172,8 +1174,9 @@ def test_a_correctly_recorded_poi_produces_nothing():
 
 def test_a_recorded_unverified_poi_is_not_flagged_merely_for_being_unverified():
     """The axis reports a verdict that CHANGES, not a verdict that is unwelcome.
-    Measured: 22 of 127 corpus POIs are recorded unverified and re-derive
-    unverified; flagging them would bury the 105 that actually moved."""
+    Corpus POIs correctly recorded unverified simply re-derive unverified;
+    flagging them would bury the records that actually moved under the ones
+    that did not."""
     from scripts.rederive import rederive_pois
     out = rederive_pois([_poi_rec(verify_status="unverified",
                                   business_status="OPERATIONAL")])

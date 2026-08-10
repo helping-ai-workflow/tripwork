@@ -260,8 +260,12 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # geocode_source's presence is its own requirement, independent of the
     # now-retired cluster_fallback sub-check below (I3): a POI that never
     # records where its coordinate came from is a provenance gap on its own —
-    # the identical shape Part 1 closed for resolved_name. 19 of 127 real POIs
-    # omit the field.
+    # the identical shape Part 1 closed for resolved_name. Real consumer data
+    # has carried this shape, not merely a hypothetical one -- a hand-rolled
+    # driver that writes geocode data outside source_verify_run and never
+    # sets geocode_source; see tests/test_e2e_v033_closure.py::_candidates'
+    # docstring for why. How many corpus POIs carry it today is not pinned
+    # here.
     if geocode_source is GEOCODE_SOURCE_MISSING:
         return ("unverified",
                 "geocode_source not recorded — record geocode.geocode_source: "

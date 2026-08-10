@@ -69,19 +69,18 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
     run_rederivation — the divergence C1 turned on.
 
     Re-measured for v0.34.0 Task 6 (real Gate 0 threaded into rederive_lodging,
-    Gate 2c retired). `found` (verdict-bearing records) is UNCHANGED by Task 6:
-    Task 6 reclassifies lodging findings between buckets, it does not add or
-    remove records to examine. `compared` DROPS at Task 6, because every
-    lodging candidate that used to reach a comparison (the TW-070 baseline
-    included 2026-07-sun-moon-lake's `d2-6`, a cluster_fallback centroid with
-    no existence proof) now lands in `superseded` before classify_candidate
-    ever runs, since none of them carries a sourced business_status -- there
-    is no `operating` value left to compare with. That is also why the
-    exactly-one-mismatch claim TW-070 pinned here is gone: this corpus can
-    have ZERO verdicts_match mismatches left on any axis (`match_failed`
-    empty), not because `d2-6` was fixed, but because its defect moved from
-    "wrong verdict" to "verdict produced under rules this release supersedes"
-    -- a different, more precise claim about the same record (pinned by id in
+    Gate 2c retired). `found` (verdict-bearing records) is UNCHANGED by Task 6
+    (Task 6 reclassifies lodging findings; it does not add or remove records
+    to examine). compared drops from 69 (TW-070) to 51: the 18 lodging
+    candidates that used to reach a comparison (17 matching + 1 mismatching,
+    d2-6) now land in `superseded` before classify_candidate ever runs, since
+    none of them carries a sourced business_status -- there is no `operating`
+    value left to compare with. That is also why the exactly-one-mismatch
+    claim TW-070 pinned here is gone: this corpus has ZERO verdicts_match
+    mismatches left on any axis (match_failed is empty), not because d2-6 was
+    fixed, but because its defect moved from "wrong verdict" to "verdict
+    produced under rules this release supersedes" -- a different, more
+    precise claim about the same record (pinned by id in
     tests/test_rederive.py::test_real_trips_lodging_axis_matches_the_baseline).
 
     The sixth axis's OWN headline number is the third assertion:
