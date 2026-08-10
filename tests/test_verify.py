@@ -263,14 +263,36 @@ def test_cluster_fallback_with_a_bare_string_business_status_is_still_unverified
     `operating=True` unless Gate 0 has already been satisfied by a genuine
     sourced business_status.
 
-    That is exactly why TW-062 stays closed: a district centroid riding into
-    'verified' with no independent evidence the place exists is now blocked
-    by Gate 0 itself, which demands a DATED, SOURCED statement -- strictly
-    more than Gate 2c ever asked for (an undated official link or a bare
-    place_id both satisfied Gate 2c; neither satisfies Gate 0). A
-    cluster_fallback POI whose business_status is the bare, self-attested
-    string never gets far enough to need Gate 2c at all -- it fails Gate 0
-    first, through the real entry point, with no bypass involved."""
+    WHAT THIS TEST PROVES, stated precisely (docstring corrected in the final
+    v0.34.0 fix wave, I2 -- the assertion below was always right; this
+    paragraph's REASONING was not, and it ran a true clause and a false one
+    together, which is the exact conflation I2 named):
+
+      TRUE -- the retirement is VERDICT-NEUTRAL, and this test is the
+        regression lock for that. A cluster_fallback POI whose business_status
+        is the bare, self-attested string never gets far enough to need Gate
+        2c at all: it fails Gate 0 first, through the REAL entry point
+        (verify_poi), with no `operating=True` bypass involved. The evidence
+        VOCABULARY also narrowed -- Gate 0 demands a DATED, SOURCED statement,
+        strictly more than Gate 2c ever asked for (an undated official link or
+        a bare place_id both satisfied Gate 2c; neither satisfies Gate 0).
+
+      FALSE -- "TW-062 stays closed". It does not, and the cause is TW-072
+        (Task 2), not this retirement. Once a sourced business_status counts
+        as an existence proof, a cluster_fallback POI whose ONLY evidence is
+        that statement reaches 'verified' with a district-centroid coordinate
+        -- TW-062's exact shape. Gate 2c would have PASSED those records too
+        had it been left in place. Measured: 5 corpus records do this after
+        migration (4 chiayi POIs + sun-moon-lake's d2-6), all flipping
+        has_existence_proof False -> True on the new proof alone.
+        `test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_
+        passes` below asserts that permitted outcome directly.
+
+    So: this test pins that the bare-string path still refuses. It does NOT
+    show that a district centroid can no longer ride into 'verified' -- with a
+    sourced business_status it now can, deliberately. Whether that coordinate
+    deserves the verdict is the coordinate-trustworthiness question v0.34.0
+    explicitly declines to answer (CHANGELOG "What stays out")."""
     poi = _clean_poi(business_status="OPERATIONAL")   # bare string: self-attested
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
                                  local_lang="zh", resolved_name="春燕飯館")
