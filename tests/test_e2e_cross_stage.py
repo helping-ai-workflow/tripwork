@@ -1,5 +1,7 @@
 """TW-059 cross-stage closure: one fixture walked through verify -> gate ->
 render -> export-gate, proving the stages compose (not just pass in isolation)."""
+import datetime
+
 from scripts.verify import classify_candidate
 from scripts.gate import run_gate
 from scripts.render.markdown import render_day_table
@@ -15,7 +17,16 @@ def test_cross_stage_verify_gate_render_export():
     status, _ = classify_candidate(cand, geocoded=True, in_claimed_region=True, local_lang="ko")
     assert status == "verified"
     poi = {"id": "odari", "name_local": "오다리집", "name_display": "Odari",
-           "verify_status": "verified", "geocode": {"lat": 37.56, "lng": 126.98},
+           "verify_status": "verified",
+           "geocode": {"lat": 37.56, "lng": 126.98, "geocode_source": "nominatim"},
+           "resolved_name": "오다리집",
+           # sourced business_status (TW-070, v0.34.0): run_gate now threads
+           # `pois` into rederive_pois, so this record must re-derive its own
+           # recorded 'verified' -- as_of computed at call time, never a
+           # literal (OPERATING_MAX_AGE_DAYS is 90).
+           "business_status": {"status": "OPERATIONAL",
+                               "source_url": "https://official.example",
+                               "as_of": datetime.date.today().isoformat()},
            "booking": {"required": True},
            # v0.33.0 (R4): "오다리집" is a restaurant (Korean "-집" naming), so this
            # is explicit close/last_order, never hours.no_fixed_close.

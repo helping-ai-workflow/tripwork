@@ -69,7 +69,7 @@
                   "nominatim_structured",
                   "cluster_fallback"
                 ],
-                "description": "Where this coordinate came from. Optional in schema (old verified-pois.yaml stays valid); required by source-verify's own Gate 2c. An absent value is a refusal, not a skip: verify_poi cannot tell 'nobody recorded where this coordinate came from' apart from 'this coordinate is a district centroid', so it returns unverified rather than letting the cluster_fallback existence-proof check go unasked. (I3)"
+                "description": "Where this coordinate came from. Optional in schema (old verified-pois.yaml stays valid); required by source-verify's Gate 2. An absent value is a refusal, not a skip: verify_poi cannot tell 'nobody recorded where this coordinate came from' apart from 'this coordinate is a district centroid', so it returns unverified. Recording provenance is its own requirement, independent of any further check on the value. (I3) Note a recorded 'cluster_fallback' now proceeds like any other value — the extra existence-proof check that used to be demanded of it (TW-062's sub-check) is retired, subsumed by Gate 0 once a sourced business_status became an existence proof in its own right (TW-072)."
               },
               "pin_exact": {
                 "type": "boolean",
@@ -311,6 +311,11 @@
               }
             },
             "additionalProperties": false
+          },
+          "resolved_name": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The display_name the geocoder returned for this POI, recorded so Gate 2b (name match) can be re-derived from the artifact. The literal NO_RESULT means the lookup RAN and returned nothing — a cluster_fallback POI has no display_name to record, and scripts/source_verify_run.py already passes verify.NO_RESOLVED_NAME on that path. An ABSENT field means nobody looked; the two are different and the gate treats them differently. Optional in schema for back-compat; required by the itinerary gate. (TW-071)"
           },
           "photo_source": {
             "description": "Photo provenance. wikimedia/openverse are distributable; google is marked non-distributable by the export gate. Backend selector names {none,wiki,google} map to sources as: wiki -> {wikimedia, openverse}, google -> google.",

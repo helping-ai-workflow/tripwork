@@ -27,11 +27,28 @@ def _sourced_status(status, as_of="2026-06-01"):
 
 # --- shared builders (mirror tests/test_gate.py conventions) -------------------
 def _poi(pid, geo=True, status="verified", **extra):
+    """v0.34.0 (TW-070): run_gate now threads `pois` into rederive_pois, so a
+    sourced business_status + geocode_source + resolved_name are needed by
+    default (mirrors tests/test_gate.py's identical migration) -- otherwise
+    every POI built here lands in the 'superseded' bucket the moment it is
+    examined. as_of uses this module's own _sourced_status() default (a fixed
+    literal, matching this file's existing _TODAY convention for write-time
+    verify_poi/classify_candidate calls) rather than a wall-clock read: safe
+    here because rederive_pois anchors its OWN re-check to the record's own
+    business_status.as_of era, never wall-clock (see scripts/rederive.py::
+    rederive_pois's docstring), so this fixture cannot go stale as real time
+    passes. resolved_name mirrors name_local (an exact match) rather than the
+    NO_RESULT sentinel, because this helper -- unlike test_gate.py's -- always
+    gives the POI a real name to match against."""
     d = {"id": pid, "verify_status": status,
          "name_local": extra.pop("name_local", pid),
          "name_display": extra.pop("name_display", pid)}
     if geo:
-        d["geocode"] = {"lat": 1.0, "lng": 2.0}
+        d["geocode"] = {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"}
+    d["business_status"] = _sourced_status("OPERATIONAL")
+    d["resolved_name"] = d["name_local"]
+    d["sources"] = [{"url": "https://a.example/poi", "lang": "zh"},
+                    {"url": "https://b.example/poi", "lang": "en"}]
     d.update(extra)
     return d
 
@@ -63,8 +80,10 @@ def _itin(rows, date="2026-07-01", lodging=None, **extra):
 class TestP1Operating:
     def _cand(self, **extra):
         # I3: geocode_source: nominatim -- this class is about Gate 0
-        # (operating), isolated from Gate 2c's centroid check by using a real
-        # geocoder-resolved coordinate, not a district centroid.
+        # (operating); a real geocoder-resolved coordinate keeps it off
+        # cluster_fallback (moot for gating purposes since v0.34.0 retired
+        # Gate 2c's separate cluster_fallback proof check, but still the more
+        # representative shape for a Gate-0-focused fixture).
         c = {"id": "x", "name_local": "店", "name_display": "店",
              "sources": [{"url": "https://a.example", "lang": "zh"},
                          {"url": "https://b.example", "lang": "zh"}],
@@ -124,7 +143,8 @@ class TestP2NameMatch:
 
     def test_verify_poi_resolved_name_mismatch_conflicting(self):
         # I3: geocode_source: nominatim -- this fixture's point is Gate 2b's
-        # name-mismatch check, not Gate 2c's centroid check.
+        # name-mismatch check, not the (v0.34.0-retired) cluster_fallback
+        # proof check.
         c = {"id": "x", "name_local": "星月大地", "name_display": "星月大地",
              "business_status": _sourced_status("OPERATIONAL"),
              "sources": [{"url": "https://a.example", "lang": "zh"},
@@ -193,15 +213,19 @@ class TestP3GeocodeResilience:
 # ============================ P4 — lodging in gate/render pool ================
 class TestP4LodgingPool:
     def _acc(self):
-        # geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging
-        # re-derives this candidate to the recorded 'verified' instead of
-        # flagging it as a verdicts_rederivable gap.
+        # geocode_source + resolved_name (I2, v0.33.0) + business_status
+        # (Task 6, v0.34.0): so rederive_lodging re-derives this candidate to
+        # the recorded 'verified' instead of flagging it as a
+        # verdicts_rederivable / verdicts_rule_current gap. as_of uses this
+        # file's own _TODAY convention (rederive_lodging anchors Gate 0 to the
+        # record's own era, not wall-clock, so any literal date is safe here).
         return {"stops": [{"district": "日月潭", "nights": 2, "chosen": "hotel-a",
             "candidates": [{
                 "id": "hotel-a", "name_local": "力麗溫德姆", "name_display": "力麗溫德姆",
                 "verify_status": "verified",
                 "geocode": {"lat": 1.0, "lng": 2.0, "geocode_source": "nominatim"},
                 "resolved_name": "力麗溫德姆",
+                "business_status": _sourced_status("OPERATIONAL"),
                 "facilities": [],
                 "sources": [{"url": "https://x.example", "lang": "zh"},
                             {"url": "https://y.example", "lang": "zh"}]}]}]}

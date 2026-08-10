@@ -7,9 +7,14 @@ artifact: the agent was trusted to call them and transcribe the answer. Dogfood
 2026-08 showed what that buys — routing.yaml hop flags typed by hand, a
 gate-report with 13 green checks, and a user catching the errors by eye.
 
-Two orthogonal axes, both emitted as named checks with an examined:N count:
+Three axes, all emitted as named checks with an examined:N count:
   verdicts_match        — recorded verdict == recomputed verdict
   verdicts_rederivable  — every verdict-bearing record carries the inputs needed
+  verdicts_rule_current — the recorded verdict was produced under rules still
+                          in force, not ones a later release superseded
+                          (rederive_pois since TW-070; rederive_lodging joined
+                          it in v0.34.0 Task 6, once lodging got its own real
+                          Gate 0 to be superseded FROM)
 
 A record whose inputs are MISSING is a verdicts_rederivable FAILURE, never a
 skip. A skipped record is indistinguishable from a green one, which is the exact
@@ -17,15 +22,16 @@ defect class this module exists to close (cf. scripts/gate.py:151-155, where an
 absent advisory is a failure rather than a skipped check).
 
 Lodging coverage is partial, and deliberately not papered over. rederive_lodging
-re-derives classify_candidate's Gates 1/2/2b/2c for every accommodations.yaml
-candidate. Gate 0 (operating) is NOT re-derived: accommodations.schema.json
-carries no business_status field, so there is nothing to read, and closing it is
-a TW-063-sized change deferred to v0.34.0. Gates 3a/3b (conflict_detected,
-in_claimed_region) are NOT re-derived either: both are computed by the agent at
-research time and the artifact records neither, so the permissive values are
-passed and a region mismatch or cross-source conflict on a hotel is invisible
-to this module. Do not read "lodging reaches the gates" as "all six gates run
-on lodging" — only Gates 1/2/2b/2c do.
+re-derives classify_candidate's Gates 0/1/2/2b for every accommodations.yaml
+candidate (Gate 2c is retired as of v0.34.0 Task 6 — see scripts/verify.py::
+classify_candidate — a sourced business_status is itself Gate 2c's existence
+proof, so nothing can reach that check with Gate 0 already passed and no
+proof). Gates 3a/3b (conflict_detected, in_claimed_region) are NOT re-derived:
+both are computed by the agent at research time and the artifact records
+neither, so the permissive values are passed and a region mismatch or
+cross-source conflict on a hotel is invisible to this module. Do not read
+"lodging reaches the gates" as "every gate runs on lodging" — Gates 3a/3b
+still do not.
 
 What this proves and what it does not: re-derivation proves a verdict follows
 from the recorded numbers. It never proves the numbers are real. min_plausible_mins
@@ -37,7 +43,8 @@ from scripts.cost import sum_costs
 from scripts.distance import classify_hop, haversine_km
 from scripts.hours import closing_status
 from scripts.legs import classify_leg
-from scripts.verify import classify_candidate, name_matches
+from scripts.verify import (NO_RESOLVED_NAME, _parse_iso, classify_candidate,
+                            name_matches, operating_from_status, verify_poi)
 
 # Plugin defaults, overridable only from trip-brief. Deliberately NOT recorded
 # per-record: a per-leg threshold would let an agent widen the cap to clear its
@@ -48,19 +55,25 @@ COST_TOL = 0.005
 MIN_BUFFER_MINS = 30
 DEFAULT_VISIT_MINS = 60
 
+# The artifact spelling of verify.NO_RESOLVED_NAME. The sentinel itself is an
+# object() and cannot be serialised; the schema declares this literal. (TW-071)
+NO_RESULT_SENTINEL = "NO_RESULT"
+
 
 class Outcome:
-    """(mismatch failures, missing-input failures, records found, records compared)."""
+    """(mismatch failures, missing-input failures, superseded-rule failures,
+    records found, records compared)."""
 
-    __slots__ = ("mismatches", "missing", "found", "compared")
+    __slots__ = ("mismatches", "missing", "superseded", "found", "compared")
 
     def __init__(self):
-        self.mismatches, self.missing = [], []
+        self.mismatches, self.missing, self.superseded = [], [], []
         self.found = self.compared = 0
 
     def merge(self, other):
         self.mismatches += other.mismatches
         self.missing += other.missing
+        self.superseded += other.superseded
         self.found += other.found
         self.compared += other.compared
         return self
@@ -268,7 +281,7 @@ def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
     What this function transcribes is the visit/meal rule
     (skills/itinerary-synthesis/SKILL.md's `last_order` / `last_entry` plus a
     `need_mins` buffer), which has no meaning for a check-in — and none at all
-    for chiayi's two CHECKOUT rows. Re-deriving `reception_ok` is a v0.34.0
+    for chiayi's two CHECKOUT rows. Re-deriving `reception_ok` is a v0.35.0
     follow-up; it is a different verdict on a different field, not this one.
 
     hours.no_fixed_close is a recorded CLAIM, not a skip: an open-air place
@@ -315,29 +328,69 @@ def rederive_lodging(accommodations, *, local_lang=None):
     """Re-derive each lodging candidate's verify_status.
 
     accommodation-research calls classify_candidate directly and passes none of
-    the arguments Part 1 added, so `operating`, `name_match` and `geocode_source`
-    all take their permissive defaults and TW-062/TW-063 never applied to hotels.
-    Re-derivation is the mechanical form: it reads what the artifact recorded
-    rather than what the SKILL asked the agent to pass.
+    the arguments Part 1 added, so `name_match` and `geocode_source` took their
+    permissive defaults and TW-062 never applied to hotels. Re-derivation is the
+    mechanical form: it reads what the artifact recorded rather than what the
+    SKILL asked the agent to pass.
 
-    Two gates are deliberately NOT re-derived here, and neither absence is
-    silent:
+    Gate 0 (operating) IS re-derived now (v0.34.0, Task 6): the 0.33.0 deferral
+    is closed — accommodations.schema.json carries business_status (the same
+    oneOf as verified-pois.schema.json), so there is something to read. ANY
+    candidate `operating_from_status` cannot establish (`None`) goes to the
+    `superseded` bucket and the comparison does not run for it — there is no
+    `operating` value to compare with. That covers two distinct shapes, both
+    worded in the failure message: business_status is not the sourced
+    {status, source_url, as_of} form at all (absent, or the legacy bare
+    string — verified under rules this release supersedes, exactly like a POI
+    in the same shape, rederive_pois); or it IS a dict but unusable
+    (unrecognised status / no source_url / unparseable as_of). Fix round 1
+    (M1): an earlier draft only superseded the first shape and silently
+    passed the second to classify_candidate as `operating=True` — the exact
+    "not established defaults to open" shape TW-005/P1 closed for POIs, and
+    this module's own opening doctrine says a skipped record must not be
+    indistinguishable from a green one. A sourced but CLOSED business_status
+    still reaches classify_candidate, now with `operating=False`, so a closed
+    hotel is no longer silently treated as open the way the old hardcoded
+    `operating=True` treated every hotel.
 
-      Gate 0 (operating) — schemas/accommodations.schema.json has no
-      business_status field, so there is nothing to read. Closing it is a
-      TW-063-sized change deferred to v0.34.0; `operating=True` here matches the
-      permissive value the stage already uses, so this task changes nothing about
-      it either way.
+    Because a sourced business_status is also Gate 2c's existence proof
+    (TW-072), threading real Gate 0 here is what makes Gate 2c unreachable for
+    lodging too — the reason that gate is retired in this same task
+    (scripts/verify.py::classify_candidate no longer carries the
+    cluster_fallback-without-proof branch at all).
 
-      Gates 3a/3b (conflict_detected, in_claimed_region) — both are computed by
-      the agent at research time and the artifact records neither. Passing the
-      permissive values is the only honest option; it means a region mismatch or
-      a cross-source conflict is invisible to this function.
+    Gate 3a/3b (conflict_detected, in_claimed_region) are still NOT re-derived
+    — both are computed by the agent at research time and the artifact records
+    neither. Passing the permissive values is the only honest option; it means
+    a region mismatch or a cross-source conflict is invisible to this function.
+    Unchanged by this task.
 
-    Missing inputs go to the rederivable axis and the match comparison then runs
-    BLIND to them, exactly as rederive_hops does for an absent duration_source —
-    so a field that is new in this release cannot demote a candidate merely by
-    being new.
+    Missing inputs (geocode_source, resolved_name) go to the rederivable axis
+    and the match comparison then runs BLIND to them, exactly as rederive_hops
+    does for an absent duration_source — so a field new in an earlier release
+    cannot demote a candidate merely by being new.
+
+    `operating_from_status` is anchored to the candidate's OWN
+    `business_status.as_of` (`today=as_of` above), not to wall-clock — the
+    identical reason rederive_pois anchors Gate 0 (see that function's
+    docstring): the question this module asks is "was the verdict correct
+    when it was written". `today` is NOT passed on into `classify_candidate`
+    (fix round 1, M2): its only reader there was the now-retired Gate 2c
+    cluster_fallback branch, so the parameter no longer exists on that
+    function at all.
+
+    Corrected causal claim (fix round 1, I3 review): the anchor's value is
+    NOT "prevents calendar-driven false mismatches" in general — under the
+    pre-M1 fail-open (`operating is not False`), a wall-clock read of a stale
+    record would have returned `None` (not `False`) even for a genuinely
+    CLOSED status, and the fail-open would have silently matched it as
+    operating anyway, which is LENIENCE, not redness. The anchor became
+    load-bearing the moment M1 made `None` always mean `superseded`: without
+    it, ANY record older than OPERATING_MAX_AGE_DAYS — including a perfectly
+    valid, still-correct OPERATIONAL one — would be misclassified as
+    `superseded` purely from elapsed wall-clock time, which IS the
+    calendar-driven class this anchor exists to prevent, just manifesting on
+    a different bucket than originally described.
     """
     out = Outcome()
     if accommodations is None:
@@ -352,8 +405,8 @@ def rederive_lodging(accommodations, *, local_lang=None):
             gs = (cand.get("geocode") or {}).get("geocode_source")
             if not gs:
                 out.missing.append(
-                    f"{where}: no geocode.geocode_source — Gate 2c (centroid "
-                    f"existence proof) is not re-derivable")
+                    f"{where}: no geocode.geocode_source recorded — the "
+                    f"centroid's provenance is not re-derivable")
             resolved = cand.get("resolved_name")
             if not resolved:
                 out.missing.append(
@@ -363,10 +416,37 @@ def rederive_lodging(accommodations, *, local_lang=None):
             else:
                 queried = cand.get("name_local") or cand.get("name_display") or ""
                 name_match = name_matches(queried, resolved)
+            bs = cand.get("business_status")
+            sourced = isinstance(bs, dict)
+            as_of = bs.get("as_of") if sourced else None
+            operating, why = operating_from_status(bs, today=as_of)
+            if operating is None:
+                # Fix round 1 (M1): "not established" must never reach
+                # classify_candidate as a silent True. That was the exact
+                # TW-005/P1 shape closed for POIs, and this module's own
+                # opening doctrine is that a skipped record must not be
+                # indistinguishable from a green one. Two distinct reasons
+                # land here, both superseded (this axis is not the mismatch
+                # axis, so neither accuses the artifact of a WRONG verdict —
+                # both say the verdict cannot be re-derived from what is
+                # recorded): the field isn't sourced at all (absent / bare
+                # string), or it IS a dict but unusable (unrecognised status /
+                # no source_url / unparseable as_of — never staleness, which
+                # `today=as_of` above always anchors to zero age).
+                reason = (
+                    "business_status is not the sourced "
+                    "{status, source_url, as_of} form" if not sourced else
+                    f"business_status is dict-shaped but unusable ({why})")
+                out.superseded.append(
+                    f"{where}: recorded verify_status "
+                    f"{cand.get('verify_status')!r} was produced under superseded "
+                    f"rules — {reason}; re-run "
+                    f"accommodation-research for this candidate")
+                continue
             got, note = classify_candidate(
                 cand, geocoded=True, in_claimed_region=True, local_lang=local_lang,
-                conflict_detected=False, operating=True, name_match=name_match,
-                geocode_source=gs or "")
+                conflict_detected=False, operating=operating,
+                name_match=name_match, geocode_source=gs or "")
             out.compared += 1
             rec = cand.get("verify_status")
             if rec != got:
@@ -376,13 +456,188 @@ def rederive_lodging(accommodations, *, local_lang=None):
     return out
 
 
+def _verify_status_of(poi, local_lang, resolved, as_of):
+    """verify_poi against the record's own era. `as_of` None means there is no
+    era to anchor to, in which case the verdict is superseded anyway and the
+    date never reaches a comparison that matters.
+
+    No `dict(poi)` copy here (fix round 1, cheap cleanup): verify_poi's first
+    step is normalize_and_validate_poi, which already returns a fresh dict —
+    copying before the call was a redundant second copy of the same POI."""
+    return verify_poi(poi, geocoded=bool(poi.get("geocode")),
+                      in_claimed_region=True, local_lang=local_lang,
+                      resolved_name=resolved, today=as_of)[1:]
+
+
+def rederive_pois(pois, *, local_lang=None):
+    """Re-derive each POI's recorded verify_status.
+
+    The sixth axis, and the one 0.33.0 left out: verify_poi is the sole
+    gatekeeper of the iron rule "only verified flows downstream", and the
+    function whose rules changed most across 0.32.0 and 0.33.0 (Gate 0's sourced
+    object, Gate 2b's refusal on an absent resolved_name, Gate 2c's existence
+    proof). Three rules changed and no recorded verdict was ever re-examined.
+
+    Scope is verified-pois records ONLY. Lodging candidates have their own axis
+    (rederive_lodging) and must not be counted twice — so this takes the `pois`
+    LIST, never gate.py's folded `by_id` pool.
+
+    THE CLOCK IS ANCHORED TO THE ARTIFACT, not to wall-clock. The question asked
+    is "was this verdict correct when it was written", using the record's own
+    business_status.as_of era. OPERATING_MAX_AGE_DAYS is 90, so once consumers
+    migrate to the object form — which is exactly what this release asks of them
+    — a wall-clock read would turn a trip's gate red 91 days after verification
+    with no artifact change. That is the calendar-driven class the 0.33.0
+    CHANGELOG cited when deferring R5. Recency is a real concern and gets its own
+    named signal in a later version; it is not silently dropped.
+
+    Two gates are NOT re-derived here, and neither absence is silent: the
+    artifact records neither `in_claimed_region` nor `conflict_detected`, so the
+    permissive values are passed and Gates 3a/3b are invisible to this axis.
+    Recording them was considered and rejected — each new agent-authored field is
+    another self-attestation, which is the defect family this programme exists to
+    shrink.
+
+    Buckets are FIRST-APPLICABLE, in this order, so one record produces at most
+    one failure and the consumer is pointed at the one thing to fix first:
+
+      superseded  — the recorded verdict cannot stand because Gate 0's input
+                    cannot be re-derived from what is recorded. TWO sub-shapes,
+                    both named in the message (I1, matching rederive_lodging):
+                    the business_status is not the sourced form at all
+                    (bare-string or absent, superseded by TW-063's object form),
+                    or it IS a dict but unusable — an unrecognised status, a
+                    blank source_url, an unparseable as_of. The second matters
+                    disproportionately for this release: 127 POIs must now
+                    hand-write {status, source_url, as_of}, and
+                    verified-pois.schema.json's as_of pattern
+                    (^[0-9]{4}-[0-9]{2}-[0-9]{2}$) accepts 2026-02-30, so a
+                    typo'd date passes validate_artifact and arrives here.
+      missing     — an input needed to recompute is absent from the artifact
+                    (today: no resolved_name recorded at all)
+      mismatches  — every input is present and the verdict does not follow
+
+    The bucket is decided from the RECORDED INPUTS, never by string-matching
+    verify_poi's note. 0.33.0's final review found a trip-authored value
+    interpolated into a routed message could steer routing; a classifier that
+    greps its own error strings has the same shape.
+
+    `pois is None` (verified-pois.yaml itself absent, distinct from an empty
+    but present list) is a verdicts_rederivable FAILURE, matching every
+    sibling axis (rederive_legs/hops/cost/lodging) — never a silent 0-found
+    pass. Fix round 1 (TW-070): the first cut of this function used `pois or
+    []`, which folded that distinction away and reported nothing, contrary to
+    this module's own opening doctrine that a skipped record is
+    indistinguishable from a green one.
+    """
+    out = Outcome()
+    if pois is None:
+        out.missing.append(
+            "verified-pois.yaml absent — verify_poi verdicts are not re-derivable")
+        return out
+    for poi in pois:
+        rec = poi.get("verify_status")
+        if rec is None:
+            continue
+        out.found += 1
+        pid = poi.get("id", "?")
+        bs = poi.get("business_status")
+        sourced = isinstance(bs, dict)
+        as_of = _parse_iso(bs.get("as_of")) if sourced else None
+        recorded_name = poi.get("resolved_name")
+        resolved = (NO_RESOLVED_NAME if recorded_name == NO_RESULT_SENTINEL
+                    else recorded_name)
+        got, _note = _verify_status_of(poi, local_lang, resolved, as_of)
+        if got == rec:
+            out.compared += 1
+            continue
+        # ⚠ STRICTLY INSIDE the `got != rec` branch, never hoisted above it
+        # (I1, final whole-branch review). Testing Gate 0 first reads cleaner —
+        # "an unusable input is unusable regardless of the verdict" — and is
+        # wrong: the 22 corpus POIs correctly recorded `unverified` have no
+        # usable business_status precisely BECAUSE that is why they are
+        # unverified, so hoisting reclassifies all 22 from silent agreement
+        # into `superseded` and takes the corpus headline from 127/105 to
+        # 127/127, burying the records that actually moved.
+        # (test_a_correctly_recorded_unverified_poi_is_not_hoisted_into_superseded)
+        operating, why = operating_from_status(bs, today=as_of)
+        if operating is None:
+            # Both sub-shapes of an unusable Gate 0 input land here, matching
+            # rederive_lodging's identical split: the field is not sourced at
+            # all (absent / bare string), or it IS a dict but unusable
+            # (unrecognised status / blank source_url / unparseable as_of).
+            # I1: only the first used to be routed, so the second was reported
+            # as a WRONG VERDICT — and since the POI mismatch message
+            # deliberately carries no `note`, the consumer was told
+            # "re-derives 'unverified'" with no mention of which input failed,
+            # while the identical data in accommodations.yaml was told exactly.
+            # `why` is one of four PLUGIN literals in verify.py, never trip
+            # content, so interpolating it into a routed message is safe — the
+            # bucket is still decided from the RECORDED INPUT (`operating is
+            # None`), not by grepping verify_poi's note, which this docstring
+            # forbids.
+            reason = (
+                "business_status is not the sourced "
+                "{status, source_url, as_of} form" if not sourced else
+                f"business_status is dict-shaped but unusable ({why})")
+            out.superseded.append(
+                f"pois[{pid!r}]: recorded verify_status {rec!r} was produced under "
+                f"superseded rules — {reason}, so the verdict cannot stand "
+                f"today; re-run source-verify for this POI")
+            continue
+        if resolved is None:
+            out.missing.append(
+                f"pois[{pid!r}]: no resolved_name recorded — Gate 2b (name match) "
+                f"is not re-derivable; record the geocoder's display_name, or "
+                f"NO_RESULT to state the lookup ran and found none")
+            continue
+        out.compared += 1
+        out.mismatches.append(
+            f"pois[{pid!r}]: recorded verify_status {rec!r} but verify_poi "
+            f"re-derives {got!r} from the inputs this artifact carries")
+    return out
+
+
 def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
-                     trip_brief=None, accommodations=None):
-    """Return {"checks": [verdicts_match, verdicts_rederivable], "failures": [...]}.
+                     trip_brief=None, accommodations=None, pois=()):
+    """Return {"checks": [verdicts_match, verdicts_rederivable,
+    verdicts_rule_current], "failures": [...]}.
 
     `examined` is deliberately two different numbers: rederivable.examined counts
     every verdict-bearing record found, match.examined only the subset with
     complete inputs. Their difference is how many records the input gaps hid.
+
+    verdicts_rule_current.examined is the sum of the found counts of every axis
+    that can produce a `superseded` entry — poi_outcome.found +
+    lodging_outcome.found, NOT total.found. Through v0.34.0 Task 3 this was
+    poi_outcome.found alone, because only rederive_pois could populate
+    `superseded`. Task 6 breaks that: rederive_lodging now threads a real
+    Gate 0 too, so a lodging candidate can land in `superseded` exactly like a
+    POI can. Leaving `examined` at poi_outcome.found after that change would
+    make the check report failures from records it claims not to have
+    examined — the self-inconsistency this release exists to close. total.found
+    is still the wrong denominator even now: it also carries legs/hops/cost/
+    closing records, none of which can ever land in `superseded`, so reusing
+    it would inflate the denominator with records this check cannot possibly
+    speak to.
+
+    `pois` defaults to `()`, NOT `None` — deliberately asymmetric with
+    legs/routing/cost/accommodations, whose `None` defaults are safe because
+    scripts/gate.py::run_gate ALWAYS threads its own legs/routing/cost/
+    accommodations parameters through to this function. `pois` is not yet
+    threaded the same way (Task 4's wiring): run_gate already receives a real
+    `pois` list as its own mandatory first argument but does not forward it
+    here at all — not "might have a bug that leaves it unset", literally never
+    attempts it, today. Had this default been `None` (fix round 1, TW-070),
+    every existing `run_gate` call in the entire test suite — and every real
+    gate run in production — would report a false 'verified-pois.yaml absent'
+    failure on an artifact that is not absent, merely not yet forwarded: a
+    worse defect than the silent no-op being fixed. Omitting `pois=` (what
+    every caller does today) stays lenient — 0 found, nothing to report. A
+    caller that means "the artifact is genuinely absent" says so explicitly
+    with `pois=None`, which still reaches `rederive_pois`'s hard failure
+    unchanged (see test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip
+    and test_omitting_pois_entirely_is_lenient_not_a_forced_failure).
     """
     total = Outcome()
     total.merge(rederive_legs(
@@ -399,15 +654,27 @@ def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
                                    MIN_BUFFER_MINS),
         default_visit_mins=_brief_num(trip_brief, "scheduling", "default_visit_mins",
                                       DEFAULT_VISIT_MINS)))
-    total.merge(rederive_lodging(
+    lodging_outcome = rederive_lodging(
         accommodations,
-        local_lang=((trip_brief or {}).get("destination") or {}).get("local_lang")))
+        local_lang=((trip_brief or {}).get("destination") or {}).get("local_lang"))
+    total.merge(lodging_outcome)
+    poi_outcome = rederive_pois(
+        pois, local_lang=((trip_brief or {}).get("destination") or {}).get("local_lang"))
+    total.merge(poi_outcome)
     return {
         "checks": [
             {"name": "verdicts_match", "passed": not total.mismatches,
              "examined": total.compared},
             {"name": "verdicts_rederivable", "passed": not total.missing,
              "examined": total.found},
+            # Third axis, 0.34.0. A verdict produced under superseded rules is
+            # neither wrong-on-its-inputs nor missing-an-input; folding it into
+            # either would misreport the corpus's superseded records. examined
+            # is the sum of the found counts of every axis that CAN produce a
+            # superseded entry (poi + lodging, Task 6 — see docstring), not
+            # total.found.
+            {"name": "verdicts_rule_current", "passed": not total.superseded,
+             "examined": poi_outcome.found + lodging_outcome.found},
         ],
-        "failures": total.mismatches + total.missing,
+        "failures": total.mismatches + total.missing + total.superseded,
     }

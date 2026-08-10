@@ -133,8 +133,9 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
 
     geocode_dict, when present, always carries geocode_source
     ('nominatim_structured' / 'nominatim' / 'cluster_fallback') — Task 0 made an
-    absent value a Gate 2c refusal, so a POI this function actually geocoded
-    must never come back without it.
+    absent value a refusal (the GEOCODE_SOURCE_MISSING sentinel,
+    scripts/verify.py::classify_candidate's Gate 2), so a POI this function
+    actually geocoded must never come back without it.
 
     region_checked is False whenever there was no district centroid to compare
     against at all — no claimed_district recorded (destination-research
@@ -146,9 +147,11 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     mismatch, which is false: no comparison ever ran. So in_region_flag comes
     back True in that case (nothing to disprove); the caller (run()) reads
     region_checked and downgrades an otherwise-'verified' result to an honest
-    'unverified' — mirroring Gate 2b's name_match=None and Gate 2c's
-    GEOCODE_SOURCE_MISSING, which the same driver bug (Important finding 1,
-    fix round 1) had reintroduced for this gate alone.
+    'unverified' — mirroring Gate 2b's name_match=None and Gate 2's
+    GEOCODE_SOURCE_MISSING sentinel, which the same driver bug (Important
+    finding 1, fix round 1) had reintroduced for this gate alone. (That
+    sentinel is unrelated to, and survives, Gate 2c's later v0.34.0
+    retirement — see classify_candidate's old call site.)
     """
     if offline:
         return None, False, False, None, False
@@ -169,12 +172,16 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
         return geo, True, in_region_flag, result.display_name, region_checked
 
     # Nominatim found nothing for the venue itself. Falling back to the
-    # district centroid is NOT a general-purpose escape (SKILL.md Gate 2) —
-    # classify_candidate's Gate 2 sub-check still requires an independent
-    # existence proof (official source / gmaps_place_id) before a
-    # cluster_fallback POI can reach 'verified'; this function only records
-    # where the coordinate came from, it does not decide whether that is
-    # enough. The centroid is the district's own point, so it is in-region by
+    # district centroid records WHERE the coordinate came from; it does not
+    # decide whether that is enough to verify. Through v0.33.0 that decision
+    # was classify_candidate's own Gate 2 cluster_fallback sub-check, which
+    # required an independent existence proof (official source /
+    # gmaps_place_id) before a cluster_fallback POI could reach 'verified'.
+    # That sub-check is RETIRED as of v0.34.0 (Gate 2c subsumed by Gate 0 --
+    # see scripts/verify.py::classify_candidate's old call site): a sourced
+    # business_status is itself an existence proof, so a POI that clears
+    # Gate 0 already carries it, and the separate check became unreachable.
+    # The centroid is the district's own point, so it is in-region by
     # construction (region_checked=True: the centroid *is* the comparison
     # point); there is no resolved display_name to compare a venue name
     # against, so NO_RESOLVED_NAME records "the lookup ran and found nothing to
@@ -186,7 +193,7 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     return None, False, False, NO_RESOLVED_NAME, False
 
 
-def _build_poi(cand, official_domains):
+def _build_poi(cand, official_domains, resolved_name):
     poi = {
         "id": cand.get("id"),
         "name_local": cand.get("name_local", ""),
@@ -199,6 +206,10 @@ def _build_poi(cand, official_domains):
         poi["name_roman"] = cand["name_roman"]
     if cand.get("business_status") is not None:
         poi["business_status"] = cand["business_status"]
+    if resolved_name is NO_RESOLVED_NAME:
+        poi["resolved_name"] = "NO_RESULT"
+    elif resolved_name:
+        poi["resolved_name"] = resolved_name
     return poi
 
 
@@ -227,9 +238,9 @@ def run(trip_dir, work_dir, offline=False, official_domains=()):
     pois = []
 
     for cand in candidates:
-        poi = _build_poi(cand, official_domains)
         geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
             cand, country, cache, offline, district_centroids, radius_km)
+        poi = _build_poi(cand, official_domains, resolved_name)
         if geo is not None:
             poi["geocode"] = geo
 

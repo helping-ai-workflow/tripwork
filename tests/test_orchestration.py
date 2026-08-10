@@ -10,6 +10,8 @@ so a rename on either side of the file boundary (e.g. "routing hop X->Y" ->
 "hop X->Y") fails here instead of silently reverting to the itinerary-synthesis
 fall-through this release exists to end.
 """
+import datetime
+
 from scripts.gate import run_gate
 from scripts.orchestration import route_gate_failures
 from scripts.rederive import run_rederivation
@@ -71,20 +73,39 @@ def test_lodging_rederivation_mismatch_routes_to_accommodation_research():
     """I2's new markers, "accommodations stop " / "accommodations.yaml absent",
     extend the SAME first _ROUTES entry as "chosen lodging" / "required
     facility" -- this is the mismatch-axis half: a candidate rederive_lodging
-    re-derives differently than recorded (the real d2-6 shape: cluster_fallback,
-    no existence proof) must route back to accommodation-research, same as the
-    pre-existing gate-level lodging checks."""
+    re-derives differently than recorded must route back to
+    accommodation-research, same as the pre-existing gate-level lodging
+    checks.
+
+    Migrated (v0.34.0 Task 6 fix round 1, I2): this fixture used to be
+    cluster_fallback with NO business_status at all, documented as "the real
+    d2-6 shape". After Step 4 threads a real Gate 0 into rederive_lodging,
+    that exact shape produces `superseded`, not `mismatches` -- but this test
+    stayed green regardless, because BOTH message kinds share the same
+    "accommodations stop " routing marker this test checks for. So the
+    docstring's claim went quietly false and, worse, lodging MISMATCH ->
+    accommodation-research routing had no coverage at all. A sourced but
+    CLOSED_PERMANENTLY business_status still produces a genuine mismatch
+    (recorded 'verified', re-derived 'rejected' via Gate 0) without touching
+    the retired Gate 2c, so that shape is used here now -- discriminated from
+    `superseded` by asserting the specific mismatch marker, "but
+    classify_candidate re-derives", not just the shared prefix."""
     accommodations = {"stops": [{"district": "日月潭", "nights": 1, "chosen": "d2-6",
         "candidates": [{
             "id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
             "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
                        {"url": "https://b.example/d2-6", "lang": "zh"}],
             "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "cluster_fallback"},
+            "resolved_name": "日月潭旅店",
+            "business_status": {"status": "CLOSED_PERMANENTLY",
+                                "source_url": "https://a.example/d2-6",
+                                "as_of": datetime.date.today().isoformat()},
             "verify_status": "verified"}]}]}
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
                            accommodations=accommodations)
-    assert any("accommodations stop " in f and "d2-6" in f for f in res["failures"])
+    mismatches = [f for f in res["failures"] if "but classify_candidate re-derives" in f]
+    assert len(mismatches) == 1 and "d2-6" in mismatches[0] and "'rejected'" in mismatches[0]
     assert route_gate_failures(res["failures"]) == "tripwork:accommodation-research"
 
 
@@ -109,8 +130,20 @@ def test_no_resolved_lodging_still_routes_to_synthesis_not_accommodation():
     absent") added to the SAME first _ROUTES entry: rederive_kwargs()'s
     accommodations={"stops": []} default keeps rederive_lodging silent, so
     there is nothing for the new markers to (wrongly) match here -- the entry
-    being first is what makes them safe, and this is what pins that."""
-    pois = [{"id": "a", "verify_status": "verified", "geocode": {"lat": 1, "lng": 2}}]
+    being first is what makes them safe, and this is what pins that.
+
+    POI "a" carries a sourced business_status + geocode_source + resolved_name
+    (TW-070, v0.34.0) so the new POI axis re-derives its recorded 'verified'
+    cleanly too -- without them "pois[" would add a second, unrelated failure
+    and break the single-failure isolation this test depends on."""
+    pois = [{"id": "a", "verify_status": "verified",
+            "geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"},
+            "resolved_name": "NO_RESULT",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://source.example/a",
+                                "as_of": datetime.date.today().isoformat()},
+            "sources": [{"url": "https://a.example/a", "lang": "zh"},
+                        {"url": "https://b.example/a", "lang": "en"}]}]
     itin = {"title": "t", "days": [
         {"date": "2026-06-12", "rows": [{"slot": "meal", "poi_id": "a", "text": "lunch"}]},
         {"date": "2026-06-13", "rows": [{"slot": "meal", "poi_id": "a", "text": "lunch"}]},
@@ -232,3 +265,22 @@ def test_source_verify_group_neither_shadows_nor_is_shadowed():
             if a is b or ta == tb:
                 continue
             assert a not in b, f"marker {a!r} ({ta}) is contained in {b!r} ({tb})"
+
+
+def test_the_superseded_poi_class_routes_to_source_verify():
+    """Built from REAL rederive_pois output, never a string literal: the marker
+    is hand-typed in orchestration.py and the message is hand-typed in
+    rederive.py, and nothing but a test spanning both pins that coupling."""
+    from scripts.orchestration import route_gate_failures
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([{
+        "id": "p1", "name_local": "花磚博物館", "name_display": "花磚博物館",
+        "category": "sight", "district": "嘉義市西區",
+        "verify_status": "verified", "business_status": "OPERATIONAL",
+        "geocode": {"lat": 23.48, "lng": 120.44, "geocode_source": "nominatim"},
+        "resolved_name": "花磚博物館",
+        "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                    {"url": "https://b.example.com/q", "lang": "en"}]}])
+    assert out.superseded, "fixture must produce the class under test"
+    assert route_gate_failures(out.superseded) == "tripwork:source-verify"
+    assert not any("legs[" in f for f in out.superseded)

@@ -1,8 +1,19 @@
 """End-to-end consumer-fixture closure for v0.33.0 (CLAUDE.md pre-ship gate, step 7).
 
-ONE fixture trip that carries all eleven v0.33.0 exit-criterion defects at the
-same time, driven through BOTH real CLIs from a foreign cwd, with one named
-assertion per defect.
+ONE fixture trip that carries all eleven v0.33.0 exit-criterion defect
+TRIGGER SHAPES at the same time, driven through BOTH real CLIs from a foreign
+cwd, with one named assertion per defect. Defect 1's outcome changed under
+TW-072 (v0.34.0 Task 2, Gate 2c accepted a sourced business_status as an
+existence proof) and again under Task 6 (Gate 2c retired outright, subsumed
+by Gate 0 — see scripts/verify.py::classify_candidate's old call site) —
+poi-fallback still carries the trigger shape (cluster_fallback geocode, no
+official source, no gmaps_place_id) but the fixture's pre-existing sourced
+business_status clears Gate 0 directly, so it correctly verifies rather than
+refuses, with no separate existence-proof gate involved at all any more. See
+test_defect_01's docstring below for the full account; the mechanism it
+originally proved (a cluster_fallback POI with NO proof at all must not
+verify) is still covered at the unit level, now through the real entry point
+(verify_poi) rather than a classify_candidate bypass.
 
 Why both CLIs. The eleven defects do not all live at the same layer, and a
 single `gate.py` run does not exercise both:
@@ -394,10 +405,12 @@ def test_write_time_cli_runs_from_a_foreign_cwd(closure):
     saved = json.loads((closure.work / "geocode-cache" / "geocode.json")
                        .read_text(encoding="utf-8"))
     assert saved == _geocode_cache()
-    # write-time verdicts: 3 clean, 2 refused.
+    # write-time verdicts: 4 clean, 1 refused. poi-fallback flips to verified
+    # under TW-072 (v0.34.0) — see test_defect_01's docstring below for why
+    # that is the corrected outcome, not a regression of Defect 1's fix.
     assert {p: closure.write_time_pois[p]["verify_status"]
             for p in sorted(closure.write_time_pois)} == {
-        "poi-bare": "unverified", "poi-fallback": "unverified",
+        "poi-bare": "unverified", "poi-fallback": "verified",
         "poi-legacy": "verified", "poi-market": "verified", "poi-museum": "verified"}
 
 
@@ -454,23 +467,52 @@ def test_every_fixture_artifact_is_schema_valid(closure):
 # WRITE TIME — defects 1-3, caught by verify_poi as the artifact is written
 # ---------------------------------------------------------------------------
 
-def test_defect_01_cluster_fallback_with_no_existence_proof(closure):
-    """Defect 1 / write time / verify.py Gate 2c.
+def test_defect_01_cluster_fallback_now_verifies_via_sourced_business_status(closure):
+    """Defect 1 / write time / verify.py Gate 2c — migrated for TW-072 (v0.34.0).
 
-    The real driver produced the cluster_fallback coordinate (no Nominatim hit
-    for the venue, district centroid used instead) and refused it."""
+    ORIGINAL (v0.33.0, TW-062): the real driver produced the cluster_fallback
+    coordinate (no Nominatim hit for the venue, district centroid used
+    instead) with no official source and no gmaps_place_id, and Gate 2c
+    refused it for lack of an existence proof independent of the coordinate.
+
+    WHY THIS FIXTURE NOW VERIFIES, CORRECTLY: poi-fallback has always carried
+    a sourced business_status (`_sourced_status()`) — every candidate in this
+    module does, because that is the only way `verify_poi`'s Gate 0 can
+    establish `operating=True` at all; there is no other route through the
+    real CLI. TW-072 adds that SAME sourced business_status as Gate 2c's third
+    accepted proof, because a dated, sourced statement that the venue is
+    operating is independent evidence that it exists, which is what Gate 2c
+    claims to test. So `operating_from_status` now backs both Gate 0 and Gate
+    2c off the identical field — a POI cannot clear Gate 0 through the real
+    driver without simultaneously supplying Gate 2c's proof. The specific
+    "no official source, no place_id" combination that stayed unverified in
+    v0.33.0 is exactly the keyless asymmetry TW-072 closes, and this fixture
+    demonstrating that flip IS the corrected behaviour, not a Gate 2c
+    regression.
+
+    UPDATED for v0.34.0 Task 6: TW-072's finding above — that Gate 0 and
+    Gate 2c could no longer disagree — is exactly why Gate 2c is RETIRED
+    outright in Task 6, not left as a dead branch. There is no live Gate 2c
+    left to "still refuse" a proof-less POI; that safety property now lives
+    entirely at Gate 0 (a bare-string or absent business_status refuses
+    through the real driver, full stop). The unit-level regression for a
+    genuinely proof-less cluster_fallback POI moved with it: tests/
+    test_verify.py::test_cluster_fallback_with_a_bare_string_business_
+    status_is_still_unverified pins the SAME claim through the real entry
+    point (verify_poi), with no classify_candidate bypass needed any more —
+    there is no retired-branch bypass left to demonstrate.
+    """
     poi = closure.write_time_pois["poi-fallback"]
     assert poi["geocode"]["geocode_source"] == "cluster_fallback"
-    assert poi["verify_status"] == "unverified"
-    assert ("geocode is a cluster_fallback centroid with no existence proof"
-            in poi["status_reason"])
-    # and it re-refuses when re-verified from the FINISHED artifact on disk.
+    assert not any(s.get("official") for s in poi["sources"])
+    assert poi["verify_status"] == "verified"
+    assert "status_reason" not in poi
+    # and it re-verifies when re-checked from the FINISHED artifact on disk.
     _, status, note = verify_poi(closure.finished_pois["poi-fallback"],
                                  geocoded=True, in_claimed_region=True,
                                  local_lang=LOCAL_LANG,
                                  resolved_name=NO_RESOLVED_NAME)
-    assert (status, "cluster_fallback centroid with no existence proof" in note) \
-        == ("unverified", True)
+    assert (status, note) == ("verified", "")
 
 
 def test_defect_02_geocode_with_no_geocode_source(closure):
@@ -517,16 +559,35 @@ def test_defect_03_bare_string_business_status(closure):
 def test_defect_04_lodging_cluster_fallback_no_proof_no_resolved_name(closure):
     """Defect 4 / gate time / rederive_lodging, on BOTH axes.
 
-    verdicts_rederivable names the absent resolved_name; verdicts_match names the
-    recorded `verified` that classify_candidate re-derives as `unverified`."""
+    verdicts_rederivable names the absent resolved_name; verdicts_rule_current
+    (not verdicts_match -- migrated for the Gate 2c retirement, 2026-08-09 user
+    ruling, v0.34.0 Task 6) names the recorded `verified` produced before
+    business_status existed.
+
+    Before Task 6, hotel-fallback's cluster_fallback geocode with no existence
+    proof reached classify_candidate's Gate 2c directly and re-derived
+    'unverified' there -- a verdicts_match mismatch. Gate 2c is retired now:
+    Step 4 threads a real Gate 0 into rederive_lodging, and this fixture
+    (deliberately unchanged since v0.33.0 -- it still carries no
+    business_status at all) is caught one gate earlier, before Gate 2c would
+    ever have run on it. It lands in `superseded`, not `mismatches` -- the
+    same bucket a POI in the identical shape (a bare or absent business_status)
+    already used on the POI axis (rederive_pois).
+
+    The marker is scoped to "candidate 'hotel-fallback':", not the bare
+    "recorded verify_status" the pre-v0.34.0 version of this test used:
+    TW-070's POI axis now ALSO produces a "recorded verify_status ... but
+    verify_poi re-derives ..." message for poi-legacy (a different defect,
+    see test_layer_boundary_gate_does_not_catch_the_write_time_defects), and
+    the bare marker would match both, breaking _one()'s exactly-one
+    guarantee for a reason that has nothing to do with lodging."""
     missing = _one(closure.failures, "no resolved_name")
     assert "candidate 'hotel-fallback'" in missing
     assert "Gate 2b (name match) is not re-derivable" in missing
 
-    mismatch = _one(closure.failures, "recorded verify_status")
-    assert "candidate 'hotel-fallback'" in mismatch
-    assert "'verified' but classify_candidate re-derives 'unverified'" in mismatch
-    assert "cluster_fallback centroid with no existence proof" in mismatch
+    superseded = _one(closure.failures, "candidate 'hotel-fallback': recorded verify_status")
+    assert "was produced under superseded rules" in superseded
+    assert "business_status is not the sourced" in superseded
 
 
 def test_defect_05_home_leg_never_rendered(closure):
@@ -622,41 +683,74 @@ def test_the_two_rederivation_axes_report_different_examined_counts(closure):
     .examined counts only the subset with complete enough inputs to recompute.
     A fixture where they agree cannot demonstrate the axes are distinct.
 
-    10 found  = 2 legs + 3 hops + 1 cost + 3 timed POI rows + 1 lodging candidate
-     9 compared = the same minus defect 8's mode-less hop, the only record
-                  rederive_hops abandons before out.compared."""
+    15 found  = 2 legs + 3 hops + 1 cost + 3 timed POI rows + 1 lodging candidate
+                + 5 verified-pois.yaml records (v0.34.0, TW-070: rederive_pois
+                examines the WHOLE pois list -- poi-market, poi-museum,
+                poi-legacy, poi-fallback, poi-bare -- not only the three rows
+                the itinerary schedules).
+    13 compared (was 14 pre-Task-6) = the same minus TWO records that never
+                reach a comparison: defect 8's mode-less hop (rederive_hops
+                abandons it before out.compared, unchanged) AND hotel-fallback
+                (v0.34.0 Task 6: no business_status at all routes it to
+                `superseded` before rederive_lodging ever calls
+                classify_candidate -- there is no `operating` value to compare
+                with). All 5 POI-axis records ARE still compared (including
+                poi-legacy's mismatch -- a wrong verdict is still a completed
+                comparison, only a genuinely absent input or a superseded
+                record skips it)."""
     rederivable = closure.checks["verdicts_rederivable"]["examined"]
     match = closure.checks["verdicts_match"]["examined"]
-    assert (rederivable, match) == (10, 9)
-    assert rederivable - match == 1
+    assert (rederivable, match) == (15, 13)
+    assert rederivable - match == 2
 
 
 def test_layer_boundary_gate_does_not_catch_the_write_time_defects(closure):
-    """The honest half of this closure: gate.py consumes `verify_status`, it never
-    re-runs verify_poi. poi-legacy carries defect 2 AND is scheduled AND is
-    recorded `verified` -- and the gate says nothing about it. Defect 2 closes
-    only because the write-time layer refuses it (test_defect_02).
+    """Retired-and-rewritten by v0.34.0 (TW-070), exactly as this test's own
+    prior version instructed: 'If a future release teaches the gate to
+    re-verify POIs, this test goes red and should be rewritten, not deleted.'
+    rederive_pois now re-examines the WHOLE verified-pois.yaml list (not only
+    scheduled rows), so poi-legacy's defect-2 gap -- recorded 'verified' with
+    geocode_source absent -- is now ALSO caught at gate time, closing the
+    boundary this test used to pin as permanently open.
 
-    If a future release teaches the gate to re-verify POIs, this test goes red
-    and should be rewritten, not deleted."""
+    Defect 2 still closes FIRST at write time (test_defect_02): a fresh
+    source-verify run over this exact shape refuses the POI before 'verified'
+    is ever recorded. What TW-070 adds is the second line of defense this
+    fixture's own scenario needs -- a driver wrote 'verified', then a field
+    was deleted by hand (a corpus-measured shape, not a contrived one: 19 of
+    127 real POIs omit geocode_source) -- and that hand-edited artifact no
+    longer slips past the gate silently. It surfaces as exactly one POI-axis
+    failure and routes to the SAME destination write-time refusal would have:
+    tripwork:source-verify (scripts/orchestration.py's `pois[` marker)."""
+    from scripts.orchestration import route_gate_failures
+
     assert closure.finished_pois["poi-legacy"]["verify_status"] == "verified"
     assert "poi-legacy" in {r["poi_id"] for d in closure.itinerary["days"]
                             for r in d["rows"] if r.get("poi_id")}
-    assert not [f for f in closure.failures if "poi-legacy" in f]
+    poi_legacy_failures = [f for f in closure.failures if "poi-legacy" in f]
+    assert len(poi_legacy_failures) == 1
+    assert poi_legacy_failures[0].startswith("pois['poi-legacy']")
+    assert route_gate_failures(poi_legacy_failures) == "tripwork:source-verify"
+    # the failure names the record, never the missing field by name -- the
+    # SAME discipline test_defect_02's write-time note already follows.
     assert not [f for f in closure.failures if "geocode_source" in f]
-    # and the two write-time-refused POIs are simply absent from the plan, so the
-    # gate has no reason to mention them either.
+    # and the two write-time-refused POIs are simply absent from the plan, so
+    # the gate has no reason to mention them either.
     assert not [f for f in closure.failures
                 if "poi-fallback" in f or "poi-bare" in f]
 
 
 def test_no_unattributed_gate_failure(closure):
-    """Every gate failure belongs to exactly one of the eight gate-time defects.
-    Without this, a fixture could close all eleven while also emitting failures
-    nobody looked at -- and a later regression would hide inside that noise."""
+    """Every gate failure belongs to exactly one of the eight gate-time defects,
+    or to the new gate-time echo of write-time defect 2 (v0.34.0, TW-070 --
+    see test_layer_boundary_gate_does_not_catch_the_write_time_defects).
+    Without this, a fixture could close all eleven while also emitting
+    failures nobody looked at -- and a later regression would hide inside
+    that noise."""
     markers = {
+        "defect 2 (gate-time echo, TW-070)": "pois['poi-legacy']",
         "defect 4 (rederivable)": "no resolved_name",
-        "defect 4 (match)": "recorded verify_status",
+        "defect 4 (match)": "candidate 'hotel-fallback': recorded verify_status",
         "defect 5": "home leg",
         "defect 6": "recorded flag 'ok' but classify_hop",
         "defect 7": "no duration_source",
@@ -671,10 +765,23 @@ def test_no_unattributed_gate_failure(closure):
     assert len(closure.failures) == len(markers)
 
 
-def test_failing_checks_are_exactly_the_four_v033_mechanisms(closure):
+def test_failing_checks_are_exactly_the_v033_mechanisms_plus_rule_current(closure):
     """The eight gate-time defects must land on their OWN checks and leave every
     legacy check green -- otherwise the fixture is failing the gate for reasons
-    other than the eleven."""
+    other than the eleven.
+
+    Five names, not the original four (renamed from
+    test_failing_checks_are_exactly_the_four_v033_mechanisms): v0.34.0's Task 6
+    threads a real Gate 0 into rederive_lodging, and hotel-fallback (defect 4's
+    fixture, deliberately unchanged since v0.33.0 -- it carries no
+    business_status at all) now lands in `superseded` rather than
+    `mismatches`, so verdicts_rule_current joins the failing list alongside
+    the original four. This is not a new, unattributed failure -- defect 4
+    already accounted for hotel-fallback's one gate failure (see
+    test_defect_04_lodging_cluster_fallback_no_proof_no_resolved_name and
+    test_no_unattributed_gate_failure below); only the check NAME it fails
+    under moved, from verdicts_match to verdicts_rule_current."""
     failed = sorted(c["name"] for c in closure.report["checks"] if not c["passed"])
     assert failed == ["home_legs_rendered", "no_ai_tone",
-                      "verdicts_match", "verdicts_rederivable"]
+                      "verdicts_match", "verdicts_rederivable",
+                      "verdicts_rule_current"]

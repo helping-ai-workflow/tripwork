@@ -23,10 +23,26 @@ every candidate, exactly like `source-verify`.
 ## Verification (reuse `scripts/verify.py::classify_candidate`)
 
 `itinerary-gate` now **re-derives** every candidate's `verify_status` from the
-recorded `sources`, `geocode.geocode_source` and `resolved_name` — the rule
-below is no longer satisfied by having read this paragraph; if the artifact
-doesn't carry the field, the gate fails and routes back here.
+recorded `sources`, `geocode.geocode_source`, `resolved_name` and (v0.34.0)
+`business_status` — the rule below is no longer satisfied by having read this
+paragraph; if the artifact doesn't carry the field, the gate fails and routes
+back here.
 
+- **Operating (Gate 0, v0.34.0):** record a chosen candidate's `business_status`
+  in the **sourced object form** — `{status, source_url, as_of}`, `status` from
+  the Google Places vocabulary (`OPERATIONAL` / `CLOSED_TEMPORARILY` /
+  `CLOSED_PERMANENTLY`) — the identical shape and identical routes
+  `source-verify`'s own Gate 0 documents (Places API `businessStatus`; the
+  hotel's own recent dated post or official page; or a phone confirmation
+  recorded as `source_url: tel:<number>`). A bare hand-typed string (the
+  legacy pre-0.34.0 form) is **self-attested and no longer a signal** —
+  `rederive_lodging` treats it exactly like an absent field: the candidate's
+  recorded `verify_status` was produced under rules this release supersedes,
+  and `itinerary-gate` routes back here asking for the sourced form. A
+  **sourced but CLOSED** value demotes the candidate to `rejected` — a closed
+  hotel is no longer silently treated as open. When no route is available,
+  leave the candidate `unverified` with a `status_reason`; that is the honest
+  outcome, not a defect.
 - ≥2 independent sources, ≥1 local-language (Gate 1).
 - **`name_zh` (Chinese gloss):** capture a `name_zh` on each candidate; the render
   layer shows `name_display（name_zh）`. **REQUIRED when the candidate's `name_display`
@@ -36,11 +52,12 @@ doesn't carry the field, the gate fails and routes back here.
 - **Geocode (D7, no API key):** resolve by `scripts/geocode.py::resolve_place(name_local,
   district, country)` — structured Nominatim query first, free-text fallback. On
   NO_RESULT, fall back to the stop's cluster `centroid` from `routing.yaml`
-  (`geocode.geocode_source: cluster_fallback`). **The centroid fallback keeps the hotel
-  `verified` ONLY with an existence proof** — at least one source is the hotel's own
-  official page or a booking-platform listing (`official: true` / `booking.url`). Without
-  that proof a Nominatim-unresolvable name may not be a real hotel → degrade to `unverified`
-  with a `status_reason`, never a silent `verified`. Record `geocode_source` either way.
+  (`geocode.geocode_source: cluster_fallback`). **The centroid fallback needs no
+  existence proof beyond Gate 0 above (v0.34.0 — subsumed, see `source-verify`'s
+  identical paragraph):** a sourced `business_status` is itself independent
+  evidence the hotel exists, so nothing further is asked of a `cluster_fallback`
+  geocode specifically. Record `geocode_source` either way — an absent value is
+  still a refusal on its own, independent of Gate 0.
   Pass the per-trip cache (`work/<slug>/geocode-cache/geocode.json` via
   `scripts/geocode_cache.py`) as `resolve_place(..., cache=cache)` — re-runs then skip
   already-resolved and known-miss hotel lookups. **When the user manually confirms a hotel
@@ -99,5 +116,6 @@ to `tripwork:orchestrator`.
 | Mistake | Fix |
 |---|---|
 | Overriding a user-provided hotel | Filled `lodging` is verified in place, not replaced. |
-| Rejecting a real hotel Nominatim can't pin | Fall back to the cluster centroid; keep it `verified`. |
+| Rejecting a real hotel Nominatim can't pin | Fall back to the cluster centroid — but the fallback is not what keeps it `verified`. Gate 0 is: record the sourced `business_status` (`{status, source_url, as_of}`) and `geocode_source: cluster_fallback`. Without a sourced `business_status` the candidate is `unverified`, centroid or not. |
+| Reading the centroid fallback as "the location is verified" | It is not. The coordinate is the district midpoint, not the hotel's position — verification says the hotel EXISTS, not that the pin is right. Tell the user which candidates sit on a centroid so arrival timing and walk distances get checked by hand. |
 | Guessing facilities | Record only facilities stated by a verified source. |

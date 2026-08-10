@@ -44,6 +44,12 @@ FERRY = {"id": "ferry", "name_local": "水社碼頭", "name_display": "水社碼
          "name_roman": "Shuishe Pier", "category": "activity", "district": "日月潭",
          "business_status": _sourced_status("OPERATIONAL"), "gmaps_place_id": "ChIJ_ferry",
          "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
+         # resolved_name (TW-070, v0.34.0): the geocoder's display_name, the
+         # same value test_p1/_verified_pois() already pass as verify_poi's
+         # resolved_name ARGUMENT -- rederive_pois reads it off the POI dict
+         # itself (not a call argument), so without it the record is a
+         # genuine verdicts_rederivable gap (Gate 2b not re-derivable).
+         "resolved_name": "水社碼頭, 日月潭, 南投縣",
          # v0.33.0 (R4): explicit hours, not no_fixed_close -- this fixture schedules
          # ferry with slot "meal" (a lunch stop), so it should stay re-derivable the
          # same way a real itinerary row would be, not opt out via the open-air claim.
@@ -63,9 +69,12 @@ RENAMED = {"id": "renamed", "name_local": "星月大地", "name_display": "星�
            "geocode": {"lat": 24.3, "lng": 120.7, "geocode_source": "nominatim"},
            "sources": _sources()}
 
-# geocode_source + resolved_name (I2, v0.33.0): so rederive_lodging re-derives
-# hotel-lili to the recorded 'verified' instead of flagging it as a
-# verdicts_rederivable gap -- this fixture predates both fields.
+# geocode_source + resolved_name (I2, v0.33.0) + business_status (Task 6,
+# v0.34.0): so rederive_lodging re-derives hotel-lili to the recorded
+# 'verified' instead of flagging it as a verdicts_rederivable /
+# verdicts_rule_current gap -- this fixture predates all three fields.
+# rederive_lodging anchors Gate 0 to the record's own era (not wall-clock),
+# so this file's fixed _sourced_status() literal is safe here too.
 ACCOMMODATIONS = {"stops": [{
     "district": "日月潭", "nights": 2, "chosen": "hotel-lili",
     "candidates": [{
@@ -74,6 +83,7 @@ ACCOMMODATIONS = {"stops": [{
         "facilities": [],
         "geocode": {"lat": 23.86, "lng": 120.92, "geocode_source": "nominatim"},
         "resolved_name": "力麗溫德姆溫泉酒店",
+        "business_status": _sourced_status("OPERATIONAL"),
         "cost": {"amount": 3000, "currency": "TWD", "basis": "per_night", "rooms": 2},
         "sources": _sources()}]}]}
 
