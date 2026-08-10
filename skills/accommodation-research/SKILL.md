@@ -116,5 +116,6 @@ to `tripwork:orchestrator`.
 | Mistake | Fix |
 |---|---|
 | Overriding a user-provided hotel | Filled `lodging` is verified in place, not replaced. |
-| Rejecting a real hotel Nominatim can't pin | Fall back to the cluster centroid; keep it `verified`. |
+| Rejecting a real hotel Nominatim can't pin | Fall back to the cluster centroid — but the fallback is not what keeps it `verified`. Gate 0 is: record the sourced `business_status` (`{status, source_url, as_of}`) and `geocode_source: cluster_fallback`. Without a sourced `business_status` the candidate is `unverified`, centroid or not. |
+| Reading the centroid fallback as "the location is verified" | It is not. The coordinate is the district midpoint, not the hotel's position — verification says the hotel EXISTS, not that the pin is right. Tell the user which candidates sit on a centroid so arrival timing and walk distances get checked by hand. |
 | Guessing facilities | Record only facilities stated by a verified source. |

@@ -39,12 +39,28 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   `accommodations.schema.json` could not even carry a sourced `business_status`
   before this release. Combined, the `verdicts_rule_current` check reports
   **examined 145, superseded 123**.
-- **This flood is not new damage.** 0.32.0 already published that re-running
-  `source-verify` demotes **100 of 100** currently-`verified` POIs (see that
-  release's Migration section). This axis does not create that consequence —
-  it makes a consequence that was already true the moment those verdicts were
-  written **visible at gate time**, before a consumer discovers it the hard
-  way, by re-running `source-verify` and watching a finished trip empty out.
+- **Most of this flood is not new damage — but not all of it, and the parts
+  differ.** The 123 decomposes exactly three ways, measured by each record's
+  RECORDED verdict:
+  - **100 — already announced.** 0.32.0 published that re-running
+    `source-verify` demotes **100 of 100** currently-`verified` POIs (see that
+    release's Migration section). This axis does not create that consequence;
+    it makes a consequence that was already true the moment those verdicts
+    were written **visible at gate time**, before a consumer discovers it the
+    hard way by re-running `source-verify` and watching a finished trip empty
+    out.
+  - **5 — newly surfaced, same root cause.** Five POIs recorded `conflicting`
+    also change verdict under current rules. 0.32.0's figure counted only the
+    `verified` ones, so these were never in the published number even though
+    the cause is identical.
+  - **18 — newly surfaced, and it could not have been announced.** Every
+    lodging candidate in the corpus. This is not an oversight in 0.32.0's
+    count: `accommodations.schema.json` had no `business_status` field at all
+    until this release, so there was no sourced Gate 0 for a lodging verdict
+    to be superseded *from*. The demotion becomes statable only in the same
+    release that gives the field somewhere to live — which is why the 0.33.0
+    entry recorded "Gate 0 stays open, deferred to 0.34.0" rather than a
+    count.
 - **The clock is anchored to the artifact, not to wall-clock** — same
   precedent as the R5 deferral in the 0.33.0 CHANGELOG. `rederive_pois` (and,
   since Task 6, `rederive_lodging`'s Gate 0 half) asks "was this verdict
@@ -88,9 +104,22 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   confirmation recorded as `tel:`); whichever one a keyless consumer took now
   satisfies Gate 2c too, so `verify_status` stops being a function of whether
   the machine happens to carry an API key. `gmaps_place_id` stays an accepted
-  proof and gains a minimum-length shape check (measured: 86 corpus POIs carry
-  one, every one exactly 27 characters, none shorter than 8 — the floor
-  demotes nothing real).
+  proof and gains a minimum-length shape check (measured on the **four
+  schema-clean trips**, the same denominator every other figure in this entry
+  uses: 57 POIs carry one, every one exactly 27 characters, none shorter than
+  8 — the floor demotes nothing real. Across all six corpus trips it is 86,
+  also every one exactly 27; the conclusion is identical on either
+  denominator).
+  **That shape check has no production reader as of this release.** Its only
+  caller is `has_existence_proof`, whose own production callers disappeared
+  when Gate 2c was retired (below) — so the floor is currently **inert**,
+  exercised by `tests/test_verify.py` and nowhere else. It is documented here
+  rather than quietly rewired: the one place that still reads
+  `gmaps_place_id` in production is
+  `scripts/render/gmaps_links.py::maps_url`'s deep-link refinement, and
+  wiring the check into it is new behaviour that needs its own red→green
+  cycle. Tracked for the next version, deliberately not smuggled into this
+  one.
 - **TW-073 — `operating_from_status`'s `today` now tolerates an ISO string.**
   `as_of` already went through `_parse_iso`; `today` did not, so passing a
   string raised `TypeError` inside the same function. Now
@@ -107,13 +136,34 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   2c at all. This was measured and confirmed — including for a stale `as_of`,
   after the wall-clock leak above was closed — before the check was deleted
   from `classify_candidate` rather than left in as dead code that could never
-  fire. **This does not reopen TW-062.** Riding a district centroid into
-  `verified` is still blocked, now by Gate 0 alone, which demands a *dated,
-  sourced* statement — strictly more than the retired check ever asked for (an
-  undated official link, or a bare `gmaps_place_id` of plausible shape, used
-  to be enough for Gate 2c; neither satisfies Gate 0). A release whose whole
-  point is closing "a check that cannot fail is indistinguishable from a check
-  that passed" must not ship an unreachable gate inside itself.
+  fire. **The retirement itself changes no verdict**: `Gate 0 ∧ Gate 2c ≡
+  Gate 0`, because every record Gate 2c could still be asked about has already
+  satisfied it through the identical field. A release whose whole point is
+  closing "a check that cannot fail is indistinguishable from a check that
+  passed" must not ship an unreachable gate inside itself.
+- **TW-062's shape IS now permitted, and TW-072 is what permits it — not the
+  retirement.** Earlier drafts of this entry claimed the retirement "does not
+  reopen TW-062". Half of that claim is true and the other half is false, and
+  the two were run together. **True:** the *evidence vocabulary* narrowed —
+  Gate 0 demands a *dated, sourced* statement, strictly more than the retired
+  check ever accepted (an undated official link, or a bare `gmaps_place_id` of
+  plausible shape, used to satisfy Gate 2c; neither satisfies Gate 0).
+  **False:** the *outcome*. A place whose only evidence is a sourced
+  `business_status` — no official source, no `gmaps_place_id` — now reaches
+  `verified` while its coordinate is still a district centroid, which is
+  precisely TW-062's shape. That follows from TW-072 making a sourced
+  `business_status` an existence proof in its own right: Gate 2c, had it been
+  left in place, would have *passed* these records too. The retirement is
+  verdict-neutral; the loosening is TW-072's.
+  Measured across the corpus, five records do this once migrated to the sourced
+  form this release asks for — four `cluster_fallback` POIs in `2026-08-chiayi`
+  (`penshui-turkey-rice`, `taocheng-guwei`, `shanzhai-restaurant`,
+  `atian-goose`) and one lodging candidate in `2026-07-sun-moon-lake` (`d2-6`,
+  the single record the retired check ever caught on real data). All five flip
+  `has_existence_proof` from `False` to `True` on the strength of the new
+  proof alone. Whether a centroid coordinate paired with a real operating
+  statement deserves `verified` is the **coordinate-trustworthiness** question
+  recorded under *What stays out* below — this version does not answer it.
 - **Lodging gets a real Gate 0.** `accommodations.schema.json` gains
   `business_status` — the identical sourced object form, copied verbatim so
   the two schemas cannot disagree in detail — closing the 0.33.0 deferral (
@@ -133,8 +183,12 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   release, per this repo's convention of shipping the report alongside the
   release that closes it) states that `gmaps_place_id` is backfilled by an
   export-stage `scripts/gmaps_media.py`. That module does not exist:
-  `gmaps_place_id` is read in exactly two places (`scripts/verify.py`'s Gate
-  2c and `scripts/render/gmaps_links.py::maps_url`'s deep-link refinement) and
+  `gmaps_place_id` is read in exactly two places
+  (`scripts/verify.py::has_existence_proof` — **not** "Gate 2c": that gate is
+  retired, and this function is now the test-only primitive it used to back,
+  so naming the read site after the gate would describe a caller that no
+  longer exists — and `scripts/render/gmaps_links.py::maps_url`'s deep-link
+  refinement, the sole surviving PRODUCTION reader) and
   **written by no plugin code at all** — it is an agent-authored field, recorded by hand per
   `skills/source-verify/SKILL.md`'s instruction only when the Places API route
   was actually used. That is precisely why TW-072 gave it a shape check
@@ -169,9 +223,13 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   needs to change to stay schema-valid.
 - **Re-gating an existing trip will report far more failures than before**,
   concentrated entirely on `verdicts_rule_current`: 105 of 127 POI records and
-  all 18 lodging candidates in the corpus. As stated above, this is not new
-  breakage — it is 0.32.0's already-published 100-of-100 demotion, surfaced
-  at the gate instead of discovered by re-running `source-verify` cold. Both
+  all 18 lodging candidates in the corpus. As decomposed above, **100 of those
+  123 are 0.32.0's already-published demotion**, surfaced at the gate instead
+  of discovered by re-running `source-verify` cold; the other 23 are newly
+  surfaced — 5 POIs recorded `conflicting` (same cause, outside 0.32.0's
+  `verified`-only count) and 18 lodging candidates (which no earlier release
+  could have counted, since lodging had no `business_status` field to be
+  superseded from). Both
   failure classes route automatically: a POI verdict fix routes to
   `tripwork:source-verify` (the only stage that writes `verified-pois.yaml`),
   a lodging one to `tripwork:accommodation-research`.

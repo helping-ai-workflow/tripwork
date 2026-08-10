@@ -46,9 +46,23 @@ OPERATING_MAX_AGE_DAYS = 90
 # Google place ids are opaque but never this short; the field is agent-authored
 # and nothing in the plugin writes it, so a shape check is the only thing
 # standing between a stray value and a cleared gate. (TW-072) Measured on the
-# corpus: 86 POIs carry a gmaps_place_id, every one exactly 27 characters, none
-# shorter than 8, and zero lodging candidates carry one at all — the floor
-# demotes nothing real.
+# FOUR SCHEMA-CLEAN corpus trips — the same denominator every other figure in
+# this release quotes: 57 POIs carry a gmaps_place_id, every one exactly 27
+# characters, none shorter than 8, and zero lodging candidates carry one at
+# all. Across all six trips (including the two that are not schema-clean) it
+# is 86, also every one exactly 27 — the floor demotes nothing real on either
+# denominator. (M6)
+#
+# ⚠ NO PRODUCTION READER as of v0.34.0 (M3/M8). Its only caller is
+# `has_existence_proof`, which lost its production callers when Gate 2c was
+# retired below, so this shape check is currently INERT: it runs in
+# tests/test_verify.py and nowhere else. It is kept, not deleted, because
+# `has_existence_proof` is retained as a general-purpose primitive and the
+# floor is part of that primitive's meaning. Wiring it into the one place that
+# still reads `gmaps_place_id` in production
+# (`scripts/render/gmaps_links.py::maps_url`) is deliberately NOT done here —
+# that is new behaviour and needs its own red→green cycle; it is tracked for
+# the next version.
 _MIN_PLACE_ID_LEN = 8
 
 
@@ -271,11 +285,28 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # than shipping a check that cannot fail is the point of this release —
     # see rederive.py's module docstring and CHANGELOG v0.34.0.
     #
-    # Safety argument (why this does not reopen TW-062): TW-062 was a district
-    # centroid riding into 'verified' with no independent evidence the place
-    # exists. That path is now blocked by Gate 0 itself, which demands a
-    # DATED, SOURCED statement — strictly more than this branch ever asked
-    # for (an undated official link or a bare place_id both satisfied it).
+    # Safety argument, stated precisely (corrected — the earlier version of
+    # this comment claimed the retirement "does not reopen TW-062", which
+    # ran a true clause and a false one together):
+    #   TRUE  — retiring this branch changes NO verdict. `Gate 0 ∧ Gate 2c ≡
+    #           Gate 0`: any record that still reaches here has already
+    #           satisfied Gate 2c through the identical field, and any record
+    #           Gate 0 refuses never arrives. The EVIDENCE VOCABULARY also
+    #           narrowed — Gate 0 demands a DATED, SOURCED statement, strictly
+    #           more than this branch ever asked for (an undated official link
+    #           or a bare place_id both satisfied it).
+    #   FALSE — "TW-062's shape is still blocked". It is not, and the cause is
+    #           TW-072, not this retirement: once a sourced business_status
+    #           counts as an existence proof, a POI whose ONLY evidence is that
+    #           statement reaches 'verified' with a district-centroid
+    #           coordinate — TW-062's exact shape. Gate 2c would have PASSED
+    #           those records too had it been left in place. Measured: 5 corpus
+    #           records do this after migration (4 chiayi POIs +
+    #           sun-moon-lake's d2-6), all flipping has_existence_proof
+    #           False -> True on the new proof alone.
+    # Whether a centroid coordinate deserves 'verified' when the venue is
+    # provably real is the coordinate-trustworthiness question v0.34.0
+    # explicitly declines to answer (CHANGELOG "What stays out").
     # Pinned by tests/test_verify.py::
     # test_cluster_fallback_with_a_bare_string_business_status_is_still_unverified.
     #

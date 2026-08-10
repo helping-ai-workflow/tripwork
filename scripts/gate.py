@@ -54,7 +54,7 @@ def poi_pool(pois, accommodations):
     was the whole defect, and the guard could not see it because it was
     measuring a different pool. Call this; do not re-implement the fold.
 
-    ⚠ KNOWN DIVERGENCE, surfaced not fixed (v0.34.0 follow-up). export_gate's
+    ⚠ KNOWN DIVERGENCE, surfaced not fixed (v0.35.0 follow-up). export_gate's
     poi_map builds the same fold with the OPPOSITE precedence — a dict
     comprehension over `pois + chosen_lodging_pois(...)`, so the lodging record
     wins an id collision instead of losing it. Two trips have ids in BOTH files
