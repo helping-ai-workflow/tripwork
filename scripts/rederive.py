@@ -281,7 +281,7 @@ def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
     What this function transcribes is the visit/meal rule
     (skills/itinerary-synthesis/SKILL.md's `last_order` / `last_entry` plus a
     `need_mins` buffer), which has no meaning for a check-in — and none at all
-    for chiayi's two CHECKOUT rows. Re-deriving `reception_ok` is a v0.34.0
+    for chiayi's two CHECKOUT rows. Re-deriving `reception_ok` is a v0.35.0
     follow-up; it is a different verdict on a different field, not this one.
 
     hours.no_fixed_close is a recorded CLAIM, not a skip: an open-air place
@@ -501,9 +501,18 @@ def rederive_pois(pois, *, local_lang=None):
     Buckets are FIRST-APPLICABLE, in this order, so one record produces at most
     one failure and the consumer is pointed at the one thing to fix first:
 
-      superseded  — the recorded verdict cannot stand because the rules that
-                    produced it were superseded (today: a bare-string or absent
-                    business_status, superseded by TW-063's object form)
+      superseded  — the recorded verdict cannot stand because Gate 0's input
+                    cannot be re-derived from what is recorded. TWO sub-shapes,
+                    both named in the message (I1, matching rederive_lodging):
+                    the business_status is not the sourced form at all
+                    (bare-string or absent, superseded by TW-063's object form),
+                    or it IS a dict but unusable — an unrecognised status, a
+                    blank source_url, an unparseable as_of. The second matters
+                    disproportionately for this release: 127 POIs must now
+                    hand-write {status, source_url, as_of}, and
+                    verified-pois.schema.json's as_of pattern
+                    (^[0-9]{4}-[0-9]{2}-[0-9]{2}$) accepts 2026-02-30, so a
+                    typo'd date passes validate_artifact and arrives here.
       missing     — an input needed to recompute is absent from the artifact
                     (today: no resolved_name recorded at all)
       mismatches  — every input is present and the verdict does not follow
@@ -542,11 +551,38 @@ def rederive_pois(pois, *, local_lang=None):
         if got == rec:
             out.compared += 1
             continue
-        if not sourced:
+        # ⚠ STRICTLY INSIDE the `got != rec` branch, never hoisted above it
+        # (I1, final whole-branch review). Testing Gate 0 first reads cleaner —
+        # "an unusable input is unusable regardless of the verdict" — and is
+        # wrong: the 22 corpus POIs correctly recorded `unverified` have no
+        # usable business_status precisely BECAUSE that is why they are
+        # unverified, so hoisting reclassifies all 22 from silent agreement
+        # into `superseded` and takes the corpus headline from 127/105 to
+        # 127/127, burying the records that actually moved.
+        # (test_a_correctly_recorded_unverified_poi_is_not_hoisted_into_superseded)
+        operating, why = operating_from_status(bs, today=as_of)
+        if operating is None:
+            # Both sub-shapes of an unusable Gate 0 input land here, matching
+            # rederive_lodging's identical split: the field is not sourced at
+            # all (absent / bare string), or it IS a dict but unusable
+            # (unrecognised status / blank source_url / unparseable as_of).
+            # I1: only the first used to be routed, so the second was reported
+            # as a WRONG VERDICT — and since the POI mismatch message
+            # deliberately carries no `note`, the consumer was told
+            # "re-derives 'unverified'" with no mention of which input failed,
+            # while the identical data in accommodations.yaml was told exactly.
+            # `why` is one of four PLUGIN literals in verify.py, never trip
+            # content, so interpolating it into a routed message is safe — the
+            # bucket is still decided from the RECORDED INPUT (`operating is
+            # None`), not by grepping verify_poi's note, which this docstring
+            # forbids.
+            reason = (
+                "business_status is not the sourced "
+                "{status, source_url, as_of} form" if not sourced else
+                f"business_status is dict-shaped but unusable ({why})")
             out.superseded.append(
                 f"pois[{pid!r}]: recorded verify_status {rec!r} was produced under "
-                f"superseded rules — business_status is not the sourced "
-                f"{{status, source_url, as_of}} form, so the verdict cannot stand "
+                f"superseded rules — {reason}, so the verdict cannot stand "
                 f"today; re-run source-verify for this POI")
             continue
         if resolved is None:

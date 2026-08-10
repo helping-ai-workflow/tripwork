@@ -924,6 +924,91 @@ def test_a_bare_string_business_status_is_superseded_not_a_mismatch():
     assert out.mismatches == [] and out.missing == []
 
 
+@pytest.mark.parametrize("bs,frag", [
+    # (1) a status outside _OPERATING_STATUS's three-value vocabulary.
+    ({"status": "OPEN", "source_url": "https://a.example.tw/p",
+      "as_of": "2026-08-05"}, "unrecognised business_status.status"),
+    # (2) the object is there but carries nothing auditable.
+    ({"status": "OPERATIONAL", "source_url": "",
+      "as_of": "2026-08-05"}, "no source_url"),
+    # (3) THE important one: schema-legal, gate-reachable. verified-pois.schema.
+    #     json's as_of pattern is ^[0-9]{4}-[0-9]{2}-[0-9]{2}$, which accepts a
+    #     date that does not exist -- validate_artifact returns exit 0 for this
+    #     exact record (measured, final-fix-wave-report.md I1), so it is not a
+    #     hypothetical shape.
+    ({"status": "OPERATIONAL", "source_url": "https://a.example.tw/p",
+      "as_of": "2026-02-30"}, "no valid as_of"),
+    # (4) not a date in any form.
+    ({"status": "OPERATIONAL", "source_url": "https://a.example.tw/p",
+      "as_of": "not-a-date"}, "no valid as_of"),
+])
+def test_a_dict_shaped_but_unusable_business_status_is_superseded_not_a_mismatch(bs, frag):
+    """I1 (final whole-branch review). `rederive_lodging` already splits the
+    unusable-`business_status` family into its two sub-shapes -- "not the sourced
+    form" and "dict-shaped but unusable" -- and routes BOTH to `superseded` with
+    the reason named (scripts/rederive.py::rederive_lodging). `rederive_pois`
+    tested only `isinstance(bs, dict)`, so the second sub-shape fell through to
+    `mismatches`: the record was accused of carrying a WRONG VERDICT when the
+    real problem is an input nothing can be re-derived from -- the exact axis
+    split this release exists to build.
+
+    It is worse than a miscategorisation. The POI mismatch message deliberately
+    carries no `note` (a 0.33.0 routing-safety decision -- see this module's
+    "never by string-matching verify_poi's note" doctrine), so a consumer saw
+    "recorded 'verified' but re-derives 'unverified'" with NO mention of
+    `as_of`, while the identical data in accommodations.yaml was told exactly
+    what was wrong.
+
+    This is also the shape the release's own migration mass-produces: 127 POIs
+    must now hand-write {status, source_url, as_of}, and case (3) proves a
+    typo'd date survives schema validation and lands at the gate.
+
+    `why` is interpolated from `operating_from_status`'s four PLUGIN string
+    literals (scripts/verify.py), never from trip content, so routing on it is
+    safe -- the opposite of the "grep your own error strings" pattern this
+    module forbids: the bucket is still decided from the RECORDED INPUTS
+    (`operating is None`), and `why` only names which input.
+    """
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([_poi_rec(business_status=bs)])
+    assert out.found == 1
+    assert (out.mismatches, out.missing) == ([], [])
+    assert len(out.superseded) == 1
+    msg = out.superseded[0]
+    assert "p1" in msg and "dict-shaped but unusable" in msg and frag in msg
+    # the routing tail tests/test_corpus_gate.py's poi_verdict_superseded class
+    # keys on -- a superseded POI must route to source-verify whichever
+    # sub-shape produced it
+    assert msg.endswith("re-run source-verify for this POI")
+    # `superseded` is not a comparison: nothing was successfully compared here
+    assert out.compared == 0
+
+
+def test_a_correctly_recorded_unverified_poi_is_not_hoisted_into_superseded():
+    """I1 guard rail. The Gate 0 test must stay strictly INSIDE the `got != rec`
+    branch. Hoisting it above the equality check reads seductively cleaner --
+    "an unusable input is unusable regardless of the verdict" -- but it
+    reclassifies the 22 corpus POIs that are CORRECTLY recorded `unverified`
+    (they have no usable business_status, which is exactly WHY they are
+    unverified) from silent-agreement into `superseded`, taking the release
+    headline from 127/105 to 127/127 and burying the 105 records that actually
+    moved under 22 that did not.
+
+    A dict-shaped-but-unusable business_status is the sharper form of the same
+    trap than the bare string `test_a_recorded_unverified_poi_is_not_flagged_
+    merely_for_being_unverified` covers, because it is the sub-shape I1 newly
+    routes.
+    """
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([_poi_rec(
+        verify_status="unverified", status_reason="business_status unusable",
+        business_status={"status": "OPERATIONAL",
+                         "source_url": "https://a.example.tw/p",
+                         "as_of": "2026-02-30"})])
+    assert out.found == 1 and out.compared == 1
+    assert (out.mismatches, out.missing, out.superseded) == ([], [], [])
+
+
 def test_an_absent_resolved_name_is_a_rederivable_gap():
     """Bucket 2: the input needed to recompute Gate 2b is not recorded at all."""
     from scripts.rederive import rederive_pois
