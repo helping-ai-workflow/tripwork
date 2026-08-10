@@ -5,7 +5,9 @@ import pathlib
 import pytest
 import yaml
 
-from scripts.rederive import run_rederivation, hop_km, rederive_closing, Outcome
+from scripts.rederive import (run_rederivation, hop_km, rederive_closing,
+                              rederive_lodging, Outcome)
+from tests.corpus_measure import load_baseline
 
 BRIEF = {"dates": {"start": "2026-08-29", "end": "2026-08-31"},
          "routing": {"max_hop_mins": 60, "max_single_drive_mins": 300}}
@@ -239,7 +241,16 @@ def test_real_trips_have_zero_verdicts_match_failures():
     hokkaido-7d and nz-south-island are excluded: both already fail
     validate_artifact at HEAD (hokkaido routing carries far_hops/max_hop_mins/slug;
     nz clusters lack district), so they are not a baseline for anything.
+
+    TW-074: the counts below are read from tests/corpus-baseline.json
+    (regenerable via `python -m tests.corpus_measure --write`) instead of
+    living here as literals -- a legitimate corpus update used to turn this
+    guard red for a reason that was never a plugin defect. The per-trip
+    `passed` assertion reads `per_trip_passed` rather than hardcoding True:
+    today all four trips pass, but that is a fact about the corpus, not an
+    invariant this test may assume.
     """
+    axis = load_baseline()["rederive_axes"]["match"]
     legs_seen = hops_seen = costs_seen = compared = 0
     for trip in IN_SCOPE:
         d = CORPUS / trip
@@ -250,13 +261,16 @@ def test_real_trips_have_zero_verdicts_match_failures():
         res = run_rederivation({"days": []}, {}, legs=legs, routing=routing,
                                cost=cost, trip_brief=brief)
         c = _checks(res)
-        assert c["verdicts_match"]["passed"] is True, (trip, res["failures"])
+        assert c["verdicts_match"]["passed"] == axis["per_trip_passed"][trip], \
+            (trip, res["failures"])
         legs_seen += len(legs.get("legs") or [])
         hops_seen += len(routing.get("hops") or [])
         costs_seen += 1
         compared += c["verdicts_match"]["examined"]
-    assert (legs_seen, hops_seen, costs_seen) == (6, 19, 4)
-    assert compared == 29, "every one of the 29 records must be COMPARED, not skipped"
+    assert (legs_seen, hops_seen, costs_seen) == (
+        axis["legs_seen"], axis["hops_seen"], axis["costs_seen"])
+    assert compared == axis["compared"], \
+        "every record must be COMPARED, not skipped"
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
@@ -283,7 +297,18 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
     the real accommodations.yaml here would fold 19 more findings (1 missing
     geocode_source + 18 missing resolved_name) into this test's 19, doubling the
     number for a reason unrelated to what this test claims.
+
+    TW-074: total_missing / provenance_missing are read from
+    tests/corpus-baseline.json rather than hand-copied literals. The per-trip
+    `passed` assertion below reads `per_trip_passed` instead of hardcoding
+    False -- chiayi already passes this axis in the measured corpus while the
+    other three do not, so an aggregate or a hardcoded False would either
+    hide that or go red for a reason unrelated to a plugin defect. The
+    `examined == len(legs)+len(hops)+1` assertion is untouched: it is
+    run_rederivation's own bookkeeping invariant (examined must equal the
+    records fed in), not a corpus fact, so it carries no baseline key.
     """
+    axis = load_baseline()["rederive_axes"]["rederivable"]
     total_missing = provenance_missing = 0
     for trip in IN_SCOPE:
         d = CORPUS / trip
@@ -295,18 +320,20 @@ def test_real_trips_report_exactly_the_measured_rederivable_gap():
             trip_brief=yaml.safe_load((d / "trip-brief.yaml").read_text(encoding="utf-8")),
             accommodations={"stops": []})
         c = _checks(res)
-        assert c["verdicts_rederivable"]["passed"] is False, trip
+        assert c["verdicts_rederivable"]["passed"] == \
+            axis["per_trip_passed"][trip], trip
         assert c["verdicts_rederivable"]["examined"] == (
             len(yaml.safe_load((d / "legs.yaml").read_text(encoding="utf-8")).get("legs") or [])
             + len(yaml.safe_load((d / "routing.yaml").read_text(encoding="utf-8")).get("hops") or [])
             + 1), trip
         total_missing += len(res["failures"])
         provenance_missing += sum("no duration_source" in f for f in res["failures"])
-    assert (total_missing, provenance_missing) == (19, 19)
+    assert (total_missing, provenance_missing) == (
+        axis["total_missing"], axis["provenance_missing"])
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
-def test_real_trips_lodging_is_entirely_superseded_today():
+def test_real_trips_lodging_axis_matches_the_baseline():
     """CONDITIONAL guard -- skipped without the consumer corpus, so it does not
     run in CI (I3).
 
@@ -335,7 +362,22 @@ def test_real_trips_lodging_is_entirely_superseded_today():
     entirely (a second, pre-TW-062 gap on the same 2026-06-yilan hotel) and 0
     of 18 carry resolved_name (the field is new in an earlier release, so
     every candidate is missing it) -- 1 + 18 == 19.
+
+    TW-074: the paragraph above describes the corpus shape as measured at
+    Task 6 time; it is no longer the whole story (a later, legitimate corpus
+    update has moved some candidates out of `superseded`, which is why this
+    test is renamed from ..._is_entirely_superseded_today -- "entirely" is no
+    longer true). found / superseded / superseded_ids / other /
+    missing_geocode_source / missing_resolved_name are all read from
+    tests/corpus-baseline.json below rather than hand-copied literals, and
+    `found`'s denominator now calls the shipped rederive_lodging() itself
+    (scripts/rederive.py:657-659) instead of hand-summing
+    `len(candidates)` -- the guard-subject rule (TW-083): never rebuild what
+    the shipped code already computes. The per-trip `verdicts_match` passed
+    assertion reads `per_trip_match_passed` instead of hardcoding True for
+    the same reason as the other three corpus guards in this module.
     """
+    axis = load_baseline()["rederive_axes"]["lodging"]
     found = 0
     superseded = []
     other = []
@@ -349,20 +391,24 @@ def test_real_trips_lodging_is_entirely_superseded_today():
                                cost={"currency": "TWD", "line_items": [], "total": 0},
                                trip_brief=brief, accommodations=accommodations)
         c = _checks(res)
-        assert c["verdicts_match"]["passed"] is True, (trip, res["failures"])
-        found += sum(len(stop.get("candidates") or [])
-                     for stop in accommodations.get("stops") or [])
+        assert c["verdicts_match"]["passed"] == \
+            axis["per_trip_match_passed"][trip], (trip, res["failures"])
+        # Denominator matches scripts/rederive.py:657-659's shipped call
+        # verbatim (TW-083) -- not a hand-counted `len(candidates)` sum.
+        found += rederive_lodging(
+            accommodations,
+            local_lang=((brief or {}).get("destination") or {}).get("local_lang")).found
         superseded.extend(f for f in res["failures"] if "superseded rules" in f)
         other.extend(f for f in res["failures"] if "superseded rules" not in f)
-    assert found == 18
-    assert len(superseded) == 18, superseded
-    assert any("'d2-6'" in f for f in superseded), superseded
-    assert len(other) == 19, other
+    assert found == axis["found"]
+    assert len(superseded) == axis["superseded"], superseded
+    assert sorted({f.split("'")[3] for f in superseded}) == axis["superseded_ids"]
+    assert len(other) == axis["other"], other
 
     missing_geocode_source = sum("no geocode.geocode_source" in f for f in other)
     missing_resolved_name = sum("no resolved_name" in f for f in other)
-    assert missing_geocode_source == 1
-    assert missing_resolved_name == 18
+    assert missing_geocode_source == axis["missing_geocode_source"]
+    assert missing_resolved_name == axis["missing_resolved_name"]
 
 
 def _poi(**over):
@@ -628,7 +674,7 @@ def test_a_cluster_fallback_lodging_candidate_with_a_sourced_business_status_ver
     business_status recorded at all, the shape _lodging_cand() now models) is
     the other half of the story: it is `superseded`, not a verdicts_match
     failure -- see test_a_bare_string_lodging_business_status_is_superseded
-    and the corpus guard test_real_trips_lodging_is_entirely_superseded_today
+    and the corpus guard test_real_trips_lodging_axis_matches_the_baseline
     below."""
     cand = _lodging_cand(business_status=_sourced_business_status(),
                          resolved_name="日月潭旅店")
@@ -788,7 +834,7 @@ def test_absent_accommodations_is_a_rederivable_failure_not_a_skip():
 
 
 @pytest.mark.skipif(not CORPUS.is_dir(), reason="consumer corpus not present")
-def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
+def test_real_trips_closing_axis_matches_the_baseline():
     """CONDITIONAL guard -- skipped without the consumer corpus, so it does not
     run in CI (I3).
 
@@ -820,6 +866,20 @@ def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
     legs/hops/cost. (The pre-C1 figures were 24/5/29 against 58 rows; the two
     that moved are sun-moon-lake's `lealea` and `d2-2`, hotels sitting in
     verified-pois.yaml with no `hours` — now out of scope as lodging rows.)
+
+    TW-074: the paragraphs above describe the corpus shape as measured after
+    the C1 fix; it is no longer the whole story (a later, legitimate corpus
+    update has moved some rows off the rederivable axis onto the match axis,
+    which is why this test is renamed from ..._is_entirely_a_rederivable_gap
+    -- "entirely" is no longer true, `compared` is nonzero today). Every
+    number below is read from tests/corpus-baseline.json instead of living
+    here as a literal — nine assertions in total, including the C1
+    regression lock at the bottom, all corpus-dependent. One new invariant is
+    added that does NOT depend on the corpus: the missing/compared buckets
+    must partition in_scope. `examined == len(legs)+len(hops)+1` (the other
+    corpus test above) and `unfolded.found == total.found` (this test's C1
+    regression lock) stay as bare equalities in code -- both are bookkeeping
+    invariants, not corpus facts, so neither gets a baseline key.
     """
     from scripts.gate import poi_pool
 
@@ -851,13 +911,20 @@ def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
                     elif "closing_status" not in row:
                         no_closing_status += 1
         total.merge(rederive_closing(itin, by_id))
-    assert (rows_total, has_time_no_pid, unresolved_pid) == (94, 31, 0)
-    assert lodging_rows == 7, "C1: every timed lodging row must be out of scope"
-    assert (no_hours_at_all, hours_but_no_close, no_closing_status) == (22, 5, 29)
-    assert total.found == 56, "56 rows must be IN SCOPE, not skipped"
-    assert len(total.missing) == 56
-    assert len(total.mismatches) == 0
-    assert total.compared == 0, "nothing is comparable while 0 rows carry closing_status"
+    axis = load_baseline()["rederive_axes"]["closing"]
+    assert (rows_total, has_time_no_pid, unresolved_pid) == (
+        axis["rows_total"], axis["has_time_no_pid"], axis["unresolved_pid"])
+    assert lodging_rows == axis["lodging_rows"], \
+        "C1: every timed lodging row must be out of scope"
+    assert (no_hours_at_all, hours_but_no_close, no_closing_status) == (
+        axis["no_hours_at_all"], axis["hours_but_no_close"], axis["no_closing_status"])
+    assert total.found == axis["in_scope"], "rows in scope must be examined, not skipped"
+    assert len(total.missing) == axis["missing"]
+    assert len(total.mismatches) == axis["mismatches"]
+    assert total.compared == axis["compared"]
+    # Invariant, independent of corpus state: the three closing buckets must
+    # partition in_scope.
+    assert axis["missing"] + axis["compared"] == axis["in_scope"]
     # C1's regression lock, in two halves.
     #
     # (a) The guard really is exercising the FOLDED pool — otherwise "we call
@@ -888,8 +955,9 @@ def test_real_trips_closing_status_is_entirely_a_rederivable_gap():
         bare = {p["id"]: p for p in pois.get("pois") or []}
         folded_only += len(set(poi_pool(pois.get("pois") or [], acc)) - set(bare))
         unfolded.merge(rederive_closing(itin, bare))
-    assert folded_only == 3, "the P4 fold must really be adding hotel ids here"
-    assert unfolded.found == total.found == 56
+    assert folded_only == axis["folded_only"], \
+        "the P4 fold must really be adding hotel ids here"
+    assert unfolded.found == total.found == axis["unfolded_found"]
 
 
 def _poi_rec(**over):
