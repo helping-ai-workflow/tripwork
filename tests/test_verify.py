@@ -282,9 +282,20 @@ def test_cluster_fallback_with_a_bare_string_business_status_is_still_unverified
         as an existence proof, a cluster_fallback POI whose ONLY evidence is
         that statement reaches 'verified' with a district-centroid coordinate
         -- TW-062's exact shape. Gate 2c would have PASSED those records too
-        had it been left in place. Measured: 5 corpus records do this after
-        migration (4 chiayi POIs + sun-moon-lake's d2-6), all flipping
-        has_existence_proof False -> True on the new proof alone.
+        had it been left in place. This is a precise, checkable predicate --
+        geocode.geocode_source == 'cluster_fallback' AND has_existence_proof
+        would be False without the business_status clause (no official
+        source, no usable gmaps_place_id) AND verify_status == 'verified' --
+        not a count worth pinning here (v0.35.0 review wave 2, G1: an earlier
+        "Measured: 5 corpus records" claim here named 4 chiayi POIs plus
+        sun-moon-lake's d2-6; it was false on inspection -- of the 11
+        cluster_fallback POIs on the four schema-clean trips, 10 already had
+        a place_id and/or an official source, so has_existence_proof was
+        already True independent of business_status; only
+        2026-08-chiayi/taocheng-guwei has neither, and its business_status is
+        currently unusable, so 0 records flip on the new proof alone today.
+        d2-6 was also the wrong population entirely -- it is a LODGING
+        candidate, never reachable through this POI-only function).
         `test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_
         passes` below asserts that permitted outcome directly.
 

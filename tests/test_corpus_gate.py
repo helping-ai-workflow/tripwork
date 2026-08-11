@@ -23,7 +23,6 @@ These guards do not run in CI.
 """
 import pytest
 
-from scripts.orchestration import route_gate_failures
 from tests.mech_fixtures import CORPUS, CORPUS_TRIPS, load_trip
 from tests.corpus_measure import CLASSES, FIX, classify, drain, gate
 from tests.corpus_measure import load_baseline
@@ -205,30 +204,42 @@ def test_the_three_verdict_axes_partition_their_failures():
 
 
 @pytest.mark.parametrize("trip", CORPUS_TRIPS)
-def test_no_failure_class_routes_to_a_stage_that_cannot_write_it(trip):
-    """C2, stated as the invariant rather than as a simulation: the field a
-    failure names must be writable by the stage it routes to.
+def test_a_trips_failure_list_is_empty_only_when_the_baseline_says_so(trip):
+    """C2's corpus-coupled half only: a clean trip really has zero failures
+    on the real gate, and a dirty one really has some.
 
-    `hours` lives in verified-pois.yaml and only `tripwork:source-verify` writes
-    that file — skills/source-verify/SKILL.md's closure-days paragraph ends
-    "leave `close` absent and let the gate flag it", so the flag was always
-    meant to reach that stage. Before the `_ROUTES` source-verify group it
-    reached `tripwork:itinerary-synthesis`, which cannot write the field, and
-    the feedback loop could not terminate.
+    G5 (v0.35.0 review wave 2): the ROUTING invariant this test used to check
+    inline -- "the field a failure names must be writable by the stage it
+    routes to" -- moved to
+    tests/test_orchestration.py::test_every_corpus_measure_class_routes_to_the_stage_that_can_write_it.
+    That version is corpus-INDEPENDENT (parametrized over
+    tests/corpus_measure.py's CLASSES, not over CORPUS_TRIPS): for every
+    marker CLASSES uses to classify a real failure message, it builds ONE
+    genuine failure message by calling the real production re-derivation
+    entrypoint (run_rederivation / ai_tone_failures) against a tiny synthetic
+    fixture, then asserts route_gate_failures on that real message lands on
+    the stage that owns the field. Leaving it here, parametrized per-trip,
+    was strictly weaker: a trip only exercises whichever classes its OWN
+    corpus data happens to produce today, so a class the corpus never
+    triggers got zero routing coverage -- 2026-08-chiayi (today's one clean
+    trip) iterated an EMPTY `report["failures"]` here and asserted nothing
+    about routing at all, which the reviewer proved: the two `if` checks that
+    used to live in this loop were also logically implied by nothing else in
+    this file, and the F4 fix below (asserting the list's emptiness) did not
+    change that -- injecting a bug that silently swallows the whole
+    poi_no_hours failure class and regenerating the baseline left this whole
+    file green.
+
+    What is left here is genuinely corpus-coupled and worth its own test:
+    does a CLEAN trip's real gate report an empty failure list, and does a
+    DIRTY trip's list stay non-empty, exactly as the baseline recorded.
     """
     report = gate(load_trip(trip))
-    # F4 (v0.35.0 review): a clean trip (today: 2026-08-chiayi) has an empty
-    # `failures` list, so the loop below iterates zero times and asserts
-    # nothing -- a parametrization that passes without checking anything is
-    # exactly the "cannot fail" shape this release's own thesis warns about.
-    # Assert that the emptiness itself is what the baseline says it should
-    # be, so an empty trip is asserted rather than silently skipped over.
+    # F4 (v0.35.0 review, wave 1): a clean trip (today: 2026-08-chiayi) used
+    # to leave this test's loop body dead code (zero real failures, zero
+    # assertions) -- asserting the list's emptiness against the baseline is
+    # what gives that parametrized instance something to check.
     assert (report["failures"] == []) == (BASELINE["per_trip"][trip]["total"] == 0), trip
-    for f in report["failures"]:
-        if "carries neither hours.close" in f:
-            assert route_gate_failures([f]) == "tripwork:source-verify", f
-        if "AI-tone " in f:
-            assert route_gate_failures([f]) == "tripwork:itinerary-synthesis", f
 
 
 @pytest.mark.parametrize("trip", CORPUS_TRIPS)
@@ -247,14 +258,21 @@ def test_rule_13_5_drains_instead_of_looping(trip):
     """
     terminated, history = drain(trip)
     assert terminated, f"{trip} did not drain: {history}"
-    # F10 (v0.35.0 review): drain_rounds was the one baseline key no test
-    # other than test_baseline_matches_a_fresh_measurement ever compared to
-    # anything -- self-certified only by that one blanket measure_corpus() ==
-    # load_baseline() equality, which proves the baseline is CURRENT but
-    # gives drain_rounds no test of its own the way every other baseline
-    # figure in this file has. This test already computes `history` from the
-    # same trip via the same drain() helper; pinning its length here against
-    # the baseline gives drain_rounds a second assertion site.
+    # F10 (v0.35.0 review), corrected (G6, wave 2): this assertion is a
+    # DIAGNOSTIC against a hand-edited baseline, not coverage of drain()
+    # itself -- both `history` (computed above) and `drain_rounds` (baked
+    # into the baseline) come from the SAME drain() helper on the SAME trip,
+    # so a bug IN drain() moves both sides together and this equality cannot
+    # see it: the reviewer broke drain() itself (`return True, history +
+    # [0]`), regenerated the baseline, and this test still passed. That blind
+    # spot is inherent to the baseline architecture -- CLAUDE.md's rule (d)
+    # (commit the regenerated diff for human review) is the control here, not
+    # a test; do not try to engineer a mechanical guard that cannot exist.
+    # What this assertion DOES catch: a HAND-edited baseline value that no
+    # longer matches what a fresh drain() run on this trip produces --
+    # exactly what test_baseline_matches_a_fresh_measurement checks in bulk
+    # across every field, given here as a second, narrower assertion site
+    # scoped to this one figure.
     assert len(history) == BASELINE["per_trip"][trip]["drain_rounds"], trip
     assert history[-1] == 0
     assert history[0] == BASELINE["per_trip"][trip]["total"]

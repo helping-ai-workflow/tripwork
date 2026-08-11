@@ -114,7 +114,14 @@ rather than discovered by audit.
   themselves outright false — a cited "31 of 32" em-dash hit and a markdown-bold checklist
   attribution that no longer exist in the live corpus file they named, plus one propagated copy of
   the same false attribution — each rebound explicitly to v0.33.0, the release whose own CHANGELOG
-  entry carries the point-in-time figures, rather than merely softened.
+  entry carries the point-in-time figures, rather than merely softened. **This sweep was not
+  exhaustive, and the two paragraphs above should not be read as a completeness claim**: its declared
+  scope was `tests/`, `scripts/`, `skills/`, and a later review round (v0.35.0 review wave 2) found
+  at least six more sites carrying the identical defect outside and inside that scope — one inside
+  `tests/` itself (`tests/test_verify.py`, the verbatim twin of the `scripts/verify.py:308` site this
+  same sweep closed) plus five in `README.md`, which the sweep never walked at all. In a release
+  whose thesis is that published claims must be measured, publishing an unqualified completeness
+  claim about the sweep itself was the identical defect one level up.
 - **TW-083 — the rule this release exists to demonstrate, now written down.** `CLAUDE.md` gains
   "Guards must call their subject, not rebuild it": a guard obtains pipeline state by **calling**
   the shipped function or constant (`scripts/gate.py::poi_pool`, `scripts/next_stage.py::_CHAIN`,
@@ -125,6 +132,32 @@ rather than discovered by audit.
   not hypotheticals: v0.33.0's C1 (a corpus guard hand-built `by_id` from 58 rows while the shipped
   gate used 63), v0.34.0's inert re-derive guard (a default fixture that folded nothing, staying
   green through the exact bug it named), and this release's own TW-074/TW-076/TW-079.
+- **v0.35.0 review wave 2 (G1–G8): a scoped re-review of wave 1 found it had both missed sites and
+  shipped two assertions with zero added detection.** `tests/test_verify.py`'s TW-062
+  safety-argument docstring carried the verbatim twin of the `scripts/verify.py:308` claim wave 1's
+  F2 already closed — the same "Measured: 5 corpus records" shape, false three ways on inspection
+  (of the 11 `cluster_fallback` POIs on the four schema-clean trips, 10 already had independent
+  existence proof; only `2026-08-chiayi/taocheng-guwei` has neither, and its `business_status` is
+  currently unusable, so 0 records flip on the new proof alone today; the named sun-moon-lake `d2-6`
+  is also the wrong population — a LODGING candidate, never reachable through this POI-only
+  function) — de-numbered the same way (G1). `scripts/verify.py` and README both pointed the reader
+  at `python -m tests.corpus_measure --write` to answer a question that function does not measure;
+  both now state the predicate precisely and say plainly there is no mechanical measurement instead
+  of trading one false claim for an unfollowable instruction (G4). Five more corpus figures in
+  README were wrong against the live corpus — four in the v0.34.0 paragraph (POI-axis
+  found/superseded, combined examined/superseded; only "found 18" checked out) and a set in the
+  v0.33.0 paragraph directly contradicting a docstring wave 1 itself wrote
+  ("this corpus has ZERO verdicts_match mismatches left on any axis") — both de-numbered, pointing
+  at `tests/corpus-baseline.json`'s `gate_aggregate` / `rederive_axes` (G2, G3). Two of wave 1's own
+  F-numbered fixes added no detection of their own: F4's chiayi-emptiness check is logically implied
+  by an assertion already present ~150 lines above in the same file (corrected above); F10's
+  `drain_rounds` comparison cannot detect a broken `drain()` because both sides of the equality are
+  computed by that same helper — both proved by injection, both now honestly scoped (F4's routing
+  half moved to a corpus-independent test that the injection DOES catch; F10 is relabeled a
+  hand-edited-baseline diagnostic, not drain() coverage) (G5, G6). README's test-count line
+  (`CI 1075 個測試通過`) had no mechanical pin and was guaranteed to drift the moment any test
+  landed — including this commit's own nine new tests — so it is de-numbered rather than
+  re-typed (G7).
 
 **What stays out, recorded rather than silently dropped:**
 
@@ -158,21 +191,36 @@ rather than discovered by audit.
 - `test_no_failure_class_routes_to_a_stage_that_cannot_write_it[2026-08-chiayi]` used to iterate an
   empty failure list (the consumer's chiayi trip is clean today) and so execute zero assertions while
   still reporting pass — precisely the "a check that cannot fail is indistinguishable from one that
-  passed" shape this whole release is about. Fixed with a two-line addition: before the loop, assert
-  that the failure list's emptiness matches what `tests/corpus-baseline.json`'s per-trip `total`
-  says it should be, so an empty trip is now asserted rather than silently skipped over. The fuller
-  design — recording per-trip counts of each individually routed failure class in the baseline — is
-  a bigger change than this defect needs and stays a next-version follow-up.
+  passed" shape this whole release is about. Wave 1 fixed it with a two-line addition: assert the
+  failure list's emptiness against `tests/corpus-baseline.json`'s per-trip `total` before the loop.
+  **A second review round (G5, v0.35.0 review wave 2) found that fix added no detection of its own**
+  — the equality is logically implied by an assertion already asserted ~150 lines above in the same
+  file, and neither one exercises what the test's own name claims (routing). Proof: injecting a bug
+  that silently swallows the whole `poi_no_hours` failure class and regenerating the baseline left
+  every test in the file green, the emptiness assertion included. Fixed properly this time: the
+  ROUTING check moved to
+  `tests/test_orchestration.py::test_every_corpus_measure_class_routes_to_the_stage_that_can_write_it`,
+  parametrized over `tests/corpus_measure.py`'s `CLASSES` instead of over `CORPUS_TRIPS` — every
+  message it checks is built by calling the real production re-derivation entrypoint against a tiny
+  synthetic fixture, never a hand-typed literal, so it is corpus-independent (runs in CI, unlike its
+  predecessor) and the same swallow-a-class injection now reds it directly. What remains in
+  `tests/test_corpus_gate.py` (renamed
+  `test_a_trips_failure_list_is_empty_only_when_the_baseline_says_so`) keeps only the genuinely
+  corpus-coupled half: a clean trip's real failure list is really empty, a dirty one's really
+  matches the baseline.
 - `scripts/gate.py`'s two-trip id-collision note (POIs and lodging candidates sharing an id within
   `2026-07-sun-moon-lake` and `hokkaido-7d`) was independently recomputed against all seven live trip
   directories during the doc sweep above and still matches exactly; left as an open, id-anchored
   v0.35.0 follow-up note, unchanged.
 
-Tests: 1095 passed with the consumer corpus mounted, 0 failed; 1075 passed + 20 corpus-gated skips
-in CI (no corpus). (Post-review fix wave added 2 tests to the original 1093/1073 figures — F1's
-rule-14 required-deliverable test and F12's shipped-`.version-bump.json` `previous` guard — no
-count regressed.) Every corpus number this entry publishes remains independently reproducible by
-anyone with the consumer repo, which v0.34.0's entry could not claim.
+Tests: 1104 passed with the consumer corpus mounted, 0 failed; 1084 passed + 20 corpus-gated skips
+in CI (no corpus). (Review wave 1 added 2 tests to the original 1093/1073 figures — F1's rule-14
+required-deliverable test and F12's shipped-`.version-bump.json` `previous` guard. Review wave 2
+(G5) added 9 more — `tests/test_orchestration.py`'s corpus-independent, CLASSES-parametrized
+routing-invariant test, which is *why* the corpus-gated skip count holds at 20 rather than growing:
+the check it replaces no longer needs the consumer corpus to run at all. No count regressed at
+either wave.) Every corpus number this entry publishes remains independently reproducible by anyone
+with the consumer repo, which v0.34.0's entry could not claim.
 
 ## 0.34.0 — the POI verdict axis, and the two channels it needed
 

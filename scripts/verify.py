@@ -305,12 +305,22 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     #           counts as an existence proof, a POI whose ONLY evidence is that
     #           statement reaches 'verified' with a district-centroid
     #           coordinate — TW-062's exact shape. Gate 2c would have PASSED
-    #           those records too had it been left in place. Real corpus
-    #           records do this after migration -- cluster_fallback POIs
-    #           whose only proof is a sourced business_status -- and how many
-    #           is corpus-dependent, not pinned here (regenerate via
-    #           `python -m tests.corpus_measure --write` to see today's
-    #           count).
+    #           those records too had it been left in place. That is a
+    #           precise, checkable PREDICATE, stated exactly so a reader knows
+    #           what to grep for rather than trusting a count that goes stale
+    #           the next time the corpus changes: geocode.geocode_source ==
+    #           'cluster_fallback' AND has_existence_proof() would be False
+    #           without the business_status clause (no official source, no
+    #           usable gmaps_place_id) AND verify_status == 'verified'. There
+    #           is no mechanical measurement of this predicate in
+    #           tests/corpus-baseline.json — measure_corpus() has no
+    #           cluster_fallback / place_id / existence-proof axis, so
+    #           `python -m tests.corpus_measure --write` will not answer this
+    #           question (v0.35.0 review wave 2, G4: an earlier version of
+    #           this comment pointed there anyway, which was itself a false
+    #           claim wearing an instruction's clothes). Check the predicate
+    #           directly against a corpus checkout instead of trusting a
+    #           number written here.
     # Whether a centroid coordinate deserves 'verified' when the venue is
     # provably real is the coordinate-trustworthiness question v0.34.0
     # explicitly declines to answer (CHANGELOG "What stays out").
