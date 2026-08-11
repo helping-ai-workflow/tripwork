@@ -45,13 +45,14 @@ OPERATING_MAX_AGE_DAYS = 90
 
 # Google place ids are opaque but never this short; the field is agent-authored
 # and nothing in the plugin writes it, so a shape check is the only thing
-# standing between a stray value and a cleared gate. (TW-072) Measured on the
-# FOUR SCHEMA-CLEAN corpus trips — the same denominator every other figure in
-# this release quotes: 57 POIs carry a gmaps_place_id, every one exactly 27
-# characters, none shorter than 8, and zero lodging candidates carry one at
-# all. Across all six trips (including the two that are not schema-clean) it
-# is 86, also every one exactly 27 — the floor demotes nothing real on either
-# denominator. (M6)
+# standing between a stray value and a cleared gate. (TW-072) Measured against
+# the live corpus, on both the schema-clean trips -- the denominator every
+# other release-note figure uses -- and the full trip set: every real
+# gmaps_place_id is exactly 27 characters, none shorter than 8, and no
+# lodging candidate carries one at all -- the floor demotes nothing real on
+# either denominator. Trip counts and per-denominator totals are not pinned
+# here and will drift as the corpus grows; see CHANGELOG's TW-072 entry for
+# the point-in-time figures measured at ship time. (M6)
 #
 # ⚠ NO PRODUCTION READER as of v0.34.0 (M3/M8). Its only caller is
 # `has_existence_proof`, which lost its production callers when Gate 2c was
@@ -259,8 +260,12 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     # geocode_source's presence is its own requirement, independent of the
     # now-retired cluster_fallback sub-check below (I3): a POI that never
     # records where its coordinate came from is a provenance gap on its own —
-    # the identical shape Part 1 closed for resolved_name. 19 of 127 real POIs
-    # omit the field.
+    # the identical shape Part 1 closed for resolved_name. Real consumer data
+    # has carried this shape, not merely a hypothetical one -- a hand-rolled
+    # driver that writes geocode data outside source_verify_run and never
+    # sets geocode_source; see tests/test_e2e_v033_closure.py::_candidates'
+    # docstring for why. How many corpus POIs carry it today is not pinned
+    # here.
     if geocode_source is GEOCODE_SOURCE_MISSING:
         return ("unverified",
                 "geocode_source not recorded — record geocode.geocode_source: "
@@ -300,10 +305,22 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     #           counts as an existence proof, a POI whose ONLY evidence is that
     #           statement reaches 'verified' with a district-centroid
     #           coordinate — TW-062's exact shape. Gate 2c would have PASSED
-    #           those records too had it been left in place. Measured: 5 corpus
-    #           records do this after migration (4 chiayi POIs +
-    #           sun-moon-lake's d2-6), all flipping has_existence_proof
-    #           False -> True on the new proof alone.
+    #           those records too had it been left in place. That is a
+    #           precise, checkable PREDICATE, stated exactly so a reader knows
+    #           what to grep for rather than trusting a count that goes stale
+    #           the next time the corpus changes: geocode.geocode_source ==
+    #           'cluster_fallback' AND has_existence_proof() would be False
+    #           without the business_status clause (no official source, no
+    #           usable gmaps_place_id) AND verify_status == 'verified'. There
+    #           is no mechanical measurement of this predicate in
+    #           tests/corpus-baseline.json — measure_corpus() has no
+    #           cluster_fallback / place_id / existence-proof axis, so
+    #           `python -m tests.corpus_measure --write` will not answer this
+    #           question (v0.35.0 review wave 2, G4: an earlier version of
+    #           this comment pointed there anyway, which was itself a false
+    #           claim wearing an instruction's clothes). Check the predicate
+    #           directly against a corpus checkout instead of trusting a
+    #           number written here.
     # Whether a centroid coordinate deserves 'verified' when the venue is
     # provably real is the coordinate-trustworthiness question v0.34.0
     # explicitly declines to answer (CHANGELOG "What stays out").

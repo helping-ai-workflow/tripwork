@@ -214,7 +214,9 @@ def rederive_cost(cost):
     # scripts/cost.py:22 returns a DICT {"by_category": ..., "total": ...}, not a
     # 2-tuple. Unpacking it as a pair silently binds the two KEY STRINGS, and the
     # comparison below then reads `rec == "total"` — int vs str, mismatching on
-    # every trip. Measured: with the correct read, 4 of 4 clean trips MATCH.
+    # every trip. With the correct read, every clean corpus trip's cost.total
+    # MATCHes sum_costs' re-derivation (see tests/corpus-baseline.json's
+    # `rederive_axes.match.per_trip_passed`, not pinned as a count here).
     summed = sum_costs(cost.get("line_items") or [])
     by_cat, total = summed["by_category"], summed["total"]
     out.compared += 1
@@ -253,8 +255,10 @@ def rederive_closing(itinerary, by_id, *, min_buffer_mins=MIN_BUFFER_MINS,
     """Re-derive each timed row's closing_status.
 
     Scope: rows carrying BOTH a `time` and a `poi_id` that resolves in by_id,
-    EXCEPT `slot: lodging` rows. Move rows and free-text meals (31 of 94 in the
-    corpus) have no closing verdict to make and are not counted in `examined`.
+    EXCEPT `slot: lodging` rows. Move rows and free-text meals (a real,
+    non-trivial share of the corpus, tracked in tests/corpus-baseline.json's
+    `rederive_axes.closing.has_time_no_pid`) have no closing verdict to make
+    and are not counted in `examined`.
 
     Why lodging is out of scope (C1, the final v0.33.0 whole-branch review).
     `run_gate` folds each stop's chosen lodging into `by_id` (the P4 rule,
@@ -508,8 +512,9 @@ def rederive_pois(pois, *, local_lang=None):
                     (bare-string or absent, superseded by TW-063's object form),
                     or it IS a dict but unusable — an unrecognised status, a
                     blank source_url, an unparseable as_of. The second matters
-                    disproportionately for this release: 127 POIs must now
-                    hand-write {status, source_url, as_of}, and
+                    disproportionately for this release: most corpus POIs
+                    still must hand-write {status, source_url, as_of} to
+                    migrate off the pre-TW-063 form, and
                     verified-pois.schema.json's as_of pattern
                     (^[0-9]{4}-[0-9]{2}-[0-9]{2}$) accepts 2026-02-30, so a
                     typo'd date passes validate_artifact and arrives here.
@@ -554,11 +559,12 @@ def rederive_pois(pois, *, local_lang=None):
         # ⚠ STRICTLY INSIDE the `got != rec` branch, never hoisted above it
         # (I1, final whole-branch review). Testing Gate 0 first reads cleaner —
         # "an unusable input is unusable regardless of the verdict" — and is
-        # wrong: the 22 corpus POIs correctly recorded `unverified` have no
-        # usable business_status precisely BECAUSE that is why they are
-        # unverified, so hoisting reclassifies all 22 from silent agreement
-        # into `superseded` and takes the corpus headline from 127/105 to
-        # 127/127, burying the records that actually moved.
+        # wrong: every corpus POI correctly recorded `unverified` has no usable
+        # business_status precisely BECAUSE that is why it is unverified, so
+        # hoisting would reclassify all of them from silent agreement into
+        # `superseded`, inflating the release headline to look like every POI
+        # changed verdict and burying the ones that genuinely did move under
+        # the ones that did not.
         # (test_a_correctly_recorded_unverified_poi_is_not_hoisted_into_superseded)
         operating, why = operating_from_status(bs, today=as_of)
         if operating is None:
@@ -624,19 +630,20 @@ def run_rederivation(itinerary, by_id, *, legs=None, routing=None, cost=None,
     `pois` defaults to `()`, NOT `None` — deliberately asymmetric with
     legs/routing/cost/accommodations, whose `None` defaults are safe because
     scripts/gate.py::run_gate ALWAYS threads its own legs/routing/cost/
-    accommodations parameters through to this function. `pois` is not yet
-    threaded the same way (Task 4's wiring): run_gate already receives a real
-    `pois` list as its own mandatory first argument but does not forward it
-    here at all — not "might have a bug that leaves it unset", literally never
-    attempts it, today. Had this default been `None` (fix round 1, TW-070),
-    every existing `run_gate` call in the entire test suite — and every real
-    gate run in production — would report a false 'verified-pois.yaml absent'
-    failure on an artifact that is not absent, merely not yet forwarded: a
-    worse defect than the silent no-op being fixed. Omitting `pois=` (what
-    every caller does today) stays lenient — 0 found, nothing to report. A
-    caller that means "the artifact is genuinely absent" says so explicitly
-    with `pois=None`, which still reaches `rederive_pois`'s hard failure
-    unchanged (see test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip
+    accommodations parameters through to this function (and, since v0.34.0
+    Task 4's wiring, its own `pois` too: run_gate passes `pois=pois`
+    unconditionally on its call into this function). The asymmetric default
+    still matters for this module's own test suite: most of
+    `run_rederivation`'s call sites exercise the legs/hops/cost/closing axes
+    and never pass a `pois` argument at all, because the POI axis is not what
+    they are testing. Had this default been `None`, every one of those calls
+    would report a false 'verified-pois.yaml absent' failure on an artifact
+    those tests never claimed to supply: a worse defect than the silent
+    no-op it would replace. Omitting `pois=` stays lenient — 0 found,
+    nothing to report. A caller that means "the artifact is genuinely
+    absent" says so explicitly with `pois=None`, which still reaches
+    `rederive_pois`'s hard failure unchanged (see
+    test_an_absent_pois_list_is_a_rederivable_failure_not_a_skip
     and test_omitting_pois_entirely_is_lenient_not_a_forced_failure).
     """
     total = Outcome()

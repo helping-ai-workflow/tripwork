@@ -1,8 +1,10 @@
 """AI-tone: writing-humanizer distilled to a mechanical, measured gate.
 
-Every pattern here was measured against the 5 real canonical itineraries in
-/home/user/hp_workspace/tripwork-workspace/trips/ and carries ZERO false
-positives there. EXCLUDED_PATTERNS records what was cut and the measured FP that
+Every pattern here was measured against the real canonical itineraries in
+/home/user/hp_workspace/tripwork-workspace/trips/ and carried ZERO false
+positives there at calibration time -- see CHANGELOG.md's 0.33.0 entry for
+the point-in-time trip count and hit figures, not pinned here as a live
+corpus count. EXCLUDED_PATTERNS records what was cut and the measured FP that
 cut it, so the lexicon cannot drift into folklore.
 """
 import pathlib
@@ -19,7 +21,10 @@ def _kinds(failures):
 
 
 def test_em_dash_is_flagged():
-    """31 of 32 canonical hits. Verbatim from 2026-08-chiayi/itinerary.yaml."""
+    """At v0.33.0 calibration time, this was 31 of the 32 canonical hits
+    (CHANGELOG.md's 0.33.0 entry), verbatim from 2026-08-chiayi/itinerary.yaml
+    as it stood then -- the corpus trip has since been rewritten, so this
+    exact text is not expected to still appear there today."""
     out = ai_tone_failures("抵嘉義先吃午餐——阿宏師火雞肉飯（光華總店）")
     assert "em_dash" in _kinds(out)
     assert "阿宏師" in out[0]
@@ -32,15 +37,19 @@ def test_range_separators_are_not_flagged():
 
 
 def test_markdown_bold_and_bold_label_are_distinguished():
-    """1 of 32 canonical hits, from 2026-08-chiayi's checklist. Canonical text is
-    plain — markdown there is both an AI tell and a layering leak."""
+    """At v0.33.0 calibration time, this was 1 of the 32 canonical hits
+    (CHANGELOG.md's 0.33.0 entry), from 2026-08-chiayi's checklist as it stood
+    then. Canonical text is plain — markdown there is both an AI tell and a
+    layering leak."""
     assert "markdown_bold" in _kinds(ai_tone_failures("收客20:00；**假日不接受訂位** → 建議 18:00 前到"))
     assert "bold_label" in _kinds(ai_tone_failures("- **颱風/大雨**：戶外改室內"))
 
 
 def test_decorative_emoji_flagged_but_rating_star_and_hazard_sign_exempt():
-    """The wide U+2600-27BF range had 6 measured FPs: ★ is a rating unit
-    ('Google 4.4★') and ⚠ is a functional hazard marker."""
+    """The wide U+2600-27BF range had real measured false positives before
+    being narrowed (the pinned count lives in EXCLUDED_PATTERNS below, not
+    repeated here): ★ is a rating unit ('Google 4.4★') and ⚠ is a functional
+    hazard marker."""
     assert "decorative_emoji" in _kinds(ai_tone_failures("🚀 出發！✅ 已訂房"))
     assert ai_tone_failures("Google 4.4★ 近 7 千則") == []
     assert ai_tone_failures("⚠ 山路夜間視線差") == []
@@ -66,8 +75,10 @@ def test_zero_hit_lexicons_still_fire_on_their_target(text, kind):
 
 
 def test_real_place_name_lists_are_never_flagged():
-    """rule_of_three was DROPPED: 21 canonical hits, 21 false positives. Verbatim
-    corpus lines that must stay clean."""
+    """rule_of_three was DROPPED: unmechanizable, 100% false positives on real
+    Chinese travel prose (the pinned hit/FP count is in EXCLUDED_PATTERNS
+    below, and in CHANGELOG.md's 0.33.0 entry). Verbatim corpus lines that
+    must stay clean."""
     for line in ("戶外點（清水地熱、望龍埤、外澳沙灘）排上午",
                  "室內冷氣、常設展豐富、園區水景",
                  "湖景火鍋＋養生足湯＋七彩琉璃光"):

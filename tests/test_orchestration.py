@@ -12,10 +12,13 @@ fall-through this release exists to end.
 """
 import datetime
 
+import pytest
+
 from scripts.gate import run_gate
 from scripts.orchestration import route_gate_failures
 from scripts.rederive import run_rederivation
 from scripts.text_hygiene import ai_tone_failures
+from tests.corpus_measure import CLASSES
 from tests.mech_fixtures import rederive_kwargs
 
 ITIN = {"days": [{"date": "2026-08-29", "rows": []}]}
@@ -159,12 +162,154 @@ def test_ai_tone_marker_routes_to_itinerary_synthesis():
     rather than left to the default branch -- Task 1 made the default branch
     stage-specific, so relying on fall-through would be an accident waiting
     to happen. Built from a REAL ai_tone_failures() output (an em-dash, the
-    same shape as 31 of the 32 real canonical hits), not a hand-typed
-    literal, so a message-format rename on either side of the file boundary
-    fails here."""
+    same shape the corpus's own em-dash hits took at calibration time --
+    see CHANGELOG.md's 0.33.0 entry for the point-in-time count), not a
+    hand-typed literal, so a message-format rename on either side of the file
+    boundary fails here."""
     failures = ai_tone_failures("抵嘉義先吃午餐——阿宏師火雞肉飯（光華總店）")
     assert any(f.startswith("AI-tone ") for f in failures)
     assert route_gate_failures(failures) == "tripwork:itinerary-synthesis"
+
+
+# --------------------------------------------------------------------------
+# G5 (v0.35.0 review wave 2): every tests/corpus_measure.py CLASSES marker
+# routes to the stage that can write the field it names.
+# --------------------------------------------------------------------------
+
+# CLASSES (tests/corpus_measure.py) names the marker; _ROUTES
+# (scripts/orchestration.py) names which markers reach which stage. Neither
+# file names a "class -> stage" mapping directly, so this table is a literal
+# -- allowed under CLAUDE.md's guards-must-call-their-subject rule (b)
+# because there is no importable constant to call, stated here so the
+# boundary is visible: it is ONLY the expected ANSWER. The MESSAGE each
+# case is checked against is never hand-typed -- every one is produced by
+# calling the real production re-derivation function, exactly like every
+# other test in this file.
+_CLASS_STAGE = {
+    "hop_no_duration_source": "tripwork:routing-audit",
+    "poi_no_hours": "tripwork:source-verify",
+    "row_no_closing_status": "tripwork:itinerary-synthesis",
+    "lodging_no_resolved_name": "tripwork:accommodation-research",
+    "lodging_no_geocode_source": "tripwork:accommodation-research",
+    "lodging_verify_status_mismatch": "tripwork:accommodation-research",
+    "poi_verdict_superseded": "tripwork:source-verify",
+    "lodging_verdict_superseded": "tripwork:accommodation-research",
+    "ai_tone": "tripwork:itinerary-synthesis",
+}
+
+
+def _class_fixture_failures(name):
+    """One real failures list per CLASSES entry, built by calling the actual
+    shipped re-derivation entrypoint (run_rederivation, or ai_tone_failures
+    for the one class it does not own) against a tiny, corpus-independent
+    fixture -- never a hand-formatted look-alike string. This is also why
+    the test built on top of this is not vacuous under a "swallow the
+    detection" bug the same shape as the one the reviewer used to prove the
+    OLD per-trip version was hollow (injecting a `continue` in
+    scripts/rederive.py::rederive_closing that drops the missing-hours
+    append): the poi_no_hours case below calls that exact function, so the
+    same injection makes ITS failures list come back without the message
+    this test looks for, and the `assert hit` below reds instead of finding
+    nothing to route and passing vacuously.
+    """
+    today = datetime.date.today().isoformat()
+    clean = dict(legs={"legs": []}, routing={"clusters": [], "hops": []},
+                cost={"currency": "TWD", "line_items": [], "total": 0},
+                accommodations={"stops": []})
+    if name == "hop_no_duration_source":
+        routing = {"clusters": [{"district": "A", "centroid": {"lat": 24.0, "lng": 121.0}},
+                                {"district": "B", "centroid": {"lat": 24.1, "lng": 121.1}}],
+                   "hops": [{"from": "A", "to": "B", "mode": "drive", "mins": 30}]}
+        return run_rederivation(ITIN, {}, **{**clean, "routing": routing})["failures"]
+    if name == "poi_no_hours":
+        itin = {"days": [{"date": "2026-08-01", "rows": [{"time": "10:00", "poi_id": "p1"}]}]}
+        by_id = {"p1": {"hours": {}}}
+        return run_rederivation(itin, by_id, **clean)["failures"]
+    if name == "row_no_closing_status":
+        itin = {"days": [{"date": "2026-08-01", "rows": [{"time": "10:00", "poi_id": "p1"}]}]}
+        by_id = {"p1": {"hours": {"close": "18:00"}}}
+        return run_rederivation(itin, by_id, **clean)["failures"]
+    if name == "lodging_no_resolved_name":
+        accommodations = {"stops": [{"district": "A", "candidates": [{
+            "id": "c1", "geocode": {"geocode_source": "nominatim"},
+            "verify_status": "unverified",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://x.example/", "as_of": today}}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    if name == "lodging_no_geocode_source":
+        accommodations = {"stops": [{"district": "A", "candidates": [{
+            "id": "c1", "name_local": "測試旅館", "resolved_name": "測試旅館",
+            "verify_status": "unverified",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://x.example/", "as_of": today}}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    if name == "lodging_verify_status_mismatch":
+        # Same fixture shape as
+        # test_lodging_rederivation_mismatch_routes_to_accommodation_research
+        # above: a sourced but CLOSED_PERMANENTLY business_status re-derives
+        # 'rejected' against a recorded 'verified', producing a genuine
+        # mismatch without touching the retired Gate 2c.
+        accommodations = {"stops": [{"district": "日月潭", "nights": 1, "chosen": "d2-6",
+            "candidates": [{
+                "id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
+                "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
+                           {"url": "https://b.example/d2-6", "lang": "zh"}],
+                "geocode": {"lat": 23.86, "lng": 120.91,
+                           "geocode_source": "cluster_fallback"},
+                "resolved_name": "日月潭旅店",
+                "business_status": {"status": "CLOSED_PERMANENTLY",
+                                    "source_url": "https://a.example/d2-6", "as_of": today},
+                "verify_status": "verified"}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    if name == "poi_verdict_superseded":
+        pois = [{"id": "p1", "verify_status": "verified", "business_status": "OPERATIONAL"}]
+        return run_rederivation(ITIN, {}, **clean, pois=pois)["failures"]
+    if name == "lodging_verdict_superseded":
+        accommodations = {"stops": [{"district": "A", "candidates": [{
+            "id": "c1", "verify_status": "verified",
+            "geocode": {"geocode_source": "nominatim"},
+            "resolved_name": "測試旅館", "name_local": "測試旅館",
+            "business_status": "OPERATIONAL"}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    if name == "ai_tone":
+        return ai_tone_failures("測試—文字")
+    raise AssertionError(f"no fixture wired for CLASSES entry {name!r}")
+
+
+@pytest.mark.parametrize("name,marker", CLASSES)
+def test_every_corpus_measure_class_routes_to_the_stage_that_can_write_it(name, marker):
+    """G5 (v0.35.0 review wave 2): `tests/corpus_measure.py`'s CLASSES tuple
+    classifies real corpus failure messages for the baseline; nothing
+    previously checked that every one of ITS classes routes
+    (route_gate_failures) to the stage that can actually write the field the
+    message names.
+
+    `tests/test_corpus_gate.py::test_no_failure_class_routes_to_a_stage_that_
+    cannot_write_it` used to fold this check inline, per-trip, over
+    `report["failures"]` -- but a trip only exercises whichever classes its
+    OWN corpus data happens to produce today, so a class the live corpus
+    never triggers (or stops triggering, e.g. once a consumer fixes their
+    data) got zero routing coverage. `2026-08-chiayi`, today's one clean
+    trip, iterated an EMPTY failures list there and asserted nothing about
+    routing at all -- exactly the "a check that cannot fail is
+    indistinguishable from one that passed" shape this release's own thesis
+    warns about.
+
+    Parametrizing over CLASSES instead of over trips makes this
+    corpus-independent: it runs the same nine checks regardless of what the
+    corpus currently contains, and unlike the per-trip version it replaces,
+    this file carries no `skipif` on the consumer corpus existing -- it runs
+    in CI too.
+    """
+    failures = _class_fixture_failures(name)
+    hit = [f for f in failures if marker in f]
+    assert hit, (f"{name}'s own CLASSES marker {marker!r} is not in any "
+                f"failure this fixture produced: {failures}")
+    assert route_gate_failures(failures) == _CLASS_STAGE[name], (name, failures)
 
 
 def test_accommodation_marker_wins_priority_over_a_later_group():
@@ -212,16 +357,18 @@ def test_no_hours_marker_routes_to_source_verify():
 
     `rederive_closing` emits "POI carries neither hours.close nor
     hours.no_fixed_close" for every scheduled row whose POI records no closing
-    time -- 27 such rows across the four schema-clean trips (yilan 5,
-    sun-moon-lake 12, chiayi 0, northeast 10), measured after C1 moved the
-    lodging rows out of scope. `hours` lives in `verified-pois.yaml`, which ONLY
+    time -- a real, per-trip-uneven share of rows across the four schema-clean
+    trips (tests/corpus-baseline.json's per_trip `classes.poi_no_hours`; C1
+    already moved the lodging rows out of scope by the time this axis is
+    measured). `hours` lives in `verified-pois.yaml`, which ONLY
     `tripwork:source-verify` writes, and that skill's own SKILL.md:47 ends the
     paragraph with "leave `close` absent and let the gate flag it". Before this
     entry `_ROUTES` had no source-verify group, so the failure fell through to
     `tripwork:itinerary-synthesis` -- a stage that cannot write
     verified-pois.yaml. Re-running it produced the same failure forever: with
-    the group removed, 2026-06-yilan drains [26, 24, 16, 5, 5, ...] and stalls
-    at 5, exactly its no-hours count.
+    the group removed, 2026-06-yilan's drain simulation reaches a fixed point
+    instead of terminating, stalling at exactly its own no-hours count (see the
+    baseline above for the live figure).
     (tests/test_corpus_gate.py::test_rule_13_5_drains_instead_of_looping pins
     the termination, and
     test_removing_the_source_verify_route_reproduces_the_non_terminating_drain

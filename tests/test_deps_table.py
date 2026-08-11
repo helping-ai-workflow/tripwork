@@ -31,13 +31,31 @@ def _declared_inputs(skill):
 
 
 def test_gate_skill_input_row_names_every_artifact_the_cli_opens():
-    """Red at HEAD: itinerary-gate's Input row under-declares what gate.py reads,
-    which is exactly why rule 13's staleness anchor was wrong."""
-    assert _declared_inputs("itinerary-gate") >= set(GATE_INPUTS)
+    """Equality, not superset (F6, v0.35.0 review, matching this test's own twin
+    below): a superset check lets the SKILL's Input row declare a yaml outside
+    GATE_INPUTS without being caught, so the two lists could silently drift
+    apart. Measured 2026-08-10: `_declared_inputs("itinerary-gate") ==
+    set(GATE_INPUTS)` holds on the live SKILL.md, so tightening it costs
+    nothing today and buys the same drift protection
+    test_export_gate_skill_input_row_names_every_artifact_the_cli_opens
+    already has."""
+    assert _declared_inputs("itinerary-gate") == set(GATE_INPUTS)
 
 
 def test_export_gate_skill_input_row_names_every_artifact_the_cli_opens():
-    assert _declared_inputs("export-gate") >= set(EXPORT_GATE_INPUTS)
+    """Equality, not superset: superset let the SKILL's Input row declare a yaml
+    outside EXPORT_GATE_INPUTS without being caught, so the two lists could
+    silently drift apart.
+
+    This guard does NOT catch TW-077: `ARTIFACT` only matches backticked
+    `[a-z-]+\\.yaml` basenames, so the HTML deliverable
+    (`exports/<slug>-itinerary.html`) is invisible to it on either side --
+    tightening this equality buys nothing for the HTML gap. TW-077 is closed
+    by tests/test_next_stage.py's rule-15 test; this one only makes the
+    yaml-only half of the same table equal in both directions, matching the
+    itinerary-gate/_DEPS guard's own equality discipline.
+    """
+    assert _declared_inputs("export-gate") == set(EXPORT_GATE_INPUTS)
 
 
 def test_deps_rows_match_the_producing_skills_input_rows():
@@ -83,7 +101,8 @@ def test_every_skill_with_an_input_row_is_covered():
 def test_deps_stale_fails_open_when_no_fingerprint_was_recorded():
     """An artifact with no input_fingerprints predates the mechanism and must
     never be called stale — this is what keeps the research tier from
-    reproducing the 37/174 mtime cascade."""
+    reproducing the naive-mtime-rule cascade `deps_stale`'s own docstring
+    describes (scripts/orchestration.py)."""
     docs = {"candidates.yaml": {"candidates": []}, "trip-brief.yaml": {"destination": "A"}}
     assert deps_stale(docs.get, "candidates.yaml") == []
 

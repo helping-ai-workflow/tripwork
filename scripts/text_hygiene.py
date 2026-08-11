@@ -66,11 +66,13 @@ def kana_name_without_gloss(poi):
 
 # ---------------------------------------------------------------------------
 # AI-tone — writing-humanizer distilled to a mechanical gate. Every pattern was
-# measured against the 5 real canonical itineraries and carries ZERO false
-# positives there; the patterns that did not survive that measurement are pinned
-# in tests/test_ai_tone.py::EXCLUDED_PATTERNS with the FP count that cut each.
-# Canonical layer ONLY — render/html_page.py:300 emits a bare em-dash as the
-# empty-lodging filler, so gating rendered output would gate the renderer.
+# measured against the real canonical itineraries and carried ZERO false
+# positives there at calibration time (CHANGELOG.md's 0.33.0 entry has the
+# point-in-time trip count and hit figures); the patterns that did not survive
+# that measurement are pinned in tests/test_ai_tone.py::EXCLUDED_PATTERNS with
+# the FP count that cut each. Canonical layer ONLY — render/html_page.py:300
+# emits a bare em-dash as the empty-lodging filler, so gating rendered output
+# would gate the renderer.
 # ---------------------------------------------------------------------------
 
 # 模式13 破折號. U+2014, U+2015, and the box-drawing run synthesis sometimes emits.
@@ -150,8 +152,10 @@ def ai_tone_failures(text):
     Runs on the CANONICAL joined text only. The render layer is deliberately NOT
     gated: render/html_page.py:300 emits a bare em-dash as the empty-lodging cell
     filler and the renderers emit decorative slot icons, so a render-layer scan
-    would fail on the renderers' own output (measured: 278 emoji + 62 bold-label
-    hits across 19 rendered files vs 0 of each across the 5 canonical ones).
+    would fail on the renderers' own output -- at calibration time, the rendered
+    exports carried real emoji and bold-label hits while the canonical text
+    carried none (CHANGELOG.md's 0.33.0 entry has the point-in-time figures;
+    live file counts on both sides have grown since and are not pinned here).
 
     Returns a list of failure strings (empty = clean), one per occurrence,
     deduped on the full message — matching jargon_failures / kana_gloss_failures.

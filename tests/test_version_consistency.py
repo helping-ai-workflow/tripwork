@@ -48,3 +48,30 @@ def test_manifest_version_matches_changelog_top(rel_path, getter):
     assert version == top, (
         f"{rel_path} declares {version!r} but CHANGELOG top is {top!r}; "
         f"run `python scripts/bump_version.py {top}` to resync.")
+
+
+def test_shipped_version_bump_config_carries_previous():
+    """F12 (v0.35.0 review): nothing pinned that the REAL, shipped
+    `.version-bump.json` carries a `previous` field -- every existing
+    `previous`-related test (tests/test_bump_version.py) exercises a
+    synthetic `_mini_repo` fixture, not this repo's actual config. TW-078's
+    second `--audit` scan (the one that catches a manifest stuck at the
+    PREVIOUS version, never bumped at all) is silently SKIPPED whenever
+    `previous` is absent (`scripts/bump_version.py`'s
+    "Stale-manifest scan SKIPPED" branch) -- deleting the key from the real
+    file would quietly turn that scan off with the whole suite staying
+    green, since no test reads the real file's own `previous` key. `current`
+    must also match the CHANGELOG top, tying this to the same live version
+    every other assertion in this file checks."""
+    cfg = json.loads((ROOT / ".version-bump.json").read_text(encoding="utf-8"))
+    assert "previous" in cfg, (
+        "the shipped .version-bump.json has no `previous` field -- "
+        "TW-078's stale-manifest --audit scan is silently SKIPPED")
+    assert re.fullmatch(r"\d+\.\d+\.\d+", cfg["previous"] or ""), (
+        f"`previous` is not a bare X.Y.Z version: {cfg.get('previous')!r}")
+    assert cfg["previous"] != cfg["current"], (
+        "`previous` must not equal `current` -- bump() guards against this "
+        "exact clobber (see its own comment on re-running at the same version)")
+    assert cfg.get("current") == _changelog_top(), (
+        f".version-bump.json `current` is {cfg.get('current')!r} but "
+        f"CHANGELOG top is {_changelog_top()!r}")

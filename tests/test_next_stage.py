@@ -7,7 +7,7 @@ import sys
 import yaml
 
 from scripts.orchestration import ADVISORY_PROJECTION, input_fingerprint
-from tests.mech_fixtures import build_full_trip, write_artifact
+from tests.mech_fixtures import SLUG, build_full_trip, write_artifact
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 CLI = ROOT / "scripts" / "next_stage.py"
@@ -263,6 +263,21 @@ def test_rule13_bogus_status_gate_report_reruns_gate(tmp_path):
     assert "rule 13" in got["reason"]
 
 
+def test_rule14_requires_markdown_deliverable_even_when_html_present(tmp_path):
+    """F1 (v0.35.0 review): rule 14 must require the markdown deliverable
+    specifically (scripts/orchestration.py::REQUIRED_DELIVERABLE), not
+    whichever entry happens to sit first in EXPORT_DELIVERABLES. The HTML
+    deliverable is optional in shipped semantics -- export_gate.py only reads
+    it `if html_path.is_file()` (scripts/export_gate.py) -- so a trip that
+    has an HTML export but no markdown export must still be routed to
+    tripwork:export-artifact, not treated as satisfying rule 14."""
+    t, w = _full(tmp_path)
+    (t / "exports" / f"{SLUG}-itinerary.md").unlink()
+    got = _next(t, w)
+    assert got["next"] == "tripwork:export-artifact"
+    assert "rule 14" in got["reason"]
+
+
 def test_rule15_corrupt_export_gate_report_reruns_gate(tmp_path):
     t, w = _full(tmp_path)
     (t / "export-gate-report.yaml").write_text(
@@ -327,10 +342,10 @@ def test_corrupt_scalar_report_routes_back_to_gate(tmp_path):   # v0.30.0 backlo
 def test_rule13_reruns_the_gate_when_any_gate_input_is_newer(tmp_path):
     """Red at HEAD: rule 13 compares gate-report against itinerary.yaml only, so
     a re-verify that demotes a scheduled POI leaves the oracle reporting
-    'complete' on a report that never saw it. Measured on the real corpus: four
-    such gaps across four trips, all true positives (e.g. yilan's
-    verified-pois.yaml is 527 seconds newer than the gate-report that
-    supposedly gated it)."""
+    'complete' on a report that never saw it. This fires for real on the live
+    corpus, all true positives (e.g. yilan's verified-pois.yaml was observed
+    527 seconds newer than the gate-report that supposedly gated it) — not
+    pinned here as a trip count."""
     t, w = _full(tmp_path)
     assert _next(t, w)["next"] == "complete"
 
@@ -341,9 +356,10 @@ def test_rule13_reruns_the_gate_when_any_gate_input_is_newer(tmp_path):
 
 
 def test_rule15_reruns_the_export_gate_when_any_export_gate_input_is_newer(tmp_path):
-    """Same widening applied to rule 15 against EXPORT_GATE_INPUTS. Measured 0
-    extra fires on the real corpus (unlike rule 13's 4), but the predicate is
-    exercised here with verified-pois-media.yaml specifically because it is the
+    """Same widening applied to rule 15 against EXPORT_GATE_INPUTS. Rule 15's
+    widening did not add extra fires of its own on the real corpus (unlike
+    rule 13's, which does), but the predicate is exercised here with
+    verified-pois-media.yaml specifically because it is the
     one EXPORT_GATE_INPUTS member that is NOT also in GATE_INPUTS — bumping any
     of the other three would make rule 13 fire first and this test would never
     reach rule 15 at all."""
@@ -355,3 +371,22 @@ def test_rule15_reruns_the_export_gate_when_any_export_gate_input_is_newer(tmp_p
     got = _next(t, w)
     assert got["next"] == "tripwork:export-gate", got["reason"]
     assert "rule 15" in got["reason"]
+
+
+def test_rule_15_flags_an_html_deliverable_newer_than_the_export_gate_report(tmp_path):
+    """TW-077: export_gate.py reads exports/<slug>-itinerary.html and passes
+    judgement on it (scripts/export_gate.py's run_html_gate), but rule 15's
+    staleness comparison only checked the markdown deliverable and
+    EXPORT_GATE_INPUTS' four yaml files. A re-render that leaves a raw
+    <script> tag in the HTML left the oracle reporting 'complete' against a
+    report that never saw that HTML."""
+    t, w = _full(tmp_path)
+    # _full already bumps export-gate-report.yaml to +120s (deliverables must
+    # be older than the report), so the HTML must be bumped past +120 to
+    # register as stale. Use _bump's relative offset like every other test in
+    # this file -- an absolute time.time() would still be older than +120s
+    # and the test could never go green.
+    _bump(t / "exports" / f"{SLUG}-itinerary.html", 180)
+    got = _next(t, w)
+    assert got["next"] == "tripwork:export-gate"
+    assert f"{SLUG}-itinerary.html" in got["reason"]

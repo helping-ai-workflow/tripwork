@@ -29,16 +29,21 @@ Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
   `python scripts/input_fingerprint.py <trip-brief.yaml> <projection>`). The producing
   stage records it as `input_fingerprints["<upstream>.yaml"]` on the derived artifact,
   so staleness reflects real content changes, not incidental file edits/mtimes.
-- **report staleness** (rules 13 & 15, v0.33.0): unlike rule 11, `gate-report.yaml` /
-  `export-gate-report.yaml` staleness is a plain MTIME comparison against every artifact
-  the respective CLI actually opens — `scripts/orchestration.py::GATE_INPUTS` /
-  `EXPORT_GATE_INPUTS` — not just the itinerary/deliverable alone. Report-tier and
-  research-tier staleness deliberately use different predicates: a naive mtime rule on
-  the RESEARCH-tier artifacts (`scripts/orchestration.py::_DEPS` / `deps_stale`, a
-  content-based, fail-open predicate consumed by future stages) fires on 37 of 174 real
-  edges across six trips and starts a non-terminating cascade, so those compare CONTENT
-  instead. Report-tier mtime widening measured 4 true-positive extra fires and 0 false
-  positives across the same corpus — cheap to re-run the gate, so mtime is fine there.
+- **report staleness** (rules 13 & 15, v0.33.0; rule 15 widened again v0.35.0): unlike
+  rule 11, `gate-report.yaml` / `export-gate-report.yaml` staleness is a plain MTIME
+  comparison against every artifact the respective CLI actually opens —
+  `scripts/orchestration.py::GATE_INPUTS` / `EXPORT_GATE_INPUTS` — plus, for rule 15,
+  every deliverable export_gate.py judges, `scripts/orchestration.py::EXPORT_DELIVERABLES`
+  (md AND html; html is compared only once it exists — rule 14 still requires only the
+  md) — not just the itinerary/deliverable alone. Report-tier and research-tier staleness
+  deliberately use different predicates: a naive mtime rule on the RESEARCH-tier artifacts
+  (`scripts/orchestration.py::_DEPS` / `deps_stale`, a content-based, fail-open predicate
+  consumed by future stages) fires on a real, substantial fraction of the dependency edges
+  across the live consumer corpus and starts a non-terminating cascade, so those compare
+  CONTENT instead (see `deps_stale`'s own docstring, not pinned as a count here).
+  Report-tier mtime widening is cheap to re-run the gate on, so mtime is fine there — it
+  was measured against the same corpus to carry real true-positive fires and no false
+  positives before shipping (see `next_stage.py` rules 13/15 below for what it catches).
 
 ## Stage Selection
 
@@ -88,9 +93,9 @@ on its own. No manual `gate-report.yaml` deletion step is needed any more.
     trip-brief / accommodations / calendar / advisory / legs / routing / cost), not itinerary.yaml
     alone — see **report staleness** in Definitions. A re-verify that only demotes a scheduled
     POI's `verify_status` never touches itinerary.yaml, so the old itinerary-only anchor let such
-    a report stand as "complete" though the gate never saw the demotion; measured on the real
-    corpus: four such gaps across four trips, all true positives (e.g. a `verified-pois.yaml`
-    527 seconds newer than the gate-report that supposedly gated it).
+    a report stand as "complete" though the gate never saw the demotion; this fires for real on
+    the live corpus, all true positives (e.g. a `verified-pois.yaml` observed 527 seconds newer
+    than the gate-report that supposedly gated it) — not pinned here as a trip count.
 13.5. **gate-report.yaml status==fail** -> route by failure class, invalidating the stale
     gate-report (and the artifact being regenerated). A re-derivation failure names a field
     only its PRODUCING stage can write — synthesis cannot add `km` to a routing hop, and it
@@ -118,12 +123,15 @@ on its own. No manual `gate-report.yaml` deletion step is needed any more.
 
     Then re-run rule 13.
 14. gate-report status==pass, no exports/<slug>-itinerary.md -> run `tripwork:export-artifact`.
-15. export deliverable exists, and no export-gate-report.yaml **or the deliverable / any of
-    `EXPORT_GATE_INPUTS`** (itinerary / verified-pois / accommodations / verified-pois-media)
-    **is newer than export-gate-report.yaml** -> run `tripwork:export-gate`. **Widened
-    (v0.33.0)** the same way as rule 13 — see **report staleness** in Definitions. Measured 0
-    extra fires across the corpus: the report-tier true-positive gap this release closed was
-    entirely on rule 13's side.
+15. export deliverable (md) exists, and no export-gate-report.yaml **or any of
+    `EXPORT_DELIVERABLES`** (md — required by rule 14; html, compared only once it exists)
+    **or any of `EXPORT_GATE_INPUTS`** (itinerary / verified-pois / accommodations /
+    verified-pois-media) **is newer than export-gate-report.yaml** -> run
+    `tripwork:export-gate`. **Widened (v0.33.0 for `EXPORT_GATE_INPUTS`; v0.35.0 added
+    `EXPORT_DELIVERABLES`'s html)** the same way as rule 13 — see **report staleness** in
+    Definitions. The report-tier true-positive gap v0.35.0 closed was entirely on rule 13's
+    side — rule 15's widening was measured against the same corpus and did not add any
+    extra fires of its own.
     On `export-gate-report` status==fail, branch on `retryable`:
     - **retryable==true** (a render-fixable defect — naked `$`, broken link, 0 rendered
       photos) -> delete the stale export-gate-report and return to `tripwork:export-artifact`

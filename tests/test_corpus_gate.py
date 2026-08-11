@@ -17,115 +17,26 @@ table — moves a pinned figure instead of passing quietly.
 
 CONDITIONAL: skipped without the consumer corpus (see mech_fixtures.CORPUS).
 These guards do not run in CI.
-"""
-import collections
-import copy
-import datetime
 
+量測機件（CLASSES / classify / gate / drain / FIX）住在 tests/corpus_measure.py，
+與產生 tests/corpus-baseline.json 的那條路徑共用同一份（TW-074）。
+"""
 import pytest
 
-from scripts.gate import poi_pool, run_gate
-from scripts.orchestration import route_gate_failures
 from tests.mech_fixtures import CORPUS, CORPUS_TRIPS, load_trip
+from tests.corpus_measure import CLASSES, FIX, classify, drain, gate
+from tests.corpus_measure import load_baseline
 
 pytestmark = pytest.mark.skipif(not CORPUS.is_dir(),
                                 reason="consumer corpus not present")
 
-# One marker per failure class the four clean trips actually produce. Asserting
-# the classes PARTITION the failures (no leftovers) is what makes the per-trip
-# counts below meaningful: a new class cannot hide inside an unchecked
-# remainder.
-CLASSES = (
-    ("hop_no_duration_source", "no duration_source"),
-    ("poi_no_hours", "carries neither hours.close"),
-    ("row_no_closing_status", "no recorded closing_status"),
-    ("lodging_no_resolved_name", "no resolved_name"),
-    ("lodging_no_geocode_source", "no geocode.geocode_source"),
-    # Narrowed from the bare "recorded verify_status" (v0.34.0, TW-070): the
-    # POI/lodging superseded messages ALSO contain that phrase ("...: recorded
-    # verify_status 'verified' was produced under superseded rules ..."), so
-    # the bare marker would double-match every superseded record and break
-    # _classify's exactly-one invariant. "but classify_candidate re-derives"
-    # is unique to rederive_lodging's own MISMATCH message (as opposed to its
-    # superseded message, which never reaches classify_candidate at all).
-    #
-    # v0.34.0 Task 6 retired this class from the corpus entirely: it fires
-    # only when a lodging candidate reaches classify_candidate AND its
-    # recorded verdict does not match, which now requires a sourced
-    # business_status to reach classify_candidate in the first place. None of
-    # the 18 real lodging candidates carry one, so all 18 (including the one
-    # that used to land here, 2026-07-sun-moon-lake's d2-6) now land in
-    # lodging_verdict_superseded below instead. The marker is kept, unfired,
-    # as a live regression guard: a future corpus update that adds a sourced-
-    # but-wrong business_status would need this class again, and a silently
-    # absent marker would let _classify swallow it into "unattributed".
-    ("lodging_verify_status_mismatch", "but classify_candidate re-derives"),
-    # POI axis (TW-070) and lodging axis (v0.34.0 Task 6) each get their own
-    # marker, discriminated by each message's own tail -- both share "was
-    # produced under superseded rules" as a common substring (see above), but
-    # POI's ends "...re-run source-verify for this POI" and lodging's ends
-    # "...re-run accommodation-research for this candidate". Every corpus hit
-    # on EITHER axis today is the SAME subtype -- a bare-string or absent
-    # business_status, superseded by TW-063's/TW-072's sourced object form
-    # (105 of 127 POI records, 18 of 18 lodging candidates, across these four
-    # trips; see scripts/rederive.py::rederive_pois / rederive_lodging's
-    # docstrings). No corpus hit today is the 'missing' or 'mismatch'
-    # subtype on either axis, so this module carries no marker for them -- if
-    # a future corpus update produces one, _classify's assert surfaces it as
-    # an unattributed failure instead of silently absorbing it.
-    ("poi_verdict_superseded", "re-run source-verify for this POI"),
-    ("lodging_verdict_superseded", "re-run accommodation-research for this candidate"),
-    ("ai_tone", "AI-tone "),
-)
-
-# Measured through the shipped run_gate after the C1 fix, then again after the
-# TW-070 POI axis was wired in (v0.34.0), then again after Task 6 threads a
-# real Gate 0 into rederive_lodging and retires Gate 2c: every count below
-# except lodging_verdict_superseded (new) and lodging_verify_status_mismatch
-# (now zero everywhere -- see the CLASSES comment above) is UNCHANGED from
-# the TW-070 measurement. Task 6 does not alter or remove any OTHER
-# pre-existing finding; it only reclassifies lodging's own.
-# (total, {class: count}) per trip.
-EXPECTED = {
-    "2026-06-yilan": (58, {"hop_no_duration_source": 8, "poi_no_hours": 5,
-                           "row_no_closing_status": 11,
-                           "lodging_no_resolved_name": 1,
-                           "lodging_no_geocode_source": 1,
-                           "lodging_verdict_superseded": 1,
-                           "poi_verdict_superseded": 31}),
-    "2026-07-sun-moon-lake": (71, {"hop_no_duration_source": 3, "poi_no_hours": 12,
-                                   "row_no_closing_status": 3,
-                                   "lodging_no_resolved_name": 12,
-                                   "lodging_verdict_superseded": 12,
-                                   "poi_verdict_superseded": 29}),
-    "2026-08-chiayi": (53, {"hop_no_duration_source": 6, "row_no_closing_status": 10,
-                            "lodging_no_resolved_name": 3,
-                            "lodging_verdict_superseded": 3, "ai_tone": 13,
-                            "poi_verdict_superseded": 18}),
-    "2026-09-northeast-coast": (65, {"hop_no_duration_source": 2, "poi_no_hours": 10,
-                                     "row_no_closing_status": 5,
-                                     "lodging_no_resolved_name": 2,
-                                     "lodging_verdict_superseded": 2, "ai_tone": 17,
-                                     "poi_verdict_superseded": 27}),
-}
-
-
-def _gate(a):
-    b = a["brief"]
-    return run_gate(a["pois"]["pois"], a["itinerary"],
-                    accommodations=a["accommodations"],
-                    facility_needs=b.get("facility_needs"), calendar=a["calendar"],
-                    advisory=a["advisory"], must_do=b.get("must_do"), legs=a["legs"],
-                    routing=a["routing"], cost=a["cost"], trip_brief=b)
-
-
-def _classify(failures):
-    seen = collections.Counter()
-    for f in failures:
-        hits = [name for name, marker in CLASSES if marker in f]
-        assert len(hits) == 1, f"failure matches {hits} classes, expected 1: {f}"
-        seen[hits[0]] += 1
-    return dict(seen)
+# TW-074: every corpus-derived number below is read from the regenerable
+# tests/corpus-baseline.json (produced by `python -m tests.corpus_measure
+# --write`), not hand-copied into this file. Only structural invariants --
+# properties that must hold no matter what the corpus looks like -- stay
+# inline: classes must partition failures, axis ids must be a subset of
+# their own artifact's raw ids, the drain must terminate.
+BASELINE = load_baseline()
 
 
 @pytest.mark.parametrize("trip", CORPUS_TRIPS)
@@ -137,13 +48,18 @@ def test_the_real_gate_over_a_clean_trip_pins_its_failure_classes(trip):
     The per-class counts are pinned rather than the bare total: a total alone
     stays green when one class silently doubles while another silently empties,
     which is how a gate stops examining things without anyone noticing.
+
+    TW-074: counts are read from tests/corpus-baseline.json (regenerable), no
+    longer literals in this file. The partition property (classes must sum to
+    total) is an invariant and stays here.
     """
-    report = _gate(load_trip(trip))
-    total, expected = EXPECTED[trip]
-    assert report["status"] == "fail"
-    assert _classify(report["failures"]) == expected
-    assert len(report["failures"]) == total
-    assert sum(expected.values()) == total, "the classes must PARTITION the failures"
+    expected = BASELINE["per_trip"][trip]
+    report = gate(load_trip(trip))
+    assert report["status"] == expected["status"]
+    assert classify(report["failures"]) == expected["classes"]
+    assert len(report["failures"]) == expected["total"]
+    assert sum(expected["classes"].values()) == expected["total"], \
+        "the classes must PARTITION the failures"
 
 
 def test_the_six_axes_together_pin_the_release_headline_figures():
@@ -152,53 +68,78 @@ def test_the_six_axes_together_pin_the_release_headline_figures():
     run_rederivation — the divergence C1 turned on.
 
     Re-measured for v0.34.0 Task 6 (real Gate 0 threaded into rederive_lodging,
-    Gate 2c retired). 230 verdict-bearing records found is UNCHANGED (Task 6
-    reclassifies lodging findings; it does not add or remove records to
-    examine). compared drops from 69 (TW-070) to 51: the 18 lodging
+    Gate 2c retired). `found` (verdict-bearing records) is UNCHANGED by Task 6
+    (Task 6 reclassifies lodging findings; it does not add or remove records
+    to examine). compared moved from 69 (TW-070): most of the 18 lodging
     candidates that used to reach a comparison (17 matching + 1 mismatching,
     d2-6) now land in `superseded` before classify_candidate ever runs, since
-    none of them carries a sourced business_status -- there is no `operating`
-    value left to compare with. That is also why the exactly-one-mismatch
+    most do not carry a sourced business_status -- there is no `operating`
+    value left to compare with for those (a candidate that does carry one
+    stays in `compared`, same as any POI). What `compared` reads as today,
+    corpus-wide across every axis, is in tests/corpus-baseline.json's
+    gate_aggregate.compared below, not pinned in this docstring. That is also
+    why the exactly-one-mismatch
     claim TW-070 pinned here is gone: this corpus has ZERO verdicts_match
     mismatches left on any axis (match_failed is empty), not because d2-6 was
     fixed, but because its defect moved from "wrong verdict" to "verdict
     produced under rules this release supersedes" -- a different, more
     precise claim about the same record (pinned by id in
-    tests/test_rederive.py::test_real_trips_lodging_is_entirely_superseded_
-    today).
+    tests/test_rederive.py::test_real_trips_lodging_axis_matches_the_baseline).
 
-    The sixth axis's OWN headline number is the third assertion: 123 of the
-    145 examined records (105 POI + 18 lodging, both by id count) were
-    produced under superseded rules (verdicts_rule_current) -- up from 105 of
-    127 pre-Task-6, both in numerator (the 18 lodging candidates newly
-    counted) and denominator (Step 4a: `examined` now sums poi_outcome.found +
-    lodging_outcome.found, not poi_outcome.found alone). Today these totals
-    are only recoverable by hand-summing EXPECTED's per-trip
-    poi_verdict_superseded / lodging_verdict_superseded values -- a change
-    that moved findings between trips while preserving the sums would pass
-    unnoticed, so they are pinned here as explicit totals instead, counted
-    the same way _classify already counts each trip's failures by class.
+    The sixth axis's OWN headline number is the third assertion:
+    `examined_rule_current` (POI-found + lodging-found, by id count, Step 4a)
+    against how many of those land in `superseded` (verdicts_rule_current) --
+    Task 6 moved both the numerator (lodging candidates newly counted) and
+    the denominator (`examined` now sums poi_outcome.found +
+    lodging_outcome.found, not poi_outcome.found alone) at once, so neither
+    reads as a bare regression against the pre-Task-6 figures. A change that
+    moved findings between trips while preserving the sums would pass
+    unnoticed if only a total were pinned, so the totals are pinned here
+    explicitly, counted the same way _classify already counts each trip's
+    failures by class -- what those totals equal today lives in
+    tests/corpus-baseline.json, read below, not in this docstring.
+
+    TW-074: the totals above and the per-trip `checks_passed` comparison
+    below are both read from tests/corpus-baseline.json rather than hand-
+    copied literals. The per-trip loop used to assert
+    `checks["verdicts_rederivable"]["passed"] is False` and
+    `checks["verdicts_rule_current"]["passed"] is False` directly -- an
+    assumption that the corpus always has a gap on those two axes, which
+    2026-08-chiayi has already disproved. That is replaced by a dict
+    equality against the baseline's `checks_passed`, which covers every
+    check by name, not just those two.
+
+    F11 (v0.35.0 review): the loop below is a DELIBERATE second
+    implementation of tests/corpus_measure.py::_measure_gate_aggregate --
+    kept as its own hand-written walk on purpose, not refactored to call that
+    helper, because it is the ONLY cross-check that _measure_gate_aggregate
+    itself computes correctly. Calling it from here instead would compare
+    load_baseline()'s baked-in copy against itself -- green regardless of
+    whether the aggregation logic is right. Do not fold this into a shared
+    helper with corpus_measure.py.
     """
     found = compared = examined_rule_current = 0
     super_poi = super_lodging = 0
     match_failed = []
     for trip in CORPUS_TRIPS:
-        report = _gate(load_trip(trip))
+        report = gate(load_trip(trip))
         checks = {c["name"]: c for c in report["checks"]}
         found += checks["verdicts_rederivable"]["examined"]
         compared += checks["verdicts_match"]["examined"]
         examined_rule_current += checks["verdicts_rule_current"]["examined"]
-        classes = _classify(report["failures"])
+        classes = classify(report["failures"])
         super_poi += classes.get("poi_verdict_superseded", 0)
         super_lodging += classes.get("lodging_verdict_superseded", 0)
         if not checks["verdicts_match"]["passed"]:
             match_failed.append(trip)
-        assert checks["verdicts_rederivable"]["passed"] is False, trip
-        assert checks["verdicts_rule_current"]["passed"] is False, trip
-    assert (found, compared) == (230, 51)
-    assert (super_poi, super_lodging, super_poi + super_lodging) == (105, 18, 123)
-    assert examined_rule_current == 145, "Step 4a: poi_outcome.found (127) + lodging_outcome.found (18)"
-    assert match_failed == []
+        assert {c["name"]: bool(c["passed"]) for c in report["checks"]} == \
+            BASELINE["per_trip"][trip]["checks_passed"], trip
+    agg = BASELINE["gate_aggregate"]
+    assert (found, compared) == (agg["found"], agg["compared"])
+    assert (super_poi, super_lodging) == (agg["super_poi"], agg["super_lodging"])
+    assert examined_rule_current == agg["examined_rule_current"], \
+        "Step 4a: poi_outcome.found + lodging_outcome.found"
+    assert match_failed == agg["match_failed"]
 
 
 def test_the_three_verdict_axes_partition_their_failures():
@@ -227,10 +168,25 @@ def test_the_three_verdict_axes_partition_their_failures():
     'lodging-xiangshouyixia' (its chosen candidate id, present in neither
     that trip's nor any trip's raw verified-pois.yaml), which the subset
     assertions below catch.
+
+    TW-074: the non-emptiness assertions are replaced by equality against the
+    baseline. A trip legitimately having zero POI-axis findings (chiayi, once
+    the consumer's business_status is sourced) is no longer a failure; a
+    vacuous subset check is caught by the baseline's count instead.
+
+    F11 (v0.35.0 review): `poi_ids`/`lodging_ids` below is a DELIBERATE second
+    implementation of tests/corpus_measure.py::_axis_ids's identical string
+    split (that helper's own docstring says as much: "切法與
+    test_the_three_verdict_axes_partition_their_failures 原本的一致"). It is
+    kept as its own literal here, not imported, because it is the ONLY
+    cross-check that _axis_ids parses failure strings correctly -- calling
+    _axis_ids from here would let a parsing bug in _axis_ids agree with
+    itself via load_baseline()'s baked-in copy. Do not replace this with a
+    call to _axis_ids.
     """
     for trip in CORPUS_TRIPS:
         a = load_trip(trip)
-        report = _gate(a)
+        report = gate(a)
         raw_poi_ids = {p.get("id") for p in a["pois"]["pois"]}
         raw_lodging_ids = {c.get("id")
                            for stop in (a["accommodations"] or {}).get("stops") or []
@@ -238,206 +194,52 @@ def test_the_three_verdict_axes_partition_their_failures():
         poi_ids = {f.split("'")[1] for f in report["failures"] if f.startswith("pois[")}
         lodging_ids = {f.split("'")[3] for f in report["failures"]
                        if f.startswith("accommodations ")}
-        assert poi_ids, f"{trip}: no POI-axis findings to discriminate against"
-        assert lodging_ids, f"{trip}: no lodging-axis findings to discriminate against"
+        per = BASELINE["per_trip"][trip]
+        assert len(poi_ids) == per["poi_axis_findings"], trip
+        assert len(lodging_ids) == per["lodging_axis_findings"], trip
+        # Invariant: neither axis's failures may name an id that is not a
+        # genuine member of ITS OWN artifact.
         assert poi_ids <= raw_poi_ids, (trip, poi_ids - raw_poi_ids)
         assert lodging_ids <= raw_lodging_ids, (trip, lodging_ids - raw_lodging_ids)
 
 
 @pytest.mark.parametrize("trip", CORPUS_TRIPS)
-def test_no_failure_class_routes_to_a_stage_that_cannot_write_it(trip):
-    """C2, stated as the invariant rather than as a simulation: the field a
-    failure names must be writable by the stage it routes to.
+def test_a_trips_failure_list_is_empty_only_when_the_baseline_says_so(trip):
+    """C2's corpus-coupled half only: a clean trip really has zero failures
+    on the real gate, and a dirty one really has some.
 
-    `hours` lives in verified-pois.yaml and only `tripwork:source-verify` writes
-    that file — skills/source-verify/SKILL.md's closure-days paragraph ends
-    "leave `close` absent and let the gate flag it", so the flag was always
-    meant to reach that stage. Before the `_ROUTES` source-verify group it
-    reached `tripwork:itinerary-synthesis`, which cannot write the field, and
-    the feedback loop could not terminate.
+    G5 (v0.35.0 review wave 2): the ROUTING invariant this test used to check
+    inline -- "the field a failure names must be writable by the stage it
+    routes to" -- moved to
+    tests/test_orchestration.py::test_every_corpus_measure_class_routes_to_the_stage_that_can_write_it.
+    That version is corpus-INDEPENDENT (parametrized over
+    tests/corpus_measure.py's CLASSES, not over CORPUS_TRIPS): for every
+    marker CLASSES uses to classify a real failure message, it builds ONE
+    genuine failure message by calling the real production re-derivation
+    entrypoint (run_rederivation / ai_tone_failures) against a tiny synthetic
+    fixture, then asserts route_gate_failures on that real message lands on
+    the stage that owns the field. Leaving it here, parametrized per-trip,
+    was strictly weaker: a trip only exercises whichever classes its OWN
+    corpus data happens to produce today, so a class the corpus never
+    triggers got zero routing coverage -- 2026-08-chiayi (today's one clean
+    trip) iterated an EMPTY `report["failures"]` here and asserted nothing
+    about routing at all, which the reviewer proved: the two `if` checks that
+    used to live in this loop were also logically implied by nothing else in
+    this file, and the F4 fix below (asserting the list's emptiness) did not
+    change that -- injecting a bug that silently swallows the whole
+    poi_no_hours failure class and regenerating the baseline left this whole
+    file green.
+
+    What is left here is genuinely corpus-coupled and worth its own test:
+    does a CLEAN trip's real gate report an empty failure list, and does a
+    DIRTY trip's list stay non-empty, exactly as the baseline recorded.
     """
-    report = _gate(load_trip(trip))
-    for f in report["failures"]:
-        if "carries neither hours.close" in f:
-            assert route_gate_failures([f]) == "tripwork:source-verify", f
-        if "AI-tone " in f:
-            assert route_gate_failures([f]) == "tripwork:itinerary-synthesis", f
-
-
-# --------------------------------------------------------------------------
-# rule 13.5 drain: route, grant the routed stage its BEST possible fix, re-gate.
-# --------------------------------------------------------------------------
-
-def _fix_source_verify(a):
-    """Records the closing times it left absent (SKILL.md's "go back and find
-    the hours"), and re-verifies every POI (TW-070, v0.34.0): a sourced
-    business_status + geocode_source + resolved_name -- what a real
-    source-verify re-run records -- then RECOMPUTES verify_status from those
-    inputs and overwrites the recorded value, the same "recompute and
-    overwrite" pattern _fix_legs/_fix_routing already use for their own
-    mismatch classes.
-
-    Scoped to every POI, not just the ones this round's report flagged
-    'superseded': a POI recorded 'unverified'/'conflicting' for the CORRECT
-    reason (Gate 0 never established, since business_status was absent) would
-    otherwise still match on this round and only surface its real verdict
-    after business_status is sourced -- exactly what a real re-run does in one
-    visit, not one field at a time. as_of is computed at CALL time, never a
-    literal (OPERATING_MAX_AGE_DAYS is 90) -- and `today=` is threaded through
-    the SAME value into `verify_poi`, so Gate 0's own recency check reads the
-    identical era as the `as_of` just written, not wall-clock underneath a
-    synthetic date. (Gate 2c, which used to read this same anchor via
-    classify_candidate, is retired as of v0.34.0 Task 6 -- there is no second
-    gate left for `today` to reach.)
-    """
-    from scripts.verify import verify_poi
-    today = datetime.date.today().isoformat()
-    for p in a["pois"]["pois"]:
-        h = p.setdefault("hours", {})
-        if not h.get("close") and not h.get("no_fixed_close"):
-            h["close"], h["as_of"] = "18:00", "2026-08-01"
-        if not isinstance(p.get("business_status"), dict):
-            p["business_status"] = {"status": "OPERATIONAL",
-                                    "source_url": "https://places.example/v1/place",
-                                    "as_of": today}
-        g = p.setdefault("geocode", {})
-        g.setdefault("geocode_source", "nominatim")
-        if "resolved_name" not in p:
-            p["resolved_name"] = p.get("name_local") or p.get("name_display")
-        _, status, _note = verify_poi(p, geocoded=bool(p.get("geocode")),
-                                      in_claimed_region=True,
-                                      resolved_name=p["resolved_name"], today=today)
-        p["verify_status"] = status
-
-
-def _fix_routing(a):
-    from scripts.distance import classify_hop
-    from scripts.rederive import hop_km
-    r = a["routing"] or {}
-    known = {c.get("district") for c in r.get("clusters") or [] if c.get("centroid")}
-    for hop in r.get("hops") or []:
-        hop.setdefault("mode", "drive")
-        hop["duration_source"] = "sourced_timetable"
-        hop["source_url"] = "https://example.gov.tw/timetable"
-        for end in ("from", "to"):
-            if hop.get(end) not in known:
-                r.setdefault("clusters", []).append(
-                    {"district": hop.get(end), "pois": [],
-                     "centroid": {"lat": 24.7, "lng": 121.7}})
-                known.add(hop.get(end))
-    for hop in r.get("hops") or []:
-        hop["flag"] = classify_hop(hop.get("mins"), 60, km=hop_km(r, hop),
-                                   mode=hop.get("mode"),
-                                   duration_source=hop.get("duration_source"),
-                                   source_url=hop.get("source_url"))
-
-
-def _fix_legs(a):
-    from scripts.legs import classify_leg
-    for lg in (a["legs"] or {}).get("legs") or []:
-        if lg.get("mode") == "drive":
-            lg.setdefault("duration_mins", 60)
-        else:
-            lg["last_service_exempt"] = True
-        lg["status"] = classify_leg(lg, 300)[0]
-
-
-def _fix_accommodation(a):
-    """Records what a real accommodation-research re-run would (I2, v0.33.0),
-    plus a sourced business_status (v0.34.0 Task 6): a lodging candidate can
-    now land in `superseded` exactly like a POI can, and re-running
-    accommodation-research is the only stage that can supply the field. as_of
-    is computed at CALL time, never a literal (OPERATING_MAX_AGE_DAYS is 90)."""
-    today = datetime.date.today().isoformat()
-    for stop in (a["accommodations"] or {}).get("stops") or []:
-        for c in stop.get("candidates") or []:
-            g = c.setdefault("geocode", {"lat": 24.7, "lng": 121.7})
-            g["geocode_source"] = "nominatim"
-            c["resolved_name"] = c.get("name_local") or c.get("name_display")
-            if not isinstance(c.get("business_status"), dict):
-                c["business_status"] = {"status": "OPERATIONAL",
-                                        "source_url": "https://places.example/v1/place",
-                                        "as_of": today}
-            srcs = c.setdefault("sources", [])
-            while len({s.get("url", "").split("/")[2] for s in srcs if s.get("url")}) < 2:
-                srcs.append({"url": f"https://s{len(srcs)}.example/x", "lang": "zh"})
-
-
-def _fix_cost(a):
-    from scripts.cost import sum_costs
-    if a["cost"] is not None:
-        summed = sum_costs(a["cost"].get("line_items") or [])
-        a["cost"]["total"] = summed["total"]
-        if "by_category" in a["cost"]:
-            a["cost"]["by_category"] = summed["by_category"]
-
-
-def _strip_tone(text):
-    from scripts.text_hygiene import ai_tone_failures
-    out = "".join(ch for ch in (text or "") if ch not in "—*")
-    return out if not ai_tone_failures(out) else "行程"
-
-
-def _fix_synthesis(a):
-    """Rewrites the itinerary: a closing_status per in-scope row, a row for
-    every home leg, tone-clean text, a meal on every day."""
-    from scripts.hours import closing_status
-    from scripts.rederive import _last_call_for, _need_mins
-    by = poi_pool(a["pois"]["pois"], a["accommodations"])
-    legs_list = (a["legs"] or {}).get("legs") or []
-    days = a["itinerary"].get("days") or []
-    for d in days:
-        for row in d.get("rows") or []:
-            for key in ("text", "from", "to"):
-                if row.get(key):
-                    row[key] = _strip_tone(row[key])
-            t, pid = row.get("time"), row.get("poi_id")
-            if not t or not pid or pid not in by or row.get("slot") == "lodging":
-                row.pop("closing_status", None)
-                continue
-            hours = by[pid].get("hours") or {}
-            if hours.get("no_fixed_close"):
-                row["closing_status"] = "ok"
-            elif hours.get("close"):
-                row["closing_status"] = closing_status(
-                    t, hours["close"], _last_call_for(row.get("slot"), hours),
-                    _need_mins(hours, 30, 60))[0]
-    a["itinerary"]["title"] = _strip_tone(a["itinerary"].get("title"))
-    a["itinerary"]["checklist"] = [_strip_tone(c)
-                                   for c in a["itinerary"].get("checklist") or []]
-    for c in a["itinerary"].get("contingency") or []:
-        for key in ("trigger", "fallback", "note"):
-            if c.get(key):
-                c[key] = _strip_tone(c[key])
-    if days:
-        for i, lg in enumerate(legs_list):
-            if lg.get("kind") == "home":
-                days[0].setdefault("rows", []).append(
-                    {"slot": "move", "text": "移動", "leg_index": i})
-    for d in days:
-        if not any(r.get("slot") == "meal" for r in d.get("rows") or []):
-            d.setdefault("rows", []).append({"slot": "meal", "text": "用餐"})
-
-
-_FIX = {"tripwork:source-verify": _fix_source_verify,
-        "tripwork:routing-audit": _fix_routing,
-        "tripwork:inter-stop-legs": _fix_legs,
-        "tripwork:accommodation-research": _fix_accommodation,
-        "tripwork:cost-rollup": _fix_cost,
-        "tripwork:itinerary-synthesis": _fix_synthesis}
-
-
-def _drain(trip, max_rounds=10):
-    """Returns (terminated, per-round failure counts)."""
-    a = copy.deepcopy(load_trip(trip))
-    history = []
-    for _ in range(max_rounds):
-        report = _gate(a)
-        history.append(len(report["failures"]))
-        if report["status"] == "pass":
-            return True, history
-        _FIX[route_gate_failures(report["failures"])](a)
-    return False, history
+    report = gate(load_trip(trip))
+    # F4 (v0.35.0 review, wave 1): a clean trip (today: 2026-08-chiayi) used
+    # to leave this test's loop body dead code (zero real failures, zero
+    # assertions) -- asserting the list's emptiness against the baseline is
+    # what gives that parametrized instance something to check.
+    assert (report["failures"] == []) == (BASELINE["per_trip"][trip]["total"] == 0), trip
 
 
 @pytest.mark.parametrize("trip", CORPUS_TRIPS)
@@ -454,9 +256,26 @@ def test_rule_13_5_drains_instead_of_looping(trip):
     distinguishes the two; the counterfactual below is what proves this test
     would have gone red before the fix.
     """
-    terminated, history = _drain(trip)
+    terminated, history = drain(trip)
     assert terminated, f"{trip} did not drain: {history}"
-    assert history[-1] == 0 and history[0] == EXPECTED[trip][0]
+    # F10 (v0.35.0 review), corrected (G6, wave 2): this assertion is a
+    # DIAGNOSTIC against a hand-edited baseline, not coverage of drain()
+    # itself -- both `history` (computed above) and `drain_rounds` (baked
+    # into the baseline) come from the SAME drain() helper on the SAME trip,
+    # so a bug IN drain() moves both sides together and this equality cannot
+    # see it: the reviewer broke drain() itself (`return True, history +
+    # [0]`), regenerated the baseline, and this test still passed. That blind
+    # spot is inherent to the baseline architecture -- CLAUDE.md's rule (d)
+    # (commit the regenerated diff for human review) is the control here, not
+    # a test; do not try to engineer a mechanical guard that cannot exist.
+    # What this assertion DOES catch: a HAND-edited baseline value that no
+    # longer matches what a fresh drain() run on this trip produces --
+    # exactly what test_baseline_matches_a_fresh_measurement checks in bulk
+    # across every field, given here as a second, narrower assertion site
+    # scoped to this one figure.
+    assert len(history) == BASELINE["per_trip"][trip]["drain_rounds"], trip
+    assert history[-1] == 0
+    assert history[0] == BASELINE["per_trip"][trip]["total"]
 
 
 def test_removing_the_source_verify_route_reproduces_the_non_terminating_drain(
@@ -482,8 +301,9 @@ def test_removing_the_source_verify_route_reproduces_the_non_terminating_drain(
 
     monkeypatch.setattr(orchestration, "_ROUTES", tuple(
         g for g in orchestration._ROUTES if g[1] != "tripwork:source-verify"))
-    terminated, history = _drain("2026-06-yilan")
-    assert terminated is False
+    terminated, history = drain("2026-06-yilan")
+    cf = BASELINE["counterfactual"]
+    assert terminated is cf["yilan_without_source_verify_terminated"]
     # A genuine fixed point, not merely slow progress: the tail repeats.
-    assert history[-1] == history[-2] == 36
+    assert history[-1] == history[-2] == cf["yilan_without_source_verify_fixed_point"]
     assert history[-1] > 0

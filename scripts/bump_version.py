@@ -104,14 +104,43 @@ def check(root: Path) -> int:
     return 1 if drift else 0
 
 
+def _looks_like_a_manifest(rel: str) -> bool:
+    # Restricted to .json/.toml (excluding .version-bump.json itself) on purpose:
+    # CHANGELOG entries, README prose, and skill docs legitimately reference old
+    # versions forever ("added in v0.9.0", changelog history, etc). Flagging every
+    # file that merely *mentions* the previous version would make --audit noisy at
+    # every release, and a noisy gate gets turned off. Only a manifest — a file
+    # that is supposed to carry THE version, the same shape as files[] entries —
+    # sitting at the previous version is an actual defect (TW-078: it means the
+    # file was never declared in .version-bump.json files[], so bump() never wrote
+    # it, and it silently stayed on the old version).
+    #
+    # Detection window is exactly one release wide, by design (not a history log —
+    # that's scope creep `bump()` never signed up for). `previous` only ever holds
+    # the ONE version being bumped FROM. A manifest flagged here and not fixed
+    # before the *next* bump becomes invisible again: the next bump() call rolls
+    # `previous` forward to the version that was `current` at that bump, and the
+    # stuck manifest matches neither the current-version scan nor the new
+    # previous-version scan. This is acceptable, not dangerous, only because
+    # `bump()` ends with `return audit(root)` (verified: a manifest stuck at the
+    # version being bumped FROM makes bump() itself exit non-zero — see
+    # test_bump_returns_nonzero_when_undeclared_manifest_stuck_at_previous_version).
+    # An operator cannot silently walk past a flagged manifest mid-bump; they can
+    # only walk past it by never running bump() at all, which is the same failure
+    # mode --check/--audit already have.
+    return rel.endswith((".json", ".toml")) and rel != ".version-bump.json"
+
+
 def audit(root: Path) -> int:
     cfg = load_config(root)
     current = cfg["current"]
+    previous = cfg.get("previous")
     declared = {e["path"] for e in cfg["files"]}
     excludes = list(cfg.get("audit", {}).get("exclude", []))
     tracked = subprocess.run(["git", "ls-files"], cwd=root, capture_output=True,
                              text=True, check=True).stdout.splitlines()
     flagged = []
+    stale = []
     for rel in tracked:
         if rel in declared:
             continue
@@ -124,11 +153,30 @@ def audit(root: Path) -> int:
             continue
         if current in text:
             flagged.append(rel)
+        elif previous and previous in text and _looks_like_a_manifest(rel):
+            stale.append(rel)
     if flagged:
         print(f"UNDECLARED files containing '{current}':")
         for rel in sorted(flagged):
             print(f"  {rel}")
         print("Add them to .version-bump.json files[] or audit.exclude.")
+    if previous:
+        if stale:
+            print(f"UNDECLARED manifests still at the PREVIOUS version '{previous}':")
+            for rel in sorted(stale):
+                print(f"  {rel}")
+            print("These were never written because they are not in .version-bump.json files[].")
+    else:
+        # Printed unconditionally (not just on the failure path) on purpose: a check
+        # that silently does not run must never read the same as a check that ran and
+        # found nothing. Without this line, "No undeclared file contains 'X'. All
+        # clear." looks byte-identical whether the stale-manifest scan actually ran
+        # or was skipped for lack of a `previous` field — and a reader (human or CI
+        # log) has no way to tell those apart.
+        print("Stale-manifest scan SKIPPED: .version-bump.json has no `previous` field "
+              "(older checkout, or no version has been bumped since this scan was added). "
+              "A manifest stuck at an old version would NOT be caught by this run.")
+    if flagged or stale:
         return 1
     print(f"No undeclared file contains '{current}'. All clear.")
     return 0
@@ -147,6 +195,14 @@ def bump(root: Path, version: str) -> int:
         else:
             write_key(path, entry["key"], version)
         print(f"  {entry['path']:<40} {old} -> {version}")
+    # Re-running bump() with the SAME version (e.g. retrying after a later release-flow
+    # step failed, reusing the same X.Y.Z) must not advance `previous` — that would
+    # collapse the one-release lookback window audit()'s stale-manifest scan depends on,
+    # even though no release actually happened. Rewriting the manifests to the same value
+    # above is harmless and idempotent, so the rest of bump() still runs unconditionally;
+    # only the `previous` bookkeeping is guarded.
+    if version != cfg["current"]:
+        cfg["previous"] = cfg["current"]
     cfg["current"] = version
     cfg["next"] = next_minor(version)
     (root / ".version-bump.json").write_text(

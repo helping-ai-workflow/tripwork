@@ -22,10 +22,14 @@ SLUG = "2026-08-testtrip"
 CORPUS = pathlib.Path(os.environ.get(
     "TRIPWORK_CORPUS", "/home/user/hp_workspace/tripwork-workspace/trips"))
 
-# The four trips whose artifacts pass validate_artifact at HEAD. hokkaido-7d and
-# nz-south-island are excluded: both already fail validation (hokkaido routing
-# carries far_hops/max_hop_mins/slug; nz clusters lack district), so they are
-# not a baseline for anything.
+# The four trips whose artifacts pass validate_artifact at HEAD. This list is
+# hand-maintained, not derived from whatever `trips/` currently contains: the
+# consumer corpus routinely carries MORE trip directories than are named here
+# (hokkaido-7d and nz-south-island are two known-excluded ones -- both already
+# fail validation, hokkaido routing carries far_hops/max_hop_mins/slug, nz
+# clusters lack district -- but the directory may carry others too, newly
+# added and not yet vetted for schema-cleanliness). Adding a trip here is a
+# deliberate act, not automatic.
 CORPUS_TRIPS = ("2026-06-yilan", "2026-07-sun-moon-lake", "2026-08-chiayi",
                 "2026-09-northeast-coast")
 

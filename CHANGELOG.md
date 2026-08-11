@@ -1,5 +1,227 @@
 # Changelog
 
+## 0.35.0 — guards that measure what they claim: ten audit defects
+
+An adversarial audit of v0.34.0 found ten defects sharing one root cause: a guard obtained the
+pipeline state it claimed to check by hand-rebuilding an equivalent copy — a literal number, a
+hand-kept list, a manually-summed denominator — instead of calling the shipped function or
+constant. The two copies could then drift apart silently, and every real instance in this release
+did drift: a consumer fixing their own data turned eight guards red for no plugin defect; a
+schema-symmetry allowlist had grown large enough to leave two re-derivation axes with zero fields
+under guard; a staleness check had a blind spot for one of the two files it was supposed to be
+watching. This release closes all ten (TW-074–TW-083) and, because the pattern repeated across
+three releases, writes the rule itself into `CLAUDE.md` so the next instance is caught in review
+rather than discovered by audit.
+
+- **TW-074 — corpus figures stop living as literals inside tests.** Every guard that measured the
+  consumer corpus (`tests/test_corpus_gate.py`, `tests/test_rederive.py`) had its expected numbers
+  typed in by hand at the time it was written. When the consumer later fixed real data using the
+  mechanism v0.34.0 shipped, eight of those guards went red with no plugin defect anywhere — the
+  corpus had changed, not the code. `tests/corpus_measure.py` now provides `measure_corpus()`,
+  built on the same `gate()` / `classify()` / `drain()` machinery the shipped CLI uses, and every
+  migrated guard reads its expected values from `tests/corpus-baseline.json` instead of a literal.
+  **Regenerate the baseline with `python -m tests.corpus_measure --write`** whenever the corpus
+  changes — commit the regenerated diff in the same PR so a human reviews what moved.
+  `tests/test_corpus_baseline_is_current.py` fails the suite if the checked-in baseline and a fresh
+  measurement disagree, so a stale baseline cannot hide. Before trusting the rewritten guards, the
+  original P4-fold deadlock (`scripts/gate.py::poi_pool`) was re-injected by hand: the suite went
+  from 15 passed to 8 failed, confirming the baseline swap had not hollowed the guards out.
+- **TW-075 — published test counts now name the environment they were measured in.** v0.34.0's
+  entry stated "zero skipped or xfailed" for a figure that only holds with the consumer corpus
+  mounted; CI (the environment that actually gates a merge) runs without it and produces a lower
+  passed count plus a batch of corpus-gated skips — the two numbers cannot both be true of the same
+  run. `tests/test_changelog_test_count_is_qualified.py` now requires every `Tests:` line in the
+  **newest** CHANGELOG entry to say `CI` or `corpus`; historical entries are left as the point-in-
+  time record they are. A matching guard requires the README's `pytest` line to carry the same
+  qualifier.
+- **TW-076 — the schema-symmetry allowlist had grown large enough to blind two axes completely.**
+  `tests/test_schema_symmetry.py`'s allowlist — meant to exempt container-wrapper and sub-object
+  field names from the "every field `rederive_*` reads must be schema-declared" check — had grown
+  to 45 names, 12 of them ordinary record fields that had no business being exempt. The practical
+  effect: `rederive_legs` and `rederive_hops` had **zero** fields under guard, meaning TW-071's
+  original deadlock (an unschematized field silently read by a re-derivation axis) could be
+  re-injected into either axis and the full suite would stay green. Trimmed to the 9 names that are
+  genuinely container wrappers or sub-object fields (`as_of`, `candidates`, `centroid`, `clusters`,
+  `district`, `geocode_source`, `hops`, `legs`, `stops`) — two independent derivations of the
+  minimal set (one done ahead of the task, one done from scratch during implementation) agreed
+  exactly. Fields under guard go from 11 to 26 across all axes, `rederive_legs` from 0 to 8 and
+  `rederive_hops` from 0 to 7. Re-injecting TW-071's deadlock now fails immediately
+  (`assert not ['last_service_exempt']`).
+- **TW-077 — rule 15's staleness check now compares every export deliverable, HTML included.**
+  `export_gate.py` reads and judges `exports/<slug>-itinerary.html` whenever it exists
+  (`run_html_gate`), but `scripts/next_stage.py`'s rule 15 only ever compared the markdown
+  deliverable and the four `EXPORT_GATE_INPUTS` yaml files against `export-gate-report.yaml`'s
+  mtime — a re-render that left a stale HTML file (a leftover raw `<script>` tag, say) behind a
+  fresh, passing report was invisible to the oracle. No corpus trip happened to exercise the gap,
+  which is why it stayed latent through two prior releases. `scripts/orchestration.py` gains
+  `EXPORT_DELIVERABLES`, the single source for the `exports/` filename templates; rule 14 and rule
+  15 both read it instead of hard-coding the markdown filename a second time, so rule 15 now names
+  any stale deliverable, not just the markdown one. Safety check: `next_stage.py`'s routing output
+  across all four corpus trips is byte-identical before and after, including the two trips that
+  reach rule 16 and so actually exercise the new HTML comparison — no verdict moved.
+- **TW-078 — `--audit` now catches a manifest that was never bumped, not just one that lags.**
+  `bump_version.py --audit` only grepped every file for the **current** version string, so its one
+  real job — catching drift among the eight version-bearing manifests — had a blind spot for the
+  single most likely real-world failure: a manifest never added to `.version-bump.json`'s file
+  list, therefore never written by `bump()`, therefore stuck on the **previous** version forever,
+  invisible to `--audit`, `--check`, and the whole pytest gate at once. `.version-bump.json` gains a
+  `previous` field that `bump()` maintains explicitly (`cfg["previous"] = cfg["current"]` before
+  overwriting, guarded so re-running `bump()` at the same version cannot clobber it); `audit()` runs
+  a second scan, restricted to undeclared `.json`/`.toml` files, for that previous-version string,
+  reported under its own heading — restricted to manifest-shaped files on purpose, since CHANGELOG
+  and README legitimately reference old versions forever and flagging that would make every future
+  `--audit` noisy. An older `.version-bump.json` with no `previous` field skips the second scan with
+  an explicit `SKIPPED` line rather than silently doing nothing — this release's own thesis, that a
+  check which cannot fail is indistinguishable from one that passed, applies to the release tooling
+  itself. Documented limit, deliberately not built out further: this closes a **one-release**
+  detection window (a manifest stuck at 0.34.0 is caught bumping to 0.35.0; skip straight to 0.36.0
+  and it matches neither scan) — a real version history is scope this task does not take on.
+- **TW-079 — the README mermaid order guard now derives from `_CHAIN`, not a hand-kept list.**
+  `tests/test_readme_freshness.py`'s `_PIPELINE_ORDER` used to be typed in by hand, parallel to
+  `scripts/next_stage.py::_CHAIN` rather than sourced from it — the two could disagree and the
+  guard would never notice. Its first 11 entries now derive directly from `_CHAIN`; the trailing 4
+  (rule branches 12–16: `itinerary-synthesis` through `export-gate`) stay literal with a comment
+  stating why — there is no importable sequence constant covering that stretch. No new test was
+  needed: `test_tw060_mermaid_stage_order_matches_pipeline` becomes load-bearing simply by having
+  its comparison target now be a real derivation instead of a copy. Verified both directions:
+  swapping `calendar-check` and `seasonal-advisory` inside `_CHAIN` now reds that test (it stayed
+  green before this fix), and the reverse — editing the README's stage order without updating
+  `_CHAIN` — reds it too.
+- **TW-080/081/082 — three specific stale claims, plus a wider grep-driven pass.** A CHANGELOG passage
+  described the `superseded` bucket's routing using only two of the three `business_status` shapes
+  that route there (bare-string, absent), silently omitting the third (a dict-shaped but unusable
+  value) while phrasing the pair as exhaustive — corrected to name all three, worded to match the
+  code's own reason strings (TW-080). `scripts/rederive.py`'s `run_rederivation` docstring (and a
+  duplicate in `tests/test_rederive.py`) claimed `run_gate` "does not forward" `pois` — false since
+  v0.34.0 Task 4, which made `scripts/gate.py:333-335` pass `pois=pois` unconditionally; the false
+  claim and its dependent consequence were deleted, the still-true part of the surrounding rationale
+  kept (TW-081). README's `gmaps_place_id` shape-check line cited an all-corpus count (86)
+  inconsistent with the denominator every other figure in its own section used, and both numbers
+  were additionally stale; now states both denominators explicitly, measured live: four
+  schema-clean trips = 64, all seven corpus trips = 99, both exactly 27 characters (TW-082).
+  A follow-up grep-driven pass over `tests/`, `scripts/`, `skills/` for docstrings/comments
+  carrying a numeric claim near corpus-shaped language — not another reactive one-site fix — found
+  **18 more present-tense corpus figures across 11 files**, of which **4 were outright false**
+  against the live corpus, not merely stale: an "0 unresolved" figure recorded as 5 (a full
+  inversion, the same shape TW-074 exists to prevent); a "six real trips" denominator that is now
+  seven; a "6 legs, all kind-absent" claim now 7 legs (and no longer all kind-absent, since TW-065
+  legalized `kind: home` on some of them); and a "two excluded trips" comment now three. Every
+  category-(a) hit (a live, unbound, present-tense corpus claim) was de-numbered in favor of
+  pointing at `tests/corpus-baseline.json` or a named commit/task/release anchor; bounded historical
+  records, synthetic-fixture counts, and code-structure counts were left untouched. A final pass
+  re-examined the AI-tone calibration family (~15 sites previously treated as one bounded-historical
+  unit) **per site** rather than by blanket rationale, and found three of those specific claims were
+  themselves outright false — a cited "31 of 32" em-dash hit and a markdown-bold checklist
+  attribution that no longer exist in the live corpus file they named, plus one propagated copy of
+  the same false attribution — each rebound explicitly to v0.33.0, the release whose own CHANGELOG
+  entry carries the point-in-time figures, rather than merely softened. **This sweep was not
+  exhaustive, and the two paragraphs above should not be read as a completeness claim**: its declared
+  scope was `tests/`, `scripts/`, `skills/`, and a later review round (v0.35.0 review wave 2) found
+  at least six more sites carrying the identical defect outside and inside that scope — one inside
+  `tests/` itself (`tests/test_verify.py`, the verbatim twin of the `scripts/verify.py:308` site this
+  same sweep closed) plus five in `README.md`, which the sweep never walked at all. In a release
+  whose thesis is that published claims must be measured, publishing an unqualified completeness
+  claim about the sweep itself was the identical defect one level up.
+- **TW-083 — the rule this release exists to demonstrate, now written down.** `CLAUDE.md` gains
+  "Guards must call their subject, not rebuild it": a guard obtains pipeline state by **calling**
+  the shipped function or constant (`scripts/gate.py::poi_pool`, `scripts/next_stage.py::_CHAIN`,
+  `scripts/orchestration.py::EXPORT_DELIVERABLES`, `tests/corpus_measure.py::measure_corpus`, and
+  siblings), never by hand-assembling an equivalent; where no importable source exists, a literal is
+  allowed but must say why in a comment; and before trusting a new guard, inject the bug it names
+  and confirm it goes red. The rule cites three real instances across three releases as evidence,
+  not hypotheticals: v0.33.0's C1 (a corpus guard hand-built `by_id` from 58 rows while the shipped
+  gate used 63), v0.34.0's inert re-derive guard (a default fixture that folded nothing, staying
+  green through the exact bug it named), and this release's own TW-074/TW-076/TW-079.
+- **v0.35.0 review wave 2 (G1–G8): a scoped re-review of wave 1 found it had both missed sites and
+  shipped two assertions with zero added detection.** `tests/test_verify.py`'s TW-062
+  safety-argument docstring carried the verbatim twin of the `scripts/verify.py:308` claim wave 1's
+  F2 already closed — the same "Measured: 5 corpus records" shape, false three ways on inspection
+  (of the 11 `cluster_fallback` POIs on the four schema-clean trips, 10 already had independent
+  existence proof; only `2026-08-chiayi/taocheng-guwei` has neither, and its `business_status` is
+  currently unusable, so 0 records flip on the new proof alone today; the named sun-moon-lake `d2-6`
+  is also the wrong population — a LODGING candidate, never reachable through this POI-only
+  function) — de-numbered the same way (G1). `scripts/verify.py` and README both pointed the reader
+  at `python -m tests.corpus_measure --write` to answer a question that function does not measure;
+  both now state the predicate precisely and say plainly there is no mechanical measurement instead
+  of trading one false claim for an unfollowable instruction (G4). Five more corpus figures in
+  README were wrong against the live corpus — four in the v0.34.0 paragraph (POI-axis
+  found/superseded, combined examined/superseded; only "found 18" checked out) and a set in the
+  v0.33.0 paragraph directly contradicting a docstring wave 1 itself wrote
+  ("this corpus has ZERO verdicts_match mismatches left on any axis") — both de-numbered, pointing
+  at `tests/corpus-baseline.json`'s `gate_aggregate` / `rederive_axes` (G2, G3). Two of wave 1's own
+  F-numbered fixes added no detection of their own: F4's chiayi-emptiness check is logically implied
+  by an assertion already present ~150 lines above in the same file (corrected above); F10's
+  `drain_rounds` comparison cannot detect a broken `drain()` because both sides of the equality are
+  computed by that same helper — both proved by injection, both now honestly scoped (F4's routing
+  half moved to a corpus-independent test that the injection DOES catch; F10 is relabeled a
+  hand-edited-baseline diagnostic, not drain() coverage) (G5, G6). README's test-count line
+  (`CI 1075 個測試通過`) had no mechanical pin and was guaranteed to drift the moment any test
+  landed — including this commit's own nine new tests — so it is de-numbered rather than
+  re-typed (G7).
+
+**What stays out, recorded rather than silently dropped:**
+
+- A **pre-existing flake**, not introduced by this branch: `tests/test_e2e_mechanized_pipeline.py::test_full_walk_in_new_order`
+  fails intermittently (measured 1/90 and 2/30 across two points on this branch, roughly 1–7%) on the
+  test's own step-by-step `assert got["next"] == expected` walk against `EXPECTED_WALK`. Which step,
+  and why, is not established — no failing run was ever captured with `next_stage.py`'s `reason`
+  string attached (the assertion used to report only the step name), and a follow-up 220-run sample
+  at HEAD reproduced zero failures. `tests/test_e2e_mechanized_pipeline.py::_next` now returns the
+  full `{next, reason}` dict so the next occurrence is diagnosable without another blind rerun hunt.
+  An earlier draft of this entry named the cause as "an mtime race in rule 13's staleness comparison"
+  — that was an inference, never measured, and is withdrawn here rather than repeated. Root-causing
+  the actual signature is out of scope for the ten defects here, surfaced for a future release
+  instead.
+- The schema-symmetry guard's failure message names one cause ("the allowlist absorbed every read")
+  when an empty coverage set can come from either that or a schema loosened to
+  `additionalProperties: true` — reproduced by flipping `routing.schema.json`'s `hops` items to
+  permissive and watching the allowlist-shaped message fire with the allowlist untouched. The new
+  ceiling test (`test_the_allowlist_does_not_blind_an_entire_axis`) also only asserts non-empty
+  coverage, not a minimum retained fraction — re-adding 6 of `rederive_hops`'s 7 checked names still
+  passes it. Both recorded for a future pass, not fixed here.
+- `EXPORT_DELIVERABLES`, `GATE_INPUTS`, and `EXPORT_GATE_INPUTS` are each single-sourced inside
+  `scripts/orchestration.py` for `next_stage.py`'s own staleness comparisons only; the CLI that
+  actually reads each set of filenames still hand-lists them a second time with its own literals.
+  `export_gate.py`'s `main()` (plus five test fixtures) re-builds `EXPORT_DELIVERABLES`'s and
+  `EXPORT_GATE_INPUTS`'s filenames with its own f-strings/`opt()` calls, and `scripts/gate.py`'s
+  `main()` hand-lists the same nine artifacts `GATE_INPUTS` names, across its two required loads and
+  seven `opt()` calls. Renaming any of these filenames would still silently reproduce TW-077's shape
+  under a new name. Next-version follow-up: have each CLI import the constant it currently
+  re-lists by hand.
+- `test_no_failure_class_routes_to_a_stage_that_cannot_write_it[2026-08-chiayi]` used to iterate an
+  empty failure list (the consumer's chiayi trip is clean today) and so execute zero assertions while
+  still reporting pass — precisely the "a check that cannot fail is indistinguishable from one that
+  passed" shape this whole release is about. Wave 1 fixed it with a two-line addition: assert the
+  failure list's emptiness against `tests/corpus-baseline.json`'s per-trip `total` before the loop.
+  **A second review round (G5, v0.35.0 review wave 2) found that fix added no detection of its own**
+  — the equality is logically implied by an assertion already asserted ~150 lines above in the same
+  file, and neither one exercises what the test's own name claims (routing). Proof: injecting a bug
+  that silently swallows the whole `poi_no_hours` failure class and regenerating the baseline left
+  every test in the file green, the emptiness assertion included. Fixed properly this time: the
+  ROUTING check moved to
+  `tests/test_orchestration.py::test_every_corpus_measure_class_routes_to_the_stage_that_can_write_it`,
+  parametrized over `tests/corpus_measure.py`'s `CLASSES` instead of over `CORPUS_TRIPS` — every
+  message it checks is built by calling the real production re-derivation entrypoint against a tiny
+  synthetic fixture, never a hand-typed literal, so it is corpus-independent (runs in CI, unlike its
+  predecessor) and the same swallow-a-class injection now reds it directly. What remains in
+  `tests/test_corpus_gate.py` (renamed
+  `test_a_trips_failure_list_is_empty_only_when_the_baseline_says_so`) keeps only the genuinely
+  corpus-coupled half: a clean trip's real failure list is really empty, a dirty one's really
+  matches the baseline.
+- `scripts/gate.py`'s two-trip id-collision note (POIs and lodging candidates sharing an id within
+  `2026-07-sun-moon-lake` and `hokkaido-7d`) was independently recomputed against all seven live trip
+  directories during the doc sweep above and still matches exactly; left as an open, id-anchored
+  v0.35.0 follow-up note, unchanged.
+
+Tests: 1104 passed with the consumer corpus mounted, 0 failed; 1084 passed + 20 corpus-gated skips
+in CI (no corpus). (Review wave 1 added 2 tests to the original 1093/1073 figures — F1's rule-14
+required-deliverable test and F12's shipped-`.version-bump.json` `previous` guard. Review wave 2
+(G5) added 9 more — `tests/test_orchestration.py`'s corpus-independent, CLASSES-parametrized
+routing-invariant test, which is *why* the corpus-gated skip count holds at 20 rather than growing:
+the check it replaces no longer needs the consumer corpus to run at all. No count regressed at
+either wave.) Every corpus number this entry publishes remains independently reproducible by anyone
+with the consumer repo, which v0.34.0's entry could not claim.
+
 ## 0.34.0 — the POI verdict axis, and the two channels it needed
 
 v0.33.0 shipped five re-derivation axes — legs, hops, cost, the closing-buffer
@@ -19,8 +241,11 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   as one of three FIRST-APPLICABLE buckets, in this order, so one record
   produces at most one failure and names the one thing to fix first:
   `superseded` (the recorded verdict cannot stand because the rules that
-  produced it were superseded — today: a bare-string or absent
-  `business_status`, superseded by TW-063's object form), `missing` (an input
+  produced it were superseded — today: a `business_status` that is not the
+  sourced `{status, source_url, as_of}` form at all (bare-string or absent,
+  superseded by TW-063's object form), or one that IS that dict shape but
+  unusable — an unrecognised status, a blank `source_url`, or an unparseable
+  `as_of`), `missing` (an input
   needed to recompute is absent — today: no `resolved_name` recorded at all),
   `mismatches` (every input is present and the verdict does not follow). A
   bare-string `business_status` is deliberately **not** folded into `missing`:
@@ -234,7 +459,7 @@ plus a low-severity input-tolerance fix found alongside them (TW-073).
   `tripwork:source-verify` (the only stage that writes `verified-pois.yaml`),
   a lodging one to `tripwork:accommodation-research`.
 
-Tests: 1047 → 1082, zero skipped or xfailed.
+Tests: 1047 → 1082 with the consumer corpus mounted; 1063 pass + 19 corpus-gated skips in CI (no corpus).
 
 ## 0.33.0 — verdict re-derivation + AI-tone gate + TW-068/TW-069
 

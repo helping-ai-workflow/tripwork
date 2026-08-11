@@ -272,7 +272,8 @@ tripwork 的核心是一條鐵律 **Source-Verified-First**：
 
 ```bash
 pip install -e ".[dev]"
-pytest                 # 1082 個測試
+pytest                 # CI（無消費端語料）全數通過，另有一批 corpus-gated guard 被 skip（見上）
+                        # ——確切通過數隨測試增減，不在這裡釘死，直接跑 pytest 看數字
 ```
 
 - 流水線由 `skills/` 下的 16 個 skill 組成，全程由 `orchestrator` 調度。
@@ -292,12 +293,15 @@ pytest                 # 1082 個測試
 - **驗證結果重算（v0.33.0，`scripts/rederive.py`）：** `run_rederivation` 把 `classify_leg`／
   `classify_hop`／`sum_costs`／關店 buffer 規則對已記錄的 `legs.yaml`／`routing.yaml`／
   `cost.yaml`／`itinerary.yaml` 重跑一次，跟原本記錄的結果比對，抓「值被改過但沒人重算」的漂移。
-  `itinerary-gate` 新增兩個 check：`verdicts_match`（重算值 vs 記錄值是否一致；四個語料乾淨的既有
-  行程共 47 筆欄位齊全、可比對，只有 1 筆對不上——日月潭那間沒有存在證明卻標成 verified 的旅館）、
-  `verdicts_rederivable`（欄位夠不夠重算；同一批語料 103 筆記錄裡，有 94 筆「缺欄位」的問題被指出來，
-  其中 19 個路段缺 `duration_source`、56 列行程沒記 `closing_status` 或查不到關店時間、18 間旅館缺
-  `resolved_name`（其中 1 間連 `geocode_source` 也沒有，所以旅館這一項算出 19 筆）——都是 TW-066
-  之前排的舊行程本來就沒記）。重算只證明**內部一致**、
+  `itinerary-gate` 新增兩個 check：`verdicts_match`（重算值 vs 記錄值是否一致；語料現況是零
+  mismatch——`tests/test_corpus_gate.py`「this corpus has ZERO verdicts_match mismatches left
+  on any axis」的量測與 `tests/corpus-baseline.json` 的 `rederive_axes.match` /
+  `rederive_axes.closing` 都證實這一點，v0.35.0 review wave 2, G3：這裡曾寫「只有 1 筆對不
+  上」，跟同一份語料上的那句量測互相矛盾，經測量後者是對的）、`verdicts_rederivable`（欄位夠不夠
+  重算；抓的是路段缺 `duration_source`、行程列沒記 `closing_status` 或查不到關店時間、旅館缺
+  `resolved_name`／`geocode_source` 這幾類——都是 TW-066 之前排的舊行程本來就沒記；語料會變動，
+  實際數字不在這裡釘死，看 `tests/corpus-baseline.json` 的 `rederive_axes.rederivable` /
+  `rederive_axes.closing` / `rederive_axes.lodging`）。重算只證明**內部一致**、
   不證明**真實**：`classify_hop` 用的 cluster centroid 本身可能是 TW-062 那種借位座標。
   住宿 check-in／退房那種 `slot: lodging` 的列不列入關店 buffer 檢查——旅館 schema 沒有 `hours` 欄位可
   記，抵達時間對不對是 `reception.close` 那條獨立規則管的。連帶行為變更：`legs.yaml`／`routing.yaml`／
@@ -336,9 +340,15 @@ pytest                 # 1082 個測試
   唯一的守門員，卻從沒被重算過。新 check `verdicts_rule_current` 把每筆 POI 分成三桶（依序判斷，
   一筆只報一個）：`superseded`（判定當時用的規則已被取代，例如 `business_status` 只是裸字串或
   沒記）、`missing`（缺 `resolved_name` 導致 Gate 2b 算不出來）、`mismatches`（欄位齊全但重算結果
-  對不上）。語料實測：POI 軸 found 127 / superseded 105；住宿軸（`rederive_lodging` 的 Gate 0
-  半邊，同版新增）found 18 / superseded 18；合計 `verdicts_rule_current` examined 145 /
-  superseded 123。這不是新災情——0.32.0 就公開過重跑 `source-verify` 會讓 100/100 既有已驗證
+  對不上）。v0.34.0 上線時的語料實測數字（POI 軸 found 127 / superseded 105；住宿軸——
+  `rederive_lodging` 的 Gate 0 半邊，同版新增——found 18 / superseded 18；合計
+  `verdicts_rule_current` examined 145 / superseded 123）是那個時間點的快照，已經寫進
+  CHANGELOG 的 0.34.0 段落，不在這裡重複——語料會變動，複誦同一組數字只會多一份會漂移的
+  抄本（v0.35.0 review wave 2, G2：這裡曾照抄那組舊數字當成現況，經測量四個都不對，只有
+  found 18 沒錯）。今天的實際數字看 `tests/corpus-baseline.json` 的 `gate_aggregate`
+  （`super_poi`／`super_lodging`／`examined_rule_current`），或跑
+  `python -m tests.corpus_measure --write` 重新量測。這不是新災情——0.32.0 就公開過重跑
+  `source-verify` 會讓 100/100 既有已驗證
   POI 降級，這一版只是把同一個事實提前在關卡就攤開，不用等你重跑查證才發現行程被清空。重算的
   時鐘錨定在**該筆記錄自己的 `business_status.as_of`**，不是牆上時鐘（跟 R5 被延後的理由相同：
   `OPERATING_MAX_AGE_DAYS` 是 90，用牆上時鐘會讓一個驗證完全沒變的行程在第 91 天無端變紅）。
@@ -362,14 +372,20 @@ pytest                 # 1082 個測試
   **已驗證**，但它的座標其實還只是那個行政區的中心點，不是這家店真正的位置。這一版早期的說法
   寫成「完全不會鬆」，那句話只對了一半：能被接受的**證據種類**確實變嚴格了（一定要有來源又有
   日期），但**結果**變寬鬆了，而放寬來自「營業聲明本身就算存在證明」這個改動，不是來自退役。
-  語料實測有 **5 筆**會走到這個狀態（`2026-08-chiayi` 的四個餐飲地點，加上
-  `2026-07-sun-moon-lake` 的一間住宿候選），前提是它們照這一版的要求補上營業狀態。
-  **這一版不回答「那個座標可不可信」**：這個地點是真的存在（有人在特定日期看過它營業），
-  但地圖上那個點仍然只是區域中心——需要靠座標精度做事（例如估步行距離）時請自行留意。
+  語料裡確實有 cluster_fallback POI 走到這個狀態，前提是它們照這一版的要求補上營業狀態；精確判準
+  是 `geocode.geocode_source == 'cluster_fallback'` 且唯一的存在證明是 `business_status`（沒有
+  官方來源、沒有可用的 `gmaps_place_id`）且 `verify_status == 'verified'`。這個判準沒有機械量測
+  ——`tests/corpus_measure.py::measure_corpus()` 沒有 cluster_fallback／place_id／existence-proof
+  這一軸，所以 `python -m tests.corpus_measure --write` 答不了這題（曾經指向這裡，那個指示本身就
+  是錯的）；要看今天有幾筆，直接對照語料查這個判準，不在這裡釘數字。
+  **這一版不回答「那個座標可不可信」**：這個地點是真的存在（有人在特定日期看過
+  它營業），但地圖上那個點仍然只是區域中心——需要靠座標精度做事（例如估步行距離）時請自行留意。
 - **`gmaps_place_id` 沒有任何程式碼會寫入它**：全 repo 只有讀（`scripts/verify.py`、
   `scripts/render/gmaps_links.py`），沒有任何一處是寫——它是 agent 照 SKILL 指示、走 Places API
-  路線時手動記下來的欄位，不是機械回填，所以 TW-072 順便給它加了最小長度的形狀檢查（語料實測
-  86 筆帶 `gmaps_place_id` 的 POI 全部剛好 27 字元）而不是直接信任它。
+  路線時手動記下來的欄位，不是機械回填，所以 TW-072 順便給它加了最小長度的形狀檢查而不是直接信任
+  它（measured at v0.35.0：四趟 schema-clean 語料 64 筆、全語料（現有七趟）99 筆帶
+  `gmaps_place_id` 的 POI，兩個分母下長度全部剛好 27 字元——語料會變動，這兩個數字沒有機制釘住，
+  重新量測見 `tests/corpus_measure.py` 的量測方式）。
 - **TW-062 的 `allOf` schema 約束正式從路線圖上拿掉，不是再延一版。** 當初留著不上是為了讓既有
   行程拿到一個可修的關卡失敗，而不是 `validate_artifact` 直接 exit 1；這一版的第六軸重算本身
   就是那個「可修的關卡失敗」，兩個一起上會讓較嚴格的 schema 約束搶先擋下、關卡的引導訊息永遠

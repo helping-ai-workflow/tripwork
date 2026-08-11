@@ -24,8 +24,9 @@ import pathlib
 
 import yaml
 
-from scripts.orchestration import (ADVISORY_PROJECTION, EXPORT_GATE_INPUTS,
-                                    GATE_INPUTS, candidates_stale,
+from scripts.orchestration import (ADVISORY_PROJECTION, EXPORT_DELIVERABLES,
+                                    EXPORT_GATE_INPUTS, GATE_INPUTS,
+                                    REQUIRED_DELIVERABLE, candidates_stale,
                                     input_fingerprint, route_gate_failures)
 from scripts.validate_artifact import validate_file
 
@@ -122,7 +123,8 @@ def next_stage(trip_dir, work_dir):
     # rule 13 — the gate report must be newer than EVERY artifact the gate reads.
     # Comparing against itinerary.yaml alone let a re-verify that demoted a
     # scheduled POI leave the oracle reporting 'complete' on a report that never
-    # saw it. Measured on the real corpus: four such gaps across four trips.
+    # saw it. This fires for real on the live corpus, not just a hypothetical
+    # (see skills/orchestrator/SKILL.md's rule 13 note for a named example).
     gr = t / "gate-report.yaml"
     stale_inputs = [n for n in GATE_INPUTS
                     if (t / n).is_file() and _newer(t / n, gr)] if gr.is_file() else []
@@ -139,19 +141,28 @@ def next_stage(trip_dir, work_dir):
         target = route_gate_failures(report.get("failures") or [])
         return target, f"rule 13.5: gate fail routes to {target}"
 
-    # rule 14
-    md = t / "exports" / f"{slug}-itinerary.md"
+    # rule 14 — the required deliverable is named explicitly (REQUIRED_DELIVERABLE),
+    # not positionally picked from EXPORT_DELIVERABLES: the HTML deliverable is
+    # optional in shipped semantics (export_gate.py only reads it `if
+    # html_path.is_file()`), so a `deliverables[0]` index would silently change
+    # which file rule 14 requires if EXPORT_DELIVERABLES' declaration order ever
+    # changed.
+    deliverables = [t / "exports" / name.format(slug=slug)
+                    for name in EXPORT_DELIVERABLES]
+    md = t / "exports" / REQUIRED_DELIVERABLE.format(slug=slug)
     if not md.is_file():
         return "tripwork:export-artifact", "rule 14: no export deliverable"
 
     # rule 15 — same widening as rule 13: the export-gate report must be newer
-    # than both the rendered deliverable AND every artifact export_gate.py reads.
+    # than EVERY deliverable export_gate.py judges (md + html, TW-077) AND
+    # every artifact export_gate.py reads.
     egr = t / "export-gate-report.yaml"
-    stale_deliverable = egr.is_file() and _newer(md, egr)
+    stale_deliverables = [d.name for d in deliverables
+                          if d.is_file() and egr.is_file() and _newer(d, egr)]
     stale_inputs = [n for n in EXPORT_GATE_INPUTS
                     if (t / n).is_file() and _newer(t / n, egr)] if egr.is_file() else []
-    if not egr.is_file() or stale_deliverable or stale_inputs:
-        names = ([f"exports/{md.name}"] if stale_deliverable else []) + stale_inputs
+    if not egr.is_file() or stale_deliverables or stale_inputs:
+        names = [f"exports/{n}" for n in stale_deliverables] + stale_inputs
         why = f" ({', '.join(names)} newer)" if names else ""
         return ("tripwork:export-gate", f"rule 15: export-gate-report missing or stale{why}")
     ereport = _load(egr)
