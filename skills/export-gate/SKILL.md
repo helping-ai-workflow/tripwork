@@ -28,7 +28,7 @@ content correctness is guaranteed upstream by `source-verify`.
 - `photo_has_attribution` — any POI carrying a `photo` must also carry a non-empty
   `photo_attribution` (author + license + source_url).
 - `no_nondistributable_photo_source` — a POI carrying `photo_source: google` has no
-  display-surface ToS clearance. **This is NOT a hard fail (P7):** it is a labelling
+  display-surface ToS clearance. **This is NOT a hard fail:** it is a labelling
   decision re-rendering can never fix, so it sets the report's `distributable: false`
   (a clean terminal "personal variant complete" state) while `status` stays `pass`. A
   distributable export reports `distributable: true`.
@@ -38,7 +38,7 @@ The html deliverable `exports/<slug>-itinerary.html` is validated by
 `min_days` day-cards, every `href` an `http(s)://` URL, no raw `<script>`, every
 `<img src>` a `data:image/` or `https://` URL, plus the photo checks above).
 
-- `media_landed` (html, P8) — when a `verified-pois-media.yaml` side-file is present, its
+- `media_landed` (html) — when a `verified-pois-media.yaml` side-file is present, its
   entry count is checked against the rendered HTML. If that count is > 0 but the
   rendered HTML has **0 `<img>`**, the gate fails ("media side-file present but rendered
   deliverable has 0 photos") — catching a dropped `apply_media` return that silently shipped
@@ -51,13 +51,13 @@ MERGED pois itself (verified-pois + chosen lodgings + `apply_media` overlay),
 gates both the md and html deliverables, and writes
 `trips/<slug>/export-gate-report.yaml` (schema: `schemas/gate-report.schema.json`
 — reused; same status/checks/failures shape, plus the optional `distributable` + `retryable`
-flags). On `status: fail`, the report's **`retryable`** tells the orchestrator how to react
-(F1): `retryable: true` (a render-fixable defect) → re-render; `retryable: false` (the only
+flags). On `status: fail`, the report's **`retryable`** tells the orchestrator how to react:
+`retryable: true` (a render-fixable defect) → re-render; `retryable: false` (the only
 failures are upstream DATA defects — a photo with no attribution, a bookable POI with no
 official source — that re-rendering cannot fix) → **stop and ask the user to fix the data**,
 do NOT loop. A `status: pass` report with `distributable: false` is a **clean terminal
 personal variant** (google-photo HTML): the orchestrator completes it as "complete —
-non-distributable, 勿散布", it does NOT re-export loop. (P7)
+non-distributable, 勿散布", it does NOT re-export loop.
 
 ## Stage Contract
 
@@ -65,5 +65,5 @@ non-distributable, 勿散布", it does NOT re-export loop. (P7)
 |---|---|
 | Input | `trips/<slug>/exports/<slug>-itinerary.md` + the MERGED pois (`trips/<slug>/verified-pois.yaml` overlaid with `trips/<slug>/accommodations.yaml`'s chosen lodgings and optional `trips/<slug>/verified-pois-media.yaml` via `scripts/media_merge.py::apply_media`), plus optional `trips/<slug>/itinerary.yaml` (for `min_days`), so the photo / distributability checks see the same photos the deliverable rendered. |
 | Output | `trips/<slug>/export-gate-report.yaml` (`status` pass/fail + failures). |
-| Stop condition | `status: fail` → return to `export-artifact` to re-render. |
+| Stop condition | `status: fail` + `retryable: true` → return to `export-artifact` to re-render; `retryable: false` → stop and ask the user to fix the data. |
 | Next stage | `tripwork:orchestrator` (pipeline complete on pass). |

@@ -18,7 +18,7 @@ Render the verified itinerary into deliverables under `trips/<slug>/exports/`. R
 separate Notion adapter, deliverable, or gate. The md is already validated by `export-gate`,
 so the pasted content inherits that hygiene; the plugin core never imports an MCP client.
 
-## POI pool for rendering (P4)
+## POI pool for rendering
 
 Build the `poi_map` the renderers consume as **verified-pois + each overnight stop's chosen
 lodging** — fold in `scripts/gate.py::chosen_lodging_pois(accommodations)` so a

@@ -9,7 +9,7 @@ Sum the structured big-ticket costs and compare them to the budget. Produces
 `trips/<slug>/cost.yaml` (schema: `schemas/cost.schema.json`). Everything is an
 **estimate** with an `as_of` date — never a precise quote (prices are volatile).
 
-## Budget scope (P6)
+## Budget scope
 
 `trip-brief.budget` is the **whole-trip** cap: lodging (per-room × rooms × nights) +
 transport + daily incidentals — i.e. exactly the `sum_costs` grand `total` this stage
@@ -20,7 +20,7 @@ computes. It is NOT lodging-only. `over_budget` compares the grand total against
 - Accommodation: each chosen lodging's `cost` from `accommodations.yaml`, via
   `scripts/cost.py::lodging_line_amount(cost, nights, rooms)` — `cost.amount` is **per
   room**, so this multiplies by `cost.rooms` (default 1) and, for `basis == "per_night"`,
-  by the stop's `nights`. A multi-room stop must set `cost.rooms` or it is under-costed. (P6)
+  by the stop's `nights`. A multi-room stop must set `cost.rooms` or it is under-costed.
 - Transport: each leg's `fare` from `legs.yaml` — **including `kind: home` legs**, which carry
   the drive between home and the trip's base and are often the largest single transport item —
   plus the trip-level `pass` option. Never hand-write a transport line item for a drive that
@@ -46,7 +46,7 @@ record `fx_rate` + `source_currency` on the converted line item. If
   pass price for those legs (record `pass_break_even` with `use_pass` + `saving`). **Pass the
   head count** so the group totals are right — fares and the pass are both per-person, so a
   multi-traveller trip is otherwise under-counted (the decision is the same, the magnitude is
-  not). (F2)
+  not).
 - `incidental_total(daily, days)` → an `incidental` line item.
 - `sum_costs(line_items)` → `total` (+ per-category subtotals).
 - When `trip-brief.budget` is set, `over_budget(total, budget.amount)`. **If over → stop

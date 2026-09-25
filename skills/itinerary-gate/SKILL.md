@@ -49,7 +49,7 @@ writes `trips/<slug>/gate-report.yaml` (exit 0 pass / 1 fail).
 - `home_legs_rendered` — **ALWAYS-ON**: every `kind: home` leg in `legs.yaml` must be
   referenced by an itinerary row's `leg_index` (`scripts/gate.py::_home_legs_rendered_failures`,
   matched by index, never by name) — otherwise its `classify_leg` verdict is checked and its
-  fare summed while nothing ever shows it to the reader (TW-069).
+  fare summed while nothing ever shows it to the reader.
 - `verdicts_match` / `verdicts_rederivable` — **ALWAYS-ON** verdict re-derivation
   (`scripts/rederive.py::run_rederivation`): every recorded mechanical verdict (closing
   status, hop classification, lodging verify_status, …) is recomputed from the inputs the
