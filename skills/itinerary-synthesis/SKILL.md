@@ -23,7 +23,7 @@ Compose the canonical `trips/<slug>/itinerary.yaml` from verified POIs and routi
   至少一晚溫泉旅館含會席). This is what satisfies `export-gate`'s `no_internal_jargon`
   check (a leaked id token or `must_do` is a hard fail).
 - **Prose style.** Row text and checklist items are read by a person, not filled into a template — see [references/prose-style.md](references/prose-style.md) for the judgment calls (三項並列、節奏、具體 vs 空泛). The mechanical patterns (破折號、粗體、裝飾性 emoji、AI 套語) are enforced by `scripts/text_hygiene.py::ai_tone_failures` as `itinerary-gate`'s `no_ai_tone` check, and a hit routes straight back here.
-- **must_do coverage (P5).** `trip-brief.must_do` entries are free-text themes
+- **must_do coverage.** `trip-brief.must_do` entries are free-text themes
   (e.g. `日月潭遊湖賞景`), NOT POI ids. For each theme, decide which scheduled verified
   POI(s) satisfy it and record the mapping in `itinerary.yaml` under
   `must_do_coverage: {theme: [poi_id, …]}`. `itinerary-gate` passes a theme when ≥1 of its
@@ -46,7 +46,7 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - `after_last_call` / `closed` → never schedule there at that time; move the item earlier or to another day. If a `must_do` POI cannot fit before its last order/entry on **any** feasible slot/day → stop and ask the user.
 - `tight` → keep but flag the thin buffer and prefer an earlier slot; note it in the day row.
 - Overnight hours (close past midnight) are not handled by `closing_status` — treat as a manual special case.
-- Record the verdict on the row as `closing_status`. `itinerary-gate` re-derives it from the POI's `hours` and fails when the recorded value disagrees — the rule is no longer satisfied by having read this paragraph.
+- Record the verdict on the row as `closing_status`. `itinerary-gate` re-derives it from the POI's `hours` and fails when the recorded value disagrees.
 
 ## Transit comfort (reads `transit.yaml`)
 
@@ -86,7 +86,7 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   `misses_last_service`). A `missed_last_service` result at synthesis time is a
   stop-on-confirmation — depart earlier, move to the next day, or change mode.
 - **A `kind: home` leg is not between two overnight stops, so the rule above never places
-  it (TW-069).** `itinerary-gate` already re-derives its `classify_leg` verdict and
+  it.** `itinerary-gate` already re-derives its `classify_leg` verdict and
   `cost-rollup` already sums its fare, so an unrendered home leg is checked and paid for
   while staying invisible to the reader. Render it as a `move` row too: the outbound leg
   on **day 1**, the return leg on the **last day**. The row's `from` / `to` are the leg's
@@ -114,7 +114,7 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   the existing `scripts/render/markdown.py::render_day_table` (the lodging dict is
   POI-shaped: `name_local` / `name_display` / `sources`), so the hotel name becomes the
   maps link and a primary `官網` / booking link is appended — no new renderer.
-- **Build the render `poi_map` as verified-pois + each stop's chosen lodging (P4).** Fold
+- **Build the render `poi_map` as verified-pois + each stop's chosen lodging.** Fold
   in `scripts/gate.py::chosen_lodging_pois(accommodations)` so a `day.lodging` id resolves
   natively — otherwise the lodging renders as a blank `—`. This is the same pool the
   `itinerary-gate` builds (it folds accommodations automatically) and that `export-artifact`
@@ -145,8 +145,8 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
 Write `trips/<slug>/itinerary.yaml` as the **canonical** artifact (schema:
 `schemas/itinerary.schema.json`) — `{title, checklist, must_do_coverage, contingency,
 days:[{date, label, rows:[{time, slot, poi_id, text, from, to}], lodging}]}`. Include
-`must_do_coverage` (theme → covering scheduled POI ids, P5) whenever `trip-brief.must_do` is
-non-empty, and `contingency` (`[{trigger, fallback, note?}]`, TW-069) whenever the Required
+`must_do_coverage` (theme → covering scheduled POI ids) whenever `trip-brief.must_do` is
+non-empty, and `contingency` (`[{trigger, fallback, note?}]`) whenever the Required
 derived sections above produced any fallback. Each row references a POI by `poi_id` (matching a
 `verify_status: verified` id in `verified-pois.yaml`); `slot ∈ meal|activity|visit|move|lodging`.
 For a `slot: move` row, put the two endpoints in the optional structured `from` / `to` fields

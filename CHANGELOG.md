@@ -1,5 +1,44 @@
 # Changelog
 
+## 0.35.1 — skill prose states the current rule, and agrees with the code
+
+A prompt audit of the skills an agent actually reads (2026-09-25) found two contradictions with
+shipped behaviour and a layer of release history sitting on top of the rules. Prose-only: no
+script, schema or pipeline-order change.
+
+- **inter-stop-legs no longer points at a phantom phase for the rail-pass break-even.** It said
+  the precise calculation was "deferred to B3"; `cost-rollup` already computes it with
+  `scripts/cost.py::pass_break_even`. The field note and the Common Mistakes row now name that
+  owner and tell this stage to record `fare` + `pass` only.
+- **export-gate's Stop condition matches rule 15.** The Stage Contract said every `status: fail`
+  re-renders, contradicting the skill's own Output section and `scripts/next_stage.py`: a
+  `retryable: false` fail is an upstream data defect that stops and asks the user. The row now
+  states both branches.
+- **source-verify's `cluster_fallback` paragraph is rewritten as the current rule** (~600 words of
+  release history → ~130). What it keeps: a Nominatim miss defaults to D7 `unverified`; a
+  recorded `cluster_fallback` needs no proof beyond Gate 0's sourced `business_status`; and the
+  one duty that was buried — tell the user the coordinate is the district centroid, not the
+  venue's position.
+- **Version stamps, "no longer / any more" narration and bare incident tags removed** from the
+  orchestrator, source-verify, accommodation-research, itinerary-synthesis, itinerary-gate,
+  export-gate, export-artifact, cost-rollup and routing-audit skills. The orchestrator's
+  report-staleness definition now states the rule without the release provenance and the
+  one-off "527 seconds" measurement, and says accurately that `deps_stale` is not called by the
+  router. `D7` stays: it is the name of an outcome, not an incident tag.
+- **New guard `tests/test_skill_prose_hygiene.py`.** The break-even check reads the owner's name
+  from the imported `pass_break_even`; the Stop-condition check runs the real
+  `scripts/export_gate.py` over a render defect and a data defect, feeds each report to the real
+  `scripts/next_stage.py`, and requires the row to state that outcome for that `retryable` value
+  (plus a check that the two fixtures really produce both values). The history scan covers every
+  `skills/**/*.md` and `hooks/session-start`. Each part was confirmed red against the pre-fix
+  skills, and a half fix (row naming only `retryable: true`) fails the data-defect case.
+
+Tests: 1109 passed + 20 corpus-gated skips in CI (no corpus), 0 failed. With the consumer corpus
+mounted, the 10 corpus-backed guards in `test_corpus_gate.py` / `test_rederive.py` /
+`test_corpus_baseline_is_current.py` fail identically before and after this change: the corpus
+itself changed on 2026-09-24 (northeast-coast re-audit) and `tests/corpus-baseline.json` has not
+been regenerated. That is not touched here.
+
 ## 0.35.0 — guards that measure what they claim: ten audit defects
 
 An adversarial audit of v0.34.0 found ten defects sharing one root cause: a guard obtained the

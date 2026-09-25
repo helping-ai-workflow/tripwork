@@ -29,21 +29,18 @@ Pipeline artifacts under `trips/<slug>/`, in stage order: `trip-brief.yaml`,
   `python scripts/input_fingerprint.py <trip-brief.yaml> <projection>`). The producing
   stage records it as `input_fingerprints["<upstream>.yaml"]` on the derived artifact,
   so staleness reflects real content changes, not incidental file edits/mtimes.
-- **report staleness** (rules 13 & 15, v0.33.0; rule 15 widened again v0.35.0): unlike
-  rule 11, `gate-report.yaml` / `export-gate-report.yaml` staleness is a plain MTIME
-  comparison against every artifact the respective CLI actually opens —
+- **report staleness** (rules 13 & 15): unlike rule 11, `gate-report.yaml` /
+  `export-gate-report.yaml` staleness is a plain MTIME comparison against every artifact the respective CLI actually opens —
   `scripts/orchestration.py::GATE_INPUTS` / `EXPORT_GATE_INPUTS` — plus, for rule 15,
   every deliverable export_gate.py judges, `scripts/orchestration.py::EXPORT_DELIVERABLES`
-  (md AND html; html is compared only once it exists — rule 14 still requires only the
-  md) — not just the itinerary/deliverable alone. Report-tier and research-tier staleness
-  deliberately use different predicates: a naive mtime rule on the RESEARCH-tier artifacts
-  (`scripts/orchestration.py::_DEPS` / `deps_stale`, a content-based, fail-open predicate
-  consumed by future stages) fires on a real, substantial fraction of the dependency edges
-  across the live consumer corpus and starts a non-terminating cascade, so those compare
-  CONTENT instead (see `deps_stale`'s own docstring, not pinned as a count here).
-  Report-tier mtime widening is cheap to re-run the gate on, so mtime is fine there — it
-  was measured against the same corpus to carry real true-positive fires and no false
-  positives before shipping (see `next_stage.py` rules 13/15 below for what it catches).
+  (md AND html; html is compared only once it exists — rule 14 requires only the
+  md) — not just the itinerary/deliverable alone. Re-running a gate is cheap, so mtime is
+  fine at the report tier. Do NOT extend mtime staleness to the RESEARCH-tier artifacts:
+  there a naive mtime rule fires on a substantial fraction of the dependency edges and
+  starts a non-terminating re-run cascade. That tier is covered by rule 3's
+  `candidates_stale` and rule 11's input fingerprint only; `scripts/orchestration.py::_DEPS`
+  / `deps_stale` is a general content-based, fail-open predicate that the router does not
+  call (see its docstring).
 
 ## Stage Selection
 
@@ -55,8 +52,8 @@ handle slug binding (rule 0.5) or stop-on-confirmation — those stay with you.
 A `next: stop-and-ask` output is rule 15's non-retryable branch: halt and ask.
 After fixing DATA for a rule-13.5 accommodation-class failure (lodging/facility),
 just re-run the oracle — the fixing stage rewrites its own artifact with a newer
-mtime than `gate-report.yaml`, and the widened rule 13 (see below) notices that
-on its own. No manual `gate-report.yaml` deletion step is needed any more.
+mtime than `gate-report.yaml`, and rule 13 (see below) notices that on its own.
+Do not delete `gate-report.yaml` by hand.
 
 0. If `work/.preflight-completed` is absent → run `tripwork:workspace-shape-preflight` first.
 0.5. **Bind `<slug>` first.** A new request must allocate a `<slug>` that does **not**
@@ -77,25 +74,22 @@ on its own. No manual `gate-report.yaml` deletion step is needed any more.
 10. transit ready, no cost.yaml -> run `tripwork:cost-rollup`.
 11. cost ready, and advisory.yaml **stale relative to trip-brief.yaml** -> re-run
     `tripwork:travel-advisory`. Staleness is an **input fingerprint** comparison
-    (see Definitions): it fires when the brief's current fingerprint no longer
-    matches advisory.yaml's recorded `input_fingerprints["trip-brief.yaml"]` — i.e.
+    (see Definitions): it fires when the brief's current fingerprint differs
+    from advisory.yaml's recorded `input_fingerprints["trip-brief.yaml"]` — i.e.
     destination/dates/airline actually changed, not just any edit to the brief (an
-    unrelated must_do edit no longer re-triggers this stage). **Fallback only:**
-    when advisory.yaml carries no recorded fingerprint (written before the
-    fingerprint mechanism existed), rule 11 falls back to comparing file mtimes —
+    unrelated must_do edit does not re-trigger this stage). **Fallback only:**
+    when advisory.yaml carries no recorded fingerprint, rule 11 falls back to comparing file mtimes —
     advisory older than the brief. The itinerary is deliberately NOT the staleness
     anchor: synthesis rewrites it every run and would loop advisory.
 12. advisory ready, no itinerary.yaml -> run `tripwork:itinerary-synthesis`.
     (The canonical `itinerary.yaml` is the marker, not the derived `itinerary.md`.)
 13. itinerary.yaml exists, and no gate-report.yaml **or itinerary.yaml newer than gate-report.yaml**
-    -> run `tripwork:itinerary-gate`. **Widened (v0.33.0):** gate-report.yaml must actually be
+    -> run `tripwork:itinerary-gate`. gate-report.yaml must actually be
     newer than EVERY artifact `scripts/gate.py::main` reads — `GATE_INPUTS` (verified-pois /
     trip-brief / accommodations / calendar / advisory / legs / routing / cost), not itinerary.yaml
     alone — see **report staleness** in Definitions. A re-verify that only demotes a scheduled
-    POI's `verify_status` never touches itinerary.yaml, so the old itinerary-only anchor let such
-    a report stand as "complete" though the gate never saw the demotion; this fires for real on
-    the live corpus, all true positives (e.g. a `verified-pois.yaml` observed 527 seconds newer
-    than the gate-report that supposedly gated it) — not pinned here as a trip count.
+    POI's `verify_status` never touches itinerary.yaml, so an itinerary-only anchor would let
+    such a report stand as "complete" though the gate never saw the demotion.
 13.5. **gate-report.yaml status==fail** -> route by failure class, invalidating the stale
     gate-report (and the artifact being regenerated). A re-derivation failure names a field
     only its PRODUCING stage can write — synthesis cannot add `km` to a routing hop, and it
@@ -127,11 +121,7 @@ on its own. No manual `gate-report.yaml` deletion step is needed any more.
     `EXPORT_DELIVERABLES`** (md — required by rule 14; html, compared only once it exists)
     **or any of `EXPORT_GATE_INPUTS`** (itinerary / verified-pois / accommodations /
     verified-pois-media) **is newer than export-gate-report.yaml** -> run
-    `tripwork:export-gate`. **Widened (v0.33.0 for `EXPORT_GATE_INPUTS`; v0.35.0 added
-    `EXPORT_DELIVERABLES`'s html)** the same way as rule 13 — see **report staleness** in
-    Definitions. The report-tier true-positive gap v0.35.0 closed was entirely on rule 13's
-    side — rule 15's widening was measured against the same corpus and did not add any
-    extra fires of its own.
+    `tripwork:export-gate` — see **report staleness** in Definitions.
     On `export-gate-report` status==fail, branch on `retryable`:
     - **retryable==true** (a render-fixable defect — naked `$`, broken link, 0 rendered
       photos) -> delete the stale export-gate-report and return to `tripwork:export-artifact`
@@ -139,13 +129,13 @@ on its own. No manual `gate-report.yaml` deletion step is needed any more.
     - **retryable==false** (an upstream DATA defect re-render cannot fix — a photo with no
       attribution, a bookable POI with no official source) -> **STOP and ask the user to fix
       the data** (add the attribution / mark the official source), then re-verify. Do NOT
-      loop export-artifact on it. (F1)
-    A non-distributable label is NOT a fail (see rule 16), so it never triggers this loop. (P7)
+      loop export-artifact on it.
+    A non-distributable label is NOT a fail (see rule 16), so it never triggers this loop.
 16. **export-gate-report status==pass -> pipeline complete.** Report the deliverables
     (`exports/<slug>-itinerary.md`, maps links, LINE text, optional Notion) and stop. If the
     report also carries `distributable: false` (a personal / google-photo variant), report
     it as **complete — non-distributable (勿散布)**: a terminal state, NOT something to
-    re-export or "fix". (P7)
+    re-export or "fix".
 
 After each stage completes, re-invoke this skill to pick the next stage.
 

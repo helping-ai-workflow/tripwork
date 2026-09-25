@@ -38,7 +38,7 @@ Record `duration_mins`, and per mode:
   recommended), `transfers`, `depart` (planned same-day departure, when a same-day move is
   scheduled), `last_service` (last train/bus), and a text `pass_advice` (is a rail/regional
   pass likely worth it given the leg count — a research-based judgement, **not** a precise
-  fare calc; precise break-even is deferred to B3).
+  fare calc; `cost-rollup` computes the exact break-even with `pass_break_even`).
 - **drive** — `duration_mins`.
 
 Also record the numeric **cost** for the rollup: each leg's `fare` (amount + currency) and,
@@ -76,5 +76,5 @@ Write `trips/<slug>/legs.yaml`, then validate it:
 | Mistake | Fix |
 |---|---|
 | Citing a blog for a last-service time | Need >= 1 official source (operator timetable). |
-| Computing a precise rail-pass saving | v0.8.0 gives a text `pass_advice`; precise break-even is B3. |
+| Computing a precise rail-pass saving here | Record `fare` + `pass`; `cost-rollup` (`pass_break_even`) owns the calculation. |
 | Modelling intra-city subway hops here | This stage owns only inter-stop legs; intra-city stays in routing-audit. |
