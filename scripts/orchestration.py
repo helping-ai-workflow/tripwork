@@ -158,6 +158,38 @@ REQUIRED_DELIVERABLE = "{slug}-itinerary.md"
 EXPORT_DELIVERABLES = (REQUIRED_DELIVERABLE, "{slug}-itinerary.html")
 
 
+# Stop-on-confirmation vocabulary: every (stage, flag) that halts the pipeline to
+# ask the user. The orchestrator's Stop-on-Confirmation table, each stage's Stage
+# Contract "Stop condition" row, and the `flag` recorded in
+# work/<slug>/stage-state.yaml all use these names (tests/test_stop_flags.py). The
+# read-back matches (stage, flag, subject) exactly, so a second spelling of the same
+# halt is a decision the pipeline cannot find — which the consumer corpus showed
+# happening (`unfilled_overnight_stop` in one trip, `unfilled_stop_pick` in another).
+# Order follows the pipeline; names already in consumer stage-state files were kept.
+STOP_FLAGS = (
+    ("travel-advisory", "banned_item"),
+    ("source-verify", "cross_source_conflict"),
+    ("source-verify", "must_do_unverified"),
+    ("routing-audit", "far_hop"),
+    ("routing-audit", "implausible_hop"),
+    ("accommodation-research", "unfilled_overnight_stop"),
+    ("accommodation-research", "missing_required_facility"),
+    ("accommodation-research", "lodging_outside_stop"),
+    ("accommodation-research", "arrival_after_reception_close"),
+    ("inter-stop-legs", "drive_too_long"),
+    ("inter-stop-legs", "missed_last_service"),
+    ("calendar-check", "holiday_blocks_must_do"),
+    ("seasonal-advisory", "blocking_hazard"),
+    ("cost-rollup", "over_budget"),
+    ("itinerary-synthesis", "must_do_uncovered"),
+    ("itinerary-synthesis", "must_do_closed_every_day"),
+    ("itinerary-synthesis", "must_do_after_last_call"),
+    ("itinerary-synthesis", "lead_time_missed"),
+    ("itinerary-synthesis", "missed_last_service"),
+    ("export-gate", "nonretryable_export_fail"),
+)
+
+
 def deps_stale(load, artifact):
     """Names of upstreams whose projected content no longer matches what
     `artifact` recorded. FAIL-OPEN: an artifact with no input_fingerprints

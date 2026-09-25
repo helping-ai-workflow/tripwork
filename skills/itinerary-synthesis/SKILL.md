@@ -138,7 +138,7 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
 ## Required derived sections
 
 1. **備案 / Contingency** — for each fragile point (booking-required restaurant, outdoor activity), a fallback. Derived inline; not a separate skill. Write it into the canonical `contingency` list (`[{trigger, fallback, note?}]`), not into prose. It is what the markdown and the canonical hygiene checks both read; a fallback that exists only in rendered text is invisible to every gate and is lost on the next re-render.
-2. **Pre-trip checklist** — auto-extract from verified-pois `booking.required==true` (with `lead_time` / `lead_time_days`) plus passport/visa basics. List every booking that needs advance action. For each booking carrying `lead_time_days`, run `scripts/booking.py::lead_time_missed(today, trip-brief.dates.start, lead_time_days)`; a `True` (the trip is too soon to still book in time) is a **booking lead-time missed** stop-on-confirmation.
+2. **Pre-trip checklist** — do not write district-centroid location notes here; the renderers append one per scheduled POI or lodging with a `cluster_fallback` geocode (`scripts/render/centroid.py`). Auto-extract from verified-pois `booking.required==true` (with `lead_time` / `lead_time_days`) plus passport/visa basics. List every booking that needs advance action. For each booking carrying `lead_time_days`, run `scripts/booking.py::lead_time_missed(today, trip-brief.dates.start, lead_time_days)`; a `True` (the trip is too soon to still book in time) is a **booking lead-time missed** stop-on-confirmation.
 
 ## Output
 
@@ -171,5 +171,5 @@ Validate the canonical artifact: `python scripts/validate_artifact.py trips/<slu
 |---|---|
 | Input | verified-pois + routing + accommodations + legs (empty only if no inter-stop moves and no home endpoints) + calendar + seasonal + transit + cost + advisory — all nine trip artifacts, read but deliberately NOT individually tracked as `_DEPS` edges (`scripts/orchestration.py`): re-synthesis is the expensive branch, so this artifact's own freshness is decided by rule 13's report-tier check instead of a research-tier content diff — see `deps_stale`'s docstring. |
 | Output | `trips/<slug>/itinerary.yaml` (canonical) + `trips/<slug>/itinerary.md` (rendered: day tables + contingency + checklist sections). |
-| Stop condition | A `must_do` item has no verified POI to place, is closed on every feasible trip day, or cannot fit before its last order/entry on any feasible slot; a booking whose **lead-time missed** (`lead_time_missed` True); or a travel-day move that re-checks `missed_last_service` at its now-known departure → ask user. |
+| Stop condition | A `must_do` theme has no verified POI to cover it (`must_do_uncovered`), is closed on every feasible trip day (`must_do_closed_every_day`), or cannot fit before its last order/entry on any feasible slot (`must_do_after_last_call`); a booking whose **lead-time missed** (`lead_time_missed`); or a travel-day move that re-checks `missed_last_service` at its now-known departure → ask user. |
 | Next stage | `tripwork:orchestrator`. |

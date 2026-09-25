@@ -9,6 +9,7 @@ it; nothing is invented — hero meta / overview / lodging-flow are derived only
 fields present in itinerary.yaml (Source-Verified-First). (dogfood D4)
 """
 from scripts.render.gmaps_links import maps_url, dir_url
+from scripts.render.centroid import centroid_items, centroid_note
 
 # Security: all five HTML-significant chars are escaped.
 # Ampersand MUST be replaced first so the entity suffixes we add (&lt; etc.)
@@ -454,7 +455,8 @@ def render_html_page(itin: dict, poi_map: dict) -> str:
     day_cards = "".join(_day_html(d, poi_map, i) for i, d in enumerate(days, start=1))
     contingency_html = _contingency_html(itin)
 
-    checklist = itin.get("checklist") or []
+    checklist = list(itin.get("checklist") or [])
+    checklist += [centroid_note(p) for p in centroid_items(itin, poi_map)]
     cl = ""
     if checklist:
         items = "".join(f"<li>{_html_escape(c)}</li>" for c in checklist)

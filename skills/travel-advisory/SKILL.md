@@ -37,7 +37,7 @@ Return to `tripwork:orchestrator`.
 |---|---|
 | Input | `trips/<slug>/trip-brief.yaml` (destination, airline, dates). Standalone use also allowed. |
 | Output | `trips/<slug>/advisory.yaml` (rules with `effective_date` + `risk`). |
-| Stop condition | A `banned` item exists → require explicit user acknowledgement. |
+| Stop condition | A `banned` item exists (`banned_item`) → require explicit user acknowledgement. |
 | Next stage | `tripwork:orchestrator`. |
 
 ## Red Flags

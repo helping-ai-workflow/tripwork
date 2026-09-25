@@ -141,20 +141,40 @@ After each stage completes, re-invoke this skill to pick the next stage.
 
 ## Stop-on-Confirmation
 
-Halt and ask the user when a stage reports: cross-source conflict, hop flagged `far` or
-`implausible`, booking lead-time missed (owned by `tripwork:itinerary-synthesis` via
-`scripts/booking.py::lead_time_missed`), a regulation tagged `banned` (restricted/info are
-surfaced, not halted), must-do verification failure, an unfilled overnight stop needing a
-lodging pick or a missing required facility, an arrival after a lodging's reception close
-with no late check-in, a `blocking` seasonal hazard, a leg flagged `drive_too_long` /
-`missed_last_service` (including the synthesis-time re-check once the departure is known),
-the cost estimate over a set budget, or an **export-gate fail that is non-retryable**
-(`retryable: false` — an upstream data defect re-render can't fix; see rule 15).
+Halt and ask the user when a stage reports any row below. This table is the complete
+list (`scripts/orchestration.py::STOP_FLAGS`); a stage skill's own Stop condition names
+the same flags.
+
+| Stage | Flag | Halt when |
+|---|---|---|
+| `tripwork:travel-advisory` | `banned_item` | a regulation is tagged `banned` (restricted/info are surfaced, not halted) |
+| `tripwork:source-verify` | `cross_source_conflict` | independent sources materially disagree (hours, closed day, address) |
+| `tripwork:source-verify` | `must_do_unverified` | a `must_do` item fails verification |
+| `tripwork:routing-audit` | `far_hop` | a hop is flagged `far` |
+| `tripwork:routing-audit` | `implausible_hop` | a hop is flagged `implausible` |
+| `tripwork:accommodation-research` | `unfilled_overnight_stop` | an overnight stop needs a lodging pick |
+| `tripwork:accommodation-research` | `missing_required_facility` | a lodging lacks a required facility |
+| `tripwork:accommodation-research` | `lodging_outside_stop` | a lodging geocodes outside its stop district |
+| `tripwork:accommodation-research` | `arrival_after_reception_close` | arrival is after reception close with no late check-in |
+| `tripwork:inter-stop-legs` | `drive_too_long` | a single-day drive is over the maximum |
+| `tripwork:inter-stop-legs` | `missed_last_service` | a planned same-day departure is after the last train/bus |
+| `tripwork:calendar-check` | `holiday_blocks_must_do` | a `closures: true` holiday falls on the only feasible day for a `must_do` |
+| `tripwork:seasonal-advisory` | `blocking_hazard` | a `blocking` seasonal hazard makes a leg/stop infeasible |
+| `tripwork:cost-rollup` | `over_budget` | the estimated total exceeds a set budget |
+| `tripwork:itinerary-synthesis` | `must_do_uncovered` | a `must_do` theme has no verified POI to cover it |
+| `tripwork:itinerary-synthesis` | `must_do_closed_every_day` | a `must_do` POI is closed on every feasible trip day |
+| `tripwork:itinerary-synthesis` | `must_do_after_last_call` | a `must_do` POI cannot fit before its last order/entry on any feasible slot |
+| `tripwork:itinerary-synthesis` | `lead_time_missed` | a booking lead time is missed (`scripts/booking.py::lead_time_missed`) |
+| `tripwork:itinerary-synthesis` | `missed_last_service` | the re-check of a travel-day move at its now-known departure misses the last service |
+| `tripwork:export-gate` | `nonretryable_export_fail` | export-gate fails with `retryable: false` — rule 15's `stop-and-ask` |
 
 **Read-back before re-asking.** Before halting on any of the above, consult
 `work/<slug>/stage-state.yaml` (schema: `schemas/stage-state.schema.json`): skip any
 confirmation whose `(stage, flag, subject)` tuple already carries a recorded `decision`.
-Record every new decision there before continuing.
+Record every new decision there before continuing, with the table's `flag` verbatim —
+the read-back matches exactly, so a different spelling of the same halt is never found
+and the user gets asked again. A decision the table does not list (a naming fix, a
+preference) may use its own flag.
 
 ## Stage Contract
 

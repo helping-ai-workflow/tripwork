@@ -41,5 +41,5 @@ If a public holiday with `closures: true` overlaps a day a `must_do` item can on
 |---|---|
 | Input | `trips/<slug>/trip-brief.yaml` (destination + `dates`). |
 | Output | `trips/<slug>/calendar.yaml` (public holidays in range with `impact` + official source). |
-| Stop condition | A `closures: true` holiday blocks the only feasible day for a `must_do` → ask user. |
+| Stop condition | A `closures: true` holiday blocks the only feasible day for a `must_do` (`holiday_blocks_must_do`) → ask user. |
 | Next stage | `tripwork:orchestrator`. |
