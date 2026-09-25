@@ -30,7 +30,7 @@ Write `trips/<slug>/routing.yaml`, then validate it:
 |---|---|
 | Input | `trips/<slug>/verified-pois.yaml` + `trips/<slug>/trip-brief.yaml`. |
 | Output | `trips/<slug>/routing.yaml` (clusters, hops, warnings). |
-| Stop condition | A hop flagged `far` → ask user keep-or-replace. A hop flagged `implausible` → ask user for a real source. |
+| Stop condition | A hop flagged `far` (`far_hop`) → ask user keep-or-replace. A hop flagged `implausible` (`implausible_hop`) → ask user for a real source. |
 | Next stage | `tripwork:orchestrator`. |
 
 ## Common Mistakes

@@ -66,7 +66,7 @@ a best-effort (possibly empty) `cost.yaml`. Then validate it:
 |---|---|
 | Input | `trips/<slug>/trip-brief.yaml` (budget, daily_incidental, home_currency, dates) + `trips/<slug>/accommodations.yaml` + `trips/<slug>/legs.yaml`. |
 | Output | `trips/<slug>/cost.yaml` (line items + total + budget compare + pass break-even). |
-| Stop condition | The estimated total exceeds a set `budget` → ask user. |
+| Stop condition | The estimated total exceeds a set `budget` (`over_budget`) → ask user. |
 | Next stage | `tripwork:orchestrator`. |
 
 ## Common Mistakes

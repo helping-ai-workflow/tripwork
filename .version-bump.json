@@ -59,7 +59,7 @@
       ".version-bump.json"
     ]
   },
-  "previous": "0.35.0",
-  "current": "0.35.1",
-  "next": "0.36.0"
+  "previous": "0.35.1",
+  "current": "0.36.0",
+  "next": "0.37.0"
 }

@@ -54,7 +54,10 @@ routes back here.
   `cluster_fallback` paragraph):** a sourced `business_status` is itself independent
   evidence the hotel exists, so nothing further is asked of a `cluster_fallback`
   geocode specifically. Record `geocode_source` either way — an absent value is
-  a refusal on its own, independent of Gate 0.
+  a refusal on its own, independent of Gate 0. A chosen lodging on a centroid
+  coordinate is disclosed in the deliverable automatically (`scripts/render/centroid.py`
+  adds its 出發前檢查清單 line); when you pick one, tell the user its map pin is the district
+  centre, not the hotel.
   Pass the per-trip cache (`work/<slug>/geocode-cache/geocode.json` via
   `scripts/geocode_cache.py`) as `resolve_place(..., cache=cache)` — re-runs then skip
   already-resolved and known-miss hotel lookups. **When the user manually confirms a hotel
@@ -105,7 +108,7 @@ to `tripwork:orchestrator`.
 |---|---|
 | Input | `trips/<slug>/routing.yaml` (clusters + centroids) + `trips/<slug>/trip-brief.yaml`. |
 | Output | `trips/<slug>/accommodations.yaml` (per-stop candidates + chosen, each candidate carrying `resolved_name` for gate re-derivation). |
-| Stop condition | Unfilled stop needs a pick; a required facility is missing; a hotel geocodes outside its stop; arrival is after reception close → ask user. |
+| Stop condition | Unfilled stop needs a pick (`unfilled_overnight_stop`); a required facility is missing (`missing_required_facility`); a hotel geocodes outside its stop (`lodging_outside_stop`); arrival is after reception close (`arrival_after_reception_close`) → ask user. |
 | Next stage | `tripwork:orchestrator`. |
 
 ## Common Mistakes

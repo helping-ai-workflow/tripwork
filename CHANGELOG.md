@@ -1,5 +1,60 @@
 # Changelog
 
+## 0.36.0 — one stop-flag vocabulary; centroid coordinates disclosed in the deliverable
+
+Two follow-ups from the 0.35.1 matrix review, both confirmed against the consumer corpus
+before any code changed.
+
+- **Stop-on-confirmation has one list: `scripts/orchestration.py::STOP_FLAGS`.** Three
+  hand-kept lists described the same halts and had drifted: the orchestrator's paragraph
+  (11 kinds), using-tripwork's iron-rule row (5), and each stage's own Stop condition. Five
+  stage halts appeared in no orchestrator list: `lodging_outside_stop`,
+  `holiday_blocks_must_do`, `must_do_uncovered`, `must_do_closed_every_day`,
+  `must_do_after_last_call`. The orchestrator's Stop-on-Confirmation section is now a
+  `| stage | flag | halt when |` table equal to `STOP_FLAGS`. Every stage's Stop condition row
+  names its flags, and using-tripwork points at the table instead of keeping a copy.
+- **The read-back can find a decision again.** It matches `(stage, flag, subject)` exactly,
+  but flags were free text, and the corpus recorded the same halt as
+  `unfilled_overnight_stop` in one trip and `unfilled_stop_pick` in another. The orchestrator
+  now requires the table's flag verbatim. Names already used in consumer `stage-state.yaml`
+  files (`banned_item`, `cross_source_conflict`, `far_hop`, `unfilled_overnight_stop`,
+  `lead_time_missed`) were kept. `schemas/stage-state.schema.json` is unchanged: `flag` stays
+  a free string, so existing files still validate and ad-hoc decisions (a naming fix, a
+  preference) keep their own flags.
+- **Deliverables now say when a map pin is only a district centroid.** source-verify asked
+  the agent to tell the user about every `cluster_fallback` geocode. The corpus showed that
+  never happened: 2026-08-chiayi schedules three such POIs and 2026-07-sun-moon-lake chose two
+  such lodgings, and neither deliverable mentions it. Lodging had no such instruction at all.
+  New `scripts/render/centroid.py` finds every scheduled POI and every night's lodging whose
+  `geocode.geocode_source` is `cluster_fallback`, and both `render_markdown_page` and
+  `render_html_page` append one 出發前檢查清單 line per place ("地圖座標是所在區域的中心點…"),
+  after the authored checklist, creating the section if needed. Unscheduled POIs are not
+  listed. `itinerary.yaml` is unchanged; synthesis is told not to write these lines itself.
+  LINE short text carries no checklist or maps and is untouched.
+- **Consumer corpus baseline regenerated** (`python -m tests.corpus_measure --write`). The
+  corpus changed on 2026-09-24 (2026-09-northeast-coast re-audit: gate `fail`, 65 findings →
+  `pass`, 0). No other trip moved. The measurement is identical with and without this
+  release's code, so the whole diff is the corpus.
+
+Guards: `tests/test_stop_flags.py` reads `STOP_FLAGS` and checks the orchestrator table equals
+it, every stage row names its flags, every stage whose Stop condition asks the user is
+registered (three exempt skills listed with their reasons), and using-tripwork holds no copy.
+Each check was confirmed red by injection: a dropped table row, a dropped stage flag, an
+unregistered asking stage, a flag copied into using-tripwork. `tests/test_render_centroid.py`
+calls the renderers directly. It was also run end to end on copies of real trips: an
+unmodified northeast-coast copy renders with no disclosure; with its chosen lodging and one
+scheduled POI switched to `cluster_fallback`, each is disclosed exactly once in md and html;
+the unmodified chiayi and sun-moon-lake copies each disclose three places. The real
+`export_gate.py` passes on all of them.
+
+Migration notes: consumer `stage-state.yaml` decisions recorded under a flag not in the table
+(e.g. chiayi's `unfilled_stop_pick`, sun-moon-lake's `budget_check`) are not matched by the
+read-back, so that question may be asked once more. Renaming the flag to the table's name
+avoids it. Existing exports gain the centroid lines the next time they are re-rendered.
+
+Tests: 1161 passed with the consumer corpus mounted, 0 failed; 1141 passed + 20 corpus-gated
+skips in CI (no corpus).
+
 ## 0.35.1 — skill prose states the current rule, and agrees with the code
 
 A prompt audit of the skills an agent actually reads (2026-09-25) found two contradictions with

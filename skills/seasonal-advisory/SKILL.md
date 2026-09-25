@@ -54,7 +54,7 @@ Write `trips/<slug>/seasonal.yaml`, then validate it:
 |---|---|
 | Input | `trips/<slug>/trip-brief.yaml` (destination, dates, transport) + `trips/<slug>/routing.yaml` + `trips/<slug>/accommodations.yaml`. |
 | Output | `trips/<slug>/seasonal.yaml` (hazard `items` + per-stop `daylight`). |
-| Stop condition | A `blocking` hazard makes a leg/stop infeasible → ask user. |
+| Stop condition | A `blocking` hazard makes a leg/stop infeasible (`blocking_hazard`) → ask user. |
 | Next stage | `tripwork:orchestrator`. |
 
 ## Common Mistakes

@@ -5,6 +5,7 @@ math mode in a markdown preview, and a stray | cannot break the table cell.
 Generated link markup ([name](url)) is never escaped — only free text is.
 """
 from scripts.render.gmaps_links import link_markdown, dir_url
+from scripts.render.centroid import centroid_items, centroid_note
 
 # Chars with markdown / KaTeX meaning in free text. `|` would also break a table
 # cell. Backslash is escaped first so the escapes we add are not re-escaped.
@@ -105,7 +106,8 @@ def render_markdown_page(itin, poi_map, cost=None):
         day["lodging"] resolves in poi_map — never falls back to the raw id;
         see the docstring warning below)
       ## 備案 / Contingency  (itin["contingency"])
-      ## 出發前檢查清單       (itin["checklist"])
+      ## 出發前檢查清單       (itin["checklist"], then one centroid_note per
+                               scheduled/lodging cluster_fallback place)
       ## 費用估算（估算非報價） (cost, when given)
 
     The lodging line must never fall back to the raw id when it does not resolve —
@@ -146,7 +148,8 @@ def render_markdown_page(itin, poi_map, cost=None):
             lines.append(f"- **{trigger}**{note_part}：{fallback}")
         lines.append("")
 
-    checklist = itin.get("checklist")
+    checklist = list(itin.get("checklist") or [])
+    checklist += [centroid_note(p) for p in centroid_items(itin, poi_map)]
     if checklist:
         lines.append("## 出發前檢查清單")
         lines.append("")

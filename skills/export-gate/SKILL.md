@@ -65,5 +65,5 @@ non-distributable, 勿散布", it does NOT re-export loop.
 |---|---|
 | Input | `trips/<slug>/exports/<slug>-itinerary.md` + the MERGED pois (`trips/<slug>/verified-pois.yaml` overlaid with `trips/<slug>/accommodations.yaml`'s chosen lodgings and optional `trips/<slug>/verified-pois-media.yaml` via `scripts/media_merge.py::apply_media`), plus optional `trips/<slug>/itinerary.yaml` (for `min_days`), so the photo / distributability checks see the same photos the deliverable rendered. |
 | Output | `trips/<slug>/export-gate-report.yaml` (`status` pass/fail + failures). |
-| Stop condition | `status: fail` + `retryable: true` → return to `export-artifact` to re-render; `retryable: false` → stop and ask the user to fix the data. |
+| Stop condition | `status: fail` + `retryable: true` → return to `export-artifact` to re-render; `retryable: false` → stop and ask the user to fix the data (`nonretryable_export_fail`). |
 | Next stage | `tripwork:orchestrator` (pipeline complete on pass). |

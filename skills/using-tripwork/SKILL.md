@@ -47,7 +47,7 @@ workspace-shape-preflight  (entry gate — first invocation only)
 | Calendar-aware scheduling | Synthesis hard-avoids scheduling a POI on a closed day and flags holiday/weekend crowd days. Logic in `scripts/calendar.py`. |
 | Closing-buffer-aware scheduling | Synthesis checks every timed slot via `scripts/hours.py::closing_status`: never schedules past last order/entry, flags thin buffers, and stops if a `must_do` cannot fit. |
 | Gate ≠ content correct | `itinerary-gate` passing means structure is valid; content correctness is guaranteed upstream by `source-verify`. |
-| Stop on confirmation | Cross-source conflict, hop flagged `far`, booking lead-time missed, regulation `banned`, or must-do verification failure → stop and ask the user. Never silently drop content. |
+| Stop on confirmation | Every halt in `tripwork:orchestrator`'s Stop-on-Confirmation table (cross-source conflict, a `far` hop, a `banned` regulation, a failed `must_do`, an over-budget estimate, …) → stop and ask the user. Never silently drop content. |
 | Invoke orchestrator to advance | After any stage completes, re-invoke `tripwork:orchestrator` to determine the next stage. |
 | Preflight before pipeline | First invocation in a cwd is gated by `workspace-shape-preflight`; the `work/.preflight-completed` stamp must exist before the orchestrator advances. |
 
