@@ -22,10 +22,13 @@ def _goto_day(pg, d, desktop):
         pg.click(f'section[data-pg="{d}"] details.mapc > summary')
 
 
-def _settle(pg, sel, still=6, step=50, limit=5000):
+def _settle(pg, sel, still=6, step=50, limit=5000, lead=250):
     """Wait until sel's scrollTop holds still (the anchor jump glides with
     scroll-behavior:smooth; a person taps again once it stops). Polled from Python:
-    with JavaScript off the page runs no requestAnimationFrame of ours."""
+    with JavaScript off the page runs no requestAnimationFrame of ours. The glide may
+    start late on a slow machine -- CI's WebKit read a stop 136 px off centre at
+    scrollTop 0, then glided there: stillness counts only after a short lead."""
+    pg.wait_for_timeout(lead)
     last, same, waited = None, 0, 0
     while waited < limit:
         now = pg.evaluate(f"document.querySelector('{sel}').scrollTop")
