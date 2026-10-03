@@ -229,3 +229,41 @@ def test_backend_none_is_a_noop_that_exits_zero(tmp_path):
     r = subprocess.run([sys.executable, "scripts/photo_adapter.py", str(trip),
                         "--backend", "none"], cwd=str(ROOT), capture_output=True, text=True)
     assert r.returncode == 0
+
+
+# ---- a failed download is not the end (measured 2026-10-04: Openverse answered 424 on
+# thumbnails for 12 of 23 landmarks of a real trip, and each one aborted its POI) ----
+
+import requests as _requests
+
+
+class _Fail(_Resp):
+    def __init__(self, status=424):
+        super().__init__(status=status)
+
+    def raise_for_status(self):
+        raise _requests.HTTPError(f"{self.status_code} Client Error")
+
+
+def test_a_failed_thumbnail_keeps_the_full_image(mocker):
+    mocker.patch("scripts.photo_adapter.requests.get", side_effect=[_ov([_OV_RESULT]), _IMG_FULL, _Fail()])
+    entry = fetch_media_entry(_LANDMARK, "wiki", sources=("openverse",))
+    assert entry and entry["photo"]["data"].startswith("data:image/jpeg;base64,")
+    assert "thumb" not in entry["photo"]
+
+
+def test_a_failed_download_tries_the_next_candidate(mocker):
+    second = {**_OV_RESULT, "url": "https://ov.example/2.jpg", "thumbnail": "https://ov.example/2t.jpg",
+              "creator": "Second", "foreign_landing_url": "https://openverse.org/i/2"}
+    mocker.patch("scripts.photo_adapter.requests.get",
+                 side_effect=[_ov([_OV_RESULT, second]), _Fail(), _IMG_FULL, _IMG_THUMB])
+    entry = fetch_media_entry(_LANDMARK, "wiki", sources=("openverse",))
+    assert entry and entry["photo_attribution"]["author"] == "Second"
+
+
+def test_one_failed_poi_does_not_stop_the_rest(mocker):
+    other = {**_LANDMARK, "id": "p2", "name_local": "Senso-ji"}
+    mocker.patch("scripts.photo_adapter.requests.get",
+                 side_effect=[_ov([_OV_RESULT]), _Fail(500), _ov([_OV_RESULT]), _IMG_FULL, _IMG_THUMB])
+    doc = build_media([_LANDMARK, other], "wiki", sources=("openverse",))
+    assert list(doc["media"]) == ["p2"]

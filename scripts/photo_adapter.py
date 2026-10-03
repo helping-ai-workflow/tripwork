@@ -196,10 +196,10 @@ def _search_commons(query, rate_limiter, max_results):
 _SEARCHERS = {"openverse": _search_openverse, "commons": _search_commons}
 
 
-def _select_candidate(cands, geo, radius_km):
-    """First license-clean, location-matched candidate. A geotagged candidate must be
-    within radius_km of the POI geocode; an un-geotagged candidate is trusted on the
-    name_local query match (landmark-only)."""
+def _candidates(cands, geo, radius_km):
+    """License-clean, location-matched candidates, in search order. A geotagged candidate
+    must be within radius_km of the POI geocode; an un-geotagged candidate is trusted on
+    the name_local query match (landmark-only)."""
     lat0, lng0 = (geo or {}).get("lat"), (geo or {}).get("lng")
     have_geo = isinstance(lat0, (int, float)) and isinstance(lng0, (int, float))
     for c in cands:
@@ -209,8 +209,12 @@ def _select_candidate(cands, geo, radius_km):
         if isinstance(clat, (int, float)) and isinstance(clng, (int, float)) and have_geo:
             if not in_region(clat, clng, lat0, lng0, radius_km):
                 continue   # geotagged but wrong place
-        return c
-    return None
+        yield c
+
+
+def _select_candidate(cands, geo, radius_km):
+    """The first of _candidates, or None."""
+    return next(_candidates(cands, geo, radius_km), None)
 
 
 # --------------------------------------------------------------------------- #
@@ -240,7 +244,10 @@ def _download_entry(cand, rate_limiter):
     photo = {"data": full}
     thumb_url = cand.get("thumb_url")
     if thumb_url and thumb_url != cand["image_url"]:
-        thumb = _fetch_image(thumb_url, rate_limiter)
+        try:
+            thumb = _fetch_image(thumb_url, rate_limiter)
+        except requests.RequestException:
+            thumb = None        # a failed thumbnail (Openverse answers 424) keeps the full image
         if thumb is not None:
             photo["thumb"] = {"data": thumb}
     author = cand.get("author") or "Unknown"
@@ -310,11 +317,15 @@ def fetch_media_entry(poi, backend="none", *, sources=("openverse", "commons"),
             cands = searcher(str(name), rate_limiters.get(src), max_results)
         except requests.RequestException:
             continue
-        cand = _select_candidate(cands, geo, radius_km)
-        if cand:
-            entry = _download_entry(cand, rate_limiters.get(src))
+        for cand in _candidates(cands, geo, radius_km):
+            try:                                   # a failed download tries the next candidate
+                entry = _download_entry(cand, rate_limiters.get(src))
+            except requests.RequestException:
+                entry = None
             if entry:
                 break
+        if entry:
+            break
 
     if cache is not None:
         cache[key] = entry
