@@ -21,8 +21,10 @@ YAML:
           - key: P1                    # shown on the card; unique within the topic
             title: Wikidata 代表圖
             note: 一句說明（選填）
-            image: shots/p1.png        # a file next to the YAML ... or
-            html: "<p>…</p>"           # ... an HTML preview (exactly one of the two)
+            image: shots/p1.png        # a file next to the YAML, or
+            images:                    # several, side by side, each captioned, or
+              - {image: a.png, caption: ① 收起}
+            html: "<p>…</p>"           # an HTML preview (exactly one of the three)
 """
 import argparse
 import base64
@@ -71,6 +73,7 @@ body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.6 var(--f-body)}
 .ch .n{flex-basis:100%%;font-size:13px;color:var(--mut)}
 .pv{display:block;min-width:0}
 .pv img{display:block;width:100%%;height:auto;border-radius:10px;box-shadow:0 0 0 1px var(--rule)}
+.seq{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(0,1fr);gap:8px}.seq figure{margin:0;display:grid;gap:4px}.seq figcaption{font-size:12px;color:var(--mut);text-align:center}
 .foot{display:grid;gap:6px;max-width:62ch}
 .foot label{font-size:13px;color:var(--mut)}
 textarea{font:inherit;font-size:14px;min-height:56px;border-radius:12px;border:1px solid var(--rule);background:var(--card);color:var(--ink);padding:10px}
@@ -129,10 +132,11 @@ def _load(spec_path):
             if not k or k in keys:
                 raise ValueError(f"topic {tid}: duplicate key {k}" if k else f"topic {tid}: an option has no key")
             keys.append(k)
-            if bool(o.get("image")) == bool(o.get("html")):
-                raise ValueError(f"topic {tid} option {k}: give exactly one of image / html")
-            if o.get("image") and not (spec_path.parent / o["image"]).is_file():
-                raise ValueError(f"topic {tid} option {k}: image not found: {o['image']}")
+            if sum(bool(o.get(x)) for x in ("image", "images", "html")) != 1:
+                raise ValueError(f"topic {tid} option {k}: give exactly one of image / images / html")
+            for img in [o.get("image")] + [i.get("image") for i in o.get("images") or []]:
+                if img and not (spec_path.parent / img).is_file():
+                    raise ValueError(f"topic {tid} option {k}: image not found: {img}")
         if str(t.get("recommend") or "") not in keys:
             raise ValueError(f"topic {tid} recommends {t.get('recommend')}, which is not one of {keys}")
     return spec
@@ -157,8 +161,14 @@ def build(spec_path):
         for o in t["options"]:
             k = str(o["key"])
             rec = k == str(t["recommend"])
-            pv = (f'<img src="{_image(spec_path.parent / o["image"])}" alt="{_e(o.get("title"))}">'
-                  if o.get("image") else str(o["html"]))
+            if o.get("image"):
+                pv = f'<img src="{_image(spec_path.parent / o["image"])}" alt="{_e(o.get("title"))}">'
+            elif o.get("images"):
+                pv = '<span class="seq">' + "".join(
+                    f'<figure><img src="{_image(spec_path.parent / i["image"])}" alt="{_e(i.get("caption"))}">'
+                    f'<figcaption>{_e(i.get("caption"))}</figcaption></figure>' for i in o["images"]) + "</span>"
+            else:
+                pv = str(o["html"])
             rec_attr = ' data-rec="1"' if rec else ""
             rec_tag = '<span class="r">推薦</span>' if rec else ""
             note = f'<span class="n">{_e(o.get("note"))}</span>' if o.get("note") else ""

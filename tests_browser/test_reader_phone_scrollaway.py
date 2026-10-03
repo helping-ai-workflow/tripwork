@@ -161,15 +161,51 @@ def test_a_jumped_to_stop_lands_at_the_cards_top(open_page):
         assert 0 <= gap <= 24, (target, gap)
 
 
-def test_with_the_map_open_nothing_folds(open_page):
+def test_opening_the_map_keeps_the_calendar_where_it_is(open_page):
+    """The user's check (2026-10-03): opening the map card brought a folded calendar back.
+    H1c folded only with the map closed -- an H1b-era guard (the open map's height is
+    unknown to CSS), moot since the fold moves by transform. A folded calendar stays
+    folded with the map open, the list keeps its place, and closing the map changes
+    nothing either; an open calendar stays open."""
     pg = _open(open_page)
-    pg.evaluate(f"document.querySelector('{_sec('d2')} .mapc').open=true")
-    pg.wait_for_timeout(200)
-    dh0 = _top(pg, f"{_sec('d2')} .pcal .dh")
-    _scroll(pg, "d2", 150)
-    assert abs(_top(pg, f"{_sec('d2')} .pcal .dh") - dh0) <= .5
-    m = pg.evaluate(f"(L=>[L.getBoundingClientRect().top,parseFloat(getComputedStyle(L).marginTop)])(document.querySelector('{_sec('d2')} .plist'))")
-    assert m[1] >= 0, m
+    sec, summ = _sec("d2"), f"{_sec('d2')} .mapc > summary"
+    map_open_cal = _top(pg, f"{sec} .pmap")
+    _scroll(pg, "d2", 200)
+    folded = _top(pg, f"{sec} .pmap")
+    assert abs(folded - (map_open_cal - FOLD)) <= 1, "fixture: should fold"
+    pg.locator(summ).click()
+    pg.wait_for_timeout(250)
+    assert pg.eval_on_selector(f"{sec} .mapc", "e=>e.open")
+    assert abs(_top(pg, f"{sec} .pmap") - folded) <= 1, "the map opened and the calendar came back"
+    assert pg.evaluate(f"document.querySelector('{sec} .plist').scrollTop") == 200
+    pg.locator(summ).click()
+    pg.wait_for_timeout(250)
+    assert abs(_top(pg, f"{sec} .pmap") - folded) <= 1
+    _scroll(pg, "d2", 0)
+    pg.locator(summ).click()
+    pg.wait_for_timeout(250)
+    assert abs(_top(pg, f"{sec} .pmap") - map_open_cal) <= 1, "an open calendar stays open"
+
+
+def test_the_zoomed_map_covers_the_screen_with_the_calendar_folded(open_page):
+    """Zoomed, the map view is a position:fixed layer inside the map row -- which carries
+    the fold's transform, and a transform makes itself the fixed layer's frame. Folded,
+    the zoomed map must still cover the screen and close on a tap anywhere."""
+    pg = _open(open_page, vp=PHONE)
+    sec = _sec("d2")
+    pg.evaluate(f"(L=>{{L.style.paddingBottom='600px'}})(document.querySelector('{sec} .plist'))")
+    _scroll(pg, "d2", 200)
+    pg.locator(f"{sec} .mapc > summary").click()
+    pg.wait_for_timeout(250)
+    frame = pg.locator(f"{sec} .mv .mframe").filter(visible=True).first
+    frame.click(position={"x": 12, "y": 12})
+    pg.wait_for_timeout(300)
+    box = pg.evaluate(f"""(()=>{{const m=[...document.querySelectorAll('{sec} .mv')].find(v=>v.querySelector('.zck:checked'));
+        const r=m.getBoundingClientRect();return [r.left,r.top,r.width,r.height]}})()""")
+    assert box[0] <= 0.5 and box[1] <= 0.5 and box[2] >= PHONE["width"] - 1 and box[3] >= PHONE["height"] - 1, box
+    pg.mouse.click(PHONE["width"] / 2, PHONE["height"] - 20)       # far from the frame: closes
+    pg.wait_for_timeout(250)
+    assert pg.evaluate(f"document.querySelectorAll('{sec} .zck:checked').length") == 0
 
 
 # --- H1c2: the stepper keeps the calendar put away, with no script ---

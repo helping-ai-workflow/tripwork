@@ -240,8 +240,9 @@ html,body{height:100%;overflow:hidden}
    Only transform / clip-path / opacity animate: no layout per frame. Every day scrolls at least
    the fold (the ::after strut) so a short one (10/12) can put its calendar away. The clipped top
    has no outline of its own: .lcap draws it, riding with the map; .lfoot fades the foot.
-   With the map card open nothing folds (the open map's height is unknown to CSS); where scroll
-   timelines are unsupported the topic-1 layout holds. The card's resting clip is also set
+   The map card open or closed, the fold holds (the user's check: opening the map brought a folded
+   calendar back -- an H1b-era guard, moot with a transform fold); where scroll timelines are
+   unsupported the topic-1 layout holds. The card's resting clip is also set
    statically: WebKit can paint a newly shown day before its timeline resolves, and the card's
    raised background then covered the calendar's foot (the glow read as cut). */
 @supports (animation-timeline: scroll()){
@@ -251,21 +252,24 @@ html,body{height:100%;overflow:hidden}
 @keyframes edgein{from{opacity:0}to{opacity:1}}
 @keyframes stepopen{0%,49%{visibility:visible}50%,100%{visibility:hidden}}@keyframes stepfold{0%,49%{visibility:hidden}50%,100%{visibility:visible}}
 @keyframes monthtop{0%,99%{visibility:visible}100%{visibility:hidden}}
-.page.day:not(:has(.mapc[open])) .dash{timeline-scope:--lst}
-.page.day:not(:has(.mapc[open])) .plist{scroll-timeline:--lst y;position:relative;margin-top:calc(-1 * var(--fold));padding-top:calc(var(--fold) + 12px);clip-path:inset(var(--fold) -1px -1px -1px round 15px);animation:cardclip linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
-.page.day:not(:has(.mapc[open])) .plist::after{content:"";position:absolute;top:0;left:0;width:1px;height:calc(100% + var(--fold));pointer-events:none}
+.page.day .dash{timeline-scope:--lst}
+.page.day .plist{scroll-timeline:--lst y;position:relative;margin-top:calc(-1 * var(--fold));padding-top:calc(var(--fold) + 12px);clip-path:inset(var(--fold) -1px -1px -1px round 15px);animation:cardclip linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+.page.day .plist::after{content:"";position:absolute;top:0;left:0;width:1px;height:calc(100% + var(--fold));pointer-events:none}
 /* the card's clip would clip the full-screen layers that live in it too (給司機看, a photo opened
    full screen): while one is up the card goes unclipped -- the layer covers the screen anyway */
 .page.day:has(.drv:target,.pz:checked) .plist{clip-path:none!important;animation:none!important}
-.page.day:not(:has(.mapc[open])) :is(.pcal .mini .g,.pcal .dh,.pmap,.lcap){animation:calup linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+/* the zoomed map is a position:fixed layer inside the map row, and the fold's transform on the row
+   would make the row its frame: while zoomed the row drops the transform (the zoom covers it) */
+.page.day:has(.zck:checked) .pmap{transform:none!important;animation:none!important}
+.page.day :is(.pcal .mini .g,.pcal .dh,.pmap,.lcap){animation:calup linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
 /* the window closes faster than the calendar rises: open, the current day's 15 px glow
    (.stamp.cur) reaches past the calendar's foot as it always has; away, none of it shows
    between the month and the title (the user saw both cut and leak) */
-.page.day:not(:has(.mapc[open])) .pcal .mini{animation:calwin linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
-.page.day:not(:has(.mapc[open])) .lcap{display:block;height:0;position:relative;z-index:3;flex:none}
+.page.day .pcal .mini{animation:calwin linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+.page.day .lcap{display:block;height:0;position:relative;z-index:3;flex:none}
 .lcap::after{content:"";position:absolute;left:0;right:0;top:0;height:14px;border-radius:14px 14px 0 0;background:var(--bg);box-shadow:0 0 0 1px var(--rule);clip-path:inset(-2px -2px 0 -2px)}
 .lcap::before{content:"";position:absolute;left:0;right:0;top:14px;height:18px;pointer-events:none;background:linear-gradient(var(--bg),transparent);opacity:0;animation:edgein linear both;animation-timeline:--lst;animation-range:var(--fold) calc(var(--fold) + 20px)}
-.page.day:not(:has(.mapc[open])) .lfoot{display:block;height:0;position:relative;z-index:3;flex:none}
+.page.day .lfoot{display:block;height:0;position:relative;z-index:3;flex:none}
 .lfoot::before{content:"";position:absolute;left:0;right:0;bottom:0;height:28px;border-radius:0 0 14px 14px;pointer-events:none;background:linear-gradient(transparent,var(--bg))}
 /* H1c2: the stepper keeps the calendar as it is (no script). Its arrows show the label to the
    neighbour opened as usual while the calendar is mostly out, to the neighbour opened with it
@@ -273,13 +277,13 @@ html,body{height:100%;overflow:hidden}
    with the calendar away; at that list's top the month, with a ⌄, opens the calendar (the
    tap would not open it from further down, so it is no button there). Its strut stays 9 px:
    iOS read a zero scroll range as 'at the end' and hid the ⌄ (the user's check). */
-.page.day:not(:has(.mapc[open])) .dstep .so{animation:stepopen linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
-.page.day:not(:has(.mapc[open])) .dstep .sf{animation:stepfold linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
-body:has(.pgf:checked) .page.day:not(:has(.mapc[open])) .plist{padding-top:12px;animation:none;clip-path:inset(0px -1px -1px -1px round 15px)}
-body:has(.pgf:checked) .page.day:not(:has(.mapc[open])) .plist::after{height:calc(100% + 9px)}
-body:has(.pgf:checked) .page.day:not(:has(.mapc[open])) :is(.pcal .mini .g,.pcal .dh,.pmap,.lcap){animation:none;transform:translateY(calc(-1 * var(--fold)))}
-body:has(.pgf:checked) .page.day:not(:has(.mapc[open])) .pcal .mini{animation:none;clip-path:inset(0px -20px var(--fold) -20px)}
-body:has(.pgf:checked) .page.day:not(:has(.mapc[open])) .lcap::before{animation-range:0px 20px}
+.page.day .dstep .so{animation:stepopen linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+.page.day .dstep .sf{animation:stepfold linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+body:has(.pgf:checked) .page.day .plist{padding-top:12px;animation:none;clip-path:inset(0px -1px -1px -1px round 15px)}
+body:has(.pgf:checked) .page.day .plist::after{height:calc(100% + 9px)}
+body:has(.pgf:checked) .page.day :is(.pcal .mini .g,.pcal .dh,.pmap,.lcap){animation:none;transform:translateY(calc(-1 * var(--fold)))}
+body:has(.pgf:checked) .page.day .pcal .mini{animation:none;clip-path:inset(0px -20px var(--fold) -20px)}
+body:has(.pgf:checked) .page.day .lcap::before{animation-range:0px 20px}
 body:has(.pgf:checked) .page.day .dstep .so{animation:none;visibility:hidden}body:has(.pgf:checked) .page.day .dstep .sf{animation:none;visibility:visible}
 body:has(.pgf:checked) .page.day .unf{display:block;animation:monthtop linear both;animation-timeline:--lst;animation-range:0px 8px}
 body:has(.pgf:checked) .page.day .unf::after{content:"";position:absolute;right:1px;top:calc(50% - 5px);width:6px;height:6px;border:solid var(--mut);border-width:0 1.75px 1.75px 0;transform:rotate(45deg)}

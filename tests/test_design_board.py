@@ -94,3 +94,19 @@ def test_the_command_line_writes_the_board(tmp_path):
                        capture_output=True, text=True, cwd=tmp_path)
     assert r.returncode == 0, r.stderr[-800:]
     assert out.is_file() and "樣式看板" in out.read_text(encoding="utf-8") and r.stdout.strip() == str(out)
+
+
+def test_an_option_can_show_several_captioned_shots(tmp_path):
+    """A behaviour is a sequence (scroll, then open the map, then zoom): an option may give
+    `images: [{image, caption}, ...]`, shown side by side, each with its caption."""
+    (tmp_path / "a.png").write_bytes(PNG)
+    (tmp_path / "b.png").write_bytes(PNG)
+    spec = {"title": "多張", "topics": [{"id": "seq", "question": "?", "recommend": "A", "why": "w",
+            "options": [{"key": "A", "title": "a", "images": [{"image": "a.png", "caption": "① 收起"}, {"image": "b.png", "caption": "② 打開"}]},
+                        {"key": "B", "title": "b", "html": "<p>b</p>"}]}]}
+    p = tmp_path / "s.yaml"
+    p.write_text(yaml.safe_dump(spec, allow_unicode=True), encoding="utf-8")
+    s = BeautifulSoup(db.build(p), "html.parser")
+    figs = s.select('.card[data-key="A"] .pv figure')
+    assert [f.figcaption.get_text() for f in figs] == ["① 收起", "② 打開"]
+    assert all(f.img["src"].startswith("data:image/png;base64,") for f in figs)
