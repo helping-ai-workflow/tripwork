@@ -9,7 +9,7 @@
     {
       "name": "tripwork",
       "description": "Staged travel-planning pipeline with multi-source verification and geocoded routing audit",
-      "version": "1.1.1",
+      "version": "1.1.2",
       "source": "./",
       "author": {
         "name": "helping-ai-workflow",
