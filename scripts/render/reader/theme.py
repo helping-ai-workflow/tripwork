@@ -246,6 +246,14 @@ html,body{height:100%;overflow:hidden}
    statically: WebKit can paint a newly shown day before its timeline resolves, and the card's
    raised background then covered the calendar's foot (the glow read as cut). */
 @supports (animation-timeline: scroll()){
+/* open or folded, never between (the user's call, 2026-10-04). With no script (Files / LINE
+   previews) the fold jumps at half its height: a scroll-linked animation cannot settle by itself,
+   and WebKit decides scroll snapping when a gesture starts (three snap designs measured: each
+   failed one direction). centre.py adds .jsfold where a script runs (e.g. the password-protected
+   copy opened in Safari): the fold follows the finger 1:1 again and a scroll that stops between
+   settles to the nearer end. */
+.page.day{--foldease:steps(1,jump-end);--foldend:calc(var(--fold) / 2)}
+.jsfold .page.day{--foldease:linear;--foldend:var(--fold)}
 @keyframes cardclip{from{clip-path:inset(var(--fold) -1px -1px -1px round 15px)}to{clip-path:inset(0px -1px -1px -1px round 15px)}}
 @keyframes calup{to{transform:translateY(calc(-1 * var(--fold)))}}
 @keyframes calwin{from{clip-path:inset(0px -20px -20px -20px)}to{clip-path:inset(0px -20px var(--fold) -20px)}}
@@ -253,7 +261,7 @@ html,body{height:100%;overflow:hidden}
 @keyframes stepopen{0%,49%{visibility:visible}50%,100%{visibility:hidden}}@keyframes stepfold{0%,49%{visibility:hidden}50%,100%{visibility:visible}}
 @keyframes monthtop{0%,99%{visibility:visible}100%{visibility:hidden}}
 .page.day .dash{timeline-scope:--lst}
-.page.day .plist{scroll-timeline:--lst y;position:relative;margin-top:calc(-1 * var(--fold));padding-top:calc(var(--fold) + 12px);clip-path:inset(var(--fold) -1px -1px -1px round 15px);animation:cardclip linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+.page.day .plist{scroll-timeline:--lst y;position:relative;margin-top:calc(-1 * var(--fold));padding-top:calc(var(--fold) + 12px);clip-path:inset(var(--fold) -1px -1px -1px round 15px);animation:cardclip var(--foldease) both;animation-timeline:--lst;animation-range:0px var(--foldend)}
 .page.day .plist::after{content:"";position:absolute;top:0;left:0;width:1px;height:calc(100% + var(--fold));pointer-events:none}
 /* the card's clip would clip the full-screen layers that live in it too (給司機看, a photo opened
    full screen): while one is up the card goes unclipped -- the layer covers the screen anyway */
@@ -261,11 +269,11 @@ html,body{height:100%;overflow:hidden}
 /* the zoomed map is a position:fixed layer inside the map row, and the fold's transform on the row
    would make the row its frame: while zoomed the row drops the transform (the zoom covers it) */
 .page.day:has(.zck:checked) .pmap{transform:none!important;animation:none!important}
-.page.day :is(.pcal .mini .g,.pcal .dh,.pmap,.lcap){animation:calup linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+.page.day :is(.pcal .mini .g,.pcal .dh,.pmap,.lcap){animation:calup var(--foldease) both;animation-timeline:--lst;animation-range:0px var(--foldend)}
 /* the window closes faster than the calendar rises: open, the current day's 15 px glow
    (.stamp.cur) reaches past the calendar's foot as it always has; away, none of it shows
    between the month and the title (the user saw both cut and leak) */
-.page.day .pcal .mini{animation:calwin linear both;animation-timeline:--lst;animation-range:0px var(--fold)}
+.page.day .pcal .mini{animation:calwin var(--foldease) both;animation-timeline:--lst;animation-range:0px var(--foldend)}
 .page.day .lcap{display:block;height:0;position:relative;z-index:3;flex:none}
 .lcap::after{content:"";position:absolute;left:0;right:0;top:0;height:14px;border-radius:14px 14px 0 0;background:var(--bg);box-shadow:0 0 0 1px var(--rule);clip-path:inset(-2px -2px 0 -2px)}
 .lcap::before{content:"";position:absolute;left:0;right:0;top:14px;height:18px;pointer-events:none;background:linear-gradient(var(--bg),transparent);opacity:0;animation:edgein linear both;animation-timeline:--lst;animation-range:var(--fold) calc(var(--fold) + 20px)}

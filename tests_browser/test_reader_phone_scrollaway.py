@@ -66,11 +66,15 @@ def test_the_page_stays_and_only_the_card_scrolls(open_page):
 
 
 def test_scrolling_the_card_puts_the_calendar_away_first(open_page):
-    pg = _open(open_page)
+    """Where a script runs the fold follows the finger 1:1 (with none it jumps at half its
+    height: test_with_no_script_the_calendar_is_open_or_folded_never_between). Each position
+    is read before the stopped-between scroll settles (140 ms)."""
+    pg = _open(open_page, js=True)
     stop = f"{_sec('d2')} .plist .stop:nth-of-type(3)"
     at = {}
     for s in (0, 49, FOLD, 200):
-        _scroll(pg, "d2", s)
+        pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop={s}}})(document.querySelector('{_sec('d2')} .plist'))")
+        pg.wait_for_timeout(30)
         at[s] = {k: _top(pg, sel) for k, sel in (("ym", f"{_sec('d2')} .ymrow"), ("dh", f"{_sec('d2')} .pcal .dh"),
                                                   ("map", f"{_sec('d2')} .pmap"), ("card", f"{_sec('d2')} .lcap"), ("stop", stop))}
     for s in (49, FOLD, 200):
@@ -304,3 +308,65 @@ def test_the_fold_is_the_calendars_own_height(browser, request, url):
     pg.close()
     assert abs(rose - h) <= 1, ("the card rises by the calendar's height", rose, h)
     assert dh >= ym - .5, ("the title stays below the month row", dh, ym)
+
+
+# --- open or folded, never between (the user's call, 2026-10-04) ---
+# No script (Files / LINE previews): the fold jumps at half its height. With a script (a
+# browser -- e.g. the password-protected copy a family opens in Safari): the fold follows
+# the finger 1:1 as it always did, and a scroll that stops between settles to the nearer end.
+
+def _cal(pg, d="d2"):
+    return pg.evaluate(f"(s=>[s.querySelector('.pcal .mini').offsetHeight,s.querySelector('.pmap').getBoundingClientRect().top])(document.querySelector('{_sec(d)}'))")
+
+
+def test_with_no_script_the_calendar_is_open_or_folded_never_between(open_page):
+    pg = _open(open_page)                                   # js off
+    h, open_map = _cal(pg)
+    for s, want in ((h / 2 - 2, open_map), (h / 2 + 2, open_map - h), (h, open_map - h), (4, open_map)):
+        _scroll(pg, "d2", s)
+        assert abs(_cal(pg)[1] - want) <= 1, (s, _cal(pg)[1], want)
+
+
+def _settled(pg, d="d2", limit=3000):
+    last, same, waited = None, 0, 0
+    while waited < limit:
+        now = pg.evaluate(f"document.querySelector('{_sec(d)} .plist').scrollTop")
+        same = same + 1 if now == last else 0
+        if same >= 6:
+            return now
+        last = now
+        pg.wait_for_timeout(50); waited += 50
+    return now
+
+
+def test_with_a_script_the_fold_follows_the_finger_then_settles(open_page):
+    pg = _open(open_page, js=True)
+    h, open_map = _cal(pg)
+    L = f"document.querySelector('{_sec('d2')} .plist')"
+    pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop={h / 4}}})({L})")
+    pg.wait_for_timeout(30)                                   # mid-gesture: 1:1, not a jump
+    assert abs(_cal(pg)[1] - (open_map - h / 4)) <= 1.5, (_cal(pg)[1], open_map - h / 4)
+    assert _settled(pg) == 0                                  # stopped a quarter in: opens
+    pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop={round(h * .7)}}})({L})")
+    assert abs(_settled(pg) - h) <= 1                         # stopped past half: folds
+    pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop={h + 80}}})({L})")
+    assert _settled(pg) == h + 80                             # reading the list: left alone
+
+
+def test_with_a_script_a_day_opened_folded_can_still_be_pulled_open(open_page):
+    """The user's check: in the script version, Day 3 reached by › with the calendar away
+    could not be pulled open -- the day opened on pg-d3f, whose list keeps no room above
+    (only the month opens it, the no-script design). Where a script runs, that day opens on
+    its plain radio scrolled to the fold: it looks the same, and pulling down unfolds."""
+    pg = _open(open_page, js=True)
+    h, open_map = _cal(pg)
+    pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop={h + 40}}})(document.querySelector('{_sec('d2')} .plist'))")
+    pg.wait_for_timeout(300)
+    _tap_arrow(pg, "d2", "last")
+    pg.wait_for_timeout(200)
+    assert _checked(pg) == "pg-d3"
+    assert abs(_cal(pg, "d3")[1] - (open_map - h)) <= 1                 # arrives folded
+    assert pg.evaluate(f"document.querySelector('{_sec('d3')} .plist').scrollTop") == h
+    pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop=0}})(document.querySelector('{_sec('d3')} .plist'))")
+    pg.wait_for_timeout(200)
+    assert abs(_cal(pg, "d3")[1] - open_map) <= 1                       # pulled down: open
