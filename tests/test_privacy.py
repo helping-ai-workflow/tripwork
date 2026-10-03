@@ -34,19 +34,34 @@ EMAIL_OK = re.compile(r"(^git@github\.com$|@users\.noreply\.github\.com$|@exampl
 BINARY = re.compile(r"\.(png|jpe?g|gif|webp|ico|woff2?|ttf|otf|pdf|zip|gz)$", re.I)
 
 
-def tracked():
-    out = subprocess.run(["git", "ls-files"], cwd=ROOT, capture_output=True, text=True, check=True).stdout
-    return [f for f in out.splitlines() if f]
+def tracked(root=ROOT):
+    """Tracked files AND new files git would add (untracked, not ignored): a file about to be
+    committed is checked before the commit, not after (the guard once missed its own new
+    file for exactly this reason)."""
+    out = subprocess.run(["git", "ls-files", "--cached", "--others", "--exclude-standard"],
+                         cwd=root, capture_output=True, text=True, check=True).stdout
+    return sorted({f for f in out.splitlines() if f and (pathlib.Path(root) / f).is_file()})
 
 
-def texts():
-    for f in tracked():
+def texts(root=ROOT):
+    for f in tracked(root):
         if BINARY.search(f):
             continue
         try:
-            yield f, (ROOT / f).read_text(encoding="utf-8")
+            yield f, (pathlib.Path(root) / f).read_text(encoding="utf-8")
         except (UnicodeDecodeError, FileNotFoundError):
             continue
+
+
+def test_a_new_file_is_checked_before_it_is_committed(tmp_path):
+    """git ls-files alone lists only what is already tracked; a new file carrying a trip
+    would pass the pre-PR run and be caught only after the commit."""
+    subprocess.run(["git", "init", "-q"], cwd=tmp_path, check=True)
+    (tmp_path / ".gitignore").write_text("ignored/\n", encoding="utf-8")
+    (tmp_path / "new.md").write_text("x", encoding="utf-8")
+    (tmp_path / "ignored").mkdir()
+    (tmp_path / "ignored" / "local.md").write_text("x", encoding="utf-8")
+    assert tracked(tmp_path) == [".gitignore", "new.md"]
 
 
 # --- rules that run everywhere ---------------------------------------------------------
@@ -165,7 +180,7 @@ def test_the_check_finds_a_planted_leak(tmp_path):
     t.mkdir(parents=True)
     (t / "trip-brief.yaml").write_text(yaml.safe_dump(
         {"slug": t.name, "dates": {"start": "2027-01-10", "end": "2027-01-11"},
-         "members": [{"name": "成員1"}, {"name": "我（駕駛）"}], "base": {"name": "某某溫泉旅館"},
+         "members": [{"name": "成員1"}, {"name": "某甲（駕駛）"}], "base": {"name": "某某溫泉旅館"},
          "preferences": {"origin": "某市某區某路1號"}}, allow_unicode=True), encoding="utf-8")
     (t / "accommodations.yaml").write_text(yaml.safe_dump(
         {"stops": [{"chosen": "h1", "candidates": [{"id": "h1", "name_local": "某某溫泉旅館"},
@@ -181,7 +196,7 @@ def test_the_check_finds_a_planted_leak(tmp_path):
              ("b.md", "沒住的旅館 2020-01-05 成員1")]
     found = {t for _f, t, _w in leaks(terms, files)}
     assert {"2027-01-somewhere", "某某溫泉旅館", "某市某區某路1號", "2027-01-11"} <= found
-    assert "我（駕駛）" in terms                                   # a member's own name is a term too
+    assert "某甲（駕駛）" in terms                                   # a member's own name is a term too
     assert not {"沒住的旅館", "2020-01-05", "成員1"} & found       # unchosen hotels, past dates, placeholders
     assert "札幌市中央区" not in terms                               # a ward is not a home
     today_trip = workspace_terms(tmp_path / "trips", today=datetime.date(2027, 1, 11))
