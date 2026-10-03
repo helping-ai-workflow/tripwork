@@ -1,5 +1,35 @@
 # Changelog
 
+## 1.1.2 — the phone calendar is open or folded
+
+### Changed
+
+- **Opening the map card keeps a folded calendar folded.** With the small calendar
+  scrolled away, opening the map card brought it back and threw the list to its top:
+  every fold rule was switched off while the map was open, a guard left from an earlier
+  layout. The fold now holds with the map open or closed, and the zoomed map still covers
+  the screen.
+- **The small calendar is open or folded, never between.** In a browser, the fold
+  follows your finger as before, and a scroll that stops in between glides to the nearer
+  end. A day that ‹ › opens with the calendar folded can be pulled open again. In a
+  preview that runs no script (the iPhone Files app, LINE), the calendar switches at
+  half its height instead.
+
+### Added (for contributors)
+
+- **Privacy rules and a guard.** The repository never carries a user's trip:
+  `tests/test_privacy.py` rejects workspace paths, stray images and personal e-mail
+  addresses everywhere. Where a consumer workspace exists, it also rejects every slug,
+  stayed-at hotel, member, home endpoint and date of a trip still ahead, derived from
+  that workspace. It checks files about to be committed, not only tracked ones. The test
+  corpus (`tests/corpus/`) is de-identified and ships with the repo, so its guards run
+  in CI too.
+- **A design board any AI agent can make.** `python scripts/design_board.py board.yaml`
+  writes one offline page of visual choices to `.design-board/`. Each card shows its key,
+  and 「複製選擇」 gives a line to paste back.
+
+Tests: 1692 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 366 passed (headless Chromium and WebKit).
+
 ## 1.1.1 — the phone calendar folds by its own height
 
 ### Fixed
@@ -24,8 +54,7 @@ Tests: 1677 passed with the consumer corpus mounted; `tests_browser`: 352 passed
 
 ## 1.1.0 — the phone reader holds still
 
-The whole v1.0.0 dogfood report (`the v1.0 dogfood report`)
-in one release, so the consumer upgrades once:
+The whole v1.0.0 dogfood report in one release, so the consumer upgrades once:
 - topic 1, the phone layout: TW-095, TW-094, TW-087, TW-D1, the missing year-month on
   day pages, and photos that could not be opened;
 - topic 2, the map card and moves;
