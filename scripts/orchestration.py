@@ -1,0 +1,259 @@
+"""Pure orchestration predicates used by the orchestrator's stage-selection
+rules — kept here so the otherwise-prose decisions are unit-testable.
+"""
+import hashlib
+import json
+
+
+def candidates_stale(candidate_ids, verified_ids):
+    """True if verified-pois is stale w.r.t. candidates: at least one candidate id
+    is absent from verified-pois. The orchestrator then re-runs source-verify for
+    the missing ids only (reusing the geocode cache), instead of a later stage.
+    """
+    return any(cid not in set(verified_ids) for cid in candidate_ids)
+
+
+# Rule 13.5 failure-class routing, in priority order. accommodation stays FIRST:
+# scripts/orchestration.py's original note records a deliberate exception — "has
+# no resolved lodging" is a missing itinerary ROW and routes to synthesis, not
+# accommodation. None of the groups below contains "lodging", so that survives,
+# but the ordering leaves it one careless marker away from inverting.
+#
+# "accommodations stop " / "accommodations.yaml absent" (I2) are rederive_lodging's
+# own markers (scripts/rederive.py) -- a re-derived verify_status mismatch or a
+# missing geocode_source/resolved_name/accommodations.yaml itself all name the
+# candidate this way, and only accommodation-research can fix any of them.
+_ROUTES = (
+    (("chosen lodging", "required facility", "accommodations stop ",
+      "accommodations.yaml absent", "lodging area label missing: ",
+      "lodging source record incomplete: "), "tripwork:accommodation-research"),
+    (("legs[", "legs.yaml absent"), "tripwork:inter-stop-legs"),
+    (("routing hop ", "routing.yaml absent"), "tripwork:routing-audit"),
+    (("cost.total", "cost.by_category", "cost.yaml absent"), "tripwork:cost-rollup"),
+    # "carries neither hours.close" is rederive_closing's missing-hours marker
+    # (scripts/rederive.py). `hours` lives in verified-pois.yaml and ONLY
+    # source-verify writes that file -- skills/source-verify/SKILL.md's own
+    # closure-days paragraph ends "leave `close` absent and let the gate flag
+    # it", so this is the stage the flag was always meant to reach. Without this
+    # group the failure fell through to itinerary-synthesis, which cannot write
+    # the field: a real, per-trip-uneven share of the corpus carries this gap
+    # (tests/corpus-baseline.json's per_trip `classes.poi_no_hours`), and a
+    # drain simulation that reached a fixed point at exactly that count never
+    # passed (C2). chiayi has none, so it is the one clean trip that drains
+    # either way.
+    #
+    # LAST among the producing-stage groups on purpose. verified-pois.yaml is an
+    # upstream of routing / accommodations / legs / cost in `_DEPS` below, so
+    # re-running source-verify invalidates all four -- fix the cheap downstream
+    # classes first and let the re-gate re-surface this one if it survives.
+    # The marker deliberately keeps the word `hours.close`: rederive_legs emits
+    # its own "carries neither depart+last_service ..." message, so the shorter
+    # "carries neither" would steal legs traffic. test_orchestration.py's
+    # pairwise-containment property pins that no marker contains another.
+    #
+    # "pois[" (v0.34.0, TW-070): rederive_pois's superseded/mismatch/missing
+    # messages all start "pois[<id>]: ...". Both the no-hours class above and
+    # the superseded-verdict class here are fixed by re-running source-verify
+    # -- hours and verify_status both live in verified-pois.yaml and
+    # source-verify is the only stage that writes it -- so they share this
+    # group rather than adding a seventh.
+    #
+    # v1.0 P1: "POI source record incomplete: " (site/note/site_local) -- the
+    # sources list lives in verified-pois.yaml, which only source-verify writes.
+    # The lodging twin goes to accommodation-research above.
+    (("carries neither hours.close", "pois[", "POI source record incomplete: "),
+     "tripwork:source-verify"),
+    # trip-brief is its own group: short_name and headline live in
+    # trip-brief.yaml, and the headline is a user pick, so re-entering trip-brief
+    # is the only stage that can fix either. Placed after the producing-stage
+    # groups: re-running trip-brief is cheap and invalidates nothing downstream
+    # (rule 11 fingerprints airline/dates/destination only).
+    (("trip-brief name invalid: ", "trip-brief headline invalid: "), "tripwork:trip-brief"),
+    # v1.0 P1: the day chain, move records, alternatives, day theme and
+    # structured checklist are all fields synthesis writes -- named explicitly
+    # rather than left to the fall-through, for the same reason AI-tone is.
+    (("AI-tone ", "day chain broken: ", "chain node without poi: ", "move record incomplete: ",
+      "move rederive mismatch: ", "move rederive missing: ", "legacy contingency: ",
+      "legacy alternative row: ", "alternative invalid: ", "day theme invalid: ",
+      "checklist item invalid: ", "booking not in checklist: "),
+     "tripwork:itinerary-synthesis"),
+)
+
+
+def route_gate_failures(failures):
+    """Return the stage skill an itinerary-gate FAIL should route to.
+
+    A re-derivation failure names a field only its PRODUCING stage can write —
+    synthesis cannot add `km` to a routing hop. Before v0.33.0 everything that
+    was not a lodging defect fell through to synthesis, so feedback could never
+    cross back past accommodation-research.
+    """
+    for markers, target in _ROUTES:
+        if any(m in f for f in failures for m in markers):
+            return target
+    return "tripwork:itinerary-synthesis"
+
+
+def input_fingerprint(doc, projection):
+    """Stable hash of the projected fields of an upstream artifact.
+
+    `projection` is a tuple of top-level keys; an empty tuple means the whole
+    document. Normalisation: project, then JSON-serialise with sorted keys and
+    no whitespace, so key order and YAML formatting cannot change the result.
+    An absent key and an explicit null collapse to the same value — correct for
+    trip-brief, where `airline` is simply omitted on a domestic trip.
+
+    Why not mtime: rule 11 compared whole-file mtimes while its own comment named
+    three fields, so editing must_do re-ran travel-advisory and rewrote a
+    byte-identical advisory. This is a WIRE FORMAT — changing any step below
+    silently invalidates every fingerprint in the wild and routes every trip
+    backwards one stage. (TW-067)
+    """
+    keys = projection or tuple(sorted(doc or {}))
+    projected = {k: (doc or {}).get(k) for k in sorted(keys)}
+    blob = json.dumps(projected, sort_keys=True, separators=(",", ":"),
+                      ensure_ascii=False, default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()[:16]
+
+
+# Rule 11's projection: the three fields next_stage.py's own comment already
+# named as the anchor. Kept beside the primitive so the two cannot drift.
+ADVISORY_PROJECTION = ("airline", "dates", "destination")
+
+
+WHOLE_DOC = ()
+
+# _DEPS[<produced artifact>] = {<upstream artifact>: <projection tuple>}
+#
+# DERIVED, not authored: every row is the producing skill's Stage Contract Input
+# row. tests/test_deps_table.py re-parses those rows and asserts equality, so the
+# table and the documentation cannot drift apart.
+#
+# A projection tuple means "only these top-level keys of the upstream invalidate
+# me"; WHOLE_DOC means any change does. Narrow projections matter: a small
+# handful of chiayi's brief edits fired a disproportionate share of its
+# dependency edges under a whole-document rule (not pinned as a count here —
+# it is illustrative, not a corpus measurement this module re-checks).
+_DEPS = {
+    "advisory.yaml": {"trip-brief.yaml": ADVISORY_PROJECTION},
+    "candidates.yaml": {"trip-brief.yaml": WHOLE_DOC},
+    "verified-pois.yaml": {"candidates.yaml": WHOLE_DOC, "trip-brief.yaml": WHOLE_DOC},
+    "routing.yaml": {"verified-pois.yaml": WHOLE_DOC, "trip-brief.yaml": WHOLE_DOC},
+    "accommodations.yaml": {"routing.yaml": WHOLE_DOC, "trip-brief.yaml": WHOLE_DOC},
+    "legs.yaml": {"trip-brief.yaml": WHOLE_DOC, "routing.yaml": WHOLE_DOC,
+                  "accommodations.yaml": WHOLE_DOC},
+    "calendar.yaml": {"trip-brief.yaml": WHOLE_DOC},
+    "seasonal.yaml": {"trip-brief.yaml": WHOLE_DOC, "routing.yaml": WHOLE_DOC,
+                      "accommodations.yaml": WHOLE_DOC},
+    "transit.yaml": {"trip-brief.yaml": WHOLE_DOC, "verified-pois.yaml": WHOLE_DOC},
+    "cost.yaml": {"trip-brief.yaml": WHOLE_DOC, "accommodations.yaml": WHOLE_DOC,
+                  "legs.yaml": WHOLE_DOC},
+    "itinerary.yaml": {},   # synthesis reads nine artifacts; see the note below
+}
+
+# The artifacts each gate CLI actually opens. Rule 13 and rule 15 compare their
+# report against every one of these — not against a single marker file.
+GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "trip-brief.yaml",
+               "accommodations.yaml", "calendar.yaml", "advisory.yaml",
+               "legs.yaml", "routing.yaml", "cost.yaml")
+# v1.0: export_gate also opens trip-brief.yaml -- the deliverable names come from
+# its short_name -- so a renamed trip makes the export report stale too.
+EXPORT_GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "accommodations.yaml",
+                      "verified-pois-media.yaml", "trip-brief.yaml")
+
+# export_gate.py reads and passes judgement on every one of these (scripts/
+# export_gate.py's md_path / html_path). v1.0: they are KEYS into
+# scripts/paths.py::deliverable_paths -- the files sit at the trip root, named by
+# the brief's deliverable stem, not under exports/ with {slug} substituted.
+# Rule 15's staleness comparison must cover each one -- miss one and that
+# deliverable can be re-rendered after the report ran without the oracle
+# noticing (TW-077: the HTML was the one rule 15 missed).
+#
+# The markdown deliverable is the only REQUIRED one -- export_gate.py hard-fails
+# (missing deliverable) when md_path is absent but only conditionally reads
+# html_path (`if html_path.is_file()`, scripts/export_gate.py). Rule 14 must
+# name REQUIRED_DELIVERABLE explicitly rather than index into this tuple: an
+# earlier version read `deliverables[0]`, which happened to be the markdown
+# file only because of this tuple's declaration order -- swapping the two
+# entries silently made rule 14 require the HTML instead, with the full suite
+# staying green throughout (nothing pinned which entry was required).
+REQUIRED_DELIVERABLE = "md"
+EXPORT_DELIVERABLES = (REQUIRED_DELIVERABLE, "html")
+
+
+# Stop-on-confirmation vocabulary: every (stage, flag) that halts the pipeline to
+# ask the user. The orchestrator's Stop-on-Confirmation table, each stage's Stage
+# Contract "Stop condition" row, and the `flag` recorded in
+# work/<slug>/stage-state.yaml all use these names (tests/test_stop_flags.py). The
+# read-back matches (stage, flag, subject) exactly, so a second spelling of the same
+# halt is a decision the pipeline cannot find — which the consumer corpus showed
+# happening (`unfilled_overnight_stop` in one trip, `unfilled_stop_pick` in another).
+# Order follows the pipeline; names already in consumer stage-state files were kept.
+STOP_FLAGS = (
+    ("trip-brief", "headline_pick"),
+    ("travel-advisory", "banned_item"),
+    ("source-verify", "cross_source_conflict"),
+    ("source-verify", "must_do_unverified"),
+    ("routing-audit", "far_hop"),
+    ("routing-audit", "implausible_hop"),
+    ("accommodation-research", "unfilled_overnight_stop"),
+    ("accommodation-research", "missing_required_facility"),
+    ("accommodation-research", "lodging_outside_stop"),
+    ("accommodation-research", "arrival_after_reception_close"),
+    ("inter-stop-legs", "drive_too_long"),
+    ("inter-stop-legs", "missed_last_service"),
+    ("calendar-check", "holiday_blocks_must_do"),
+    ("seasonal-advisory", "blocking_hazard"),
+    ("cost-rollup", "over_budget"),
+    ("itinerary-synthesis", "must_do_uncovered"),
+    ("itinerary-synthesis", "must_do_closed_every_day"),
+    ("itinerary-synthesis", "must_do_after_last_call"),
+    ("itinerary-synthesis", "lead_time_missed"),
+    ("itinerary-synthesis", "missed_last_service"),
+    ("itinerary-synthesis", "day_title_pick"),
+    ("export-gate", "nonretryable_export_fail"),
+)
+
+
+def deps_stale(load, artifact):
+    """Names of upstreams whose projected content no longer matches what
+    `artifact` recorded. FAIL-OPEN: an artifact with no input_fingerprints
+    predates the mechanism and is never called stale.
+
+    Fail-open is deliberate and measured. A naive mtime rule fires on a real,
+    substantial fraction of the dependency edges across the live consumer
+    corpus and starts a non-terminating cascade on chiayi — destination-research
+    rewrites candidates.yaml with a newer mtime, which invalidates
+    verified-pois.yaml, and so on. Treating an absent fingerprint as stale
+    would reproduce exactly that. The pressure to record fingerprints belongs
+    on the gate (verdicts_rederivable), not on the router.
+
+    UNWIRED IN v0.33.0, and rule 11 is its hand-rolled twin. Do not read "not
+    wired" as "nothing produces the input": skills/travel-advisory/SKILL.md
+    instructs recording input_fingerprints["trip-brief.yaml"] and
+    schemas/advisory.schema.json declares the field. What is missing is DATA —
+    no artifact in the corpus records it yet (a live fact, not pinned here as
+    a count or a trip total).
+
+    scripts/next_stage.py's rule 11 already performs the equivalent of
+    deps_stale(load, "advisory.yaml") inline, over this module's own
+    ADVISORY_PROJECTION: it reads advisory.yaml's recorded
+    input_fingerprints["trip-brief.yaml"] and compares it against
+    input_fingerprint(brief, ADVISORY_PROJECTION). The two differ only in the
+    absent-fingerprint branch — rule 11 falls back to an mtime compare because it
+    guards a `banned` regulation and must not fail open, while this function is
+    general and does. When a future release wires deps_stale into the router,
+    REPLACE rule 11's inline comparison with a call to it (keeping the mtime
+    fallback as an advisory-specific policy layered on top) rather than leaving
+    two implementations of the same projection to drift apart.
+    """
+    doc = load(artifact) or {}
+    recorded = doc.get("input_fingerprints") or {}
+    out = []
+    for upstream, projection in (_DEPS.get(artifact) or {}).items():
+        want = recorded.get(upstream)
+        if want is None:
+            continue
+        if want != input_fingerprint(load(upstream) or {}, projection):
+            out.append(upstream)
+    return out

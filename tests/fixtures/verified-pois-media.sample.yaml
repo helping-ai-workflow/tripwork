@@ -1,0 +1,27 @@
+# Sample photo side-file (trips/<slug>/verified-pois-media.yaml).
+# Merged onto poi_map at export; never written into canonical verified-pois.yaml.
+media:
+  poi-onsen-01:
+    photo:
+      data: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAAAAA=="
+      width: 640
+      height: 480
+      thumb:
+        data: "data:image/jpeg;base64,/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAAAA=="
+        width: 160
+        height: 120
+    photo_attribution:
+      author: "Wikimedia contributor"
+      license: "CC-BY-SA-4.0"
+      source_url: "https://commons.wikimedia.org/wiki/File:Noboribetsu_onsen.jpg"
+    photo_source: wikimedia
+  poi-park-02:
+    photo:
+      url: "https://upload.wikimedia.org/wikipedia/commons/Odori_Park.jpg"
+      width: 800
+      height: 600
+    photo_attribution:
+      author: "Jane Photographer"
+      license: "CC0"
+      source_url: "https://openverse.org/image/abc-123"
+    photo_source: openverse

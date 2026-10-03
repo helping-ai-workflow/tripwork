@@ -1,0 +1,264 @@
+"""The user's pick H1c (2026-10-03), replacing H1b: on the phone the day page stays still --
+the topic-1 decision: the list card is fixed to the screen's foot and is the only thing that
+scrolls -- yet scrolling the card up first puts the small calendar away (98 px), the title,
+the map row and the card's top rising with it, the content moving 1:1 with the finger.
+Every day can do it, a short one (10/12) too. With the map card open nothing folds.
+
+H1c2: the day stepper keeps a put-away calendar put away, with no script (LINE and the Files
+app run none): each day has a second radio, pg-dNf, and the stepper's arrows target it once
+the calendar is mostly away. A day opened that way shows its list from the top with the
+calendar away; at the top of that list, the month opens the calendar again."""
+import io
+
+import pytest
+from conftest import DESKTOP, PHONE
+from PIL import Image
+
+FOLD = 98                            # the small calendar's height (two weeks + weekdays), measured
+SHORT = {"width": 390, "height": 480}   # the fixture's D2 scrolls 200+ px here
+
+
+def _sec(d):
+    return f"section[data-pg={d}]"
+
+
+def _open(open_page, d="d2", vp=SHORT, js=False):
+    pg = open_page(vp, js=js)
+    pg.evaluate(f"document.getElementById('pg-{d}').checked=true")
+    pg.wait_for_timeout(200)
+    return pg
+
+
+def _top(pg, sel):
+    return pg.evaluate(f"document.querySelector('{sel}').getBoundingClientRect().top")
+
+
+def _scroll(pg, d, y):
+    pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop={y};L.style.scrollBehavior=''}})(document.querySelector('{_sec(d)} .plist'))")
+    pg.wait_for_timeout(150)
+
+
+def _checked(pg):
+    return pg.evaluate("document.querySelector('input[name=pg]:checked').id")
+
+
+def _days(pg):
+    return pg.eval_on_selector_all("section.page.day", "s => s.map(e => e.dataset.pg)")
+
+
+def _tap_arrow(pg, d, which):
+    """A real tap where the arrow is drawn: whichever of its two labels shows takes it."""
+    x, y = pg.eval_on_selector(f"{_sec(d)} .pcal .dstep .sw:{which}-child",
+                               "e=>{const r=e.getBoundingClientRect();return [r.x+r.width/2,r.y+r.height/2]}")
+    pg.mouse.click(x, y)
+    pg.wait_for_timeout(250)
+
+
+def test_the_page_stays_and_only_the_card_scrolls(open_page):
+    pg = open_page(PHONE, js=False)
+    for d in _days(pg):
+        pg.evaluate(f"document.getElementById('pg-{d}').checked=true")
+        m = pg.evaluate(f"""(s=>{{const D=s.querySelector('.dash'),L=s.querySelector('.plist');
+            return [D.scrollHeight-D.clientHeight,getComputedStyle(L).overflowY,L.getBoundingClientRect().bottom,
+                    document.documentElement.scrollHeight-innerHeight,D.scrollWidth-D.clientWidth]}})(document.querySelector('{_sec(d)}'))""")
+        assert m[0] <= 0 and m[1] == "auto" and m[3] <= 0 and m[4] <= 0, (d, m)
+        assert m[2] <= PHONE["height"] - 12, (d, m)                 # the card's foot on screen
+
+
+def test_scrolling_the_card_puts_the_calendar_away_first(open_page):
+    pg = _open(open_page)
+    stop = f"{_sec('d2')} .plist .stop:nth-of-type(3)"
+    at = {}
+    for s in (0, 49, FOLD, 200):
+        _scroll(pg, "d2", s)
+        at[s] = {k: _top(pg, sel) for k, sel in (("ym", f"{_sec('d2')} .ymrow"), ("dh", f"{_sec('d2')} .pcal .dh"),
+                                                  ("map", f"{_sec('d2')} .pmap"), ("card", f"{_sec('d2')} .lcap"), ("stop", stop))}
+    for s in (49, FOLD, 200):
+        up = min(s, FOLD)
+        assert abs(at[s]["ym"] - at[0]["ym"]) <= .5, s                      # the 總覽 row stays
+        for k in ("dh", "map", "card"):
+            assert abs((at[0][k] - at[s][k]) - up) <= 1, (s, k, at)          # rise with the calendar, then hold
+        assert abs((at[0]["stop"] - at[s]["stop"]) - s) <= 1, (s, at)       # the content: 1:1 with the finger
+
+
+def test_every_day_can_put_its_calendar_away(open_page):
+    """10/12 on the real trip fits the screen; it still scrolls at least the calendar's height."""
+    pg = open_page(PHONE, js=False)
+    for d in _days(pg):
+        pg.evaluate(f"document.getElementById('pg-{d}').checked=true")
+        rng = pg.evaluate(f"(L=>L.scrollHeight-L.clientHeight)(document.querySelector('{_sec(d)} .plist'))")
+        assert rng >= FOLD, (d, rng)
+
+
+def _shot(pg):
+    return Image.open(io.BytesIO(pg.screenshot())).convert("RGB")
+
+
+def _far(a, b, d=12):
+    return sum(abs(x - y) for x, y in zip(a, b)) > d
+
+
+@pytest.mark.parametrize("s", [0, 60, 200])
+def test_the_card_keeps_its_whole_outline(browser, page_url, s):
+    """The card is its own card (the user's check): top line, round corners and both sides,
+    open, half-folded and folded -- on the pixels. Its clipped top is drawn by the cap."""
+    pg = browser.new_page(viewport=SHORT, device_scale_factor=2, java_script_enabled=False)
+    pg.goto(page_url)
+    pg.evaluate("document.getElementById('pg-d2').checked=true")
+    _scroll(pg, "d2", s)
+    l, t, r = pg.eval_on_selector(f"{_sec('d2')} .lcap", "e=>{const r=e.getBoundingClientRect();return [r.left,r.top,r.right]}")
+    mb = pg.eval_on_selector(f"{_sec('d2')} .pmap", "e=>e.getBoundingClientRect().bottom")
+    img = _shot(pg)
+    pg.close()
+    page_bg = img.getpixel((2, int((mb + 4) * 2)))                         # in the gap under the map row
+    mid = int((l + r) / 2 * 2)
+    assert _far(img.getpixel((mid, int((t - .5) * 2))), page_bg), ("top line", s)
+    for x in (l - .5, r + .5):
+        assert _far(img.getpixel((int(x * 2), int((t + 40) * 2))), page_bg), ("side", s, x)
+    assert abs(t - (mb + 8)) <= .5, (t, mb)                                 # the 8 px gap: two cards
+
+
+def test_the_current_days_glow_is_whole_open_and_gone_folded(browser, page_url):
+    """The current day's stamp glows 15 px around. Open, the glow reaches past the calendar's
+    foot as it always has (the user saw it cut by a hard line); folded, nothing of it shows
+    between the month and the title (the user saw 15/16 leak there)."""
+    pg = browser.new_page(viewport=SHORT, device_scale_factor=2, java_script_enabled=False)
+    pg.goto(page_url)
+    pick = None
+    for d in pg.eval_on_selector_all("section.page.day", "s => s.map(e => e.dataset.pg)"):
+        pg.evaluate(f"document.getElementById('pg-{d}').checked=true")
+        last = pg.evaluate(f"""(s=>{{const c=s.querySelector('.pcal .stamp.cur').getBoundingClientRect(),
+            all=[...s.querySelectorAll('.pcal .mini .stamp')].map(e=>e.getBoundingClientRect().bottom);
+            return c.bottom>=Math.max(...all)-1}})(document.querySelector('{_sec(d)}'))""")
+        if last:
+            pick = d
+            break
+    assert pick, "fixture: needs a day whose stamp is in the calendar's last week"
+    c = pg.eval_on_selector(f"{_sec(pick)} .pcal .stamp.cur", "e=>{const r=e.getBoundingClientRect();return [r.left+r.width/2,r.bottom]}")
+    mini = pg.eval_on_selector(f"{_sec(pick)} .pcal .mini", "e=>e.getBoundingClientRect().bottom")
+    img = _shot(pg)
+    bg = img.getpixel((2, int((mini + 3) * 2)))
+    assert c[1] + 3 > mini - 1, "fixture: the stamp must sit at the calendar's foot"
+    assert _far(img.getpixel((int(c[0] * 2), int((mini + 2) * 2))), bg, 6), "the glow is cut at the calendar's foot"
+    _scroll(pg, pick, 300)
+    ym = pg.eval_on_selector(f"{_sec(pick)} .ymrow", "e=>e.getBoundingClientRect().bottom")
+    dh = _top(pg, f"{_sec(pick)} .pcal .dh")
+    img = _shot(pg)
+    pg.close()
+    bg = img.getpixel((2, int((ym + 2) * 2)))
+    band = [img.getpixel((x, y)) for x in range(int(110 * 2), int(280 * 2), 2) for y in range(int(ym * 2) + 2, int(dh * 2))]
+    assert band and not any(_far(p, bg, 6) for p in band), "the calendar leaks between the month and the title"
+
+
+def test_a_jumped_to_stop_lands_at_the_cards_top(open_page):
+    pg = _open(open_page)
+    ids = pg.eval_on_selector_all(f"{_sec('d2')} .plist .stop[id]", "e => e.map(x => x.id)")
+    for target in (ids[0], ids[len(ids) // 2]):
+        _scroll(pg, "d2", 0)
+        pg.evaluate(f"location.hash='#{target}'")
+        pg.wait_for_timeout(700)
+        gap = _top(pg, f"#{target}") - _top(pg, f"{_sec('d2')} .lcap")
+        assert 0 <= gap <= 24, (target, gap)
+
+
+def test_with_the_map_open_nothing_folds(open_page):
+    pg = _open(open_page)
+    pg.evaluate(f"document.querySelector('{_sec('d2')} .mapc').open=true")
+    pg.wait_for_timeout(200)
+    dh0 = _top(pg, f"{_sec('d2')} .pcal .dh")
+    _scroll(pg, "d2", 150)
+    assert abs(_top(pg, f"{_sec('d2')} .pcal .dh") - dh0) <= .5
+    m = pg.evaluate(f"(L=>[L.getBoundingClientRect().top,parseFloat(getComputedStyle(L).marginTop)])(document.querySelector('{_sec('d2')} .plist'))")
+    assert m[1] >= 0, m
+
+
+# --- H1c2: the stepper keeps the calendar put away, with no script ---
+
+def _folded(pg, d):
+    """The calendar is away: the title sits a calendar higher than when open."""
+    return pg.evaluate(f"(s=>s.querySelector('.pmap').getBoundingClientRect().top)(document.querySelector('{_sec(d)}'))")
+
+
+def test_the_stepper_keeps_a_put_away_calendar_put_away(open_page):
+    pg = _open(open_page)
+    open_map = _folded(pg, "d2")
+    _scroll(pg, "d2", 200)
+    _tap_arrow(pg, "d2", "last")
+    assert _checked(pg) == "pg-d3f"
+    assert abs(_folded(pg, "d3") - (open_map - FOLD)) <= 1                   # arrives with it away
+    first = pg.eval_on_selector(f"{_sec('d3')} .plist .list>*", "e=>e.getBoundingClientRect().top")
+    assert 0 <= first - _top(pg, f"{_sec('d3')} .lcap") <= 16                 # its list from the top
+    _tap_arrow(pg, "d3", "first")                                              # and on, still away
+    assert _checked(pg) == "pg-d2f" and abs(_folded(pg, "d2") - (open_map - FOLD)) <= 1
+
+
+@pytest.mark.parametrize("s,want", [(0, "pg-d3"), (30, "pg-d3"), (70, "pg-d3f")])
+def test_the_stepper_follows_how_far_the_calendar_is_away(open_page, s, want):
+    pg = _open(open_page)
+    _scroll(pg, "d2", s)
+    _tap_arrow(pg, "d2", "last")
+    assert _checked(pg) == want
+
+
+def test_the_month_opens_a_put_away_calendar_at_the_top(open_page):
+    pg = _open(open_page)
+    open_map = _folded(pg, "d2")
+    _scroll(pg, "d2", 200)
+    _tap_arrow(pg, "d2", "last")
+    unf = f"{_sec('d3')} .ymrow .unf"
+    assert pg.eval_on_selector(unf, "e=>getComputedStyle(e).visibility") == "visible"
+    _scroll(pg, "d3", 120)
+    assert pg.eval_on_selector(unf, "e=>getComputedStyle(e).visibility") == "hidden"   # scrolled: not a button
+    _scroll(pg, "d3", 0)
+    pg.locator(f"{_sec('d3')} .ymrow .ym").click()
+    pg.wait_for_timeout(200)
+    assert _checked(pg) == "pg-d3"
+    assert abs(_folded(pg, "d3") - open_map) <= 1                             # the calendar is back
+
+
+def test_a_short_day_opened_folded_still_offers_the_month(open_page):
+    """iOS seemed to read a zero scroll range as 'at the end' and hid the month's ⌄ on the
+    days that fit (the user's check): a folded day always keeps a little range."""
+    pg = open_page(PHONE, js=False)
+    for d in _days(pg):
+        pg.evaluate(f"document.getElementById('pg-{d}f').checked=true")
+        pg.wait_for_timeout(80)
+        m = pg.evaluate(f"""(s=>{{const L=s.querySelector('.plist'),u=s.querySelector('.ymrow .unf');
+            return [L.scrollHeight-L.clientHeight,getComputedStyle(u).display,getComputedStyle(u).visibility]}})(document.querySelector('{_sec(d)}'))""")
+        assert m[0] > 0 and m[1] != "none" and m[2] == "visible", (d, m)
+
+
+def test_the_desktop_has_one_stepper_and_no_fold(open_page):
+    pg = open_page(DESKTOP, js=False)
+    pg.evaluate("document.getElementById('pg-d2').checked=true")
+    assert pg.locator(f"{_sec('d2')} .plist .dh-list .dstep .sf").count() == 0
+    pg.evaluate("document.getElementById('pg-d2f').checked=true")             # a folded day on a wide screen
+    pg.wait_for_timeout(100)
+    assert pg.eval_on_selector(_sec("d2"), "e=>getComputedStyle(e).display") != "none"
+    assert pg.eval_on_selector(f"{_sec('d2')} .lcap", "e=>getComputedStyle(e).display") == "none"
+
+
+# --- the fold is the calendar's own height (found on the README's 1-week demo trip) ---
+
+@pytest.mark.parametrize("url", ["hakodate_url", "page_url", "long_rings_url"], ids=["1-week", "2-week", "many-week"])
+def test_the_fold_is_the_calendars_own_height(browser, request, url):
+    """H1c first folded a fixed 98 px -- two weeks of calendar, trip-e's. A trip inside
+    one week has a 60 px calendar: folding 98 pushed the title up over the month row. A trip
+    across more weeks has a taller one, which 98 px did not put away. The fold is the mini
+    calendar's height, whatever its weeks."""
+    pg = browser.new_page(viewport={"width": 390, "height": 480}, java_script_enabled=False)
+    pg.goto(request.getfixturevalue(url))
+    pg.evaluate("document.getElementById('pg-d2').checked=true")
+    pg.wait_for_timeout(200)
+    sec = _sec("d2")
+    h = pg.eval_on_selector(f"{sec} .pcal .mini", "e=>e.getBoundingClientRect().height")
+    map0 = _top(pg, f"{sec} .pmap")
+    rng = pg.evaluate(f"(L=>L.scrollHeight-L.clientHeight)(document.querySelector('{sec} .plist'))")
+    assert rng >= h, ("every day scrolls at least its calendar's height", rng, h)
+    _scroll(pg, "d2", h + 40)
+    ym = pg.eval_on_selector(f"{sec} .ymrow", "e=>e.getBoundingClientRect().bottom")
+    dh = _top(pg, f"{sec} .pcal .dh")
+    rose = map0 - _top(pg, f"{sec} .pmap")
+    pg.close()
+    assert abs(rose - h) <= 1, ("the card rises by the calendar's height", rose, h)
+    assert dh >= ym - .5, ("the title stays below the month row", dh, ym)

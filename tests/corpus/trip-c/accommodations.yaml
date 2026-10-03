@@ -1,0 +1,136 @@
+stops:
+- district: 嘉義市
+  nights: 2
+  chosen: hotel-c1
+  candidates:
+  - id: hotel-c1
+    name_local: 示品酒店嘉義
+    name_display: 示品酒店嘉義
+    name_roman: Sample Chine Hotel Chiayi
+    price_band: NT$1,900–3,000/晚（雅緻雙人房，早餐依房型；快閃不含早1,888起）
+    cost:
+      amount: 2500
+      currency: TWD
+      basis: per_night
+      rooms: 1
+    facilities:
+    - parking
+    - breakfast
+    - wifi
+    - elevator
+    - restaurant
+    rating_source: Klook 5.0；雲朗觀光旗下、觀光局四星金級環保旅館
+    reception:
+      close: '23:30'
+      late_checkin: true
+    geocode:
+      lat: 23.483305
+      lng: 120.448323
+      geocode_source: nominatim
+    booking:
+      required: false
+      url: https://chiayi.hotel.example/tw/index.php
+    sources:
+    - url: https://chiayi.hotel.example/tw/index.php
+      lang: zh
+      official: true
+      note: 官網；西區噴水圓環旁、近火車站、免費停車、雲朗觀光
+    - url: https://www.booking.com/hotel/tw/hotel-c1.zh-tw.html
+      lang: zh
+      note: Booking.com 2026房價；免費停車、2餐廳、距火車站5分鐘
+    - url: https://www.klook.com/zh-TW/hotels/detail/443409-hotel-c1-hotel-chiayi/
+      lang: zh
+      note: Klook 評價超讚、早餐不錯、近市中心
+    verify_status: verified
+    resolved_name: 示品酒店嘉義
+    business_status:
+      status: OPERATIONAL
+      source_url: https://places.googleapis.com/v1/places/ChIJI80iizKUbjQRB5-RQrJhdmk
+      as_of: '2026-08-10'
+  - id: teascape
+    name_local: 承億文旅桃城茶樣子
+    name_display: 承億文旅桃城茶樣子
+    name_roman: Hotel Day+ Teascape (Chengyi)
+    price_band: NT$2,800–4,000/晚（平日2,800起含早）
+    cost:
+      amount: 3000
+      currency: TWD
+      basis: per_night
+      rooms: 1
+    facilities:
+    - parking
+    - breakfast
+    - wifi
+    - elevator
+    - pool
+    rating_source: Trip.com 9.2（266則）；TripAdvisor 432則
+    reception:
+      close: '23:30'
+      late_checkin: true
+    geocode:
+      lat: 23.479742
+      lng: 120.454818
+      geocode_source: cluster_fallback
+    booking:
+      required: false
+      url: https://hotelday.com.tw/hoteldayplusteascapedirect/
+    sources:
+    - url: https://hotelday.com.tw/hoteldayplusteascapedirect/
+      lang: zh
+      official: true
+      note: 官網；東區新生路661號、茶文化設計、頂樓無邊際泳池、戶外停車(可退費)
+    - url: https://www.booking.com/hotel/tw/tao-cheng-cha-yang-zi.zh-tw.html
+      lang: zh
+      note: Booking.com 2026房價；免費停車、距北門車站步行7分、含早方案
+    - url: https://tw.trip.com/hotels/chiayi-city-hotel-detail-1480526/hotelday-plus-teascape/review.html
+      lang: zh
+      note: Trip.com 9.2分、266則真實評論
+    verify_status: verified
+    resolved_name: 承億文旅桃城茶樣子
+    business_status:
+      status: OPERATIONAL
+      source_url: https://places.googleapis.com/v1/places/ChIJhfaFvcWVbjQRlQ2O3OiCa3M
+      as_of: '2026-08-10'
+  - id: guanzhi
+    name_local: 嘉義觀止飯店
+    name_display: 嘉義觀止飯店
+    name_roman: Guanzhi Hotel Chiayi
+    price_band: NT$2,300–3,500/晚（多數含早；加購早餐350/人）
+    cost:
+      amount: 2600
+      currency: TWD
+      basis: per_night
+      rooms: 1
+    facilities:
+    - parking
+    - breakfast
+    - wifi
+    - elevator
+    rating_source: Trip.com 8.9（390則）；旅客最愛友善員工
+    reception:
+      close: '23:30'
+      late_checkin: true
+    geocode:
+      lat: 23.479742
+      lng: 120.454818
+      geocode_source: cluster_fallback
+    booking:
+      required: false
+      url: https://www.guanzhi-chiayi.com.tw/
+    sources:
+    - url: https://www.guanzhi-chiayi.com.tw/
+      lang: zh
+      official: true
+      note: 官網；市中心、免費室內地下停車+戶外、多功能休閒旅館
+    - url: https://www.booking.com/hotel/tw/jia-yi-guan-zhi-fan-dian-gu-fen-you-xian-gong-si.zh-tw.html
+      lang: zh
+      note: Booking.com 2026房價；市中心、距火車站5分鐘車程、露台花園
+    - url: https://tw.hotels.com/ho540048/jia-yi-guan-zhi-fan-dian-jia-yi-tai-wan/
+      lang: zh
+      note: Hotels.com；免費早餐、wifi、停車、友善員工
+    verify_status: verified
+    resolved_name: 嘉義觀止飯店
+    business_status:
+      status: OPERATIONAL
+      source_url: https://places.googleapis.com/v1/places/ChIJxzFhrISWbjQRj_2MCA0LKZE
+      as_of: '2026-08-10'

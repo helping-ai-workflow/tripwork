@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "candidates"
+  ],
+  "properties": {
+    "candidates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name_local",
+          "name_display",
+          "category",
+          "sources"
+        ],
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "name_local": {
+            "type": "string"
+          },
+          "address_local": {
+            "type": "string",
+            "description": "Street address in the local language as the venue's official source writes it (building and floor allowed), for a taxi driver; shown under the local name with a big-print 給司機看 sheet. Never from Google Places (its terms forbid storing formattedAddress)."
+          },
+          "address_source": {
+            "type": "string",
+            "pattern": "^https?://",
+            "description": "URL of the official source the address_local was read from."
+          },
+          "name_display": {
+            "type": "string"
+          },
+          "name_roman": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string"
+          },
+          "claimed_district": {
+            "type": "string"
+          },
+          "district_query": {
+            "type": "string",
+            "description": "Optional geocode string for the district when claimed_district (the readable name the deliverable shows and links with) does not resolve to the right place, e.g. '堺町（小樽市）' for '小樽市堺町'. source_verify_run geocodes with this; a centroid whose display_name does not name the district is refused (TW-092)."
+          },
+          "business_status": {
+            "description": "Optional sourced operating signal (Google Places businessStatus vocabulary) recorded during research; source-verify enforces it at Gate 0. (P1) The bare-string form is retained for back-compat but is SELF-ATTESTED: verify.py's Gate 0 treats it as unauditable and never lets it pass, regardless of value — a candidate can only clear Gate 0 with the object form, {status, source_url, as_of}, mirroring verified-pois.schema.json's own business_status shape so a candidate's sourced signal survives into the verified artifact unchanged. (TW-068 fix round 1: TW-063's fix deferred widening this on the grounds that nothing exercised the gap; scripts/source_verify_run.py now does, so every schema-valid candidates.yaml can reach Gate 0.)",
+            "oneOf": [
+              {
+                "type": "string",
+                "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+              },
+              {
+                "type": "object",
+                "required": ["status", "source_url", "as_of"],
+                "additionalProperties": false,
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^(https?://[^\\s]+|tel:[+0-9][0-9()\\-. ]{5,})$"
+                  },
+                  "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+                }
+              }
+            ]
+          },
+        "intro": {"type": "string", "minLength": 1, "description": "Sourced one-paragraph introduction for the reader (v1.0 §4.3). Absent = the reader shows no intro line."},
+        "intro_source": {"type": "string", "pattern": "^https?://"},
+        "booking": {"type": "object", "properties": {"required": {"type": "boolean"}, "lead_time": {"type": "string"}, "hours": {"type": "string"}, "lead_time_days": {"type": "integer", "minimum": 0}, "opens_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}( [0-9]{2}:[0-9]{2})?$", "description": "When reservations open (v1.0 §4.7); a referenced POI with this set must have a hard-dated 預約 checklist item."}, "opens_at_source": {"type": "string", "pattern": "^https?://"}}, "dependencies": {"opens_at": ["opens_at_source"]}, "additionalProperties": false},
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "items": {
+              "type": "object",
+              "required": [
+                "url"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "lang": {
+                  "type": "string"
+                },
+                "note": {
+                  "type": "string"
+                },
+                "site": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "中文網站名 (v1.0 §4.2); copied into verified-pois by source_verify_run."
+                },
+                "site_local": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Original-language site name, for a non-zh source."
+                }
+              },
+              "additionalProperties": false
+            },
+            "uniqueItems": true
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

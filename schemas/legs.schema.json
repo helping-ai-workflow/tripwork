@@ -1,0 +1,186 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "legs"
+  ],
+  "properties": {
+    "legs": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "mode",
+          "status",
+          "sources"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string",
+            "enum": ["inter_stop", "home"],
+            "default": "inter_stop",
+            "description": "`home` is the drive between the traveller's home and the trip's first/last base. It is a real leg with a real fare and a real duration — usually the LONGEST drive of a single-base trip, so it is the one leg drive_too_long exists for. Absent means inter_stop. (TW-065)"
+          },
+          "mode": {
+            "type": "string",
+            "enum": [
+              "drive",
+              "taxi",
+              "rail",
+              "bus",
+              "flight",
+              "ferry"
+            ]
+          },
+          "duration_mins": {
+            "type": "number"
+          },
+          "km": {
+            "type": "number",
+            "description": "Route distance of the leg (operating km for rail, road km otherwise), from the same source as duration_mins. Shown in the reader's 移動列 and 路線列."
+          },
+          "status": {
+            "enum": [
+              "ok",
+              "drive_too_long",
+              "missed_last_service"
+            ]
+          },
+          "service": {
+            "type": "string"
+          },
+          "reserved": {
+            "type": "boolean"
+          },
+          "transfers": {
+            "type": "integer"
+          },
+          "depart": {
+            "type": "string"
+          },
+          "last_service": {
+            "type": "string"
+          },
+          "last_service_exempt": {
+            "type": "object",
+            "required": ["reason"],
+            "additionalProperties": false,
+            "properties": {
+              "reason": {"type": "string", "minLength": 1},
+              "source_url": {"type": "string", "pattern": "^https?://"}
+            },
+            "description": "Sourced claim that this non-drive leg has no last-service concept (charter, single daily sailing already named in `service`). Without it, scripts/legs.py:56-58 returns 'ok' whenever depart/last_service are absent — a verdict that is reproducible and meaningless. Optional in schema; required by the gate for any non-drive leg lacking depart+last_service."
+          },
+          "pass_advice": {
+            "type": "string"
+          },
+          "fare": {
+            "type": "object",
+            "properties": {
+              "amount": {
+                "type": "number"
+              },
+              "currency": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "amount",
+              "currency"
+            ],
+            "additionalProperties": false
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 1,
+            "contains": {
+              "type": "object",
+              "required": [
+                "official"
+              ],
+              "properties": {
+                "official": {
+                  "const": true
+                }
+              }
+            },
+            "items": {
+              "type": "object",
+              "required": [
+                "url",
+                "official"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "official": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "allOf": [
+          {
+            "if": {
+              "properties": {
+                "mode": {
+                  "enum": ["drive", "taxi"]
+                }
+              }
+            },
+            "then": {
+              "required": [
+                "duration_mins"
+              ]
+            }
+          }
+        ],
+        "additionalProperties": false
+      }
+    },
+    "pass": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "price": {
+          "type": "object",
+          "properties": {
+            "amount": {
+              "type": "number"
+            },
+            "currency": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "amount",
+            "currency"
+          ],
+          "additionalProperties": false
+        },
+        "covers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false
+}

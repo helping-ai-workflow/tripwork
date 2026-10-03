@@ -1,0 +1,37 @@
+items:
+- topic: 國道5號雪山隧道行車規定
+  risk: restricted
+  effective_date: '2010-11-01'
+  rule: 雪隧速限90km/h（寬限值10，逾100舉發）；小型車安全距離≥50公尺；隧道內【嚴禁變換車道】違者罰3,000–6,000元且可連續處罰；密集科技執法（超速/低於速限龜速/變換車道/惡意逼車）。隧道內禁停車、禁迴轉。出發地↔宜蘭往返必經，務必全程守規。
+  sources:
+  - url: https://www.freeway.gov.tw/Publish.aspx?cnid=610&p=121
+    official: true
+  - url: https://www.mvdis.gov.tw/webMvdisLaw/LawArticle.aspx?LawID=H0014000
+    official: true
+- topic: 酒駕零容忍
+  risk: restricted
+  effective_date: '2019-07-01'
+  rule: 台灣酒駕吐氣酒精濃度≥0.15mg/L 即違法，重罰併刑責、累犯加重。羅東夜市/聚餐/villa 烤肉飲酒者【絕不可駕車】，請指定不喝酒的駕駛或叫代駕；2 車8人務必先分配當日駕駛。
+  sources:
+  - url: https://law.moj.gov.tw/LawClass/LawAll.aspx?pcode=K0040012
+    official: true
+  - url: https://www.168.motc.gov.tw/
+    official: true
+- topic: 租車駕駛資格
+  risk: info
+  effective_date: '2026-06-23'
+  rule: 於出發地站前店取 2 台四人座；租車與駕駛須持【有效中華民國駕照】(多數租車公司要求滿20歲、領照滿1年)，取車攜帶實體駕照與本人信用卡；建議加保。確認所有預定駕駛皆符合並登記為駕駛人。
+  sources:
+  - url: https://www.thb.gov.tw/
+    official: true
+  - url: https://www.mvdis.gov.tw/
+    official: true
+- topic: 行車安全（全車繫安全帶/山路雨天）
+  risk: info
+  effective_date: '2012-02-01'
+  rule: 全車（含後座）一律繫安全帶，違者開罰。山路（清水地熱大同鄉、伯朗城堡石空路）與雨天減速慢行、保持距離；6月午後雷陣雨能見度差時尤須注意。
+  sources:
+  - url: https://www.freeway.gov.tw/
+    official: true
+  - url: https://www.168.motc.gov.tw/
+    official: true

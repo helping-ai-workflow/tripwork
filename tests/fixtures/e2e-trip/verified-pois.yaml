@@ -1,0 +1,13 @@
+# Expected output state AFTER source-verify runs the classification logic.
+# Used to assert the e2e expectations are themselves schema-valid.
+pois:
+  - id: odarijip
+    name_local: 오다리집
+    name_display: 烏達里家
+    category: restaurant
+    geocode: { lat: 37.5636, lng: 126.9869 }
+    district: 명동
+    sources:
+      - { url: "https://tripadvisor/odarijip", lang: ko }
+      - { url: "https://foodybird/odarijip", lang: zh }
+    verify_status: verified

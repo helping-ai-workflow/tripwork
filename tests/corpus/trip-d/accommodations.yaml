@@ -1,0 +1,103 @@
+stops:
+- district: 新北市貢寮區
+  nights: 1
+  chosen: hotel-d1
+  candidates:
+  - id: hotel-d1
+    name_local: 示容大飯店 福隆
+    name_display: 示容大飯店福隆
+    price_band: 中秋連假雙人房約 NT$6,500–8,000（精緻和洋一泊一食 6,888／海景和洋 6,500+／海景溫泉 7,500+／示容假期雙人 7,999 起）；連假旺季常較平日加價，務必官網 Gobooking 帶入 9/24 入住實查連假差額
+    cost:
+      amount: 7500
+      currency: TWD
+      basis: per_night
+      rooms: 1
+    facilities:
+    - parking
+    - breakfast
+    - wifi
+    - elevator
+    - sea_view
+    - onsen
+    - pool
+    - beach
+    - bike_rental
+    - sauna
+    - kids_room
+    booking:
+      required: true
+      url: https://hotel.gobooking.com.tw/zh-TW/HOTEL-D1
+    geocode:
+      lat: 25.01825
+      lng: 121.94459
+      geocode_source: nominatim_structured
+    sources:
+    - url: https://hotel-d.example/fl/tw/
+      lang: zh
+      official: true
+      note: 官網主頁：228 新北市貢寮區福隆里福隆街41號、02-2499-2381
+    - url: https://hotel-d.example/fl/tw/fac-detail/hotspring/
+      lang: zh
+      official: true
+      note: 海洋溫泉：氯化物氫鹽泉、日本溫泉協會認證＋新北市溫泉標章；室內百坪大浴場（大眾裸湯）＋SPA 水療；每週二 08:00-18:00 清潔暫停
+    - url: https://hotel.gobooking.com.tw/zh-TW/HOTEL-D1
+      lang: zh
+      official: true
+      note: 官方 Gobooking 訂房：全房型（海景和洋／海景溫泉／溫泉套房／風呂別墅）、精緻和洋一泊一食雙人 6,888、升等海景 +1,200
+    - url: https://misslitravel.com/hotel-d1/
+      lang: zh
+      official: false
+      note: 遊記：海景和洋 6,500+／海景溫泉 7,500+（2024/8 實住兩人含早 6,600）、免費戶外＋地下停車場
+    verify_status: verified
+    resolved_name: 示容大飯店 福隆
+    business_status:
+      status: OPERATIONAL
+      source_url: https://places.googleapis.com/v1/places/ChIJW_MRylVcXTQR8LTlfPoOIvg
+      as_of: '2026-09-24'
+  - id: yixianju-easyspace
+    name_local: 逸閒居精品民宿 The Easy Space
+    name_display: 逸閒居 The Easy Space（卯澳海景 Villa）
+    price_band: 雙人房 NT$3,000–8,800：海景天空套房 平日 5,000／假日最高 8,800；山頂雲彩房 平日 3,000／假日 4,800（中秋屬假日帶）。位卯澳漁村、免費停車、評分 9.8；無溫泉
+    cost:
+      amount: 6500
+      currency: TWD
+      basis: per_night
+      rooms: 1
+    facilities:
+    - parking
+    - sea_view
+    - balcony
+    - air_conditioning
+    - bbq
+    - ktv
+    - minibar
+    booking:
+      required: true
+      url: https://www.theeasyspace.com.tw/
+    geocode:
+      lat: 25.01157
+      lng: 121.9889
+      geocode_source: nominatim
+    sources:
+    - url: https://www.theeasyspace.com.tw/
+      lang: zh
+      official: true
+      note: 官網；海景天空套房／漁村海灣套房／山海景觀房／山頂雲彩房（皆2人）＋包棟(4-14人)
+    - url: https://dearbnb.com/zh/bnb/the-easy-space/
+      lang: zh
+      official: false
+      note: 貢寮區福連街38號；海景天空套房 平日5,000/假日最高8,800；山頂雲彩房 平日3,000/假日4,800；室外停車位
+    - url: https://tw.trip.com/hotels/new-taipei-city-hotel-detail-3364854/the-easy-space/
+      lang: zh
+      official: false
+      note: 福連街38號；免費公共停車場無須預約；旅客評分 9.8
+    - url: https://www.booking.com/hotel/tw/yi-xian-ju-the-easy-space-fu-lung.zh-tw.html
+      lang: zh
+      official: false
+      note: Booking.com 訂房頁（可帶日期查連假即時房價）
+    verify_status: verified
+    resolved_name: 逸閒居精品民宿 The Easy Space
+    business_status:
+      status: OPERATIONAL
+      source_url: https://www.theeasyspace.com.tw/
+      as_of: '2026-09-23'

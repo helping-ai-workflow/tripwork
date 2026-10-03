@@ -1,0 +1,130 @@
+title: 宜蘭 3天2夜・員山包棟・8 人自駕（2026/6/23–6/25）
+must_do_coverage:
+  安記花生捲冰淇淋（必去）:
+  - anji-peanut-ice
+  清水地熱谷:
+  - qingshui-geothermal
+  伯朗咖啡城堡一門市（6/23 14:00-16:00 會議，需可久坐的咖啡廳）:
+  - mrbrown-castle-1
+  屋台拉麵:
+  - wotai-ramen
+  正常鮮肉湯包（羅東店）:
+  - zhengchang-soup-dumpling
+checklist:
+- 【國道5號雪山隧道行車規定】速限90km/h（逾100舉發）、小型車安全距離≥50公尺、隧道內嚴禁變換車道（罰3,000–6,000元且可連續處罰）、禁停車；出發地↔宜蘭往返雪隧務必全程守規、科技執法密集。
+- 【酒駕零容忍】吐氣酒精濃度≥0.15mg/L即違法且有刑責；夜市/villa烤肉/聚餐飲酒者絕不開車，每日先指定不喝酒的駕駛或叫代駕。
+- 租車：出發地站前店 8:30 取車，所有預定駕駛攜帶實體中華民國駕照＋本人信用卡並登記為駕駛人，建議加保全險。
+- 民宿『示意民宿』已訂（員山・包棟・停車可停遊覽車，2 台轎車無虞）；建議出發前電洽 03-9108509 確認入住時間、可否晚到與房型分配。
+- 天氣：6月梅雨尾＋午後雷陣雨＋濕熱，帶輕便雨具/防曬/補水；戶外點（清水地熱、望龍埤、外澳沙灘）排上午，午後備室內景點。出發前3天查中央氣象署颱風/豪大雨特報。
+- 『安記幸福餐車』為餐車、限量賣完收攤，出發前查 FB/IG 粉專確認當日出攤地點與時間（週二公休，已排在 6/25）。
+- 公休提醒：屋台拉麵週三休（已排 6/23）、安記週二休（已排 6/25）、正常鮮肉湯包週一休（6/24 營業）、廣興農場與林場肉羹週三休（未排入）。
+- 預約/提醒：甕窯雞 8 人合菜建議先電話預約；清水地熱煮蛋食材園區內購、小心高溫蒸氣燙傷；山路（大同鄉產業道路、頭城石空路）雨天減速、勿開9人座以上上城堡。
+days:
+- date: '2026-06-23'
+  label: Day 1｜6/23（二）出發地出發・頭城海岸・伯朗城堡會議
+  lodging: lodging-villa-a
+  rows:
+  - time: 09:00
+    slot: move
+    from: 出發地
+    to: 頭城
+    text: 出發地站前店 8:30 取車接人，09:00 上國道3號轉國道5號雪山隧道，車程約 2 小時（雪隧守規：速限90、車距≥50m、禁變換車道）
+  - time: '11:30'
+    slot: meal
+    poi_id: wotai-ramen
+    text: 頭城宜三路柴火豚骨拉麵當午餐；不吃辣者點豚骨/醬油拉麵，避綠咖哩與地獄辣。週三公休故安排今日、好停車
+  - time: '12:45'
+    slot: visit
+    poi_id: lanyang-museum
+    text: 烏石港旁單面山建築、室內展館（雨天首選），看蘭陽地理人文（約1小時）
+  - time: '14:00'
+    slot: visit
+    poi_id: mrbrown-castle-1
+    text: 【會議 14:00–16:00】兩層樓＋三樓瞭望台、座位多可久坐、有電梯與WiFi、龜山島海景；低消一杯飲料、可點輕食午茶
+  - time: '16:15'
+    slot: activity
+    poi_id: waiao-beach
+    text: 城堡山下踏浪看龜山島（約45分）；午後雷陣雨或海象不佳則略過改下一站
+  - time: '17:15'
+    slot: activity
+    poi_id: tangweigou-park
+    text: 礁溪免費足湯泡腳放鬆（約45分）、近商圈好停車
+  - time: '18:30'
+    slot: meal
+    poi_id: wengyaoji-jiaoxi
+    text: 8 人合菜首選：荔枝木悶烤甕窯雞（不辣）、免費停車；建議先電話預約
+  - time: '20:00'
+    slot: lodging
+    poi_id: lodging-villa-a
+    text: 入住員山包棟 villa；夜間烤肉/歡唱。提醒：飲酒不開車，先指定明日駕駛
+- date: '2026-06-24'
+  label: Day 2｜6/24（三）羅東湯包・清水地熱・三星蔥・羅東夜市
+  lodging: lodging-villa-a
+  rows:
+  - time: 08:30
+    slot: move
+    from: 員山
+    to: 羅東
+    text: 民宿出發往羅東（約25分）
+  - time: 09:00
+    slot: meal
+    poi_id: zhengchang-soup-dumpling
+    text: 羅東南門路現包現蒸鮮肉小湯包當早餐（皮薄爆汁、不辣，辣椒醬自取可不加）；營業至13:30、週一公休故排今日，早到避排隊
+  - time: '10:00'
+    slot: move
+    from: 羅東
+    to: 大同
+    text: 往大同鄉清水地熱（約30分；山區產業道路、雨天減速保持車距）
+  - time: '10:30'
+    slot: activity
+    poi_id: qingshui-geothermal
+    text: 煮蛋煮玉米＋免費泡腳（約1.5小時）；免門票、停車50元。安排上午避午後雷陣雨；溪谷遇大雨勿逗留、小心高溫蒸氣燙傷
+  - time: '12:15'
+    slot: meal
+    poi_id: sanxing-onion-museum
+    text: 三星蔥油餅 DIY 當午餐輕食（不辣、室內可避雨）＋買三星蔥伴手禮
+  - time: '13:30'
+    slot: activity
+    poi_id: meihua-lake
+    text: 冬山梅花湖環湖散步或騎協力車（約1.5小時）；午後下雨改室內備案（見備案）
+  - time: '15:30'
+    slot: visit
+    poi_id: luodong-forestry-park
+    text: 貯木池＋日式宿舍散步，室內展館可避雨（約1小時）
+  - time: '17:30'
+    slot: meal
+    poi_id: luodong-night-market
+    text: 8 人夜市吃透透：湯包/羊肉湯/糕渣/包心粉圓等不辣選擇多；停車中山公園周邊。提醒：飲酒不開車
+  - time: '20:30'
+    slot: lodging
+    poi_id: lodging-villa-a
+    text: 回員山 villa 休息；先指定明日駕駛
+- date: '2026-06-25'
+  label: Day 3｜6/25（四）員山慢遊・安記花生捲冰淇淋・返出發地
+  rows:
+  - time: 09:00
+    slot: activity
+    poi_id: wanglongpi
+    text: 退房後就近散步：員山望龍埤環湖步道＋大紅拱橋（約1小時，24h免費）
+  - time: '10:15'
+    slot: visit
+    poi_id: herbelle-museum
+    text: 白色香草玻璃屋、室內天空步道＋輕食下午茶（雨備佳，約1.5小時）
+  - time: '12:15'
+    slot: meal
+    poi_id: bajia-fish-farm
+    text: 員山香魚/鱘龍魚團體桌菜午餐（8 人友善、可選不辣魚料理）
+  - time: '13:30'
+    slot: move
+    from: 員山
+    to: 礁溪
+    text: 往礁溪龍潭湖（約25分）
+  - time: '14:00'
+    slot: activity
+    poi_id: anji-peanut-ice
+    text: 礁溪龍潭湖畔人氣餐車・花生捲冰淇淋（必吃、不辣）；限量賣完收攤，出發前先看粉專確認出攤、週二公休故排今日
+  - time: '15:00'
+    slot: move
+    from: 礁溪
+    to: 出發地
+    text: 雪山隧道返程，國道5號轉國道3號回出發地（約2小時）；雪隧守規：速限90、車距≥50m、嚴禁變換車道、勿超速

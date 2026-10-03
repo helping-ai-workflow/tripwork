@@ -1,0 +1,113 @@
+"""README freshness guard — mechanical drift detection.
+
+Mirrors paperwork's `test_readme_freshness.py`: when a flow skill is added /
+renamed / removed, or a pipeline stage moves, README.md must be updated in the
+same PR. This test fails on the mechanical half of that drift (skill-mention
+coverage + no obsolete names). Narrative correctness stays human review.
+"""
+import pathlib
+
+ROOT = pathlib.Path(__file__).resolve().parent.parent
+README = (ROOT / "README.md").read_text(encoding="utf-8")
+SKILLS = ROOT / "skills"
+
+# Every stage/flow skill must be named in README (mermaid or step table).
+# `using-tripwork` is the meta/entry skill (agent-facing routing), not a
+# user-facing pipeline stage — excluded, like paperwork excludes using-paperwork.
+META_SKILLS = {"using-tripwork"}
+SKILL_NAMES = sorted(p.name for p in SKILLS.iterdir()
+                     if (p / "SKILL.md").exists() and p.name not in META_SKILLS)
+
+# Names that were removed/renamed and must never reappear outside a removal note.
+OBSOLETE = ["LINE 短文", "LINE 純文字", ".txt 同名"]   # v1.1: the LINE text deliverable is retired
+
+
+def test_every_skill_mentioned_in_readme():
+    missing = [n for n in SKILL_NAMES if n not in README]
+    assert not missing, f"README does not mention skill(s): {missing}. Update README in the same PR."
+
+
+def test_no_obsolete_names_in_readme():
+    present = [n for n in OBSOLETE if n in README]
+    assert not present, f"README still mentions removed name(s): {present}."
+
+
+def test_calendar_check_in_pipeline_diagram():
+    # The calendar-awareness stage must be visible in the workflow section,
+    # not only in the step table — guards against the mermaid drifting.
+    assert "calendar-check" in README
+
+
+def test_html_one_pager_deliverable_mentioned():
+    # D4 added the self-contained one-page HTML deliverable
+    # (exports/<slug>-itinerary.html). §3 deliverables / §2 step table must
+    # mention it so the README does not drift behind the export adapters.
+    assert "itinerary.html" in README or "一頁式" in README, (
+        "README does not mention the HTML one-pager deliverable "
+        "('itinerary.html' or '一頁式'). Update README in the same PR."
+    )
+
+
+def test_photo_enrichment_deliverable_mentioned():
+    # v0.18.0 added opt-in CC POI photos + attribution caption (HTML one-pager).
+    # §3 deliverables / dev <details> must mention it so the README does not drift
+    # behind the photo adapter / export-gate img-src + attribution checks.
+    assert "照片" in README, (
+        "README does not mention the opt-in POI photo deliverable ('照片'). "
+        "Update README in the same PR."
+    )
+
+
+import re
+
+from scripts.next_stage import _CHAIN
+
+def _mermaid_block():
+    m = re.search(r"```mermaid\n(.*?)```", README, re.DOTALL)
+    assert m, "README has no ```mermaid block"
+    return m.group(1)
+
+# Canonical pipeline order.
+# First 11 stages are derived from the shipped `_CHAIN` in scripts/next_stage.py
+# (TW-079: this used to be 15 hand-written literals — a second, hand-kept copy of
+# the same sequence `_CHAIN` already defines, the same rebuilt-subject shape as
+# this release's other defects).
+# The last 4 stay literal because `_CHAIN` only covers through cost-rollup:
+# synthesis, the two gates, and export are each their own rule branch (rules
+# 12-16) in next_stage.py, not part of a shipped sequence constant. If a future
+# release collects them into one, delete these four lines and derive them too.
+_PIPELINE_ORDER = [s.removeprefix("tripwork:") for _a, s, _r in _CHAIN] + [
+    "itinerary-synthesis", "itinerary-gate", "export-artifact", "export-gate",
+]
+
+def test_tw060_every_stage_in_mermaid_block():
+    block = _mermaid_block()
+    missing = [s for s in _PIPELINE_ORDER if s not in block]
+    assert not missing, f"§2 mermaid is missing stage(s): {missing}"
+
+def test_tw060_mermaid_stage_order_matches_pipeline():
+    block = _mermaid_block()
+    positions = [block.find(s) for s in _PIPELINE_ORDER]
+    assert positions == sorted(positions), "§2 mermaid stage order diverges from the pipeline order"
+
+
+def test_implausible_stop_condition_in_readme():
+    """C3: routing-audit's `implausible` hop stop-on-confirmation (this release)
+    has no row in §4's "它什麼時候會停下來問你" list — the freshness test above
+    only checks skill-name coverage, so this new stop condition drifted silently.
+    """
+    assert "預估時間不合理" in README, (
+        "README §4 stop-condition list has no row for a hop flagged `implausible`. "
+        "Update README in the same PR."
+    )
+
+
+def test_source_verify_gate0_readme_requires_sourced_status():
+    """C3: README §2's source-verify row described Gate 0 as if any hand-typed
+    operating status counted. TW-063 (this release) made Gate 0 require a
+    SOURCED status ({status, source_url, as_of}) — a bare self-attested value
+    now yields `unverified`, not a pass."""
+    assert "查證來源與日期" in README, (
+        "README §2 source-verify row does not say the operating status needs a "
+        "verifiable source + date, not a hand-typed value."
+    )

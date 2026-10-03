@@ -1,0 +1,640 @@
+pois:
+- id: npm-southern-branch
+  name_local: 國立故宮博物院南部院區
+  name_display: 故宮南院
+  category: museum
+  district: 嘉義縣太保市
+  sources:
+  - url: https://south.npm.gov.tw/
+    lang: zh
+    note: 官方；週二-五09-17、週六日及假日09-18；公休週一(2026僅特定週一特別開館日開放)
+    official: true
+  - url: https://south.npm.gov.tw/Visit/Ticket.htm
+    lang: zh
+    note: 官方票價；全票150、嘉義縣市居民15:00後免費(至2026/12/31)、未滿18/65+/本國學生免費
+    official: true
+  - url: https://www.instagram.com/p/DTNCMmFgbZo/
+    lang: zh
+    note: 官方IG 2026週一特別開館日一覽(02/16、03/09、04/06、05/18…)；8/31不在清單→視為週一休館
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJe6XdK9SbbjQRy7gVi-RqGWk
+    as_of: '2026-08-10'
+  name_roman: National Palace Museum Southern Branch
+  verify_status: verified
+  geocode:
+    lat: 23.47383
+    lng: 120.29192
+    geocode_source: nominatim_structured
+  closed_days:
+  - monday
+  hours:
+    close: '18:00'
+    last_entry: '17:30'
+    typical_visit_mins: 150
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJe6XdK9SbbjQRy7gVi-RqGWk
+  resolved_name: 國立故宮博物院南部院區
+- id: hua-ching-tile-museum
+  name_local: 台灣花磚博物館
+  name_display: 台灣花磚博物館
+  category: museum
+  district: 嘉義市西區
+  sources:
+  - url: https://www.1920t.com/pages/visit
+    lang: zh
+    note: 官方；週三-週一10:00-17:30(最後入場17:00)、公休週二、門票100含50折抵、散客免預約、林森西路282號
+    official: true
+  - url: https://www.1920t.com/
+    lang: zh
+    note: 官方首頁
+    official: true
+  - url: https://tw.trip.com/travel-guide/attraction/chiayi-city/museum-of-old-taiwan-tiles-50603361
+    lang: zh
+    note: Trip.com 獨立彙整：票價、營業時間、旅客評論
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJJU4OmS2UbjQRgjVPo5_9ARw
+    as_of: '2026-08-10'
+  name_roman: Museum of Old Taiwan Tiles
+  verify_status: verified
+  geocode:
+    lat: 23.48334
+    lng: 120.44601
+    geocode_source: nominatim
+  closed_days:
+  - tuesday
+  hours:
+    close: '17:00'
+    last_entry: '16:30'
+    typical_visit_mins: 60
+    as_of: '2026-08-29'
+  gmaps_place_id: ChIJJU4OmS2UbjQRgjVPo5_9ARw
+  resolved_name: 台灣花磚博物館
+- id: hinoki-village
+  name_local: 檜意森活村
+  name_display: 檜意森活村
+  category: cultural-village
+  district: 嘉義市東區
+  sources:
+  - url: https://www.hinokivillage.com.tw/
+    lang: zh
+    note: 官方；戶外免費全年無休、店鋪約10:00-18:00、東區林森東路1號、部分展館週一二休
+    official: true
+  - url: https://uptogo.com.tw/旅遊/檜意森活村怎麼去？/
+    lang: zh
+    note: 入園免費、戶外空間常時開放、店鋪10-18、停車資訊
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJOb09b8uVbjQRigoLMNW9rpE
+    as_of: '2026-08-10'
+  name_roman: Hinoki Village
+  verify_status: verified
+  geocode:
+    lat: 23.48573
+    lng: 120.45457
+    geocode_source: nominatim
+  closed_days: []
+  hours:
+    close: '18:00'
+    typical_visit_mins: 90
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJOb09b8uVbjQRigoLMNW9rpE
+  resolved_name: 檜意森活村
+- id: chiayi-art-museum
+  name_local: 嘉義市立美術館
+  name_display: 嘉義市立美術館
+  category: museum
+  district: 嘉義市西區
+  sources:
+  - url: https://chiayiartmuseum.chiayi.gov.tw/
+    lang: zh
+    note: 官方；廣寧街101號
+    official: true
+  - url: https://tw.trip.com/moments/detail/chiayi-city-758-124928057/
+    lang: zh
+    note: 09:00-17:00、公休週一(逢假日順延)、門票50
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJeZ7Y5yKVbjQRcBQkt_hiSI0
+    as_of: '2026-08-10'
+  name_roman: Chiayi Art Museum
+  verify_status: verified
+  geocode:
+    lat: 23.47664
+    lng: 120.44085
+    geocode_source: nominatim
+  closed_days:
+  - monday
+  hours:
+    close: '17:00'
+    last_entry: '16:30'
+    typical_visit_mins: 90
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJeZ7Y5yKVbjQRcBQkt_hiSI0
+  resolved_name: 嘉義市立美術館
+- id: xingang-fengtien-temple
+  name_local: 新港奉天宮
+  name_display: 新港奉天宮
+  category: temple
+  district: 嘉義縣新港鄉
+  sources:
+  - url: https://www.hsinkangmazu.org.tw/
+    lang: zh
+    note: 官方；開台媽祖400年、免費、新港鄉；近故宮南院與新港鴨肉羹
+    official: true
+  - url: https://cy.okgo.tw/scenic/1281.html
+    lang: zh
+    note: 玩全台灣旅遊網獨立介紹：清晨五點開廟門、周邊景點
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJ9Tuf6lO9bjQRZGf6Ym5ucB8
+    as_of: '2026-08-10'
+  name_roman: Hsinkang Fengtien Temple
+  verify_status: verified
+  geocode:
+    lat: 23.5568
+    lng: 120.3479
+    geocode_source: nominatim_structured
+  closed_days: []
+  hours:
+    close: '21:00'
+    typical_visit_mins: 40
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJ9Tuf6lO9bjQRZGf6Ym5ucB8
+  resolved_name: 新港奉天宮
+- id: bantaoyao
+  name_local: 板陶窯交趾剪黏工藝園區
+  name_display: 板陶窯
+  category: sight
+  district: 嘉義縣新港鄉
+  sources:
+  - url: https://www.bantaoyao.com/vistorinformation
+    lang: zh
+    note: 官方；09:30-17:00全年開、需購票(約100、combo468含DIY下午茶)、新港鄉板頭村
+    official: true
+  - url: https://map.culture.tw/locations/129
+    lang: zh
+    note: 文化部文化地圖；交趾陶/剪黏DIY、家庭景點、近故宮南院
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJi5ucnqKibjQRgG-N_y0GcxM
+    as_of: '2026-08-10'
+  name_roman: Bantaoyao Crafts Studio
+  verify_status: verified
+  geocode:
+    lat: 23.56883
+    lng: 120.32277
+    geocode_source: nominatim
+  closed_days: []
+  hours:
+    close: '17:00'
+    last_entry: '16:30'
+    typical_visit_mins: 90
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJi5ucnqKibjQRgG-N_y0GcxM
+  resolved_name: 板陶窯交趾剪黏工藝園區
+- id: a-hong-shi-turkey-rice
+  name_local: 阿宏師火雞肉飯（光華總店）
+  name_display: 阿宏師火雞肉飯
+  category: restaurant
+  district: 嘉義市東區
+  sources:
+  - url: https://blog.pklife.tw/2025/04/chiayi-a-hong-shi.html
+    lang: zh
+    note: 光華路108號、10:30-20:00、標示公休週一二(待驗證)
+  - url: https://girlsplan.com/ahuhgfn/
+    lang: zh
+    note: 在地人氣排隊名店；Google 4.10★ 8000+則、光華路108號
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJ5wJfhyWUbjQRG_DhFBgvW7g
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.47856
+    lng: 120.45219
+    geocode_source: nominatim_structured
+  closed_days:
+  - monday
+  - tuesday
+  hours:
+    close: '20:00'
+    last_order: '19:30'
+    typical_visit_mins: 40
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJ5wJfhyWUbjQRG_DhFBgvW7g
+  resolved_name: 阿宏師火雞肉飯（光華總店）
+- id: heping-turkey-rice
+  name_local: 和平火雞肉飯
+  name_display: 和平火雞肉飯
+  category: restaurant
+  district: 嘉義市東區
+  sources:
+  - url: https://tutufoodaholic.tw/heping-turkey-rice/
+    lang: zh
+    note: 40年老店、Google 4.2★ 4000+、火雞肉飯35/雞片50/湯20、和平路
+  - url: https://shin.tw/chiayi-heping-turkey-rice/
+    lang: zh
+    note: 在地人激推、平日就排隊
+  - url: https://www.walkerland.com.tw/poi/view/50249
+    lang: zh
+    note: 和平路107號；營業時間各源不一(待驗證)
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJFaNOwTeUbjQRKXSeImLy2M4
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.47494
+    lng: 120.45769
+    geocode_source: nominatim_structured
+  closed_days: []
+  hours:
+    close: '17:00'
+    last_order: '16:30'
+    typical_visit_mins: 40
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJFaNOwTeUbjQRKXSeImLy2M4
+  resolved_name: 和平火雞肉飯
+- id: liu-lizhang-turkey-rice
+  name_local: 劉里長雞肉飯
+  name_display: 劉里長雞肉飯
+  category: restaurant
+  district: 嘉義市東區
+  sources:
+  - url: https://margaret.tw/chiayi-turkeyrice-liulichang/
+    lang: zh
+    note: ⚠2025搬遷至光彩街414號新址(現址待驗證)
+  - url: https://www.ptt.cc/bbs/Food/M.1705421356.A.FF7.html
+    lang: zh
+    note: 舊址公明路197號、公休週一、生意好評價兩極
+  - url: https://ifoodie.tw/post/655db462927f800c657fd200
+    lang: zh
+    note: 3.8★、07:00-14:30&16:30-19:00、週一公休、紅到日本
+  business_status: OPERATIONAL
+  verify_status: unverified
+  status_reason: 搬遷未定位：OSM/Nominatim 仍為舊址公明路197號，來源(margaret.tw)指 2025 已遷光彩街414號 — 現址待現場/官方確認
+  conflict_note: 搬遷未定位：OSM/Nominatim 仍為舊址公明路197號，來源(margaret.tw)指 2025 已遷光彩街414號 — 現址待現場/官方確認
+  geocode:
+    lat: 23.47994
+    lng: 120.45406
+    geocode_source: nominatim_structured
+  closed_days:
+  - monday
+- id: penshui-turkey-rice
+  name_local: 噴水雞肉飯
+  name_display: 噴水雞肉飯
+  category: restaurant
+  district: 嘉義市東區
+  sources:
+  - url: https://tw.openrice.com/en/yunlin-chiayi/r-嘉義噴水雞肉飯-總店-west-district-taiwanese-taiwanese-snacks-r124338
+    lang: zh
+    note: 名氣起源老店、總店西區中山路325號(觀光名店)
+  - url: https://after-sleep.com/turkeyrice88/
+    lang: zh
+    note: 小雅旗艦店東區小雅路382號、附免費停車場(自駕友善)、較現代/觀光
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJQS5WjjGUbjQRgHVFSj2rv4Q
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.47974
+    lng: 120.45482
+    geocode_source: cluster_fallback
+  closed_days: []
+  hours:
+    close: '21:00'
+    last_order: '20:30'
+    typical_visit_mins: 40
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJQS5WjjGUbjQRgHVFSj2rv4Q
+  resolved_name: 噴水雞肉飯
+- id: chunyen-restaurant
+  name_local: 春燕飯館
+  name_display: 春燕飯館
+  category: restaurant
+  district: 嘉義市西區
+  sources:
+  - url: https://nash.tw/letsgochunyan202607/
+    lang: zh
+    note: 五星主廚返鄉、在地激推家常台菜、CP高、興業西路233號
+  - url: https://kellylife.tw/chunyen/
+    lang: zh
+    note: 環境舒適、適合家庭聚餐、質感台菜
+  - url: https://inline.app/booking/-OLnBbaIvvZRcJSUm2mk:inline-live-3/-OLnBbhCx71mhFch567L?language=zh-tw
+    lang: zh
+    note: inline線上訂位；11:30-14:00&17:30-21:30、電話05-2860688
+    official: true
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJHR7cGh-VbjQRusTheDiSLHg
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.47999
+    lng: 120.44343
+    geocode_source: cluster_fallback
+  closed_days: []
+  hours:
+    close: '21:30'
+    last_order: '20:40'
+    typical_visit_mins: 90
+    as_of: '2026-08-07'
+  booking:
+    required: true
+    hours: 11:30-14:00 / 17:30-21:30
+  gmaps_place_id: ChIJHR7cGh-VbjQRusTheDiSLHg
+  resolved_name: 春燕飯館
+- id: taocheng-guwei
+  name_local: 桃城古味餐廳（阿欽師古早味）
+  name_display: 桃城古味餐廳
+  category: restaurant
+  district: 嘉義市西區
+  sources:
+  - url: https://albertblog.tw/35754/taochengguweia
+    lang: zh
+    note: 古早味合菜、CP高、便宜好吃
+  - url: https://ajtravel.tw/2020-02-10-2352/
+    lang: zh
+    note: 阿欽師古早味外燴/辦桌傳統台菜、後火車站、平日午餐免訂位、二樓宴會場
+  business_status:
+    status: CLOSED_TEMPORARILY
+    source_url: https://places.googleapis.com/v1/places/ChIJL8TbBoKWbjQRhS0g9M1gjVk
+    as_of: '2026-08-10'
+  verify_status: rejected
+  status_reason: Google Places 2026-08-10 查詢回報 CLOSED_TEMPORARILY（暫停營業），不列入行程備案。
+  geocode:
+    lat: 23.47999
+    lng: 120.44343
+    geocode_source: cluster_fallback
+  closed_days: []
+  hours:
+    close: '21:00'
+    last_order: '20:00'
+    typical_visit_mins: 90
+    as_of: '2026-08-07'
+- id: xiyanfang
+  name_local: 囍宴坊老台菜定食
+  name_display: 囍宴坊老台菜定食
+  category: restaurant
+  district: 嘉義市西區
+  sources:
+  - url: https://www.twincn.com/item.aspx?no=00367805
+    lang: zh
+    note: 公司登記；民國114/08/06(2025-08-06)設立、國華街139號一樓＝2025新店
+  - url: https://www.facebook.com/xiyanfang2025/
+    lang: zh
+    note: 官方FB；個人定食概念、店休週三四、11-14&17-21、電話0972261180
+    official: true
+  - url: https://www.threads.com/@goodway_tw/post/DNdXU0WP5Ur/
+    lang: zh
+    note: 個人定食含小菜+例湯+甜點；⚠獨立第三方評價稀少、據傳Google負評多(未能驗證)
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJJS-ULMCVbjQR2Gr7Nv2ZAFI
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.47999
+    lng: 120.44343
+    geocode_source: cluster_fallback
+  closed_days:
+  - wednesday
+  - thursday
+  hours:
+    close: '21:00'
+    last_order: '20:30'
+    typical_visit_mins: 75
+    as_of: '2026-08-07'
+  booking:
+    required: false
+    hours: 11:00-14:00 / 17:00-21:00
+  gmaps_place_id: ChIJJS-ULMCVbjQR2Gr7Nv2ZAFI
+  resolved_name: 囍宴坊老台菜定食
+- id: xingang-duck-soup
+  name_local: 新港鴨肉羹
+  name_display: 新港鴨肉羹
+  category: restaurant
+  district: 嘉義縣新港鄉
+  sources:
+  - url: https://ifoodie.tw/restaurant/5594d77cc03a1002b6230ec7-新港鴨肉羹
+    lang: zh
+    note: 4.4★、均消$45、奉天大廈17號、電話053747950
+  - url: https://bigsharkgogogo.tw/sanliuyarougandd/
+    lang: zh
+    note: 奉天宮旁、07:30-18:30、只賣生炒鴨肉羹、排隊
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJnZnL9FO9bjQRcYqS1siWLZM
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.55447
+    lng: 120.3474
+    geocode_source: nominatim
+  closed_days: []
+  hours:
+    close: '18:30'
+    last_order: '18:00'
+    typical_visit_mins: 30
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJnZnL9FO9bjQRcYqS1siWLZM
+  resolved_name: 新港鴨肉羹
+- id: yuxing-yuxiangwu
+  name_local: 源興御香屋
+  name_display: 源興御香屋
+  category: drink
+  district: 嘉義市東區
+  sources:
+  - url: https://hamibobo.tw/yuxiangwu/
+    lang: zh
+    note: 招牌葡萄柚綠茶、Google 4.4★ 6000+、建議電話預訂
+  - url: https://www.tony60533.com/grapefruit-green-tea/
+    lang: zh
+    note: 中正二店東區中正路329號、電話05-2238289、公休週一二、假日10-21
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJm6PXjzGUbjQRfZMYt28LhlI
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.47974
+    lng: 120.45482
+    geocode_source: cluster_fallback
+  closed_days:
+  - monday
+  - tuesday
+  hours:
+    close: '20:00'
+    typical_visit_mins: 15
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJm6PXjzGUbjQRfZMYt28LhlI
+  resolved_name: 源興御香屋
+- id: qiao-yakitori
+  name_local: 喬串燒酒場
+  name_display: 喬串燒酒場
+  category: restaurant
+  district: 台南市新營區
+  sources:
+  - url: https://places.googleapis.com/v1/places/ChIJkc4yLACFbjQRU8esr35IuHU
+    lang: zh
+    note: Google Business Profile（店家維護）：復興路144-5號、06-632-0031、每日18:00-01:00、週三公休、4.8★/59則、日式串燒餐廳
+  - url: https://www.instagram.com/joe_sakaba/
+    lang: zh
+    official: true
+    note: 官方IG @joe_sakaba「新營日式串燒居酒屋，喬師傅一人作業，如有怠慢還請多包容」；地址復興路144-5號、電話06-6320031（與Places一致）
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJkc4yLACFbjQRU8esr35IuHU
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.308698
+    lng: 120.316957
+    geocode_source: cluster_fallback
+  closed_days:
+  - wednesday
+  hours:
+    close: 01:00
+    typical_visit_mins: 120
+    as_of: '2026-08-29'
+  gmaps_place_id: ChIJkc4yLACFbjQRU8esr35IuHU
+  resolved_name: 喬串燒酒場
+- id: shanzhai-restaurant
+  name_local: 山寨家庭餐廳
+  name_display: 山寨家庭餐廳
+  category: restaurant
+  district: 台南市新營區
+  sources:
+  - url: https://lyes.tw/cottage-山寨/
+    lang: zh
+    note: 辦桌總鋪師坐鎮的在地老字號合菜、新營辦桌手路菜推薦
+  - url: https://travel.yam.com/article/139040
+    lang: zh
+    note: 30年總鋪師手路菜、金華路二段268號、電話06-6566777、11-14&17-21、公休週四、招牌山寨雞
+  - url: https://lifeintainan.com/shanzhai-restaurant/
+    lang: zh
+    note: 新營聚餐首選、台式熱炒+古早味手路菜、近新營交流道好停車
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJAXgR0sSFbjQR7-DsBWwdBAs
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.308698
+    lng: 120.316957
+    geocode_source: cluster_fallback
+  closed_days:
+  - thursday
+  hours:
+    close: '21:00'
+    last_order: '20:30'
+    typical_visit_mins: 105
+    as_of: '2026-08-07'
+  booking:
+    required: true
+    hours: 11:00-14:00 / 17:00-21:00
+  gmaps_place_id: ChIJAXgR0sSFbjQR7-DsBWwdBAs
+  resolved_name: 山寨家庭餐廳
+- id: atian-goose
+  name_local: 阿添鵝肉
+  name_display: 阿添鵝肉
+  category: restaurant
+  district: 台南市新營區
+  sources:
+  - url: https://ifoodie.tw/restaurant/5ad4e68d2756dd3f55003000-阿添鵝肉
+    lang: zh
+    note: 4.6★、鵝肉/飯/湯、CP高、新進路二段196號、電話066356920
+  - url: https://jamesdiscover.tw/blog/14129
+    lang: zh
+    note: 新營老字號鵝肉（備選聚餐選項）
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJHRSuEXiGbjQRqvv6eCna29U
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.308698
+    lng: 120.316957
+    geocode_source: cluster_fallback
+  closed_days: []
+  hours:
+    close: '20:00'
+    last_order: '19:30'
+    typical_visit_mins: 75
+    as_of: '2026-08-07'
+  gmaps_place_id: ChIJHRSuEXiGbjQRqvv6eCna29U
+  resolved_name: 阿添鵝肉
+- id: qingfeng-taoyue
+  name_local: 清豐濤月景觀餐廳
+  name_display: 清豐濤月景觀餐廳
+  category: restaurant
+  district: 嘉義縣番路鄉
+  sources:
+  - url: https://052593133.boncity.com/Info/100.html?l1=9004
+    lang: zh
+    note: 官網；番路鄉內甕村凸湖5-3號、11:00-21:00(收客20:00)、公休週二、電話05-2593133、低消150含足湯火鍋
+    official: true
+  - url: https://fullfenblog.tw/wind-moon/
+    lang: zh
+    note: 湖景火鍋+養生足湯+七彩琉璃光、情侶約會浪漫、2026菜單
+  - url: https://bunnyann.tw/taomonth/
+    lang: zh
+    note: 養生足湯泡腳賞湖景（獨立介紹）
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJx8vWJNKUbjQRDTTUYvSKOf0
+    as_of: '2026-08-10'
+  verify_status: verified
+  geocode:
+    lat: 23.465348
+    lng: 120.555
+    geocode_source: cluster_fallback
+  closed_days:
+  - tuesday
+  hours:
+    close: '21:00'
+    last_order: '20:00'
+    typical_visit_mins: 120
+    as_of: '2026-08-07'
+  booking:
+    required: true
+    hours: 11:00-21:00(收客20:00)；平日需訂位、假日不接受訂位(現場候位)
+  gmaps_place_id: ChIJx8vWJNKUbjQRDTTUYvSKOf0
+  resolved_name: 清豐濤月景觀餐廳
+- id: jiujiufeng-zoo
+  name_local: 九九峰動物樂園
+  name_display: 九九峰動物樂園
+  category: zoo
+  district: 南投縣草屯鎮
+  sources:
+  - url: https://www.jojozoopark.com/
+    lang: zh
+    note: 官網；夏令09:00-18:00、末入場前30分
+    official: true
+  - url: https://www.instagram.com/jojozoo_park/
+    lang: zh
+    note: 官方IG「週一∼週日 全年無休」；亞洲最大鳥類主題(巨型天網鳥籠/鸚鵡森林館/彩色鳥區)
+    official: true
+  - url: https://loveweekend.tw/taiwan-travel/nantou-99-peaks-animal-park/
+    lang: zh
+    note: 全票560/學生360/博愛280/3歲以下免費；地址富頂路一段726巷99號、電話049-2565107
+  name_roman: JOJOZOO Park
+  verify_status: verified
+  geocode:
+    lat: 23.9606067
+    lng: 120.7046304
+    geocode_source: nominatim_structured
+  hours:
+    close: '18:00'
+    last_entry: '17:30'
+    typical_visit_mins: 180
+    as_of: '2026-08-10'
+  business_status:
+    status: OPERATIONAL
+    source_url: https://places.googleapis.com/v1/places/ChIJz870IYwxaTQRMbMQewS3pfg
+    as_of: '2026-08-10'
+  gmaps_place_id: ChIJz870IYwxaTQRMbMQewS3pfg
+  resolved_name: 九九峰動物樂園

@@ -1,0 +1,132 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Side-file (trips/<slug>/verified-pois-media.yaml) carrying POI photo media keyed by poi_id. Merged onto poi_map at export time (scripts/media_merge.py); deliberately NOT part of canonical verified-pois.yaml, which source-verify wholesale-rewrites on every run (skills/source-verify/SKILL.md).",
+  "type": "object",
+  "required": [
+    "media"
+  ],
+  "properties": {
+    "media": {
+      "type": "object",
+      "description": "Map of poi_id -> media entry.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "photo",
+          "photo_attribution",
+          "photo_source"
+        ],
+        "properties": {
+          "photo": {
+            "$ref": "#/definitions/photo"
+          },
+          "photo_attribution": {
+            "$ref": "#/definitions/photo_attribution"
+          },
+          "photo_source": {
+            "enum": [
+              "wikimedia",
+              "openverse",
+              "google"
+            ]
+          }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false,
+  "definitions": {
+    "photo": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string",
+          "pattern": "^https://"
+        },
+        "data": {
+          "type": "string",
+          "pattern": "^data:image/"
+        },
+        "width": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "height": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "thumb": {
+          "type": "object",
+          "properties": {
+            "url": {
+              "type": "string",
+              "pattern": "^https://"
+            },
+            "data": {
+              "type": "string",
+              "pattern": "^data:image/"
+            },
+            "width": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "height": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "anyOf": [
+            {
+              "required": [
+                "url"
+              ]
+            },
+            {
+              "required": [
+                "data"
+              ]
+            }
+          ],
+          "additionalProperties": false
+        }
+      },
+      "anyOf": [
+        {
+          "required": [
+            "url"
+          ]
+        },
+        {
+          "required": [
+            "data"
+          ]
+        }
+      ],
+      "additionalProperties": false
+    },
+    "photo_attribution": {
+      "type": "object",
+      "required": [
+        "author",
+        "license",
+        "source_url"
+      ],
+      "properties": {
+        "author": {
+          "type": "string",
+          "minLength": 1
+        },
+        "license": {
+          "type": "string",
+          "minLength": 1
+        },
+        "source_url": {
+          "type": "string",
+          "pattern": "^https://"
+        }
+      },
+      "additionalProperties": false
+    }
+  }
+}

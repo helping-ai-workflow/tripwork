@@ -1,0 +1,88 @@
+clusters:
+- district: 日月潭
+  pois:
+  - sights-2
+  - sights-3
+  - sights-4
+  - sights-5
+  - sights-6
+  - sights-7
+  - theme-1
+  centroid:
+    lat: 23.854451
+    lng: 120.924096
+  is_base: true
+- district: 魚池
+  pois:
+  - indoor_exp-1
+  - indoor_exp-3
+  - indoor_exp-4
+  - lunch-2
+  - lunch-3
+  - dinner_cafe-2
+  centroid:
+    lat: 23.883016
+    lng: 120.919129
+- district: 伊達邵
+  pois:
+  - lunch-6
+  centroid:
+    lat: 23.817153
+    lng: 120.885762
+- district: 國道-湖口
+  pois:
+  - service_area-1
+  centroid:
+    lat: 24.861849
+    lng: 121.012407
+- district: 國道-後龍
+  pois:
+  - service_area-2
+  centroid:
+    lat: 24.565621
+    lng: 120.759218
+- district: 國道-后里
+  pois:
+  - service_area-3
+  centroid:
+    lat: 24.330299
+    lng: 120.711465
+- district: 國道-清水
+  pois:
+  - service_area-4
+  centroid:
+    lat: 24.281305
+    lng: 120.60085
+- district: 國道-南投市
+  pois:
+  - service_area-5
+  centroid:
+    lat: 23.899553
+    lng: 120.710812
+- district: 埔里
+  pois:
+  - puli_indoor-2
+  - puli_indoor-3
+  - puli_indoor-6
+  centroid:
+    lat: 23.97355
+    lng: 120.946378
+hops:
+- from: 日月潭
+  to: 魚池
+  mode: drive
+  mins: 6.4
+  flag: ok
+- from: 日月潭
+  to: 伊達邵
+  mode: drive
+  mins: 11.4
+  flag: ok
+- from: 日月潭
+  to: 埔里
+  mode: drive
+  mins: 26.9
+  flag: ok
+warnings:
+- 服務區群（南投市、后里、後龍、清水、湖口）為台北↔日月潭國道長途途經休息點，非巡遊 hop；其驅車可行性由 inter-stop-legs 階段處理。
+- 16 個候選因 Nominatim 無法定位列為 unverified（含 文武廟、涵碧樓下午茶、九族部分餐廳、Cona's妮娜、18度C 等），不進巡遊；如需可請使用者人工確認座標再 re-verify。

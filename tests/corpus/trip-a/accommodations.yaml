@@ -1,0 +1,39 @@
+stops:
+- district: 員山鄉
+  nights: 2
+  chosen: lodging-villa-a
+  candidates:
+  - id: lodging-villa-a
+    name_local: 示意民宿
+    name_display: 示意民宿（員山包棟 villa）
+    name_roman: Enjoy It Villa (Yuanshan)
+    price_band: 包棟・已訂（價格未公開，建議電洽 03-9108509 / 03-9566862 確認）
+    facilities:
+    - parking
+    - wifi
+    - kitchen
+    - bbq
+    - karaoke
+    - fridge
+    - luggage_storage
+    - non_smoking
+    rating_source: 台灣宿配網 twstay（示意文旅，宜蘭縣合法民宿編號 0000）
+    gmaps: https://maps.app.goo.gl/iTuLNGWNLFm2YRGw8
+    geocode:
+      lat: 24.7457754
+      lng: 121.7063745
+    booking:
+      required: false
+      url: https://twstay.com/RWD2/index.aspx?BNB=sample
+    sources:
+    - url: https://maps.app.goo.gl/iTuLNGWNLFm2YRGw8
+      lang: zh
+      note: 使用者提供之訂房 Google Maps 定位（員山「示意民宿」，24.7458,121.7064）— 存在＋位置證明
+    - url: https://twstay.com/RWD2/index.aspx?BNB=sample
+      lang: zh
+      official: true
+      note: 台灣宿配網官方訂房頁（示意文旅 sample）；設施：停車(可停遊覽車)/wifi/廚房/烤肉/歡唱；可包棟 10–14 人；電話 03-9108509
+    - url: https://www.yilantravel.com/
+      lang: zh
+      note: 宜蘭民宿入口網刊登（員山「示意民宿」示意文旅）
+    verify_status: verified

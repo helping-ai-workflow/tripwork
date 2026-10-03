@@ -1,0 +1,290 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "days"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Retired in v1.0 (spec §4.5): deliverables are headed by trip-brief.headline. Kept optional so pre-v1.0 itineraries stay valid; renderers read it only when no brief is given."
+    },
+    "checklist": {
+      "type": "array",
+      "items": {
+        "oneOf": [
+          {
+            "type": "string"
+          },
+          {
+            "type": "object",
+            "required": [
+              "kind",
+              "task"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "kind": {
+                "enum": [
+                  "預約",
+                  "出發前確認",
+                  "打包"
+                ]
+              },
+              "task": {
+                "type": "string",
+                "minLength": 1
+              },
+              "due": {
+                "type": "string"
+              },
+              "due_is_hard": {
+                "type": "boolean"
+              },
+              "origin": {
+                "type": "string"
+              },
+              "detail": {
+                "type": "string"
+              },
+              "links": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "label",
+                    "url"
+                  ],
+                  "additionalProperties": false,
+                  "properties": {
+                    "label": {
+                      "type": "string"
+                    },
+                    "url": {
+                      "type": "string",
+                      "pattern": "^https?://"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        ],
+        "description": "A string item is the pre-v1.0 shape: still schema-valid, but the itinerary gate fails it (v1.0 spec §4.7)."
+      }
+    },
+    "must_do_coverage": {
+      "type": "object",
+      "description": "Maps each trip-brief must_do theme (free text) to the verified-POI ids that satisfy it; itinerary-gate passes the theme when >=1 mapped id is scheduled. (P5)",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "string"
+        }
+      }
+    },
+    "contingency": {
+      "type": "array",
+      "description": "Fallbacks per named trigger. itinerary-synthesis has always produced this section (SKILL.md calls it a Required derived section) but had no container, so it was hand-assembled into the markdown and a full re-render would silently lose it. (TW-069)",
+      "items": {
+        "type": "object",
+        "required": ["trigger", "fallback"],
+        "additionalProperties": false,
+        "properties": {
+          "trigger": {"type": "string", "minLength": 1},
+          "fallback": {"type": "string", "minLength": 1},
+          "note": {"type": "string"}
+        }
+      }
+    },
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "date",
+          "rows"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "date": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "label": {
+            "type": "string"
+          },
+          "lodging": {
+            "type": "string"
+          },
+          "theme": {
+            "type": "string",
+            "description": "每日標題（≤13 字，含標點），使用者從 theme_candidates 挑的那句或自己寫的（theme_user_written）。Optional in schema; required by the itinerary gate (v1.0 §4.8, v1.1 topic 7)."
+          },
+          "theme_picked": {
+            "type": "boolean",
+            "description": "The user picked this day's theme in the title picker (scripts/title_picks.py); a picker written again keeps it selected."
+          },
+          "theme_user_written": {
+            "type": "boolean",
+            "description": "The user wrote the theme themselves (title picker 自己寫); it then needs no candidate and no theme_refs."
+          },
+          "theme_candidates": {
+            "type": "array",
+            "description": "Six day-title candidates for the user to pick from, each one shape x one twist (v1.1 topic 7; rules in skills/itinerary-synthesis/references/day-titles.md, checked by scripts/day_titles.py). More come in batches of 3 when the user asks.",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["text", "shape", "refs"],
+              "properties": {
+                "text": {"type": "string", "minLength": 1},
+                "shape": {"enum": ["couplet", "sentence", "triple", "question", "chiasmus", "anadiplosis", "number", "onomatopoeia"]},
+                "twist": {"enum": ["rhyme", "pun", "contrast", "exaggerate", "pov", "swap", "double_meaning", "turn"]},
+                "refs": {"type": "array", "items": {"type": "string"}},
+                "riff_on": {"type": "string"}
+              }
+            }
+          },
+          "theme_refs": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "poi_ids of that day's stops the theme rests on (≥1)."
+          },
+          "alternatives": {
+            "type": "array",
+            "description": "Per-stop 備案/選項 (v1.0, spec §4.4). Replaces trip-level contingency and inline ▸ rows. poi_id is deliberately not schema-required: a missing fallback place is a routed gate failure, not a schema failure.",
+            "items": {
+              "type": "object",
+              "required": [
+                "kind",
+                "applies_to",
+                "trigger",
+                "fallback"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "kind": {
+                  "enum": [
+                    "備案",
+                    "選項"
+                  ]
+                },
+                "applies_to": {
+                  "type": "string",
+                  "description": "poi_id of the stop on this day the alternative hangs under."
+                },
+                "trigger": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "fallback": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "poi_id": {
+                  "type": "string",
+                  "description": "The fallback place; must be a verified POI (gate)."
+                }
+              }
+            }
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "slot",
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "time": {
+                  "type": "string",
+                  "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$"
+                },
+                "slot": {
+                  "enum": [
+                    "meal",
+                    "activity",
+                    "visit",
+                    "move",
+                    "lodging"
+                  ]
+                },
+                "poi_id": {
+                  "type": "string"
+                },
+                "text": {
+                  "type": "string"
+                },
+                "from": {
+                  "type": "string"
+                },
+                "to": {
+                  "type": "string"
+                },
+                "closing_status": {
+                  "type": "string",
+                  "enum": ["ok", "tight", "after_last_call", "closed"],
+                  "description": "Verdict synthesis computed via scripts/hours.py::closing_status for this row. Optional in schema for back-compat; required by the itinerary gate on every row carrying both a `time` and a resolving `poi_id`. Without it the closing-buffer iron rule (using-tripwork/SKILL.md:48) has no mechanical form."
+                },
+                "leg_index": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Index into legs.yaml's `legs` array that this move row renders. Optional in schema for back-compat; required by the itinerary gate's `home_legs_rendered` check for every `kind: home` leg — without a row referencing it by leg_index, a home leg's classify_leg verdict is checked and its fare is summed, but nothing proves it ever reached the reader. (TW-069)"
+                },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "walk",
+                      "rail",
+                      "bus",
+                      "taxi",
+                      "drive",
+                      "ferry",
+                      "flight",
+                      "ropeway",
+                      "none"
+                    ],
+                    "description": "Move rows only: how this segment is travelled. `none` = same place (breakfast at the hotel). Optional in schema for back-compat; required by the itinerary gate on every move row without a leg_index (v1.0, spec §4.1)."
+                  },
+                  "mins": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Move rows only: minutes for this segment. Required by the gate unless mode is none."
+                  },
+                  "km": {
+                    "type": "number",
+                    "minimum": 0,
+                    "description": "Move rows only: route km for this segment. Required by the gate unless mode is none; re-derived against the endpoints' straight-line distance by scripts/rederive.py::rederive_moves."
+                  },
+                  "basis": {
+                    "type": "string",
+                    "enum": [
+                      "sourced",
+                      "estimated"
+                    ],
+                    "description": "Move rows only: `sourced` needs source_url, `estimated` needs estimate_method (rendered 估)."
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^https?://"
+                  },
+                  "estimate_method": {
+                    "type": "string",
+                    "minLength": 1
+                  },
+                  "note": {
+                    "type": "string"
+                  }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

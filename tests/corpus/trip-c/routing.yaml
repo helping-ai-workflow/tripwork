@@ -1,0 +1,97 @@
+clusters:
+- district: 嘉義縣太保市
+  is_base: false
+  centroid:
+    lat: 23.47383
+    lng: 120.29192
+  pois:
+  - npm-southern-branch
+- district: 嘉義市西區
+  is_base: true
+  centroid:
+    lat: 23.47999
+    lng: 120.44343
+  pois:
+  - hua-ching-tile-museum
+  - chiayi-art-museum
+  - chunyen-restaurant
+  - taocheng-guwei
+  - xiyanfang
+- district: 嘉義市東區
+  is_base: false
+  centroid:
+    lat: 23.479742
+    lng: 120.454818
+  pois:
+  - hinoki-village
+  - a-hong-shi-turkey-rice
+  - heping-turkey-rice
+  - penshui-turkey-rice
+  - yuxing-yuxiangwu
+- district: 嘉義縣新港鄉
+  is_base: false
+  centroid:
+    lat: 23.560033
+    lng: 120.339357
+  pois:
+  - xingang-fengtien-temple
+  - bantaoyao
+  - xingang-duck-soup
+- district: 台南市新營區
+  is_base: false
+  centroid:
+    lat: 23.308698
+    lng: 120.316957
+  pois:
+  - shanzhai-restaurant
+  - atian-goose
+- district: 嘉義縣番路鄉
+  is_base: false
+  centroid:
+    lat: 23.465348
+    lng: 120.555
+  pois:
+  - qingfeng-taoyue
+hops:
+- from: 嘉義市西區
+  to: 嘉義市東區
+  mode: drive
+  mins: 10
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 嘉義市西區
+  to: 嘉義縣太保市
+  mode: drive
+  mins: 30
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 嘉義市西區
+  to: 嘉義縣新港鄉
+  mode: drive
+  mins: 28
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 嘉義縣太保市
+  to: 嘉義縣新港鄉
+  mode: drive
+  mins: 20
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 嘉義市西區
+  to: 台南市新營區
+  mode: drive
+  mins: 40
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 嘉義市西區
+  to: 嘉義縣番路鄉
+  mode: drive
+  mins: 28
+  flag: unsourced
+  duration_source: agent_estimate
+warnings:
+- 劉里長雞肉飯 conflicting（搬遷未定位）：OSM 為舊址公明路197號、來源指2025已遷光彩街414號，未納入 cluster；有阿宏師/和平 verified 替代、且劉里長週一休。
+- cluster_fallback POI（春燕/桃城古味/囍宴坊/御香屋/噴水/山寨/阿添鵝肉/清豐濤月）座標為所屬區中心近似值；地圖連結以店名搜尋為主。
+- 嘉義市↔台南新營 ~24km/~40min（D1傍晚往返聚餐，選定串燒店）；嘉義市↔番路清豐濤月 ~11.5km/~28min 山區道路（D2晚餐，夜間下山小心）。皆<60min。
+- D1 六上午出發地→嘉義國道南下預期小塞車；D3 一午後北返避開週日尖峰。實際依當日路況。
+- 餐廳營業狀態未經 Google Places 即時查核（使用者選擇暫不查）→ 行前務必電話確認營業（見清單）。

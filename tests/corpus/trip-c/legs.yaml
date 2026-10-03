@@ -1,0 +1,40 @@
+legs:
+- from: 出發地
+  to: 示品酒店嘉義（嘉義市西區）
+  mode: drive
+  duration_mins: 190
+  fare:
+    amount: 1000
+    currency: TWD
+  sources:
+  - url: https://www.freeway.gov.tw/
+    official: true
+  - url: https://www.google.com/maps/dir/?api=1&origin=出發地&destination=示品酒店嘉義
+    official: false
+  status: ok
+- from: 示品酒店嘉義（嘉義市西區）
+  to: 九九峰動物樂園（南投草屯）
+  mode: drive
+  duration_mins: 75
+  fare:
+    amount: 550
+    currency: TWD
+  sources:
+  - url: https://www.freeway.gov.tw/
+    official: true
+  - url: https://www.google.com/maps/dir/?api=1&origin=嘉義市&destination=九九峰動物樂園
+    official: false
+  status: ok
+- from: 九九峰動物樂園（南投草屯）
+  to: 出發地
+  mode: drive
+  duration_mins: 100
+  fare:
+    amount: 650
+    currency: TWD
+  sources:
+  - url: https://www.freeway.gov.tw/
+    official: true
+  - url: https://www.google.com/maps/dir/?api=1&origin=九九峰動物樂園&destination=出發地
+    official: false
+  status: ok

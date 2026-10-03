@@ -1,0 +1,56 @@
+slug: trip-a
+destination:
+  country: Taiwan
+  city: 宜蘭
+  local_lang: zh
+dates:
+  start: '2026-06-23'
+  end: '2026-06-25'
+members:
+- name: 成員1
+  notes: 不吃辣（餐廳需備不辣選項）
+- name: 成員2
+- name: 成員3
+- name: 成員4
+- name: 成員5
+- name: 成員6
+- name: 成員7
+- name: 成員8
+base:
+  name: 示意民宿
+  district: 員山鄉
+overnight_stops:
+- district: 員山鄉
+  nights: 2
+  lodging:
+    name: 示意民宿
+must_do:
+- 安記花生捲冰淇淋（必去）
+- 清水地熱谷
+- 伯朗咖啡城堡一門市（6/23 14:00-16:00 會議，需可久坐的咖啡廳）
+- 屋台拉麵
+- 正常鮮肉湯包（羅東店）
+constraints:
+- 自駕：2 台四人座租車；出發地站前店 8:30 取車後去接人，約 09:00 上國道5號
+- 硬約束：6/23 14:00-16:00 須在伯朗咖啡城堡一門市進行會議
+- 有成員不吃辣，餐廳需提供不辣選項
+- 全程同一基地（員山「示意民宿」包棟 villa），每日往返
+preferences:
+  pace: 中等
+  group: 8 人，無長者/孩童
+  lodging_style: 包棟 villa（已訂，主打「示意民宿」放鬆）
+  origin: 出發地（租車自駕出發）
+  daily_incidental_basis: per_person_per_day
+  meeting_note: 伯朗城堡為觀光景點咖啡廳，meeting 需確認可久坐/座位/網路
+transport: self_drive
+daily_incidental:
+  amount: 3000
+  currency: TWD
+home_currency: TWD
+routing:
+  max_hop_mins: 60
+  max_single_drive_mins: 300
+  max_walk_mins: 15
+facility_needs:
+  required:
+  - parking

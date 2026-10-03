@@ -1,0 +1,27 @@
+currency: TWD
+line_items:
+- category: lodging
+  label: D1 示麗溫德姆溫泉酒店 2房×1晚（用戶實訂）
+  amount: 26000
+- category: lodging
+  label: D2 示淶閣飯店 2房×1晚（6500×2）
+  amount: 13000
+- category: transport
+  label: 自駕去程 台北→日月潭 油資+國道(估)
+  amount: 1000
+- category: transport
+  label: 潭區 D1→D2 短驅車(估)
+  amount: 40
+- category: transport
+  label: 自駕回程 日月潭→出發地 油資+國道(估)
+  amount: 800
+- category: transport
+  label: 同行成員續程 出發地→回程 油資+國道(估)
+  amount: 400
+total: 41240
+budget:
+  amount: 42000
+  over: false
+  delta: -760
+as_of: '2026-06-21'
+estimate_note: 大項估計（住宿+自駕油資/國道）。住宿每房×2房：D1實訂26000、D2示淶閣6500×2=13000。回程終點出發地、同行成員接手載成員回程。另計（未含）：纜車(420/人)、遊湖船(~300/人)、各餐食（D1晚為示麗一泊二食已含房費）。

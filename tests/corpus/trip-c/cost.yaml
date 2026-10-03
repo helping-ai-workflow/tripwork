@@ -1,0 +1,26 @@
+currency: TWD
+line_items:
+- category: lodging
+  label: 示品酒店嘉義（2晚×1房，每晚~2,500）
+  amount: 5000
+- category: transport
+  label: 出發地→嘉義 油資+國道（單程估）
+  amount: 1000
+- category: transport
+  label: 嘉義→草屯九九峰→出發地 油資+國道（D3 回程順遊草屯，單程估）
+  amount: 1200
+- category: transport
+  label: 嘉義市內+嘉義↔新營往返+太保/新港 自駕油資&停車（估）
+  amount: 800
+- category: incidental
+  label: 餐飲：雞肉飯×2、新港鴨肉羹、飲品/咖啡、其他正餐+新營聚餐分攤（2人×3天估）
+  amount: 4500
+- category: incidental
+  label: 景點門票：故宮南院150×2、花磚100×2、板陶窯~100×2（估）
+  amount: 700
+- category: incidental
+  label: 九九峰動物樂園門票：全票560×2（3歲以下免費）
+  amount: 1120
+total: 14320
+as_of: '2026-08-10'
+estimate_note: 估算值非報價。無設定 budget（不做超支比較）。住宿取示品雅緻雙人中位價~2,500/晚；交通為國道油資+eTag單程估（含 D3 回程順遊草屯九九峰的繞行）；雜支為2人×3天餐飲(含新營聚餐分攤)與門票概估（含九九峰全票560×2），實際依點餐/房型/油價浮動。

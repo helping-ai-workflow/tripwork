@@ -1,0 +1,500 @@
+"""route_gate_failures: fix round 1, Important 1.
+
+Before this file, `route_gate_failures` had zero tests -- the coupling between
+each `_ROUTES` marker string in scripts/orchestration.py and the exact f-string
+each producing function emits (scripts/gate.py's accommodation block,
+scripts/rederive.py's rederive_legs/rederive_hops/rederive_cost) was verified
+only by inspection. Every input below is built from a REAL failure string
+produced by the actual producing function -- never a hand-typed literal --
+so a rename on either side of the file boundary (e.g. "routing hop X->Y" ->
+"hop X->Y") fails here instead of silently reverting to the itinerary-synthesis
+fall-through this release exists to end.
+"""
+import datetime
+
+import pytest
+
+from scripts.gate import run_gate
+from scripts.orchestration import route_gate_failures
+from scripts.rederive import run_rederivation
+from scripts.text_hygiene import ai_tone_failures
+from tests.corpus_measure import CLASSES
+from tests.mech_fixtures import rederive_kwargs, upgrade_to_v1
+
+ITIN = {"days": [{"date": "2026-08-29", "rows": []}]}
+
+
+def test_accommodation_marker_routes_to_accommodation_research():
+    r = run_gate([], {"days": []},
+                 accommodations={"stops": [{"district": "X", "nights": 1,
+                                            "chosen": None, "candidates": []}]},
+                 facility_needs={"required": []})
+    assert any("chosen lodging" in f for f in r["failures"])
+    assert route_gate_failures(r["failures"]) == "tripwork:accommodation-research"
+
+
+def test_legs_marker_routes_to_inter_stop_legs():
+    legs = {"legs": [{"from": "板橋", "to": "嘉義市", "mode": "drive",
+                      "duration_mins": 400, "status": "ok"}]}
+    # accommodations={"stops": []} (I2): keeps this test scoped to legs -- an
+    # absent accommodations.yaml is ITSELF now a rederive_lodging finding
+    # ("accommodations.yaml absent") that shares _ROUTES' FIRST group with
+    # "legs[", which would silently hijack the assertion below.
+    res = run_rederivation(ITIN, {}, legs=legs, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations={"stops": []})
+    assert any("legs[" in f for f in res["failures"])
+    assert route_gate_failures(res["failures"]) == "tripwork:inter-stop-legs"
+
+
+def test_routing_marker_routes_to_routing_audit():
+    routing = {"clusters": [{"district": "西區", "pois": [],
+                             "centroid": {"lat": 23.47999, "lng": 120.44343}},
+                            {"district": "太保市", "pois": [],
+                             "centroid": {"lat": 23.4590, "lng": 120.3350}}],
+               "hops": [{"from": "西區", "to": "太保市", "mins": 5, "mode": "drive",
+                         "duration_source": "sourced_timetable", "flag": "ok"}]}
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing=routing,
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations={"stops": []})
+    assert any("routing hop " in f for f in res["failures"])
+    assert route_gate_failures(res["failures"]) == "tripwork:routing-audit"
+
+
+def test_cost_marker_routes_to_cost_rollup():
+    cost = {"currency": "TWD", "as_of": "2026-08-07", "total": 99999,
+            "line_items": [{"category": "lodging", "label": "示品", "amount": 5000},
+                           {"category": "transport", "label": "油資", "amount": 1000}]}
+    res = run_rederivation(ITIN, {}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []}, cost=cost,
+                           accommodations={"stops": []})
+    assert any("cost.total" in f for f in res["failures"])
+    assert route_gate_failures(res["failures"]) == "tripwork:cost-rollup"
+
+
+def test_lodging_rederivation_mismatch_routes_to_accommodation_research():
+    """I2's new markers, "accommodations stop " / "accommodations.yaml absent",
+    extend the SAME first _ROUTES entry as "chosen lodging" / "required
+    facility" -- this is the mismatch-axis half: a candidate rederive_lodging
+    re-derives differently than recorded must route back to
+    accommodation-research, same as the pre-existing gate-level lodging
+    checks.
+
+    Migrated (v0.34.0 Task 6 fix round 1, I2): this fixture used to be
+    cluster_fallback with NO business_status at all, documented as "the real
+    d2-6 shape". After Step 4 threads a real Gate 0 into rederive_lodging,
+    that exact shape produces `superseded`, not `mismatches` -- but this test
+    stayed green regardless, because BOTH message kinds share the same
+    "accommodations stop " routing marker this test checks for. So the
+    docstring's claim went quietly false and, worse, lodging MISMATCH ->
+    accommodation-research routing had no coverage at all. A sourced but
+    CLOSED_PERMANENTLY business_status still produces a genuine mismatch
+    (recorded 'verified', re-derived 'rejected' via Gate 0) without touching
+    the retired Gate 2c, so that shape is used here now -- discriminated from
+    `superseded` by asserting the specific mismatch marker, "but
+    classify_candidate re-derives", not just the shared prefix."""
+    accommodations = {"stops": [{"district": "日月潭", "nights": 1, "chosen": "d2-6",
+        "candidates": [{
+            "id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
+            "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
+                       {"url": "https://b.example/d2-6", "lang": "zh"}],
+            "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "cluster_fallback"},
+            "resolved_name": "日月潭旅店",
+            "business_status": {"status": "CLOSED_PERMANENTLY",
+                                "source_url": "https://a.example/d2-6",
+                                "as_of": datetime.date.today().isoformat()},
+            "verify_status": "verified"}]}]}
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations=accommodations)
+    mismatches = [f for f in res["failures"] if "but classify_candidate re-derives" in f]
+    assert len(mismatches) == 1 and "d2-6" in mismatches[0] and "'rejected'" in mismatches[0]
+    assert route_gate_failures(res["failures"]) == "tripwork:accommodation-research"
+
+
+def test_accommodations_absent_marker_routes_to_accommodation_research():
+    """The rederivable-axis half of the same extension: accommodations=None
+    (mirroring Task 1's legs=None/routing=None/cost=None treatment) must also
+    route to accommodation-research, not fall through to synthesis."""
+    res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations=None)
+    assert any("accommodations.yaml absent" in f for f in res["failures"])
+    assert route_gate_failures(res["failures"]) == "tripwork:accommodation-research"
+
+
+def test_no_resolved_lodging_still_routes_to_synthesis_not_accommodation():
+    """The documented exception: 'has no resolved lodging' is the always-on
+    per-day floor (a missing itinerary ROW, scripts/gate.py's _day_has_lodging
+    check) -- NOT in any _ROUTES group, so it must fall through to synthesis.
+    Pass **rederive_kwargs() so the rederivation axes stay clean and this
+    failure is the ONLY one in the report, isolating the exception. This also
+    guards I2's two new markers ("accommodations stop "/"accommodations.yaml
+    absent") added to the SAME first _ROUTES entry: rederive_kwargs()'s
+    accommodations={"stops": []} default keeps rederive_lodging silent, so
+    there is nothing for the new markers to (wrongly) match here -- the entry
+    being first is what makes them safe, and this is what pins that.
+
+    POI "a" carries a sourced business_status + geocode_source + resolved_name
+    (TW-070, v0.34.0) so the new POI axis re-derives its recorded 'verified'
+    cleanly too -- without them "pois[" would add a second, unrelated failure
+    and break the single-failure isolation this test depends on."""
+    pois = [{"id": "a", "verify_status": "verified",
+            "geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"},
+            "resolved_name": "NO_RESULT",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://source.example/a",
+                                "as_of": datetime.date.today().isoformat()},
+            "sources": [{"url": "https://a.example/a", "lang": "zh"},
+                        {"url": "https://b.example/a", "lang": "en"}]}]
+    itin = {"title": "t", "days": [
+        {"date": "2026-06-12", "rows": [{"slot": "meal", "poi_id": "a", "text": "lunch"}]},
+        {"date": "2026-06-13", "rows": [{"slot": "meal", "poi_id": "a", "text": "lunch"}]},
+    ]}
+    upgrade_to_v1(pois, itin)      # v1.0: keep this the report's ONLY failure
+    r = run_gate(pois, itin, advisory={"items": []}, **rederive_kwargs())
+    assert any("no resolved lodging" in f for f in r["failures"])
+    assert route_gate_failures(r["failures"]) == "tripwork:itinerary-synthesis"
+
+
+def test_ai_tone_marker_routes_to_itinerary_synthesis():
+    """Task 3's addition: the AI-tone entry is declared explicitly in _ROUTES
+    (last group, after accommodation + the three producing-stage entries)
+    rather than left to the default branch -- Task 1 made the default branch
+    stage-specific, so relying on fall-through would be an accident waiting
+    to happen. Built from a REAL ai_tone_failures() output (an em-dash, the
+    same shape the corpus's own em-dash hits took at calibration time --
+    see CHANGELOG.md's 0.33.0 entry for the point-in-time count), not a
+    hand-typed literal, so a message-format rename on either side of the file
+    boundary fails here."""
+    failures = ai_tone_failures("抵嘉義先吃午餐——阿宏師火雞肉飯（光華總店）")
+    assert any(f.startswith("AI-tone ") for f in failures)
+    assert route_gate_failures(failures) == "tripwork:itinerary-synthesis"
+
+
+# --------------------------------------------------------------------------
+# G5 (v0.35.0 review wave 2): every tests/corpus_measure.py CLASSES marker
+# routes to the stage that can write the field it names.
+# --------------------------------------------------------------------------
+
+# CLASSES (tests/corpus_measure.py) names the marker; _ROUTES
+# (scripts/orchestration.py) names which markers reach which stage. Neither
+# file names a "class -> stage" mapping directly, so this table is a literal
+# -- allowed under CLAUDE.md's guards-must-call-their-subject rule (b)
+# because there is no importable constant to call, stated here so the
+# boundary is visible: it is ONLY the expected ANSWER. The MESSAGE each
+# case is checked against is never hand-typed -- every one is produced by
+# calling the real production re-derivation function, exactly like every
+# other test in this file.
+_CLASS_STAGE = {
+    "hop_no_duration_source": "tripwork:routing-audit",
+    "poi_no_hours": "tripwork:source-verify",
+    "row_no_closing_status": "tripwork:itinerary-synthesis",
+    "lodging_no_resolved_name": "tripwork:accommodation-research",
+    "lodging_no_geocode_source": "tripwork:accommodation-research",
+    "lodging_verify_status_mismatch": "tripwork:accommodation-research",
+    "poi_verdict_superseded": "tripwork:source-verify",
+    "lodging_verdict_superseded": "tripwork:accommodation-research",
+    "ai_tone": "tripwork:itinerary-synthesis",
+    "day_chain_broken": "tripwork:itinerary-synthesis",
+    "node_without_poi": "tripwork:itinerary-synthesis",
+    "move_incomplete": "tripwork:itinerary-synthesis",
+    "move_mismatch": "tripwork:itinerary-synthesis",
+    "move_unrederivable": "tripwork:itinerary-synthesis",
+    "legacy_contingency": "tripwork:itinerary-synthesis",
+    "legacy_alternative_row": "tripwork:itinerary-synthesis",
+    "alternative_invalid": "tripwork:itinerary-synthesis",
+    "theme_invalid": "tripwork:itinerary-synthesis",
+    "checklist_invalid": "tripwork:itinerary-synthesis",
+    "booking_unlisted": "tripwork:itinerary-synthesis",
+    "poi_source_incomplete": "tripwork:source-verify",
+    "lodging_source_incomplete": "tripwork:accommodation-research",
+    "lodging_no_area_label": "tripwork:accommodation-research",
+    "brief_name_invalid": "tripwork:trip-brief",
+    "brief_headline_invalid": "tripwork:trip-brief",
+}
+
+
+def _class_fixture_failures(name):
+    """One real failures list per CLASSES entry, built by calling the actual
+    shipped re-derivation entrypoint (run_rederivation, or ai_tone_failures
+    for the one class it does not own) against a tiny, corpus-independent
+    fixture -- never a hand-formatted look-alike string. This is also why
+    the test built on top of this is not vacuous under a "swallow the
+    detection" bug the same shape as the one the reviewer used to prove the
+    OLD per-trip version was hollow (injecting a `continue` in
+    scripts/rederive.py::rederive_closing that drops the missing-hours
+    append): the poi_no_hours case below calls that exact function, so the
+    same injection makes ITS failures list come back without the message
+    this test looks for, and the `assert hit` below reds instead of finding
+    nothing to route and passing vacuously.
+    """
+    today = datetime.date.today().isoformat()
+    clean = dict(legs={"legs": []}, routing={"clusters": [], "hops": []},
+                cost={"currency": "TWD", "line_items": [], "total": 0},
+                accommodations={"stops": []})
+    if name == "hop_no_duration_source":
+        routing = {"clusters": [{"district": "A", "centroid": {"lat": 24.0, "lng": 121.0}},
+                                {"district": "B", "centroid": {"lat": 24.1, "lng": 121.1}}],
+                   "hops": [{"from": "A", "to": "B", "mode": "drive", "mins": 30}]}
+        return run_rederivation(ITIN, {}, **{**clean, "routing": routing})["failures"]
+    if name == "poi_no_hours":
+        itin = {"days": [{"date": "2026-08-01", "rows": [{"time": "10:00", "poi_id": "p1"}]}]}
+        by_id = {"p1": {"hours": {}}}
+        return run_rederivation(itin, by_id, **clean)["failures"]
+    if name == "row_no_closing_status":
+        itin = {"days": [{"date": "2026-08-01", "rows": [{"time": "10:00", "poi_id": "p1"}]}]}
+        by_id = {"p1": {"hours": {"close": "18:00"}}}
+        return run_rederivation(itin, by_id, **clean)["failures"]
+    if name == "lodging_no_resolved_name":
+        accommodations = {"stops": [{"district": "A", "candidates": [{
+            "id": "c1", "geocode": {"geocode_source": "nominatim"},
+            "verify_status": "unverified",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://x.example/", "as_of": today}}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    if name == "lodging_no_geocode_source":
+        accommodations = {"stops": [{"district": "A", "candidates": [{
+            "id": "c1", "name_local": "測試旅館", "resolved_name": "測試旅館",
+            "verify_status": "unverified",
+            "business_status": {"status": "OPERATIONAL",
+                                "source_url": "https://x.example/", "as_of": today}}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    if name == "lodging_verify_status_mismatch":
+        # Same fixture shape as
+        # test_lodging_rederivation_mismatch_routes_to_accommodation_research
+        # above: a sourced but CLOSED_PERMANENTLY business_status re-derives
+        # 'rejected' against a recorded 'verified', producing a genuine
+        # mismatch without touching the retired Gate 2c.
+        accommodations = {"stops": [{"district": "日月潭", "nights": 1, "chosen": "d2-6",
+            "candidates": [{
+                "id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
+                "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
+                           {"url": "https://b.example/d2-6", "lang": "zh"}],
+                "geocode": {"lat": 23.86, "lng": 120.91,
+                           "geocode_source": "cluster_fallback"},
+                "resolved_name": "日月潭旅店",
+                "business_status": {"status": "CLOSED_PERMANENTLY",
+                                    "source_url": "https://a.example/d2-6", "as_of": today},
+                "verify_status": "verified"}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    if name == "poi_verdict_superseded":
+        pois = [{"id": "p1", "verify_status": "verified", "business_status": "OPERATIONAL"}]
+        return run_rederivation(ITIN, {}, **clean, pois=pois)["failures"]
+    if name == "lodging_verdict_superseded":
+        accommodations = {"stops": [{"district": "A", "candidates": [{
+            "id": "c1", "verify_status": "verified",
+            "geocode": {"geocode_source": "nominatim"},
+            "resolved_name": "測試旅館", "name_local": "測試旅館",
+            "business_status": "OPERATIONAL"}]}]}
+        return run_rederivation(
+            ITIN, {}, **{**clean, "accommodations": accommodations})["failures"]
+    from scripts.brief_names import headline_failures, name_failures
+    from scripts.checklist import checklist_failures
+    from scripts.day_chain import (alternative_failures, chain_failures, legacy_failures,
+                                   move_record_failures, theme_failures)
+    from scripts.source_records import area_label_failures, source_record_failures
+    D = "2026-08-01"
+    far = {"a": {"geocode": {"lat": 41.80, "lng": 140.75}},
+           "b": {"geocode": {"lat": 41.70, "lng": 140.60}}, "n": {}}
+
+    def far_none(lodging):
+        return {"days": [
+            {"date": "2026-07-31", "lodging": "a", "rows": [{"slot": "move", "mode": "none"}]},
+            {"date": D, "lodging": lodging, "rows": [{"slot": "move", "mode": "none"}]}]}
+
+    if name == "day_chain_broken":
+        return chain_failures({"days": [{"date": D, "rows": [{"slot": "meal", "poi_id": "p"}]}]})
+    if name == "node_without_poi":
+        return chain_failures({"days": [{"date": D, "rows": [
+            {"slot": "move", "mode": "none"}, {"slot": "meal"}, {"slot": "move", "mode": "none"}]}]})
+    if name == "move_incomplete":
+        return move_record_failures({"days": [{"date": D, "rows": [{"slot": "move"}]}]})
+    if name == "move_mismatch":
+        return run_rederivation(far_none("b"), far, **clean)["failures"]
+    if name == "move_unrederivable":
+        return run_rederivation(far_none("n"), far, **clean)["failures"]
+    if name == "legacy_contingency":
+        return legacy_failures({"contingency": [{"trigger": "t", "fallback": "f"}], "days": []})
+    if name == "legacy_alternative_row":
+        return legacy_failures({"days": [{"date": D, "rows": [{"slot": "activity", "text": "▸ 備案"}]}]})
+    if name == "alternative_invalid":
+        return alternative_failures({"days": [{"date": D, "rows": [], "alternatives": [{}]}]})
+    if name == "theme_invalid":
+        return theme_failures({"days": [{"date": D, "rows": []}]})
+    if name == "checklist_invalid":
+        return checklist_failures({"checklist": ["x"]}, {}, set())
+    if name == "booking_unlisted":
+        return checklist_failures({"checklist": []},
+                                  {"p": {"booking": {"opens_at": "2026-10-17 08:00"}}}, {"p"})
+    if name == "poi_source_incomplete":
+        return source_record_failures({"p": {"sources": [{"url": "https://x", "lang": "zh"}]}},
+                                      {"p"}, {"p"})
+    if name == "lodging_source_incomplete":
+        return source_record_failures({"h": {"sources": [{"url": "https://x", "lang": "zh"}]}},
+                                      set(), {"h"})
+    if name == "lodging_no_area_label":
+        return area_label_failures({"stops": [{"district": "A"}]})
+    if name == "brief_name_invalid":
+        return name_failures({"dates": {"start": "2026-08-01", "end": "2026-08-02"}})
+    if name == "brief_headline_invalid":
+        return headline_failures({})
+    if name == "ai_tone":
+        return ai_tone_failures("測試—文字")
+    raise AssertionError(f"no fixture wired for CLASSES entry {name!r}")
+
+
+@pytest.mark.parametrize("name,marker", CLASSES)
+def test_every_corpus_measure_class_routes_to_the_stage_that_can_write_it(name, marker):
+    """G5 (v0.35.0 review wave 2): `tests/corpus_measure.py`'s CLASSES tuple
+    classifies real corpus failure messages for the baseline; nothing
+    previously checked that every one of ITS classes routes
+    (route_gate_failures) to the stage that can actually write the field the
+    message names.
+
+    `tests/test_corpus_gate.py::test_no_failure_class_routes_to_a_stage_that_
+    cannot_write_it` used to fold this check inline, per-trip, over
+    `report["failures"]` -- but a trip only exercises whichever classes its
+    OWN corpus data happens to produce today, so a class the live corpus
+    never triggers (or stops triggering, e.g. once a consumer fixes their
+    data) got zero routing coverage. `trip-c`, today's one clean
+    trip, iterated an EMPTY failures list there and asserted nothing about
+    routing at all -- exactly the "a check that cannot fail is
+    indistinguishable from one that passed" shape this release's own thesis
+    warns about.
+
+    Parametrizing over CLASSES instead of over trips makes this
+    corpus-independent: it runs the same nine checks regardless of what the
+    corpus currently contains, and unlike the per-trip version it replaces,
+    this file carries no `skipif` on the consumer corpus existing -- it runs
+    in CI too.
+    """
+    failures = _class_fixture_failures(name)
+    hit = [f for f in failures if marker in f]
+    assert hit, (f"{name}'s own CLASSES marker {marker!r} is not in any "
+                f"failure this fixture produced: {failures}")
+    assert route_gate_failures(failures) == _CLASS_STAGE[name], (name, failures)
+
+
+def test_accommodation_marker_wins_priority_over_a_later_group():
+    """Priority-ordering guard: scripts/orchestration.py's comment says
+    accommodation stays FIRST in _ROUTES on purpose. This combines two
+    independently-real failure lists (a legs mismatch + an accommodation
+    defect) and pins that accommodation wins regardless of which failure
+    appears first in the list -- because route_gate_failures iterates
+    _ROUTES groups in table order, not list order. Reordering the tuple to
+    put "legs[" before the accommodation markers would flip this silently,
+    with the rest of the suite still green."""
+    legs = {"legs": [{"from": "板橋", "to": "嘉義市", "mode": "drive",
+                      "duration_mins": 400, "status": "ok"}]}
+    legs_res = run_rederivation(ITIN, {}, legs=legs, routing={"clusters": [], "hops": []},
+                                cost={"currency": "TWD", "line_items": [], "total": 0})
+    accom = run_gate([], {"days": []},
+                     accommodations={"stops": [{"district": "X", "nights": 1,
+                                                "chosen": None, "candidates": []}]},
+                     facility_needs={"required": []})
+    combined = legs_res["failures"] + accom["failures"]
+    assert route_gate_failures(combined) == "tripwork:accommodation-research"
+
+
+def test_home_leg_unrendered_marker_falls_through_to_synthesis():
+    """TW-069 fix round 1, Important 1 — the routing trap the fix must avoid:
+    scripts/gate.py::_home_legs_rendered_failures's failure message must NOT
+    contain 'legs[' (that marker's _ROUTES group points at
+    tripwork:inter-stop-legs, the WRONG destination for this defect — nothing
+    is wrong with legs.yaml itself, itinerary-synthesis simply never rendered
+    the leg as a row). Built from the REAL failure string, not a hand-typed
+    literal, so a message-format rename on either side of the file boundary
+    fails here instead of silently mis-routing."""
+    from scripts.gate import _home_legs_rendered_failures
+    legs = {"legs": [{"from": "板橋", "to": "嘉義市", "kind": "home", "mode": "drive",
+                      "duration_mins": 190, "status": "ok"}]}
+    itin = {"days": [{"date": "2026-08-29", "rows": []}]}   # no row carries leg_index
+    failures = _home_legs_rendered_failures(itin, legs)
+    assert any("has no move row" in f for f in failures)
+    assert not any("legs[" in f for f in failures)
+    assert route_gate_failures(failures) == "tripwork:itinerary-synthesis"
+
+
+def test_no_hours_marker_routes_to_source_verify():
+    """C2 (final whole-branch review): rule 13.5 could not terminate.
+
+    `rederive_closing` emits "POI carries neither hours.close nor
+    hours.no_fixed_close" for every scheduled row whose POI records no closing
+    time -- a real, per-trip-uneven share of rows across the four schema-clean
+    trips (tests/corpus-baseline.json's per_trip `classes.poi_no_hours`; C1
+    already moved the lodging rows out of scope by the time this axis is
+    measured). `hours` lives in `verified-pois.yaml`, which ONLY
+    `tripwork:source-verify` writes, and that skill's own SKILL.md:47 ends the
+    paragraph with "leave `close` absent and let the gate flag it". Before this
+    entry `_ROUTES` had no source-verify group, so the failure fell through to
+    `tripwork:itinerary-synthesis` -- a stage that cannot write
+    verified-pois.yaml. Re-running it produced the same failure forever: with
+    the group removed, trip-a's drain simulation reaches a fixed point
+    instead of terminating, stalling at exactly its own no-hours count (see the
+    baseline above for the live figure).
+    (tests/test_corpus_gate.py::test_rule_13_5_drains_instead_of_looping pins
+    the termination, and
+    test_removing_the_source_verify_route_reproduces_the_non_terminating_drain
+    pins the stall.)
+
+    Built from REAL run_rederivation output like the six above, never a string
+    literal.
+    """
+    poi = {"id": "p1", "name_display": "花磚博物館", "verify_status": "verified",
+           "hours": {"typical_visit_mins": 45, "as_of": "2026-08-01"}}
+    itin = {"days": [{"date": "2026-08-29", "rows": [
+        {"time": "13:15", "slot": "visit", "poi_id": "p1", "text": "花磚博物館",
+         "closing_status": "ok"}]}]}
+    res = run_rederivation(itin, {"p1": poi}, legs={"legs": []},
+                           routing={"clusters": [], "hops": []},
+                           cost={"currency": "TWD", "line_items": [], "total": 0},
+                           accommodations={"stops": []})
+    assert any("carries neither hours.close" in f for f in res["failures"]), \
+        res["failures"]
+    assert route_gate_failures(res["failures"]) == "tripwork:source-verify"
+
+
+def test_source_verify_group_neither_shadows_nor_is_shadowed():
+    """Ordering guard for the entry above. `route_gate_failures` returns the
+    FIRST `_ROUTES` group any failure matches, so a marker that is a substring
+    of another group's marker (or vice versa) silently steals or loses traffic
+    depending only on tuple order. The reviewer verified pairwise containment
+    was clean across the original five; this keeps it clean at six.
+
+    Checked as a property over the real table rather than as a hand-listed
+    matrix, so a marker added in a later release is covered without editing
+    this test.
+    """
+    from scripts.orchestration import _ROUTES
+
+    flat = [(m, target) for markers, target in _ROUTES for m in markers]
+    assert any(t == "tripwork:source-verify" for _, t in flat), \
+        "the source-verify group must exist"
+    for a, ta in flat:
+        for b, tb in flat:
+            if a is b or ta == tb:
+                continue
+            assert a not in b, f"marker {a!r} ({ta}) is contained in {b!r} ({tb})"
+
+
+def test_the_superseded_poi_class_routes_to_source_verify():
+    """Built from REAL rederive_pois output, never a string literal: the marker
+    is hand-typed in orchestration.py and the message is hand-typed in
+    rederive.py, and nothing but a test spanning both pins that coupling."""
+    from scripts.orchestration import route_gate_failures
+    from scripts.rederive import rederive_pois
+    out = rederive_pois([{
+        "id": "p1", "name_local": "花磚博物館", "name_display": "花磚博物館",
+        "category": "sight", "district": "嘉義市西區",
+        "verify_status": "verified", "business_status": "OPERATIONAL",
+        "geocode": {"lat": 23.48, "lng": 120.44, "geocode_source": "nominatim"},
+        "resolved_name": "花磚博物館",
+        "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+                    {"url": "https://b.example.com/q", "lang": "en"}]}])
+    assert out.superseded, "fixture must produce the class under test"
+    assert route_gate_failures(out.superseded) == "tripwork:source-verify"
+    assert not any("legs[" in f for f in out.superseded)

@@ -1,0 +1,49 @@
+"""TW-059 cross-stage closure: one fixture walked through verify -> gate ->
+render -> export-gate, proving the stages compose (not just pass in isolation)."""
+import datetime
+
+from scripts.verify import classify_candidate
+from scripts.gate import run_gate
+from scripts.render.markdown import render_day_table
+from scripts.export_gate import run_export_gate
+from tests.mech_fixtures import rederive_kwargs, upgrade_to_v1
+
+def _src(dom, lang="ko", official=False):
+    return {"url": f"https://{dom}.example", "lang": lang, "official": official}
+
+def test_cross_stage_verify_gate_render_export():
+    # 1) verify: two independent sources, geocoded, in region -> verified
+    cand = {"id": "odari", "sources": [_src("official", official=True), _src("guide", "en")]}
+    status, _ = classify_candidate(cand, geocoded=True, in_claimed_region=True, local_lang="ko")
+    assert status == "verified"
+    poi = {"id": "odari", "name_local": "오다리집", "name_display": "Odari",
+           "verify_status": "verified",
+           "geocode": {"lat": 37.56, "lng": 126.98, "geocode_source": "nominatim"},
+           "resolved_name": "오다리집",
+           # sourced business_status (TW-070, v0.34.0): run_gate now threads
+           # `pois` into rederive_pois, so this record must re-derive its own
+           # recorded 'verified' -- as_of computed at call time, never a
+           # literal (OPERATING_MAX_AGE_DAYS is 90).
+           "business_status": {"status": "OPERATIONAL",
+                               "source_url": "https://official.example",
+                               "as_of": datetime.date.today().isoformat()},
+           "booking": {"required": True},
+           # v0.33.0 (R4): "오다리집" is a restaurant (Korean "-집" naming), so this
+           # is explicit close/last_order, never hours.no_fixed_close.
+           "hours": {"close": "22:00", "last_order": "21:30", "typical_visit_mins": 60,
+                     "as_of": "2026-01-01"},
+           "sources": [_src("official", official=True), _src("guide", "en")]}
+    # 2) gate: itinerary referencing only the verified POI passes
+    itin = {"title": "t", "checklist": [],
+            "days": [{"date": "2026-06-12", "label": "D1",
+                      "rows": [{"time": "12:00", "slot": "meal", "poi_id": "odari",
+                                "text": "lunch", "closing_status": "ok"}]}]}
+    upgrade_to_v1([poi], itin)     # v1.0 reader data: chain, theme, source records
+    g = run_gate([poi], itin, advisory={"items": []}, **rederive_kwargs())
+    assert g["status"] == "pass", g["failures"]
+    # 3) render the day from the canonical itinerary + poi map
+    md = "### D1\n\n| 時段 | 行程 |\n|---|---|\n" + \
+         "".join(render_day_table(d, {"odari": poi}).split("\n", 2)[2] for d in itin["days"])
+    # 4) export-gate on the rendered deliverable passes (official link present, content ok)
+    eg = run_export_gate(md, [poi], min_days=1)
+    assert eg["status"] == "pass", eg["failures"]

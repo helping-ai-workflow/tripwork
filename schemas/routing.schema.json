@@ -1,0 +1,130 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "clusters",
+    "hops",
+    "warnings"
+  ],
+  "properties": {
+    "clusters": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "district",
+          "pois"
+        ],
+        "properties": {
+          "district": {
+            "type": "string"
+          },
+          "is_base": {
+            "type": "boolean"
+          },
+          "centroid": {
+            "type": "object",
+            "description": "The cluster's representative point, used to compute a hop's straight-line km and thus its min_plausible_mins floor. Optional in schema (old routing.yaml stays valid); required by the itinerary gate's verdicts_rederivable check for every district a hop names as an endpoint -- scripts/rederive.py::hop_km returns None without it, and rederive_hops fails the hop rather than silently skipping the floor.",
+            "required": [
+              "lat",
+              "lng"
+            ],
+            "properties": {
+              "lat": {
+                "type": "number",
+                "minimum": -90,
+                "maximum": 90
+              },
+              "lng": {
+                "type": "number",
+                "minimum": -180,
+                "maximum": 180
+              }
+            },
+            "additionalProperties": false
+          },
+          "pois": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "hops": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "mins",
+          "flag"
+        ],
+        "properties": {
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          },
+          "mode": {
+            "type": "string",
+            "description": "Travel mode, used as the min_plausible_mins speed floor's key. Optional in schema (old routing.yaml stays valid); required by the itinerary gate's verdicts_rederivable check -- a hop with no mode cannot have its floor recomputed and scripts/rederive.py::rederive_hops fails it rather than silently degrading to a threshold-only compare."
+          },
+          "mins": {
+            "type": "number"
+          },
+          "flag": {
+            "type": "string",
+            "enum": [
+              "ok",
+              "far",
+              "implausible",
+              "unsourced"
+            ],
+            "description": "Verdict from scripts/distance.py::classify_hop. `implausible` and `unsourced` were previously unrepresentable, which meant an honest recording of either produced a schema-invalid artifact — raising the guessed minutes was the only schema-valid escape. (TW-066)"
+          },
+          "duration_source": {
+            "type": "string",
+            "enum": [
+              "agent_estimate",
+              "map_estimate",
+              "sourced_timetable"
+            ],
+            "description": "Where `mins` came from. Optional in schema (old routing.yaml stays valid); required by the itinerary gate. An absent value is treated as agent_estimate. (TW-066)"
+          },
+          "source_url": {
+            "type": "string",
+            "pattern": "^https?://",
+            "description": "The timetable / map result backing `mins` when duration_source is not agent_estimate."
+          }
+        },
+        "additionalProperties": false,
+        "allOf": [
+          {
+            "if": {
+              "required": ["duration_source"],
+              "properties": {
+                "duration_source": {"enum": ["map_estimate", "sourced_timetable"]}
+              }
+            },
+            "then": {
+              "required": ["source_url"],
+              "description": "I1: a hop declaring a SOURCED duration_source must carry source_url -- re-typing the enum alone (with no source) used to clear classify_hop's `unsourced` verdict; this closes the same bare-enum gap Task 2 closed for business_status. Scoped to hops that explicitly declare a non-default duration_source (transition rule): a hop with no duration_source field at all, or an explicit `agent_estimate`, is unaffected -- every pre-TW-066 artifact keeps validating."
+            }
+          }
+        ]
+      }
+    },
+    "warnings": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    }
+  },
+  "additionalProperties": false
+}

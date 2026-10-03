@@ -1,0 +1,55 @@
+slug: trip-d
+destination:
+  country: 台灣
+  city: 東北角＋北海岸（基隆正濱・新北貢寮福隆・宜蘭頭城石城・金山・萬里）
+  local_lang: zh
+dates:
+  start: '2026-09-24'
+  end: '2026-09-25'
+members:
+- name: 成員1
+  notes: 自駕駕駛
+- name: 成員2
+base:
+  name: 示容大飯店福隆
+  district: 新北市貢寮區
+transport: self_drive
+overnight_stops:
+- district: 新北市貢寮區·福隆
+  nights: 1
+  lodging:
+    name: 示容大飯店福隆
+must_do:
+- 灆咖啡賞龜山島（吹冷氣、吃點心、看海景）
+- 正濱漁港萬祝號咖啡看彩色屋
+- 朱銘美術館「恆形」新展
+constraints:
+- 改 2 天 1 夜：飯店只訂到 9/24(四) 一晚、含一泊二食（晚餐＋早餐）
+- 明天 9/24(四) 10:00 出發
+- 福隆海水浴場沙灘封鎖、不可下水（飯店告知）——沙灘活動全拿掉，泡湯不受影響
+- 9/25(五) 中秋當天回程：走北海岸東段＋國道、避開淡水海線午後回堵與國5雪隧
+- 住宿預算 NT$5,000–8,000/晚雙人房
+- 近期已去宜蘭(2026-06)、日月潭(2026-07)，不重複
+preferences:
+  atmosphere:
+  - 海濱漁港
+  - 海景咖啡
+  - 美術館藝文
+  - 溫泉
+  pace: 悠閒定點＋海岸兜風
+  traffic_strategy: 9/24 週四出（平日）、9/25 中秋午前上路、回程走國道避淡水/雪隧
+  avoid_recent:
+  - 宜蘭
+  - 日月潭
+  lodging_budget_per_night:
+    min: 5000
+    max: 8000
+    currency: TWD
+  notes: 2人自駕；核心＝正濱萬祝號咖啡＋灆咖啡看龜山島＋示容海洋溫泉一泊二食；Day2 回程朱銘美術館恆形新展＋萬里亞尼克創始店生乳捲，全程國道回出發地
+facility_needs:
+  required:
+  - parking
+routing:
+  max_hop_mins: 90
+  max_single_drive_mins: 300
+  max_walk_mins: 15

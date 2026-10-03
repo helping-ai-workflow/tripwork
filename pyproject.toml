@@ -1,0 +1,21 @@
+[project]
+name = "tripwork"
+version = "1.1.1"
+requires-python = ">=3.11"
+dependencies = ["PyYAML>=6.0", "jsonschema>=4.0", "requests>=2.31", "fonttools>=4.40", "brotli>=1.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "pytest-mock>=3.12", "beautifulsoup4>=4.12", "Pillow>=10"]
+maps = ["Pillow>=10"]
+# tests_browser/ (spec §7 interaction checks; its own CI workflow, not the default sweep)
+browser = ["playwright>=1.45"]
+
+# Explicit package list — the plugin ships only the `scripts/` python helpers.
+# Without this, setuptools flat-layout auto-discovery errors on the sibling
+# data dirs (skills/ schemas/ tests/) as "multiple top-level packages".
+[tool.setuptools]
+packages = ["scripts", "scripts.render", "scripts.render.reader"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

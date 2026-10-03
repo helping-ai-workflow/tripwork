@@ -1,0 +1,99 @@
+clusters:
+- district: 新北市瑞芳區
+  is_base: false
+  centroid:
+    lat: 25.113121
+    lng: 121.870732
+  pois:
+  - bitou-cape-trail
+  - jinguashi-gold-museum
+  - baoshan-viewpoint
+  - jiufen-old-street
+- district: 新北市貢寮區
+  is_base: true
+  centroid:
+    lat: 25.020723
+    lng: 121.961174
+  pois:
+  - lailai-geology
+  - hotel-d1-hotspring
+  - sandiaojiao-lighthouse
+  - fulong-beach
+  - magang-fishing-village
+  - magang-tidal-flat
+  - caoling-historic-trail
+  - fulong-bento-yilong
+  - taoyuan-valley-trail
+  - old-caoling-tunnel-bikeway
+  - longdong-bay-ocean-park
+  - longdong-sijiwan-kivano
+  - maoao-fishing-village
+  - maoao-liyang-temple
+  - maoao-ocean-station
+- district: 宜蘭縣頭城鎮
+  is_base: false
+  centroid:
+    lat: 24.96094
+    lng: 121.926684
+  pois:
+  - lan-coffee-shicheng
+  - dali-tiangong-temple
+  - beiguan-tidal-park
+  - shicheng-service-area
+- district: 基隆市中正區
+  is_base: false
+  centroid:
+    lat: 25.15118
+    lng: 121.765754
+  pois:
+  - zhengbin-fishing-port
+- district: 新北市金山區
+  is_base: false
+  centroid:
+    lat: 25.244219
+    lng: 121.611225
+  pois:
+  - juming-museum
+- district: 新北市萬里區
+  is_base: false
+  centroid:
+    lat: 25.178124
+    lng: 121.688882
+  pois:
+  - yannick-wanli
+hops:
+- from: 新北市貢寮區
+  to: 新北市瑞芳區
+  mode: drive
+  mins: 30
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 新北市貢寮區
+  to: 宜蘭縣頭城鎮
+  mode: drive
+  mins: 20
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 新北市貢寮區
+  to: 基隆市中正區
+  mode: drive
+  mins: 40
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 新北市貢寮區
+  to: 新北市金山區
+  mode: drive
+  mins: 65
+  flag: unsourced
+  duration_source: agent_estimate
+- from: 新北市貢寮區
+  to: 新北市萬里區
+  mode: drive
+  mins: 50
+  flag: unsourced
+  duration_source: agent_estimate
+warnings:
+- 2 天 1 夜、單一據點示容福隆(貢寮)；Day1 基隆正濱→石城灆咖啡海岸兜風、Day2 回程金山朱銘→萬里亞尼克全程國道。
+- max_hop_mins 放寬為 90（海岸兜風型長 hop 屬刻意路線，非違規）；最長 base→金山約 65 分。
+- 9/25 中秋回程經北海岸金山：午後台2淡水段最壅 → 早到金山、回程走萬里接台62/國3/國1 避淡水海線。
+- 萬祝號(正濱漁港旁咖啡) 為 D7 unverified（OSM 無點）；行程以正濱漁港為定位錨、萬祝號列於文字。

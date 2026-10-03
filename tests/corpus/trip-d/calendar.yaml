@@ -1,0 +1,14 @@
+holidays:
+- date: '2026-09-25'
+  name_local: 中秋節
+  name_display: 中秋節（Mid-Autumn Festival）
+  type: national
+  impact:
+    crowds: true
+    closures: true
+  note: 2026 中秋節為週五，串成 4 天連假 9/25(五)–9/28(一，教師節/孔子誕辰已恢復國定假日)，無補班日。 本行程 2 天 1 夜、範圍 9/24–25：9/24 週四正常上班日（出發日、人潮低）；**9/25 中秋為國定假日且是回程日**。 closures：政府機關/銀行/郵局休；觀光景點與餐廳照常營業（朱銘美術館逢國定假日照常開、9/25 開放）， 但**連假人潮/停車尖峰**——尤其 9/25 回程經北海岸金山，午後台2淡水段最壅 → 排早到金山、回程走萬里接國道避淡水。 must-do 灆咖啡 9/24(四) 平日去、萬祝號 9/24 週四營業（週二三公休），皆不受阻。
+  sources:
+  - url: https://www.dgpa.gov.tw/informationlist?uid=353
+    official: true
+  - url: https://www.319papago.idv.tw/holiday/2026-hr/2026_HR.html
+    official: false

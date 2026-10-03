@@ -1,0 +1,66 @@
+name: browser
+
+# spec §7: the reader's interaction checks (anchor linkage, overlays, no widened page,
+# dashboard not scrolling, centring without rebound) run in headless Chromium and
+# WebKit (the engine of the LINE / iPhone Files previews the reader is opened in) --
+# only when something that shapes the page changes. The filter is the whole scripts/
+# package: the page and the fixture that builds it load ~20 modules outside
+# scripts/render (tests/test_browser_workflow.py measures that list, it is not kept here).
+on:
+  push:
+    branches: [main]
+    paths:
+      - "scripts/**"
+      - "assets/fonts/**"
+      - "assets/icons/**"
+      - "assets/dict/**"
+      - "tests_browser/**"
+      - "tests/__init__.py"
+      - "tests/e2e_v1_fixture.py"
+      - "tests/reader_fixture.py"
+      - "tests/title_fixture.py"
+      - "tests/mech_fixtures.py"
+      - "pyproject.toml"
+      - ".github/workflows/browser.yml"
+  pull_request:
+    paths:
+      - "scripts/**"
+      - "assets/fonts/**"
+      - "assets/icons/**"
+      - "assets/dict/**"
+      - "tests_browser/**"
+      - "tests/__init__.py"
+      - "tests/e2e_v1_fixture.py"
+      - "tests/reader_fixture.py"
+      - "tests/title_fixture.py"
+      - "tests/mech_fixtures.py"
+      - "pyproject.toml"
+      - ".github/workflows/browser.yml"
+
+jobs:
+  interaction:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install
+        run: pip install -e ".[dev,browser]"
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+      - name: Cache Playwright browsers
+        id: cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-cw-${{ runner.os }}-${{ steps.pw.outputs.version }}
+      - name: Install Chromium and WebKit
+        if: steps.cache.outputs.cache-hit != 'true'
+        run: python -m playwright install --with-deps chromium webkit
+      - name: Install Chromium and WebKit system deps
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: python -m playwright install-deps chromium webkit
+      - name: Interaction checks
+        run: python -m pytest tests_browser -q

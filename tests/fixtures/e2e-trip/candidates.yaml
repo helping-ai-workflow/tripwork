@@ -1,0 +1,27 @@
+candidates:
+  # Bug 1: hallucinated location — claims 잠실 but geocodes to 강남
+  - id: hanbang-samgyetang
+    name_local: 한방삼계탕
+    name_display: 韓方參雞湯
+    category: restaurant
+    claimed_district: 잠실
+    sources:
+      - { url: "https://ko-src/hanbang", lang: ko }
+      - { url: "https://zh-src/hanbang", lang: zh }
+  # Bug 2: single-source false positive
+  - id: gobong-samgyetang
+    name_local: 고봉삼계탕
+    name_display: 高峰參雞湯
+    category: restaurant
+    claimed_district: 잠실
+    sources:
+      - { url: "https://polle/gobong", lang: ko }
+  # Good control
+  - id: odarijip
+    name_local: 오다리집
+    name_display: 烏達里家
+    category: restaurant
+    claimed_district: 명동
+    sources:
+      - { url: "https://tripadvisor/odarijip", lang: ko }
+      - { url: "https://foodybird/odarijip", lang: zh }

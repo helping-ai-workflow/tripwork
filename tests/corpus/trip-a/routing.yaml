@@ -1,0 +1,128 @@
+clusters:
+- district: 礁溪鄉
+  is_base: false
+  centroid:
+    lat: 24.821449
+    lng: 121.767444
+  pois:
+  - anji-peanut-ice
+  - wuji-peanut-ice
+  - leshan-hotspring-ramen
+  - tangweigou-park
+  - wengyaoji-jiaoxi
+- district: 頭城鎮
+  is_base: false
+  centroid:
+    lat: 24.868133
+    lng: 121.829556
+  pois:
+  - wotai-ramen
+  - mrbrown-castle-1
+  - mrbrown-castle-2
+  - tjuku-cafe-wushi
+  - lanyang-museum
+  - waiao-beach
+  - toucheng-old-street
+- district: 羅東鎮
+  is_base: false
+  centroid:
+    lat: 24.67872
+    lng: 121.769846
+  pois:
+  - zhengchang-soup-dumpling
+  - luodong-night-market
+  - luodong-forestry-park
+  - linchang-rougeng
+- district: 大同鄉
+  is_base: false
+  centroid:
+    lat: 24.612641
+    lng: 121.636694
+  pois:
+  - qingshui-geothermal
+- district: 宜蘭市
+  is_base: false
+  centroid:
+    lat: 24.757278
+    lng: 121.742076
+  pois:
+  - zhenghao-xiaolongbao
+  - jimmy-square
+  - yilan-administration-memorial
+  - agrioz-museum
+  - aniang-garlic-rougeng
+- district: 員山鄉
+  is_base: true
+  centroid:
+    lat: 24.741452
+    lng: 121.69982
+  pois:
+  - wanglongpi
+  - herbelle-museum
+  - pangxie-maopao
+  - bajia-fish-farm
+- district: 冬山鄉
+  is_base: false
+  centroid:
+    lat: 24.653726
+    lng: 121.751772
+  pois:
+  - meihua-lake
+  - dongshan-eco-ark
+  - guangshing-farm
+- district: 三星鄉
+  is_base: false
+  centroid:
+    lat: 24.668149
+    lng: 121.65218
+  pois:
+  - sanxing-onion-museum
+- district: 五結鄉
+  is_base: false
+  centroid:
+    lat: 24.663101
+    lng: 121.829625
+  pois:
+  - tiger-rice-noodle
+hops:
+- from: 員山鄉
+  to: 礁溪鄉
+  mode: drive
+  mins: 27
+  flag: ok
+- from: 員山鄉
+  to: 頭城鎮
+  mode: drive
+  mins: 42
+  flag: ok
+- from: 員山鄉
+  to: 羅東鎮
+  mode: drive
+  mins: 25
+  flag: ok
+- from: 員山鄉
+  to: 大同鄉
+  mode: drive
+  mins: 35
+  flag: ok
+- from: 員山鄉
+  to: 宜蘭市
+  mode: drive
+  mins: 15
+  flag: ok
+- from: 員山鄉
+  to: 冬山鄉
+  mode: drive
+  mins: 27
+  flag: ok
+- from: 員山鄉
+  to: 三星鄉
+  mode: drive
+  mins: 24
+  flag: ok
+- from: 員山鄉
+  to: 五結鄉
+  mode: drive
+  mins: 36
+  flag: ok
+warnings: []

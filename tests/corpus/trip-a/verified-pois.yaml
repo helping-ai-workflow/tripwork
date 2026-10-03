@@ -1,0 +1,808 @@
+pois:
+- id: anji-peanut-ice
+  name_local: 安記幸福餐車花生捲冰淇淋
+  name_display: 安記幸福餐車花生捲冰淇淋
+  category: dessert
+  district: 礁溪鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://www.walkerland.com.tw/subject/view/417865
+    lang: zh
+    note: WalkerLand 安記幸福餐車，育龍路及大坡路口，週二午公休、限購、賣完收攤 ｜座標以官方地址解析：龍潭湖 礁溪鄉 宜蘭縣 Taiwan
+  - url: https://bajenny.pixnet.net/blog/post/49472908
+    lang: zh
+    note: 魔鬼甄 地址/電話/營業時間(週二休、假日分時段)/阿宗芋冰
+  name_roman: Anji Food Truck Peanut Roll Ice Cream
+  geocode:
+    lat: 24.7955248
+    geocode_source: nominatim
+    lng: 121.7405273
+  verify_status: verified
+  closed_days:
+  - tuesday
+  hours:
+    close: '17:30'
+    typical_visit_mins: 30
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJ6eOyjsP7ZzQRzK3jLAvalro
+- id: wotai-ramen
+  name_local: 屋台拉麵
+  name_display: 屋台拉麵（頭城）
+  category: food
+  district: 頭城鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://curly.com.tw/ilanwotai/
+    lang: zh
+    note: Curly 宜三路一段36號、好停車、菜單/營業時間/週三公休、豚骨不辣
+  - url: https://bjsmile.tw/wudai/
+    lang: zh
+    note: 紫色微笑 老店新開、無訂位、台式口味
+  name_roman: Wotai Ramen
+  geocode:
+    lat: 24.8417161
+    geocode_source: nominatim
+    lng: 121.7898244
+  verify_status: verified
+  closed_days:
+  - wednesday
+  hours:
+    close: '18:30'
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJT3LsscznZzQRSXBXT_A83Mw
+- id: zhengchang-soup-dumpling
+  name_local: 正常鮮肉小湯包（羅東店）
+  name_display: 正常鮮肉小湯包 羅東店
+  category: breakfast
+  district: 羅東鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://spot.line.me/detail/484493938628004879
+    lang: zh
+    note: LINE 熱點官方收錄 南門路7號、電話、營業時間 ｜座標以官方地址解析：南門路 羅東鎮 宜蘭縣 Taiwan
+  - url: https://ajtravel.tw/normal-xiaolongbao/
+    lang: zh
+    note: AJ 羅東早餐、現包現蒸、皮薄爆汁
+  name_roman: Zhengchang Fresh Meat Soup Dumpling (Luodong)
+  geocode:
+    lat: 24.6729075
+    geocode_source: nominatim
+    lng: 121.766135
+  verify_status: verified
+  closed_days:
+  - monday
+  hours:
+    close: '13:30'
+    last_order: '13:00'
+    typical_visit_mins: 45
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJz8owjnzmZzQRF2bNUkJodPg
+- id: qingshui-geothermal
+  name_local: 清水地熱公園
+  name_display: 清水地熱公園（清水地熱谷）
+  category: hotspring
+  district: 大同鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://bjsmile.tw/qingshui/
+    lang: zh
+    note: 三星路八段501巷150號、09:00-17:00、免門票、停車50、煮蛋體驗
+  - url: https://www.kkday.com/zh-tw/blog/177872/asia-taiwan-yilan-cingshuei
+    lang: zh
+    note: KKday 煮蛋體驗/營業時間/一日遊
+  name_roman: Qingshui Geothermal Park
+  geocode:
+    lat: 24.6126411
+    geocode_source: nominatim
+    lng: 121.6366939
+  verify_status: verified
+  hours:
+    close: '17:00'
+    last_entry: '16:00'
+    typical_visit_mins: 120
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJVVVVVRVxaDQRDc3Y8MyRVlE
+- id: mrbrown-castle-1
+  name_local: 金車伯朗咖啡城堡一館
+  name_display: 金車伯朗咖啡城堡一館（頭城）
+  category: cafe
+  district: 頭城鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://bjsmile.tw/post-26391086/
+    lang: zh
+    note: 石空路95號、一館09:00-18:00、兩層樓+三樓瞭望、座位多適合久坐、有電梯/WiFi、自有停車場；上山路窄勿開9人座以上 ｜座標以官方地址解析：石空路 頭城鎮 宜蘭縣 Taiwan
+  - url: https://fullfen.tw/brown-castle-coffee/
+    lang: zh
+    note: 免門票、低消一杯飲料、烏石港龜山島海景
+  name_roman: Mr. Brown Castle Cafe Toucheng I
+  geocode:
+    lat: 24.8806166
+    geocode_source: nominatim
+    lng: 121.8399679
+  verify_status: verified
+  hours:
+    close: '18:00'
+    typical_visit_mins: 120
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJPzv3gaP3ZzQRLSrEFaDsg6o
+- id: mrbrown-castle-2
+  name_local: 金車伯朗咖啡城堡二館
+  name_display: 金車伯朗咖啡城堡二館（頭城）
+  category: cafe
+  district: 頭城鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://ipapago.net/blog/post/mrbrown-castle
+    lang: zh
+    note: 二館平日09:00-17:30假日09:00-18:00、距一館約400m步行5分、海景、自有停車場 ｜座標以官方地址解析：石空路 頭城鎮 宜蘭縣 Taiwan
+  - url: https://bjsmile.tw/post-26391086/
+    lang: zh
+    note: 一館二館營業時間差異/位置
+  name_roman: Mr. Brown Castle Cafe Toucheng II
+  geocode:
+    lat: 24.8806166
+    geocode_source: nominatim
+    lng: 121.8399679
+  verify_status: verified
+  hours:
+    close: '17:30'
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+- id: tjuku-cafe-wushi
+  name_local: Tjuku cafe 啾咕咖啡（烏石港店）
+  name_display: Tjuku 啾咕咖啡（烏石港）
+  category: cafe
+  district: 頭城鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://www.bigfang.tw/blog/post/tjuku-cafe-toucheng
+    lang: zh
+    note: 港墘路60號(蘭博烏石港驛站2樓)、09:00-17:00無公休、落地玻璃海景、客滿限90分 ｜座標以官方地址解析：港墘路 頭城鎮 宜蘭縣 Taiwan
+  - url: https://www.lym.gov.tw/ch/audience-service/shop/store_0001/
+    lang: zh
+    note: 蘭陽博物館官方商店頁 確認位置
+  name_roman: Tjuku Cafe (Wushi Harbor)
+  geocode:
+    lat: 24.8647489
+    geocode_source: nominatim
+    lng: 121.8349343
+  verify_status: verified
+  hours:
+    close: '17:00'
+    typical_visit_mins: 90
+    as_of: '2026-06-22'
+- id: wuji-peanut-ice
+  name_local: 吳記花生捲冰淇淋
+  name_display: 吳記花生捲冰淇淋（礁溪）
+  category: dessert
+  district: 礁溪鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://flyblog.cc/wu-peanut-roll/
+    lang: zh
+    note: 礁溪路四段128號(柯氏蔥油餅旁)、10:30-18:00週二公休、固定店面比餐車穩定 ｜座標以官方地址解析：礁溪路四段 礁溪鄉 宜蘭縣 Taiwan
+  - url: https://www.walkerland.com.tw/subject/view/420833
+    lang: zh
+    note: WalkerLand 50元銅板、芋頭顆粒、週二公休
+  name_roman: Wuji Peanut Roll Ice Cream
+  geocode:
+    lat: 24.8201086
+    geocode_source: nominatim
+    lng: 121.7692336
+  verify_status: verified
+  closed_days:
+  - tuesday
+  hours:
+    close: '18:00'
+    typical_visit_mins: 30
+    as_of: '2026-06-22'
+- id: leshan-hotspring-ramen
+  name_local: 樂山溫泉拉麵
+  name_display: 樂山溫泉拉麵（礁溪）
+  category: food
+  district: 礁溪鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://bjsmile.tw/japanesefood/
+    lang: zh
+    note: 礁溪邊用餐邊泡腳、三星蔥濃豚骨(不辣)、室內冷氣/戶外泡腳；6/24 屋台公休時的拉麵替代
+  - url: https://nellydyu.tw/blog/post/xiexi
+    lang: zh
+    note: 礁溪小吃 含樂山溫泉拉麵
+  name_roman: Leshan Hot Spring Ramen
+  geocode:
+    lat: 24.8275864
+    geocode_source: nominatim
+    lng: 121.7727519
+  verify_status: verified
+  hours:
+    close: '20:00'
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+- id: zhenghao-xiaolongbao
+  name_local: 正好鮮肉小籠包（宜蘭總店）
+  name_display: 正好鮮肉小籠包（宜蘭市）
+  category: food
+  district: 宜蘭市
+  business_status: OPERATIONAL
+  sources:
+  - url: https://momoblog.tw/zhenghao-xiaolongbao/
+    lang: zh
+    note: 泰山路25-1號、10:00-15:00週一公休、注意「正好」≠「正常」、多外帶 ｜座標以官方地址解析：泰山路 宜蘭市 宜蘭縣 Taiwan
+  - url: https://marsfood.tw/xiaolongbao/
+    lang: zh
+    note: 宜蘭總店 排隊名店
+  name_roman: Zhenghao Fresh Pork Xiaolongbao
+  geocode:
+    lat: 24.7522943
+    geocode_source: nominatim
+    lng: 121.739685
+  verify_status: verified
+  closed_days:
+  - monday
+  hours:
+    close: '15:00'
+    last_order: '14:30'
+    typical_visit_mins: 45
+    as_of: '2026-06-22'
+- id: wanglongpi
+  name_local: 望龍埤
+  name_display: 望龍埤（軟埤）
+  category: nature
+  district: 員山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://fullfen.tw/yl-member-mountain/
+    lang: zh
+    note: 枕山村坡城路18-6號、24h免門票、環湖步道/大紅拱橋、近villa
+  - url: https://www.travelking.com.tw/tourguide/scenery105043.html
+    lang: zh
+    note: TravelKing 望龍埤湧泉
+  name_roman: Wanglongpi
+  geocode:
+    lat: 24.7757445
+    geocode_source: nominatim
+    lng: 121.6990807
+  verify_status: verified
+  hours:
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJX3qwoUvjZzQRD_TNlJmeDzQ
+- id: herbelle-museum
+  name_local: 香草菲菲芳香植物博物館
+  name_display: 香草菲菲芳香植物博物館
+  category: museum
+  district: 員山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://fullfen.tw/yl-member-mountain/
+    lang: zh
+    note: 內城路650號、09:00-18:00週一公休、室內香草館+輕食下午茶(雨備)
+  - url: https://bjsmile.tw/yuanshan-food/
+    lang: zh
+    note: 紫色微笑 員山(含香草菲菲輕食)
+  name_roman: Herbelle
+  geocode:
+    lat: 24.7147612
+    geocode_source: nominatim
+    lng: 121.6823289
+  verify_status: verified
+  closed_days:
+  - monday
+  hours:
+    close: '18:00'
+    typical_visit_mins: 90
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJFaawTsbjZzQRbgkXUqc1m9U
+- id: pangxie-maopao
+  name_local: 螃蟹冒泡
+  name_display: 螃蟹冒泡
+  category: nature
+  district: 員山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://bjsmile.tw/post-21773699/
+    lang: zh
+    note: 大湖路18-1號、免門票天然湧泉戲水、水中溜滑梯、烤魚餐廳(6月消暑)
+  - url: https://fullfen.tw/crab-bubbling/
+    lang: zh
+    note: 全分 螃蟹冒泡 免門票玩水
+  name_roman: Pangxie Maopao (Bubble Spring)
+  geocode:
+    lat: 24.7457146
+    geocode_source: nominatim
+    lng: 121.7029627
+  verify_status: verified
+  hours:
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+- id: yang-caiqing-noodles
+  name_local: 楊彩卿魚丸米粉
+  name_display: 楊彩卿魚丸米粉（員山）
+  category: breakfast
+  district: 員山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://www.hiilan.com.tw/2021/03/28650/
+    lang: zh
+    note: 員山路一段132號、06:30-18:00週一公休、早餐/早午餐(出發前墊胃)
+  - url: https://yilan.lakeshore.com.tw/theme-tour/yilanricenoodles/
+    lang: zh
+    note: 煙波宜蘭 魚丸米粉主題(員山早午餐)
+  name_roman: Yang Caiqing Fish Ball Rice Noodles
+  verify_status: unverified
+  status_reason: 'geocode unresolved: could not resolve coordinates'
+  closed_days:
+  - monday
+  hours:
+    close: '18:00'
+    typical_visit_mins: 30
+    as_of: '2026-06-22'
+- id: dabao-noodles
+  name_local: 大寶魚丸米粉
+  name_display: 大寶魚丸米粉（員山）
+  category: food
+  district: 員山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://niniyeh.com/da-bao/
+    lang: zh
+    note: 員山路在地人最多、蚵蔥煎、銅板小吃(不辣)
+  - url: https://followmi.tw/blog/post/dabao
+    lang: zh
+    note: 花洛米 大寶魚丸米粉 附菜單
+  name_roman: Dabao Fish Ball Rice Noodles
+  verify_status: unverified
+  status_reason: 'geocode unresolved: could not resolve coordinates'
+  hours:
+    typical_visit_mins: 45
+    as_of: '2026-06-22'
+- id: bajia-fish-farm
+  name_local: 八甲休閒魚場
+  name_display: 八甲休閒魚場
+  category: food
+  district: 員山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: http://www.8fish.com.tw/
+    lang: zh
+    note: 員山休閒魚場餐廳 香魚/鱘龍魚料理、團體桌菜(8人友善、可選非辣) ｜座標以官方地址解析：八甲路 員山鄉 宜蘭縣 Taiwan
+  - url: https://www.abic.com.tw/place/nearbyPlaces/id/12563
+    lang: zh
+    note: abic 八甲魚場景點頁
+  name_roman: 8 Fish Farm
+  geocode:
+    lat: 24.7295885
+    geocode_source: nominatim
+    lng: 121.7149095
+  verify_status: verified
+  hours:
+    typical_visit_mins: 90
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJQxXoO4TjZzQRcxVGAJWZbx4
+- id: amaze-rabbit-maze
+  name_local: A.maze兔子迷宮景觀咖啡
+  name_display: A.maze 兔子迷宮景觀咖啡（員山）
+  category: cafe
+  district: 員山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://fullfen.tw/ilan-rabbit/
+    lang: zh
+    note: 枕山一村15號、11:00-22:00、低消250可折抵、180度蘭陽平原+龜山島夜景
+  - url: https://bobowin.blog/yilan-view-restaurant/
+    lang: zh
+    note: 寶寶溫 宜蘭景觀餐廳TOP15 含兔子迷宮
+  name_roman: A.maze Rabbit Maze View Cafe
+  verify_status: unverified
+  status_reason: 'geocode unresolved: could not resolve coordinates'
+  hours:
+    close: '22:00'
+    typical_visit_mins: 90
+    as_of: '2026-06-22'
+- id: lanyang-museum
+  name_local: 蘭陽博物館
+  name_display: 蘭陽博物館
+  category: museum
+  district: 頭城鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://journey.tw/go-toucheng/
+    lang: zh
+    note: 烏石港旁單面山建築、室內(雨備首選)、雪隧出口往海邊day-1走廊
+  - url: https://bjsmile.tw/post-37949235/
+    lang: zh
+    note: 頭城一日遊TOP12 含蘭陽博物館
+  name_roman: Lanyang Museum
+  geocode:
+    lat: 24.868806
+    geocode_source: nominatim_structured
+    lng: 121.8326766
+  verify_status: verified
+  hours:
+    close: '17:00'
+    last_entry: '16:30'
+    typical_visit_mins: 120
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJA-31vXL3ZzQRhjLz4ziA8UA
+- id: tangweigou-park
+  name_local: 湯圍溝溫泉公園
+  name_display: 湯圍溝溫泉公園
+  category: hotspring
+  district: 礁溪鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://myjourney.tw/tangweigou-park/
+    lang: zh
+    note: 德陽路99-11號、免門票足湯、近礁溪商圈好停車、8人放鬆
+  - url: https://www.settour.com.tw/travel_guide/%E5%8F%B0%E7%81%A3/%E6%B9%AF%E5%9C%8D%E6%BA%9D%E6%BA%AB%E6%B3%89%E5%85%AC%E5%9C%92/attractions_POI0000004550.html
+    lang: zh
+    note: 東南旅遊 湯圍溝溫泉公園
+  name_roman: Tangweigou Hot Spring Park
+  geocode:
+    lat: 24.8279074
+    geocode_source: nominatim
+    lng: 121.7704218
+  verify_status: verified
+  hours:
+    close: '22:00'
+    typical_visit_mins: 45
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJ772ubUr6ZzQRuY_2y4RvRrM
+- id: waiao-beach
+  name_local: 外澳沙灘
+  name_display: 外澳沙灘（外澳海灘）
+  category: nature
+  district: 頭城鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://bobowin.blog/yilan-toucheng/
+    lang: zh
+    note: 近蘭博/烏石港、沙灘廣闊、遠眺龜山島、伯朗城堡山下 ｜座標以官方地址解析：外澳 頭城鎮 宜蘭縣 Taiwan
+  - url: https://fullfenblog.tw/il-toucheng/
+    lang: zh
+    note: 2025頭城景點TOP20 含外澳
+  name_roman: Wai'ao Beach
+  geocode:
+    lat: 24.8836351
+    geocode_source: nominatim
+    lng: 121.84554
+  verify_status: verified
+  hours:
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJw4PJsKf3ZzQRAjRUNGhq4nY
+- id: toucheng-old-street
+  name_local: 頭城老街
+  name_display: 頭城老街
+  category: sight
+  district: 頭城鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://journey.tw/go-toucheng/
+    lang: zh
+    note: 宜蘭最古老街道、日式老建築、阿宗芋冰、步行逛街 ｜座標以官方地址解析：和平街 頭城鎮 宜蘭縣 Taiwan
+  - url: https://www.rilinkxgreenyoyo.com/post/touchen-station-attractions-guide
+    lang: zh
+    note: 頭城車站周邊 頭城老街
+  name_roman: Toucheng Old Street
+  geocode:
+    lat: 24.8567901
+    geocode_source: nominatim
+    lng: 121.8239799
+  verify_status: verified
+  hours:
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+- id: wengyaoji-jiaoxi
+  name_local: 甕窯雞（蘭陽礁溪總店）
+  name_display: 甕窯雞 蘭陽礁溪總店
+  category: food
+  district: 礁溪鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://www.walkerland.com.tw/article/view/377273
+    lang: zh
+    note: 礁溪路七段7號之7、荔枝木悶烤雞、可容數百人+免費停車、團體聚餐(雞不辣)、建議預約 ｜座標以官方地址解析：礁溪路七段 礁溪鄉 宜蘭縣 Taiwan
+  - url: https://hibnb.com.tw/popular/0918717288/
+    lang: zh
+    note: 排隊名店、附免費停車場
+  name_roman: Wengyaoji (Jiaoxi Main)
+  geocode:
+    lat: 24.8361182
+    geocode_source: nominatim
+    lng: 121.7842831
+  verify_status: verified
+  hours:
+    close: '22:00'
+    typical_visit_mins: 90
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJJezzuDz6ZzQRyP4H5_MmMmI
+- id: luodong-night-market
+  name_local: 羅東觀光夜市
+  name_display: 羅東觀光夜市
+  category: market
+  district: 羅東鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://www.klook.com/zh-TW/blog/luodong-night-market/
+    lang: zh
+    note: 中山公園周邊、每日15:00-24:00(17:00後完整)、湯包/羊肉湯/糕渣等不辣選擇多 ｜座標以官方地址解析：中山公園 羅東鎮 宜蘭縣 Taiwan
+  - url: https://atsunny.tw/luodong-night-market-guide/
+    lang: zh
+    note: 2026 必吃/交通停車/動線
+  name_roman: Luodong Night Market
+  geocode:
+    lat: 24.6766139
+    geocode_source: nominatim
+    lng: 121.7688613
+  verify_status: verified
+  hours:
+    close: '23:30'
+    typical_visit_mins: 90
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJrw3A9X3mZzQRa6_ZjGQS3Sk
+- id: luodong-forestry-park
+  name_local: 羅東林業文化園區
+  name_display: 羅東林業文化園區
+  category: sight
+  district: 羅東鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001016&id=A12-00255
+    lang: zh
+    note: 觀光署官方、免門票、貯木池/日式宿舍、近羅東車站(可串正常湯包)
+  - url: https://recreation.forest.gov.tw/Forestry/CP?typ_id=0100021
+    lang: zh
+    note: 林業署 羅東林業文化園區官方
+  name_roman: Luodong Forestry Culture Park
+  geocode:
+    lat: 24.6829939
+    geocode_source: nominatim
+    lng: 121.7730403
+  verify_status: verified
+  hours:
+    typical_visit_mins: 75
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJMY-Oj9blZzQR-KxtOScEVwc
+- id: linchang-rougeng
+  name_local: 林場肉羹
+  name_display: 林場肉羹（羅東）
+  category: food
+  district: 羅東鎮
+  business_status: OPERATIONAL
+  sources:
+  - url: https://bunnyann.tw/luoroutang2026/
+    lang: zh
+    note: 中正北路109號、07:00-17:30週三公休、林業園區對面、肉羹清爽不辣
+  - url: https://mecotravel.tw/lin-meatbroth/
+    lang: zh
+    note: 羅東林業園區對面50年老店 肉羹
+  name_roman: Linchang Rougeng
+  geocode:
+    lat: 24.6823653
+    geocode_source: nominatim_structured
+    lng: 121.7713492
+  verify_status: verified
+  closed_days:
+  - wednesday
+  hours:
+    close: '17:30'
+    typical_visit_mins: 30
+    as_of: '2026-06-22'
+- id: meihua-lake
+  name_local: 梅花湖
+  name_display: 梅花湖風景區
+  category: nature
+  district: 冬山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://scenic.goilan.tw/dongshan.php
+    lang: zh
+    note: 三面環山、環湖步道/騎電動車、近斑比山丘/廣興農場、自駕順遊
+  - url: https://travel.yam.com/article/130978
+    lang: zh
+    note: 冬山10必玩 含梅花湖
+  name_roman: Meihua Lake
+  geocode:
+    lat: 24.6431566
+    geocode_source: nominatim
+    lng: 121.7329605
+  verify_status: verified
+  hours:
+    typical_visit_mins: 75
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJ7RubbibnZzQRA8A3eSqKblM
+- id: dongshan-eco-ark
+  name_local: 冬山河生態綠舟
+  name_display: 冬山河生態綠舟
+  category: nature
+  district: 冬山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://travel.dongshan.gov.tw/tourist_spot_view.asp?id=5
+    lang: zh
+    note: 冬山鄉官方、18公頃森林公園、入園30元+船票、08:00-17:00 ｜座標以官方地址解析：冬山路二段 冬山鄉 宜蘭縣 Taiwan
+  - url: https://travel.yilan.tw/zh-tw/attraction/details/259
+    lang: zh
+    note: 宜蘭旅遊網官方 冬山河生態綠舟
+  name_roman: Dongshan River Eco Ark
+  geocode:
+    lat: 24.6355247
+    geocode_source: nominatim
+    lng: 121.7875669
+  verify_status: verified
+  hours:
+    close: '17:00'
+    last_entry: '16:00'
+    typical_visit_mins: 120
+    as_of: '2026-06-22'
+- id: sanxing-onion-museum
+  name_local: 三星青蔥文化館
+  name_display: 三星青蔥文化館
+  category: factory_tour
+  district: 三星鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://worthyfamers.com/scallion-culture-museum/
+    lang: zh
+    note: 三星鄉農會、免費室內館(雨備)、蔥油餅DIY(不辣)、三星蔥伴手禮
+  - url: https://www.settour.com.tw/travel_guide/%E5%8F%B0%E7%81%A3/%E4%B8%89%E6%98%9F%E9%9D%92%E8%94%A5%E6%96%87%E5%8C%96%E9%A4%A8/attractions_POI0000369282.html
+    lang: zh
+    note: 東南旅遊 三星青蔥文化館
+  name_roman: Sanxing Green Onion Culture Museum
+  geocode:
+    lat: 24.6681485
+    geocode_source: nominatim
+    lng: 121.6521799
+  verify_status: verified
+  hours:
+    close: '18:00'
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+  gmaps_place_id: ChIJBejZa7XhZzQRkk1KoBIllII
+- id: guangshing-farm
+  name_local: 廣興農場 鴨母寮豬哥窟
+  name_display: 廣興農場（鴨母寮豬哥窟）
+  category: rainy_backup
+  district: 冬山鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://bigmouthblog.tw/blog/post/220601
+    lang: zh
+    note: 光華三路132巷12號、09:00-18:00週三公休、餵小動物/划竹筏/控窯DIY(雨備)、湧泉烤魚餐廳 ｜座標以官方地址解析：光華三路 冬山鄉 宜蘭縣 Taiwan
+  - url: https://www.taiwanfarm.org.tw/zh-TW/Front/Farm/Detail/64
+    lang: zh
+    note: 台灣休閒農業發展協會官方
+  name_roman: Guangshing Farm
+  geocode:
+    lat: 24.6824976
+    geocode_source: nominatim
+    lng: 121.7347888
+  verify_status: verified
+  closed_days:
+  - wednesday
+  hours:
+    close: '18:00'
+    last_entry: '16:30'
+    typical_visit_mins: 150
+    as_of: '2026-06-22'
+- id: jimmy-square
+  name_local: 幾米廣場
+  name_display: 幾米廣場（幾米主題廣場）
+  category: sight
+  district: 宜蘭市
+  business_status: OPERATIONAL
+  sources:
+  - url: https://smilevivi.com/jimi-square/
+    lang: zh
+    note: 宜蘭火車站旁、幾米繪本場景、24h免費、可串丟丟噹森林 ｜座標以官方地址解析：宜興路一段 宜蘭市 宜蘭縣 Taiwan
+  - url: https://www.travelking.com.tw/tourguide/scenery105314.html
+    lang: zh
+    note: TravelKing 幾米主題廣場 宜蘭市
+  name_roman: Jimmy Square
+  geocode:
+    lat: 24.746079
+    geocode_source: nominatim
+    lng: 121.745815
+  verify_status: verified
+  hours:
+    typical_visit_mins: 45
+    as_of: '2026-06-22'
+- id: yilan-administration-memorial
+  name_local: 宜蘭設治紀念館
+  name_display: 宜蘭設治紀念館
+  category: rainy_backup
+  district: 宜蘭市
+  business_status: OPERATIONAL
+  sources:
+  - url: https://memorial.e-land.gov.tw/
+    lang: zh
+    note: 舊城南路力行3巷3號、週二-週日09:00-17:00週一休、和洋官邸+枯山水(室內雨備)、全票30
+  - url: https://museums.moc.gov.tw/MusData/Detail?museumsId=b2124081-ad20-4a54-a6ab-7ea75549bb7b
+    lang: zh
+    note: 文化部博物之島 開放時間/休館
+  name_roman: Memorial Hall of Yilan Administration
+  geocode:
+    lat: 24.7552977
+    geocode_source: nominatim
+    lng: 121.7495164
+  verify_status: verified
+  closed_days:
+  - monday
+  hours:
+    close: '17:00'
+    last_entry: '16:30'
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+- id: agrioz-museum
+  name_local: 橘之鄉蜜餞形象館
+  name_display: 橘之鄉蜜餞形象館
+  category: factory_tour
+  district: 宜蘭市
+  business_status: OPERATIONAL
+  sources:
+  - url: https://www.agrioz.com.tw/
+    lang: zh
+    note: 梅洲二路33號、08:30-18:00全年無休、免門票、玻璃屋AGRIOZ咖啡可久坐(室內雨備) ｜座標以官方地址解析：梅洲二路 宜蘭市 宜蘭縣 Taiwan
+  - url: https://bobowin.blog/yilan-agrioz/
+    lang: zh
+    note: 寶寶溫 橘之鄉蜜餞形象館
+  name_roman: Agrioz Candied Fruit Museum
+  geocode:
+    lat: 24.7805177
+    geocode_source: nominatim
+    lng: 121.7354767
+  verify_status: verified
+  hours:
+    close: '18:00'
+    typical_visit_mins: 60
+    as_of: '2026-06-22'
+- id: tiger-rice-noodle
+  name_local: 虎牌米粉那個年代觀光工廠
+  name_display: 虎牌米粉觀光工廠
+  category: factory_tour
+  district: 五結鄉
+  business_status: OPERATIONAL
+  sources:
+  - url: https://tigerfood.com.tw/
+    lang: zh
+    note: 利興三路5號、09:00-17:30全年無休、門票200含炒米粉吃到飽+DIY(室內雨備、不辣)
+  - url: https://bobowin.blog/tiger-food/
+    lang: zh
+    note: 寶寶溫 門票/交通/DIY
+  name_roman: Tiger Rice Noodle Factory
+  geocode:
+    lat: 24.6631012
+    geocode_source: nominatim
+    lng: 121.8296249
+  verify_status: verified
+  hours:
+    close: '17:30'
+    last_entry: '16:30'
+    typical_visit_mins: 120
+    as_of: '2026-06-22'
+- id: aniang-garlic-rougeng
+  name_local: 阿娘給的蒜味肉羹
+  name_display: 阿娘給的蒜味肉羹（原北門）
+  category: food
+  district: 宜蘭市
+  business_status: OPERATIONAL
+  sources:
+  - url: https://mahogahon.com.tw/
+    lang: zh
+    note: 官方、蒜味肉羹始祖(1966)、原名北門蒜味肉羹2017更名(勿配舊招牌)、蒜香不辣
+  - url: https://momoblog.tw/mahogahon/
+    lang: zh
+    note: 桃桃 菜單/外帶/宅配
+  name_roman: A-Niang Garlic Pork Thick Soup
+  geocode:
+    lat: 24.7522014
+    geocode_source: nominatim_structured
+    lng: 121.7398861
+  verify_status: verified
+  hours:
+    typical_visit_mins: 45
+    as_of: '2026-06-22'

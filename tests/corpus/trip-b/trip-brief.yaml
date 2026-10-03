@@ -1,0 +1,72 @@
+slug: trip-b
+destination:
+  country: Taiwan
+  city: 日月潭（南投縣魚池鄉）
+  local_lang: zh
+dates:
+  start: '2026-07-18'
+  end: '2026-07-20'
+members:
+- name: 成員1
+  notes: 全程自駕
+- name: 成員2
+  notes: —
+- name: 成員3
+  notes: 年長；偏好悠閒、避免爬山與長距離步行
+- name: 成員4
+  notes: 年長；偏好悠閒、避免爬山與長距離步行
+base:
+  name: 日月潭示麗溫德姆溫泉酒店
+  district: 日月潭
+must_do:
+- 日月潭遊湖賞景（湖區為此行核心，因景色而續住）
+constraints:
+- 自駕（國道一號或三號南下），沿途需停靠高速公路服務區如廁與小休
+- 7 月酷熱：全員避免長時間戶外步行與正午曝曬（非體力問題，是天氣）；偏好室內/冷氣/水上/短程接駁
+- 悠閒節奏；避免爬山、避免長距離步行（年長長輩）
+- 全程 2 間房（兩人 1 房 + 長輩 1 房）
+- D1 示麗溫德姆 2 房合計約 26000（單房約 13000）已訂其一
+- D2 住宿預算：單房約 6000、2 房合計約 12000（換日月潭較平價飯店）
+- 以放鬆為主
+preferences:
+  pace: relaxed
+  scenery: lake_and_nature
+  heat_avoidance: true
+  poi_bias:
+  - indoor_or_aircon
+  - water_or_boat
+  - short_walk_or_shuttle
+  - shaded
+  avoid:
+  - long_outdoor_trail
+  - midday_sun_exposure
+  rest_stops_required: true
+  d2_direction: 續住日月潭（換較平價飯店，非示麗）
+  lodging_rooms: 2
+  lodging_budget_d2:
+    per_room: 6000
+    rooms: 2
+    total: 12000
+    currency: TWD
+  lodging_desired_facilities:
+  - elevator
+  - breakfast
+transport: self_drive
+budget:
+  amount: 42000
+  currency: TWD
+routing:
+  max_hop_mins: 60
+  max_single_drive_mins: 300
+  max_walk_mins: 10
+  region_radius_km: 10
+facility_needs:
+  required:
+  - parking
+overnight_stops:
+- district: 日月潭
+  nights: 1
+  lodging:
+    name: 日月潭示麗溫德姆溫泉酒店
+- district: 日月潭
+  nights: 1

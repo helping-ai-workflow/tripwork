@@ -1,0 +1,22 @@
+holidays:
+  - date: "2026-05-24"
+    name_local: "부처님 오신 날"
+    name_display: "Buddha's Birthday"
+    type: national
+    impact:
+      crowds: true
+      closures: false
+    sources:
+      - url: "https://www.korea.kr/public-holidays"
+        official: true
+  - date: "2026-05-25"
+    name_local: "대체공휴일"
+    name_display: "Substitute Holiday"
+    type: substitute
+    note: "Monday substitute for Buddha's Birthday falling on Sunday; crowds like a weekend."
+    impact:
+      crowds: true
+      closures: false
+    sources:
+      - url: "https://www.korea.kr/public-holidays"
+        official: true

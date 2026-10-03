@@ -1,0 +1,212 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "description": "Side-file (trips/<slug>/data/day-maps.yaml) with each day's map images, written by scripts/day_maps.py (optional [maps] extra) and read by the reader (spec §6.5). Kept out of canonical itinerary.yaml exactly like verified-pois-media.yaml: map pixels are rendering data, not trip facts. Pins are NOT stored: the reader projects each POI's geocode into the image through its bbox, so a moved POI never leaves a stale pin behind.",
+  "type": "object",
+  "required": [
+    "attribution",
+    "days"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "attribution": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Tile credit shown in every map card that uses these images; the tiles are OpenStreetMap's, so the credit must name it (export-gate map_attribution_present).",
+      "pattern": "OpenStreetMap"
+    },
+    "days": {
+      "type": "object",
+      "description": "ISO date -> one entry per segment of that day (a hotel-change day splits at its long move).",
+      "additionalProperties": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "required": [
+            "image",
+            "bbox",
+            "closeups"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "image": {
+              "type": "object",
+              "required": [
+                "data",
+                "width",
+                "height"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "data": {
+                  "type": "string",
+                  "pattern": "^data:image/"
+                },
+                "width": {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                "height": {
+                  "type": "integer",
+                  "minimum": 1
+                }
+              }
+            },
+            "bbox": {
+              "type": "object",
+              "required": [
+                "north",
+                "south",
+                "east",
+                "west"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "north": {
+                  "type": "number"
+                },
+                "south": {
+                  "type": "number"
+                },
+                "east": {
+                  "type": "number"
+                },
+                "west": {
+                  "type": "number"
+                }
+              }
+            },
+            "closeups": {
+              "type": "object",
+              "description": "poi_id -> a z16 close-up around that stop.",
+              "additionalProperties": {
+                "type": "object",
+                "required": [
+                  "image",
+                  "bbox"
+                ],
+                "additionalProperties": false,
+                "properties": {
+                  "image": {
+                    "type": "object",
+                    "required": [
+                      "data",
+                      "width",
+                      "height"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "data": {
+                        "type": "string",
+                        "pattern": "^data:image/"
+                      },
+                      "width": {
+                        "type": "integer",
+                        "minimum": 1
+                      },
+                      "height": {
+                        "type": "integer",
+                        "minimum": 1
+                      }
+                    }
+                  },
+                  "bbox": {
+                    "type": "object",
+                    "required": [
+                      "north",
+                      "south",
+                      "east",
+                      "west"
+                    ],
+                    "additionalProperties": false,
+                    "properties": {
+                      "north": {
+                        "type": "number"
+                      },
+                      "south": {
+                        "type": "number"
+                      },
+                      "east": {
+                        "type": "number"
+                      },
+                      "west": {
+                        "type": "number"
+                      }
+                    }
+                  }
+                }
+              }
+            },
+            "poi_ids": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "The stops this image was made for. When the day's segment no longer has exactly these stops the reader draws its schematic instead of pinning onto a stale image."
+            }
+          }
+        }
+      }
+    },
+    "closeups": {
+      "type": "object",
+      "description": "poi_id -> a close-up for a stop that is alone in its segment (the hotel left by a long move first thing, or reached by one last thing): no segment entry carries it. The reader looks a stop's close-up up here, and in any day's entries, when its own segment has none.",
+      "additionalProperties": {
+        "type": "object",
+        "required": [
+          "image",
+          "bbox"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "image": {
+            "type": "object",
+            "required": [
+              "data",
+              "width",
+              "height"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "data": {
+                "type": "string",
+                "pattern": "^data:image/"
+              },
+              "width": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "height": {
+                "type": "integer",
+                "minimum": 1
+              }
+            }
+          },
+          "bbox": {
+            "type": "object",
+            "required": [
+              "north",
+              "south",
+              "east",
+              "west"
+            ],
+            "additionalProperties": false,
+            "properties": {
+              "north": {
+                "type": "number"
+              },
+              "south": {
+                "type": "number"
+              },
+              "east": {
+                "type": "number"
+              },
+              "west": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,60 @@
+slug: trip-c
+destination:
+  country: Taiwan
+  city: 嘉義（嘉義市 + 嘉義縣太保/新港近郊；D1 晚南下台南新營與晚餐聚會）
+  local_lang: zh
+dates:
+  start: '2026-08-29'
+  end: '2026-08-31'
+members:
+- name: 成員1
+  notes: 全程自駕
+- name: 成員2
+base:
+  name: 嘉義市區飯店（待選；示品嘉義酒店為 baseline）
+  district: 嘉義市
+must_do:
+- 參觀國立故宮博物院南部院區（故宮南院）
+- 參觀台灣花磚博物館
+- 品嘗道地嘉義火雞肉飯（和平 + 阿宏師 各一天午餐）
+constraints:
+- 自駕（國道一號或三號南下）；D1 出發地上午出發、預期小塞車，沿途可停服務區小休
+- D1 傍晚南下台南新營（距嘉義市 ~25km/~30min）與晚餐聚會；餐廳已由已訂位＝喬串燒酒場（新營日式串燒居酒屋），餐後回嘉義過夜
+- D2 週日晚上餐由使用者選定＝清豐濤月景觀餐廳（番路鄉、湖景火鍋+足湯）；夜間往返山區道路需注意
+- D3（週一）回程直接回出發地，非回出發地（去回起訖不同）
+- 其他天餐飲不限定台菜，範圍放寬（雞肉飯、鴨肉羹、甜點飲品等皆可）；優先在地非連鎖特色店
+- 不吃砂鍋魚頭（明確排除，含林聰明）
+- 不逛夜市（明確排除，含文化路夜市）
+- 全程 1 間房（2 人）＝示品酒店嘉義（使用者已選定）
+- 住宿以嘉義市區為主，方便停車與 check-in 放行李
+preferences:
+  pace: relaxed
+  travelers: couple
+  food_focus:
+  - 火雞肉飯
+  - 老台菜或辦桌菜
+  - 在地特色小吃／甜點
+  avoid:
+  - 砂鍋魚頭
+  - 夜市
+  poi_bias:
+  - museum_or_indoor
+  - culture_and_food
+  lodging_rooms: 1
+  lodging_baseline: 示品嘉義酒店
+  lodging_research_count: 3
+  lodging_desired_facilities:
+  - parking
+  - breakfast
+transport: self_drive
+routing:
+  max_hop_mins: 60
+  max_single_drive_mins: 300
+  max_walk_mins: 15
+  region_radius_km: 20
+facility_needs:
+  required:
+  - parking
+overnight_stops:
+- district: 嘉義市
+  nights: 2

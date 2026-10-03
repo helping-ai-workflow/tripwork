@@ -1,0 +1,17 @@
+currency: TWD
+line_items:
+- category: lodging
+  label: 示容大飯店福隆 一泊二食（晚餐＋早餐）7,500 × 1 晚 × 1 房
+  amount: 7500
+- category: transport
+  label: 自駕油資＋國道過路＋停車（出發地→基隆→石城→福隆→金山→萬里→出發地，約 200km 估）
+  amount: 1200
+- category: attraction
+  label: 朱銘美術館門票 全票 350 × 2
+  amount: 700
+- category: incidental
+  label: 餐飲雜支（萬祝號咖啡＋灆咖啡＋金山老街小瑪克披薩＋萬里亞尼克生乳捲＋福隆便當，2人；晚早餐已含一泊二食）
+  amount: 3000
+total: 12400
+as_of: '2026-09-23'
+estimate_note: '估算非報價。住宿為示容一泊二食雙人代表價（含晚＋早餐）；自駕約 200km 油/過路/停車粗估；朱銘門票全票 350×2；餐飲雜支為 2 人外食粗估、未含伴手購物。trip-brief 未設 budget cap → 不做超支比較。by_category={''lodging'': 7500, ''transport'': 1200, ''attraction'': 700, ''incidental'': 3000}'

@@ -1,0 +1,513 @@
+stops:
+- district: 日月潭
+  nights: 1
+  candidates:
+  - id: shili
+    name_local: 日月潭示麗溫德姆溫泉酒店
+    name_display: 日月潭示麗溫德姆溫泉酒店 (Sample Lake Resort)
+    facilities:
+    - parking
+    - elevator
+    - breakfast
+    - wifi
+    - family_room
+    - hot_spring
+    - lake_view
+    - pool
+    - gym
+    - accessible_room
+    - ev_charging
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://lakeresort.example/
+      official: true
+      lang: zh
+      note: 官網：地址 南投縣魚池鄉中正路312號、電話 049-2850085、入住15:00/退房11:00、每間客房附私人美人湯泉池、SUI 水療、泳池、健身房、三間餐廳；客房約197間
+    - url: https://tw.trip.com/hotels/nantou-hotel-detail-111539026/lake-resort/
+      official: false
+      lang: zh
+      note: Trip.com：櫃台24小時、公共停車位免費＋2個充電車位、室外泳池、溫泉浴池、免費WiFi、自助早餐(07:00-12:00)、無障礙客房、入住15:00/退房11:00；標準雙人房參考價起 TWD 7,611
+    - url: https://rwd.ezhotel.cloud/lakeresort/1/promotion/list
+      official: true
+      lang: zh
+      note: 官方線上訂房：2026/3/12-6/30 行政景緻/山景雙人房優惠 NT$9,999 起(含早餐+行政酒廊)，假日(週六及國定假日)加 NT$2,000
+    - url: https://hotel.eztravel.com.tw/detail-nantou-7524-111539026/lake-resort/
+      official: false
+      lang: zh
+      note: 易遊網訂房頁：南投/日月潭伊達邵，溫泉客房、湖景、訂房優惠與評論
+    name_roman: Shili Garden Hotels - Sample Lake Resort
+    price_band: 行政景緻/山景雙人房平日約 9,999/晚含早餐＋行政酒廊；週六及國定假日加 2,000 → 週末約 12,000/晚含早
+    cost:
+      amount: 12000
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: true
+    booking:
+      url: https://lakeresort.example/
+    verify_status: verified
+  chosen: shili
+- district: 日月潭
+  nights: 1
+  candidates:
+  - id: d2-1
+    name_local: 碼頭水沙連飯店
+    name_display: 碼頭水沙連飯店
+    facilities:
+    - parking
+    - breakfast
+    - lake_view
+    - wifi
+    - family_room
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.sunmoonhotel.com.tw/Chui-soa-lian/booking.php
+      lang: zh
+      official: true
+      note: 官網訂房頁：地址名勝街5號、全湖景二人房平日3500/假日4900、含中西式自助早餐、停車配合付費停車場、check-in 15:00
+    - url: https://tw.trip.com/hotels/nantou-hotel-detail-4636881/shui-sha-lian-hotel/
+      lang: zh
+      official: false
+      note: Trip.com 訂房頁，位於水社碼頭旁
+    - url: https://www.agoda.com/zh-tw/shui-sha-lian-hotel/hotel/nantou-tw.html
+      lang: zh
+      official: false
+      note: Agoda 訂房頁
+    name_roman: Shui Sha Lian Hotel
+    price_band: 全湖景二人房 平日約3500、假日約4900/晚含早；街景二人房 平日2500/假日3500；全湖景特別套房(4-6人)假日約11550
+    cost:
+      amount: 4900
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: false
+    booking:
+      url: https://www.sunmoonhotel.com.tw/Chui-soa-lian/booking.php
+    verify_status: verified
+  - id: d2-2
+    name_local: 日月潭示淶閣飯店
+    name_display: 日月潭示淶閣飯店
+    facilities:
+    - breakfast
+    - elevator
+    - family_room
+    - lake_view
+    - parking
+    - wifi
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.dellago.com.tw/
+      lang: zh
+      official: true
+      note: 官網：地址中山路101號、距客運站步行3分鐘、飯店車位有限另有配合付費停車場、多款湖景房
+    - url: https://www.sunmoonlake.gov.tw/Shop/Hotels?a=46&id=149
+      lang: zh
+      official: false
+      note: 日月潭國家風景區管理處觀光旅遊網：飯店附停車場、提供免費電梯、緊鄰水社碼頭、免費租借自行車
+    - url: https://sansalife.tw/dellago/
+      lang: zh
+      official: false
+      note: 實住評論：中西式自助早餐(熱食/沙拉/水果/飲品)、住客免費停車、湖景第一排180度、走路即到碼頭
+    - url: https://goplaytravel.com.tw/dellago/
+      lang: zh
+      official: false
+      note: 評論：飯店專屬停車場、位於水社碼頭路口、湖景房各房型專屬陽台
+    - url: https://tw.trip.com/hotels/nantou-hotel-detail-801257/hotel-del-lago/
+      lang: zh
+      official: false
+      note: Trip.com 訂房頁
+    - url: https://www.sunmoonlake.gov.tw/zh-tw/accommodation/nearby-shopping/219
+      lang: zh
+      official: false
+      note: 日月潭觀光官方網（位置：中山路與名勝街口、水社碼頭旁）
+    name_roman: Hotel Del Lago
+    price_band: 湖景房(180度第一排) 旺季週末約6000-7000/晚含早；街景房較低。實際以官網/Agoda 當日為準
+    cost:
+      amount: 6500
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: false
+    booking:
+      url: https://www.dellago.com.tw/
+    verify_status: verified
+  - id: d2-3
+    name_local: 日月潭馥麗溫泉大飯店
+    name_display: 日月潭馥麗溫泉大飯店
+    facilities:
+    - breakfast
+    - elevator
+    - family_room
+    - hot_spring
+    - parking
+    - wifi
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.fuli-resort.com/
+      lang: zh
+      official: true
+      note: 官網：地址中山路250-2號、訂房專線、提供日式獨立湯屋/岩盤浴/SPA 等溫泉設施
+    - url: https://mimigo.tw/sun-moon-lake-hotel/
+      lang: zh
+      official: false
+      note: 整理文：水社遊客中心後方步行約5分鐘、地下停車場、有電梯、含早餐、房內溫泉浴池
+    - url: https://bobowin.blog/fuli-hot-spring-resort/
+      lang: zh
+      official: false
+      note: 實住開箱：免費停車場、付費當地特色早餐7:00-10:00、兒童遊戲室、溫泉
+    - url: https://www.17p.com.tw/m/2001-1892-214043,c7594-1.php?Lang=zh-tw
+      lang: zh
+      official: false
+      note: 經典湯語房一泊二食6500元起
+    - url: https://www.fuli-resort.com/tw/news/index.aspx?kind=2
+      lang: zh
+      official: true
+      note: 飯店官網
+    - url: https://fuli-resort.hotel.com.tw/facilities.asp
+      lang: zh
+      official: false
+      note: 設施介紹：電梯、餐廳、24h櫃台、WIFI、停車場
+    - url: https://www.sunmoonlake.gov.tw/zh-tw/accommodation/detail/570
+      lang: zh
+      official: true
+      note: 日月潭官方觀光網：地址250-2號、水社碼頭步行10分
+    name_roman: Fuli Hot Spring Resort
+    price_band: 經典湯語房(雙人) 平日含早約4000起；旺季週末約6000-7000；一泊二食(含晚餐)約6500起/房
+    cost:
+      amount: 6500
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: true
+    booking:
+      url: https://www.fuli-resort.com/
+    verify_status: verified
+  - id: d2-4
+    name_local: 日月潭水社海渡假旅店
+    name_display: 日月潭水社海渡假旅店
+    facilities:
+    - elevator
+    - parking
+    - breakfast
+    - wifi
+    - family_room
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.smlhotel.com.tw/
+      lang: zh
+      official: true
+      note: 官網：地址名勝街16號(水社碼頭旁)、提供2-8人房型、散步水社碼頭親水步道、訂房時間10:00-21:00
+    - url: https://www.easytravel.com.tw/ehotel/default.aspx?n=7081
+      lang: zh
+      official: false
+      note: 易遊網：設施含電梯、停車服務、附贈早餐、免費wifi、無障礙設施、咖啡廳；check-in 15:30/退房11:00
+    - url: https://www.gomaji.com/store/132699/pid/232463
+      lang: zh
+      official: false
+      note: Gomaji 訂房方案頁，水社碼頭旁、商圈步行可達
+    name_roman: Sun Moon Lake Hotel (Shuishehai)
+    price_band: 雙人房參考約 5000-6500/晚含早（旺季週末，平日較低）；提供2-8人房型，實際以官方訂房當日為準
+    cost:
+      amount: 5000
+      currency: TWD
+      basis: per_night
+    reception:
+      close: '20:00'
+      late_checkin: false
+    booking:
+      url: https://www.smlhotel.com.tw/
+    verify_status: verified
+  - id: d2-5
+    name_local: 湖悅景觀旅店
+    name_display: 湖悅景觀旅店 (HuYue Lake View Hotel)
+    facilities:
+    - elevator
+    - parking
+    - breakfast
+    - wifi
+    - lake_view
+    - family_room
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: http://www.huyue.com.tw/
+      lang: zh
+      official: true
+      note: 飯店官網
+    - url: https://tw.trip.com/hotels/nantou-hotel-detail-1005224/hu-yue-lakeview-hotel/
+      lang: zh
+      official: false
+      note: Trip.com 訂房頁
+    - url: https://mimigo.tw/huyue-lakeview-hotel/
+      lang: zh
+      official: false
+      note: 實住評測：伊達邵碼頭第一排、湖景、停車接駁、早餐8樓、電梯偏小
+    - url: https://www.bigfang.tw/blog/post/huyue-lakeview
+      lang: zh
+      official: false
+      note: 湖景房落地窗、停車引導與接駁說明
+    name_roman: HuYue Lake View Hotel
+    price_band: 湖景雙人房平日約 3200、假日週末約 5000-6500/晚（含早）；全館僅15間、可2-4人
+    cost:
+      amount: 6000
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: false
+    booking:
+      url: http://www.huyue.com.tw/
+    verify_status: verified
+  - id: d2-6
+    name_local: 淶滬文旅
+    name_display: 淶滬文旅（Hotel Leisure Sun Moon Lake）
+    facilities:
+    - elevator
+    - parking
+    - breakfast
+    - wifi
+    - family_room
+    - lake_view
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.klook.com/zh-TW/hotels/detail/677134-hotel-leisure-sun-moon-lake/
+      official: false
+      lang: zh
+      note: Klook 訂房頁（飯店資料/設施）
+    - url: https://hotel.eztravel.com.tw/detail?CityName=nantou&CityID=7524&HotelID=2535997
+      official: false
+      lang: zh
+      note: 易遊網訂房頁
+    - url: https://travelss.net/2026/02/24/%E3%80%902026%E5%8D%97%E6%8A%95%E6%96%B0%E5%9C%B0%E6%A8%99%E3%80%91%E6%97%A5%E6%9C%88%E6%BD%AD%E7%AC%AC%E4%B8%80%E9%AB%98%E6%A8%93%E3%80%8C%E6%B7%B6%E6%BB%AC%E6%96%87%E6%97%85%E3%80%8D%E9%9C%87/
+      official: false
+      lang: zh
+      note: 開箱文：23 層、觀景電梯、湖景家庭房含早+免費停車、平日3580/假日+1000、近水社碼頭
+    name_roman: Hotel Leisure Sun Moon Lake
+    price_band: 湖景家庭房平日約 3,580/晚含早＋免費停車；週六及連假 +1,000（約 4,580）。雙人房平日專案曾低至 2,280。
+    cost:
+      amount: 4580
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: false
+    booking:
+      url: https://www.klook.com/zh-TW/hotels/detail/677134-hotel-leisure-sun-moon-lake/
+    verify_status: verified
+  - id: d2-7
+    name_local: 日月潭大飯店
+    name_display: 日月潭大飯店（Sun Moon Lake Hotel）
+    facilities:
+    - breakfast
+    - elevator
+    - family_room
+    - lake_view
+    - parking
+    - wifi
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://hotel.liontravel.com/detail/tw-nantou-sun-moon-lake-hotel?hotelCode=TWNTO064
+      official: false
+      lang: zh
+      note: 雄獅旅遊訂房頁（飯店設停車場、免費電梯、雅致湖景四人房）
+    - url: https://rebeccafamily.com/smlh/
+      official: false
+      lang: zh
+      note: 開箱文：兩大兩小湖景房含早 5,599 起、第一排湖景、附遊戲室/自行車
+    - url: https://www.klook.com/zh-TW/blog/sunmoonlake-hotels-taiwan/
+      official: false
+      lang: zh
+      note: Klook 部落格：水社碼頭、湖景、雙人/四人房
+    - url: https://smlh.com.tw/
+      lang: zh
+      official: true
+      note: 飯店官網
+    - url: https://www.smlh.com.tw/about/
+      lang: zh
+      official: true
+      note: 飯店介紹：地址中山路419號、入住15:00/退房11:00
+    - url: https://www.smlh.com.tw/location/index.php?index_id=23
+      lang: zh
+      official: true
+      note: 免費定點接駁往返水社/向山
+    name_roman: Sun Moon Lake Hotel
+    price_band: 湖景四人房（兩大兩小，未滿12歲）含早約 5,599/晚起；旺季週末更高。
+    cost:
+      amount: 5599
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: true
+    booking:
+      url: https://hotel.liontravel.com/detail/tw-nantou-sun-moon-lake-hotel?hotelCode=TWNTO064
+    verify_status: verified
+  - id: d2-8
+    name_local: 日月潭伊達邵渡假旅店
+    name_display: 日月潭伊達邵渡假旅店（Itathao Vacation Hotel）
+    facilities:
+    - elevator
+    - parking
+    - breakfast
+    - wifi
+    - lake_view
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://itathao-vacation-hotel.westhotel.com.tw/
+      official: true
+      lang: zh
+      note: 官方訂房站：有電梯、免費私人停車、提供早餐、入住16:00-19:00、退房11:00、地址中正路270號
+    - url: http://www.itathao-villa.com.tw/
+      official: true
+      lang: zh
+      note: 合法民宿官網
+    - url: https://www.sunmoonlake.gov.tw/zh-tw/attractions/nearby-accommodation/236
+      official: true
+      lang: zh
+      note: 日月潭觀光旅遊網（官方）伊達邵碼頭周邊住宿
+    name_roman: Itathao Vacation Hotel
+    price_band: 伊達邵碼頭區家庭/四人房旺季週末約 5,300-6,200/晚（含早），實際以官網/訂房平台為準。
+    cost:
+      amount: 5500
+      currency: TWD
+      basis: per_night
+    reception:
+      close: '19:00'
+      late_checkin: false
+    booking:
+      url: https://itathao-vacation-hotel.westhotel.com.tw/
+    verify_status: verified
+  - id: d2-9
+    name_local: 日潭棧
+    name_display: 日潭棧（Sun Lake Hotel）
+    facilities:
+    - parking
+    - family_room
+    - breakfast
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.sunlakehotel.com.tw/
+      official: true
+      lang: zh
+      note: 官網首頁：地址日月街61號、電話0968583698、館內免費停車、豪華家庭房/四人房、中西式兒童早餐
+    - url: https://www.sunlakehotel.com.tw/room.html
+      official: true
+      lang: zh
+      note: 官網客房介紹頁
+    - url: https://tw.trip.com/hotels/nantou-hotel-detail-117015346/sun-lake-hotel/
+      official: false
+      lang: zh
+      note: Trip.com 訂房頁（停車場、早餐、伊達邵）
+    name_roman: Sun Lake Hotel
+    price_band: 四人房/家庭房旺季週末約 5,500-6,500/晚；官網列豪華家庭房定價較高（NT$10,800，屬大房型/旺日掛牌價），實際以訂房平台為準。
+    cost:
+      amount: 6000
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: false
+    booking:
+      url: https://www.sunlakehotel.com.tw/
+    verify_status: verified
+  - id: d2-10
+    name_local: 日月潭教師會館
+    name_display: 日月潭教師會館
+    facilities:
+    - elevator
+    - parking
+    - breakfast
+    - wifi
+    - lake_view
+    - family_room
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.smlthotel.com.tw/
+      lang: zh
+      official: true
+      note: 飯店官網
+    - url: https://www.easytravel.com.tw/ehotel/default.aspx?n=10432
+      lang: zh
+      official: false
+      note: 設施：免費WIFI、停車場、自助洗衣機、電梯；附早餐
+    - url: https://www.smlthotel.com.tw/room/price.php
+      lang: zh
+      official: true
+      note: 官網房價表：含早、不加一成服務費
+    - url: https://www.smlthotel.com.tw/room-detail/72/
+      lang: zh
+      official: true
+      note: 迎賓湖景四人房定價10000、平假折扣
+    name_roman: Sun Moon Lake Teachers Hostel
+    price_band: 雙人房含早、不加一成服務費，含稅約 1662-3600/晚起（依房型/平假日）；湖景四人房定價10000、平日一般6折約6000
+    cost:
+      amount: 3600
+      currency: TWD
+      basis: per_night
+    reception:
+      late_checkin: true
+    booking:
+      url: https://www.smlthotel.com.tw/
+    verify_status: verified
+  - id: d2-11
+    name_local: 日月潭富豪群渡假民宿
+    name_display: 富豪群渡假民宿
+    facilities:
+    - parking
+    - breakfast
+    - wifi
+    - family_room
+    geocode:
+      lat: 23.854451
+      lng: 120.924096
+      geocode_source: cluster_fallback
+    sources:
+    - url: https://www.sunmoonlake.gov.tw/Shop/Hotels?a=46&id=33
+      lang: zh
+      official: true
+      note: 日月潭官方觀光網：伊達邵碼頭步行3分、贈早餐
+    - url: https://www.easytravel.com.tw/ehotel/default.aspx?n=6336
+      lang: zh
+      official: false
+      note: 免費wifi、停車場；房型四人房可作二人用、入住15:30最晚保留17:00
+    name_roman: Fu Hao Chun Resort Villa
+    price_band: 四人房型（可當雙人用）含早，平日參考約 5500-7000/晚（家庭/四人房適合 4 大）
+    cost:
+      amount: 6000
+      currency: TWD
+      basis: per_night
+    reception:
+      close: '17:00'
+      late_checkin: false
+    booking:
+      url: https://www.sunmoonlake.gov.tw/Shop/Hotels?a=46&id=33
+    verify_status: verified
+  chosen: d2-2

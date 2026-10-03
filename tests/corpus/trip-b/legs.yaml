@@ -1,0 +1,49 @@
+legs:
+- from: 接人地點
+  to: 日月潭示麗溫德姆溫泉酒店（伊達邵）
+  mode: drive
+  duration_mins: 215
+  fare:
+    amount: 1000
+    currency: TWD
+  sources:
+  - &id001
+    url: https://www.sunmoonlake.gov.tw/Explore/Articles?a=53
+    official: true
+  - url: https://www.google.com/maps/dir/?api=1&origin=台北&destination=日月潭
+    official: false
+  status: ok
+- from: 日月潭示麗溫德姆溫泉酒店（伊達邵）
+  to: 日月潭示淶閣飯店（水社）
+  mode: drive
+  duration_mins: 20
+  fare:
+    amount: 40
+    currency: TWD
+  sources:
+  - *id001
+  status: ok
+- from: 日月潭示淶閣飯店（水社）
+  to: 出發地
+  mode: drive
+  duration_mins: 160
+  fare:
+    amount: 800
+    currency: TWD
+  sources:
+  - *id001
+  - url: https://www.google.com/maps/dir/?api=1&origin=日月潭&destination=出發地
+    official: false
+  status: ok
+- from: 出發地
+  to: 接人地點
+  mode: drive
+  duration_mins: 70
+  fare:
+    amount: 400
+    currency: TWD
+  sources:
+  - *id001
+  - url: https://www.google.com/maps/dir/?api=1&origin=出發地&destination=台北
+    official: false
+  status: ok

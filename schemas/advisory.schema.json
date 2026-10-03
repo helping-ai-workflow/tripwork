@@ -1,0 +1,83 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "required": [
+    "items"
+  ],
+  "properties": {
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "topic",
+          "rule",
+          "effective_date",
+          "sources",
+          "risk"
+        ],
+        "properties": {
+          "topic": {
+            "type": "string"
+          },
+          "rule": {
+            "type": "string"
+          },
+          "effective_date": {
+            "type": "string"
+          },
+          "risk": {
+            "type": "string",
+            "enum": [
+              "info",
+              "restricted",
+              "banned"
+            ]
+          },
+          "not_yet_in_effect": {
+            "type": "boolean"
+          },
+          "sources": {
+            "type": "array",
+            "minItems": 2,
+            "contains": {
+              "type": "object",
+              "required": [
+                "official"
+              ],
+              "properties": {
+                "official": {
+                  "const": true
+                }
+              }
+            },
+            "items": {
+              "type": "object",
+              "required": [
+                "url",
+                "official"
+              ],
+              "properties": {
+                "url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "official": {
+                  "type": "boolean"
+                }
+              },
+              "additionalProperties": false
+            }
+          }
+        },
+        "additionalProperties": false
+      }
+    },
+    "input_fingerprints": {
+      "type": "object",
+      "description": "Content fingerprints of the upstream fields this artifact was derived from, keyed by upstream filename. Written by the producing stage via scripts/orchestration.py::input_fingerprint. Optional: an artifact without one falls back to the mtime comparison. (TW-067)",
+      "additionalProperties": {"type": "string"}
+    }
+  },
+  "additionalProperties": false
+}
