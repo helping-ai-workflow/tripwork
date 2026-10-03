@@ -306,6 +306,8 @@ python -m pytest tests_browser
 - **每日地圖（選用）**：`pip install -e '.[maps]'` 後跑 `python scripts/day_maps.py trips/<slug>`，從 OpenStreetMap 圖磚產生 `data/day-maps.yaml`（快取在 `work/<slug>/tile-cache/`、每秒最多一次請求、User-Agent 只有程式名與 repo 網址）；沒跑就畫示意方格。
 - **景點照片（選用）**：`scripts/photo_adapter.py`（backend `none`（預設）／`wiki`／`google`），授權白名單 `{CC0, PD, CC-BY, CC-BY-SA}`。照片存在側檔 `verified-pois-media.yaml`，輸出時由 `scripts/media_merge.py` 疊回去。`google` 來源因 ToS 標為不可散布（`export-gate` 會標 `distributable: false`）。
 - **每日標題**：規則在 `scripts/day_titles.py`；押韻以**台灣讀音**判斷，讀教育部《國語小字典》（原檔不修改，放在 `assets/dict/moe-mini/`，由 `scripts/zhuyin.py` 讀）；挑選頁 `scripts/title_picker.py`，回覆解析 `scripts/title_picks.py`。
+- **樣式看板**：`python scripts/design_board.py board.yaml` 把要讓使用者選的樣式做成一頁離線 HTML（放在不進版控的 `.design-board/`），每張卡片標代號，按「複製選擇」得到一行文字貼回任何 AI agent；規則見 `CLAUDE.md` 的 Visual work。
+- **隱私**：這個 repo 不放任何真實行程；範例、測試資料、截圖都是虛構的。`tests/test_privacy.py` 會擋下工作區檔案、白名單外的圖片與 email，有工作區時也會比對每趟行程的代號、旅館、成員、住處與未來日期；規則見 `CLAUDE.md` 的 Privacy。
 - **資料夾結構**：
   ```
   trips/<slug>/

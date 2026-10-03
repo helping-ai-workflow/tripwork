@@ -6,6 +6,37 @@ logic lives in `scripts/` with unit tests in `tests/`. This file carries the
 contribution conventions that are NOT derivable from the code — chiefly the
 README-freshness contract.
 
+## Privacy: the repo never carries a user's trip (mandatory)
+
+This repository is public. Its first incarnation shipped one user's trips: README
+screenshots of a trip still ahead (hotels, dates, costs), test fixtures copying its
+hotels and dates, defect reports and corpus tests naming their trips. It was rebuilt
+from one clean commit (2026-10-03). A trip says when someone is away from home, where
+they sleep and who they travel with -- treat every workspace trip as private.
+
+- **Never commit anything from a consumer workspace** (`trips/`, `work/`, a rendered
+  reader, a defect report about a real trip, a design-board preview of one). Defect
+  reports and dogfood notes stay in the workspace; a PR describes the defect in general
+  terms ("a consumer trip").
+- **Examples, fixtures, screenshots are made up.** Use public landmarks, placeholder
+  hotels (`示意`, `サンプル`, `.example` URLs) and dates that are no one's trip. README shots
+  come from `docs/images/readme/demo_trip.py`. Never copy a hotel, address, member,
+  date or cost from a workspace trip into the repo, not even "temporarily".
+- **The test corpus is de-identified.** `tests/corpus/trip-a..` are real trips with slugs
+  renamed, members `成員N`, hotels and home endpoints replaced and YAML comments dropped.
+  A new corpus trip goes through the same treatment, and its free text is read line by
+  line before it is committed (one trip carried two home addresses).
+- **Mechanical guard:** `tests/test_privacy.py`. Everywhere (CI too): no tracked path
+  under `trips/`, `work/`, `docs/specs/`, `docs/superpowers/`, `.design-board/`; images
+  only under `assets/icons/` and `docs/images/readme/`; no e-mail address but
+  placeholders; the corpus keeps its de-identified shape. Where a consumer workspace
+  exists (`TRIPWORK_WORKSPACE`, default `../tripwork-workspace`): every identifying string
+  of its trips -- slugs, the hotels stayed at, members, home endpoints, the dates of trips
+  still ahead -- is derived from the workspace and must appear in no tracked file. The
+  list is never written into the repo. Run the full `pytest` before every PR.
+- `git add -A` / `git add .` can sweep an untracked workspace file into a commit: stage
+  paths by name.
+
 ## Plugin-internal change checklist (mandatory)
 
 The following changes MUST update `README.md` in the **same PR** (the relevant
@@ -35,7 +66,7 @@ be rejected.
 
 ## README writing convention (mandatory)
 
-`README.md` is **user-facing for non-engineers**. Screenshots of the real reader,
+`README.md` is **user-facing for non-engineers**. Screenshots of the reader (the demo trip),
 plain-language value and copy-paste prompts come first; plugin-internal vocabulary
 stays in the collapsed 開發者資訊 `<details>` (the workflow diagram and step table
 live there since the user's README rewrite, 2026-10-03: "flowchart 不重要").
@@ -92,10 +123,11 @@ PR descriptions touching the categories above must include a one-line
 "README check: ✅ diagram/stop list still match" OR a "README update bundled in this PR"
 pointer.
 
-## Reader visual work: frontend-design first, measure before and after (mandatory)
+## Visual work: frontend-design first, measure before and after (mandatory)
 
-Any change to how the reader looks — CSS in `scripts/render/reader/`, a new control, a
-mockup or a "quick" prototype for the user — follows this order. It is written down
+Any change to something people see — the reader (CSS in `scripts/render/reader/`, a new
+control), the title picker page, a password page, the README screenshots, a mockup or a
+"quick" prototype for the user — follows this order, with any AI agent. It is written down
 because skipping it has cost the user a round of review again and again: a 4 px card
 misalignment, stamp lines too thin, desktop calendar text too small, a hide-on-scroll
 prototype whose motion felt wrong, and a day stepper drawn 34 px tall inside a 25.6 px
@@ -123,8 +155,15 @@ title line.
    they sat 1.75 px low). When a number and the screenshot disagree, the screenshot wins:
    find the measuring bug before showing anything. A control that should read as part of
    a text line is as tall as that line's ink, not its line box.
-5. **The user chooses.** Visual and wording choices go on the design board as rendered
-   previews of the real trip, each with a recommendation; never decide one silently.
+5. **The user chooses, on a design board any agent can make.** Visual and wording choices
+   go to the user as rendered previews, each with a recommendation; never decide one
+   silently. Write a YAML of topics and run `python scripts/design_board.py board.yaml`:
+   it writes one offline page to `.design-board/` (git never tracks it, so a preview may
+   show the user's own trip there). Give the user the file path; they open it in a
+   browser, pick a card per topic (each shows its key, e.g. `L2`), add a note, and
+   「複製選擇」 gives one line to paste back, e.g. `樣式看板「…」：photos=P1；pill=T25b（…）`.
+   An agent that can publish pages (a Claude artifact) may publish the same file as well;
+   the local file is the board. Record the pick in the PR description.
 
 ## Guards must call their subject, not rebuild it (mandatory)
 
