@@ -256,9 +256,15 @@ def test_the_fold_is_the_calendars_own_height(browser, request, url):
     rng = pg.evaluate(f"(L=>L.scrollHeight-L.clientHeight)(document.querySelector('{sec} .plist'))")
     assert rng >= h, ("every day scrolls at least its calendar's height", rng, h)
     _scroll(pg, "d2", h + 40)
+    # CI's headless WebKit can apply the scroll-driven fold a few frames late on the heavy
+    # many-week page (it read 0 once): wait for it, up to 3 s -- a fold that never comes fails
+    for _ in range(60):
+        rose = map0 - _top(pg, f"{sec} .pmap")
+        if abs(rose - h) <= 1:
+            break
+        pg.wait_for_timeout(50)
     ym = pg.eval_on_selector(f"{sec} .ymrow", "e=>e.getBoundingClientRect().bottom")
     dh = _top(pg, f"{sec} .pcal .dh")
-    rose = map0 - _top(pg, f"{sec} .pmap")
     pg.close()
     assert abs(rose - h) <= 1, ("the card rises by the calendar's height", rose, h)
     assert dh >= ym - .5, ("the title stays below the month row", dh, ym)
