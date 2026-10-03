@@ -102,8 +102,12 @@ def test_the_script_polishes_the_anchor_jump():
     assert "scrollIntoView({block:'nearest'" in CENTRE_JS
 
 
-def test_the_script_stays_about_ten_lines():
-    assert len([l for l in CENTRE_JS.splitlines() if l.strip()]) <= 12
+def test_the_script_stays_small():
+    """The reader's one script has two jobs, each a polish where scripts run: the desktop's
+    centring of a jumped-to stop (10 lines), and the phone's calendar fold settling to open
+    or folded, and a day the stepper opens folded staying pull-to-open (the user's call,
+    2026-10-04: 7 lines). Growing past this needs a reason."""
+    assert len([l for l in CENTRE_JS.splitlines() if l.strip()]) <= 17
 
 
 def test_the_stylesheet_lays_out_the_desktop_at_1024():
