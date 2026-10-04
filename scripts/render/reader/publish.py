@@ -112,9 +112,10 @@ const init=days.findIndex(d=>radio(d).checked);if(init>=0)show(init);
 // the swipe: sideways only within 30 deg of horizontal; anything steeper is the day's own scroll
 const ANG=Math.tan(30*Math.PI/180);let s=null;
 // Z1: a zoomed map / photo follows a downward drag, its backdrop fades, past half (or a flick) it closes
+// -- only from the top: a split day's zoomed view scrolls, and scrolled down a downward drag scrolls it back
 let z=null;
 document.addEventListener('touchstart',e=>{z=null;const box=document.querySelector('.zck:checked,.pz:checked');if(!box||e.touches.length!==1||e.target.closest('.zbar a'))return;
-  const layer=box.closest('.mv,.bp'),q=e.touches[0];if(!layer)return;z={box,layer,bg:layer.querySelector('.zbg'),y:q.clientY,x:q.clientX,mode:null,v:[],dy:0}},{passive:true});
+  const layer=box.closest('.mv,.bp'),q=e.touches[0];if(!layer||layer.scrollTop>0)return;z={box,layer,bg:layer.querySelector('.zbg'),y:q.clientY,x:q.clientX,mode:null,v:[],dy:0}},{passive:true});
 document.addEventListener('touchmove',e=>{if(!z||z.mode==='n')return;if(e.touches.length!==1){if(z.mode==='y')zEnd();else z=null;return}
   const q=e.touches[0],dy=q.clientY-z.y,dx=q.clientX-z.x;
   if(!z.mode){if(Math.abs(dx)<4&&Math.abs(dy)<4)return;z.mode=(dy>0&&Math.abs(dx)<=Math.abs(dy)*ANG)?'y':'n';if(z.mode==='n')return}

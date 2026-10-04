@@ -953,3 +953,37 @@ def test_pull_down_flick_closes_and_sideways_or_link_does_not(chromium, publish_
     assert not pg.evaluate(f"document.querySelector('{box}').checked")
     assert not errs
     ctx.close()
+
+
+def test_pull_down_leaves_a_scrolled_zoom_to_scroll(chromium, tour_publish_url):
+    """A split day's zoomed view (two maps) scrolls on a phone held sideways. Scrolled
+    down, a downward drag scrolls it back up -- it is not a pull that moves the layer or
+    closes it. Only from the top does the drag pull."""
+    errs = []
+    land = {"width": 844, "height": 390}
+    ctx, pg = _new(chromium, land, tour_publish_url, touch=True, errors=errs)
+    t = _touch(ctx, pg)
+    _go(pg, "pg-d2")
+    pg.evaluate("document.querySelectorAll('section[data-pg=d2] details.mapc').forEach(d=>d.open=true)")
+    pg.wait_for_timeout(300)
+    box = "section[data-pg=d2] .mv .zck"
+    pg.evaluate(f"document.querySelector('{box}').click()")
+    pg.wait_for_timeout(400)
+    mv = f"document.querySelector('{box}').closest('.mv')"
+    assert pg.evaluate(f"{mv}.scrollHeight > {mv}.clientHeight + 100"), "the fixture's zoom must scroll"
+    pg.evaluate(f"{mv}.scrollTop = 1e4")
+    bottom = pg.evaluate(f"{mv}.scrollTop")
+    t("touchStart", 420, 100)
+    for i in range(1, 16):
+        t("touchMove", 420, 100 + 8 * i)
+        pg.wait_for_timeout(20)
+    assert pg.evaluate(f"{mv}.style.translate") == ""       # the layer did not follow the finger
+    t("touchEnd")
+    pg.wait_for_timeout(600)
+    assert pg.evaluate(f"document.querySelector('{box}').checked")
+    assert pg.evaluate(f"{mv}.scrollTop") < bottom - 60      # it scrolled back up instead
+    pg.evaluate(f"{mv}.scrollTop = 0")
+    _drag(pg, t, 420, 60, 0, 300)                           # from the top, past half of 390: closes
+    assert not pg.evaluate(f"document.querySelector('{box}').checked")
+    assert not errs
+    ctx.close()

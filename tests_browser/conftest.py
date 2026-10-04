@@ -50,6 +50,11 @@ def build_pages(root):
     tour = root / "tour.html"
     tour.write_text(render_reader(F.tour(), pm, brief=F.tour_brief(), accommodations=acc,
                                   advisory=R.ADVISORY, legs=F.LEGS, maps=maps), encoding="utf-8")
+    # v1.2: the same tour as a publish page -- its D2 draws two maps, so the zoomed view
+    # scrolls on a phone held sideways (844x390), the case a pull-down must not take over
+    tour_publish = root / "tour-publish.html"
+    tour_publish.write_text(render_reader(F.tour(), pm, brief=F.tour_brief(), accommodations=acc, advisory=R.ADVISORY,
+                                          legs=F.LEGS, maps=maps, build="publish"), encoding="utf-8")
     # the Hakodate D2 (photo, four stops, an alternative) is long enough that the list
     # really scrolls at 1366x768, which the centring check needs -- on a list that
     # fits, every stop is 'bounded' and nothing is measured
@@ -89,7 +94,8 @@ def build_pages(root):
     one_day = root / "one-day.html"
     one_day.write_text(render_reader(one, R.poi_map(), build="publish", **R.reader_kwargs()), encoding="utf-8")
     return {"tour": tour, "hakodate": hakodate, "many": many, "rings": rings, "picker": picker,
-            "publish": pub, "check": chk, "two_month": two_month, "one_day": one_day}
+            "publish": pub, "check": chk, "two_month": two_month, "one_day": one_day,
+            "tour_publish": tour_publish}
 
 
 def _long_rings(R):
@@ -186,6 +192,11 @@ def two_month_url(pages):
 @pytest.fixture(scope="session")
 def one_day_url(pages):
     return pages["one_day"].as_uri()
+
+
+@pytest.fixture(scope="session")
+def tour_publish_url(pages):
+    return pages["tour_publish"].as_uri()
 
 
 @pytest.fixture(scope="session")
