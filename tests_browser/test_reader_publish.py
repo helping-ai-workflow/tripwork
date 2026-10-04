@@ -798,3 +798,99 @@ def test_back_after_a_swipe_still_lands_on_the_overview(browser, chromium, publi
     pg.wait_for_timeout(400)
     assert _cur(pg) == "pg-home" and not errs
     ctx.close()
+
+
+# ---- Task 7 fix round 1: anchors do not stack history, T1 has an overview beneath, no accumulation ----
+
+def _click(pg, sel, nth=0):
+    pg.evaluate(f"document.querySelectorAll({sel!r})[{nth}].click()")
+    pg.wait_for_timeout(250)
+
+
+@pytest.fixture(scope="session")
+def addr_url(tmp_path_factory):
+    """The publish page of the same trip with one stop that has a local address, so it
+    carries a 給司機看 button and its sheet (the shared fixture has none)."""
+    import copy
+    from scripts.render.reader import render_reader
+    from tests import reader_fixture as R
+    pm = copy.deepcopy(R.poi_map())
+    pm["hak-asaichi"].update(address_local="函館市若松町9-19", address_source="https://example.invalid/")
+    f = tmp_path_factory.mktemp("addr") / "publish.html"
+    f.write_text(render_reader(R.itinerary(), pm, build="publish", **R.reader_kwargs()), encoding="utf-8")
+    return f.as_uri()
+
+
+@pytest.mark.parametrize("viewport", [PHONE, DESKTOP])
+def test_back_skips_in_page_anchors(browser, addr_url, viewport):
+    publish_url = addr_url
+    errs = []
+    pg = browser.new_page(viewport=viewport)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(publish_url)
+    pg.wait_for_timeout(300)
+    _go(pg, "pg-d2")
+    n0 = pg.evaluate("history.length")
+    d = "section[data-pg=d2] "
+    _click(pg, d + "a.hd-open", 0)                    # open a stop
+    _click(pg, d + "a.hd-open", 1)                    # open another
+    _click(pg, d + "a.hd-close", 1)                   # collapse it (-x)
+    _click(pg, d + "a.drvbtn", 0)                     # 給司機看 opens
+    assert pg.evaluate("document.querySelector(':target') && document.querySelector(':target').classList.contains('drv')")
+    _click(pg, d + "a.drvx", 0)                       # ✕ closes it again
+    assert not pg.evaluate("!!document.querySelector('.drv:target')")
+    assert pg.evaluate("history.length") == n0
+    pg.go_back()
+    pg.wait_for_timeout(400)
+    assert _cur(pg) == "pg-home" and not errs
+    pg.close()
+
+
+@pytest.mark.parametrize("viewport", [PHONE, DESKTOP])
+def test_today_has_the_overview_beneath(browser, chromium, publish_url, viewport):
+    """Per-engine: both engines pass after one click on the page (user activation).
+    See the report for whether Chromium also passes without it."""
+    from tests import reader_fixture as R
+    errs = []
+    pg = browser.new_page(viewport=viewport)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    _fake_today(pg, R.itinerary()["days"][1]["date"])
+    pg.goto(publish_url)
+    pg.wait_for_timeout(500)
+    assert _cur(pg) == "pg-d2"
+    pg.mouse.click(5, 5)
+    pg.go_back()
+    pg.wait_for_timeout(400)
+    assert _cur(pg) == "pg-home" and not errs
+    pg.close()
+
+
+def test_today_back_without_a_click(browser, publish_url):
+    """Back from a T1-opened page with NO user activation also lands on the overview
+    (measured: Chromium's skip-without-activation intervention does not bite here)."""
+    from tests import reader_fixture as R
+    pg = browser.new_page(viewport=PHONE)
+    _fake_today(pg, R.itinerary()["days"][1]["date"])
+    pg.goto(publish_url)
+    pg.wait_for_timeout(500)
+    pg.go_back()
+    pg.wait_for_timeout(400)
+    assert _cur(pg) == "pg-home"
+    pg.close()
+
+
+@pytest.mark.parametrize("viewport", [PHONE, DESKTOP])
+def test_round_trips_do_not_grow_the_history(browser, publish_url, viewport):
+    errs = []
+    pg = browser.new_page(viewport=viewport)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(publish_url)
+    pg.wait_for_timeout(300)
+    n0 = pg.evaluate("history.length")
+    for _ in range(3):
+        _go(pg, "pg-d2")
+        _go(pg, "pg-home")
+        pg.wait_for_timeout(300)
+    assert pg.evaluate("history.length") <= n0 + 1 and _cur(pg) == "pg-home"
+    assert pg.evaluate("history.state.pg") == "home" and not errs
+    pg.close()

@@ -150,9 +150,19 @@ const cur=()=>{const r=document.querySelector('input[name=pg]:checked');return r
 const open=id=>{const r=document.getElementById('pg-'+id);if(r&&!r.checked){r.checked=true;r.dispatchEvent(new Event('change',{bubbles:true}))}};
 if(!location.hash){const n=new Date(),t=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
   const s=document.querySelector('section.page.day[data-date="'+t+'"]');if(s)open(s.dataset.pg)}
-let last=cur(),popping=false;history.replaceState({pg:last},'');
+// history (B1): 返回 always lands on the overview. The overview is the entry beneath every page.
+let last=cur(),popping=false;history.replaceState({pg:'home'},'');
+if(last!=='home')history.pushState({pg:last},'');
+// in-page anchors (stops, 來源, 給司機看, map chips) replace the entry instead of stacking one
+document.addEventListener('click',e=>{const a=e.target.closest&&e.target.closest('a[href^="#"]');
+  if(!a||a.hash.length<2||e.defaultPrevented||e.button||e.metaKey||e.ctrlKey||e.shiftKey||e.altKey)return;
+  e.preventDefault();location.replace(a.hash);history.replaceState({pg:cur()},'')},true);
+addEventListener('hashchange',()=>history.replaceState({pg:cur()},''));
 document.addEventListener('change',e=>{const r=e.target;if(!r.classList||!r.classList.contains('pgr')||popping)return;const id=cur();
-  if(id===last)return;if(last==='home'&&id!=='home')history.pushState({pg:id},'');else history.replaceState({pg:id},'');last=id});
-// a fragment jump (a stop link, the zoom layers) also fires popstate, with no state of ours: leave it be
+  if(id===last)return;const was=last;last=id;
+  if(was==='home')history.pushState({pg:id},'');
+  else if(id==='home'&&history.state&&history.state.pg&&history.state.pg!=='home')history.back();
+  else history.replaceState({pg:id},'')});
+// a fragment jump (a script setting location.hash) also fires popstate, with no state of ours: leave it be
 addEventListener('popstate',e=>{if(!e.state)return;popping=true;open('home');last='home';popping=false});})();
 """
