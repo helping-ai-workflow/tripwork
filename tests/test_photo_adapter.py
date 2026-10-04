@@ -302,3 +302,66 @@ def test_cli_merges_into_the_existing_sidefile(tmp_path, mocker):
     assert pa.main([str(trip), "--backend", "wiki"]) == 0
     media = yaml.safe_load(artifact_path(trip, "verified-pois-media.yaml").read_text(encoding="utf-8"))["media"]
     assert media["a"] == mine and "b" in media
+
+
+WD_SEARCH = {"search": [{"id": "Q1"}, {"id": "Q2"}]}
+WD_ENTITIES = {"entities": {
+    "Q1": {"claims": {"P625": [{"mainsnak": {"datavalue": {"value": {"latitude": 40.0, "longitude": 140.0}}}}],
+                      "P18": [{"mainsnak": {"datavalue": {"value": "Far.jpg"}}}]}},
+    "Q2": {"claims": {"P625": [{"mainsnak": {"datavalue": {"value": {"latitude": 35.7101, "longitude": 139.8107}}}}],
+                      "P18": [{"mainsnak": {"datavalue": {"value": "Skytree.jpg"}}}]}}}}
+WD_FILE = {"query": {"pages": {"1": {"imageinfo": [{"url": "https://upload.wikimedia.org/o.jpg", "thumburl": "https://upload.wikimedia.org/t.jpg",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:Skytree.jpg",
+    "extmetadata": {"LicenseShortName": {"value": "CC BY-SA 4.0"}, "Artist": {"value": "<a>Someone</a>"}}}]}}}}
+
+
+def _wd_get(mocker):
+    from scripts import photo_adapter as pa
+    def fake(url, params=None, **kw):
+        r = mocker.Mock(); r.raise_for_status = lambda: None
+        if "wikidata" in url and params.get("action") == "wbsearchentities":
+            r.json = lambda: WD_SEARCH
+        elif "wikidata" in url:
+            r.json = lambda: WD_ENTITIES
+        else:
+            # the file page echoes the requested title, so picking the far entity is visible
+            title = params["titles"].split(":", 1)[1]
+            doc = json.loads(json.dumps(WD_FILE))
+            doc["query"]["pages"]["1"]["imageinfo"][0]["descriptionurl"] = "https://commons.wikimedia.org/wiki/File:" + title
+            r.json = lambda: doc
+        return r
+    return mocker.patch.object(pa.requests, "get", side_effect=fake)
+
+
+def test_wikidata_picks_the_entity_within_1km_and_reads_p18(mocker):
+    from scripts import photo_adapter as pa
+    _wd_get(mocker)
+    cands = pa._search_wikidata("東京スカイツリー", None, 5, geo={"lat": 35.7100, "lng": 139.8107})
+    assert len(cands) == 1
+    c = cands[0]
+    assert c["source"] == "wikimedia" and c["license"] == "CC BY-SA 4.0" and c["author"] == "Someone"
+    assert c["image_url"] == "https://upload.wikimedia.org/t.jpg"
+    assert c["source_url"] == "https://commons.wikimedia.org/wiki/File:Skytree.jpg"
+
+
+def test_wikidata_without_coordinates_returns_nothing(mocker):
+    from scripts import photo_adapter as pa
+    _wd_get(mocker)
+    assert pa._search_wikidata("東京スカイツリー", None, 5, geo={}) == []
+
+
+def test_wikidata_is_tried_before_the_searches(mocker):
+    from scripts import photo_adapter as pa
+    order = []
+    for name in ("wikidata", "openverse", "commons"):
+        mocker.patch.dict(pa._SEARCHERS, {name: (lambda n: lambda *a, **k: order.append(n) or [])(name)})
+    pa.fetch_media_entry({"id": "x", "name_local": "X", "geocode": {"lat": 1, "lng": 2}}, "wiki")
+    assert order == ["wikidata", "openverse", "commons"]
+
+
+def test_lang_of_reads_the_script():
+    from scripts.photo_adapter import _lang_of
+    assert _lang_of("東京スカイツリー") == "ja"
+    assert _lang_of("경복궁") == "ko"
+    assert _lang_of("日月潭") == "zh"
+    assert _lang_of("Eiffel Tower") == "en"

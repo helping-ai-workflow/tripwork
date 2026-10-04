@@ -8,7 +8,7 @@ split + key-at-runtime, NOT from where the code lives.
     by the operator, who owns the ToS relationship.
 
   - backend=none   : ships enabled; fetches nothing (default — existing trips unchanged).
-  - backend=wiki   : Wikimedia Commons + Openverse; CC-only; safe to distribute.
+  - backend=wiki   : Wikidata P18 (within 1 km) -> Openverse -> Commons; CC-only; safe to distribute.
   - backend=google : BLOCKED pending a display-surface ToS resolution —
     fetch_media_entry raises ValueError loudly instead of returning an empty
     result. It is also not an allowed `--backend` CLI choice (only none/wiki).
@@ -133,7 +133,7 @@ def _normalize_openverse_license(code):
     return "CC-" + c.upper()   # by -> CC-BY, by-sa -> CC-BY-SA, by-nc -> CC-BY-NC
 
 
-def _search_openverse(query, rate_limiter, max_results):
+def _search_openverse(query, rate_limiter, max_results, *, geo=None):
     _wait(rate_limiter)
     resp = requests.get(
         OPENVERSE_API,
@@ -159,7 +159,7 @@ def _search_openverse(query, rate_limiter, max_results):
     return out
 
 
-def _search_commons(query, rate_limiter, max_results):
+def _search_commons(query, rate_limiter, max_results, *, geo=None):
     _wait(rate_limiter)
     resp = requests.get(
         COMMONS_API,
@@ -193,7 +193,71 @@ def _search_commons(query, rate_limiter, max_results):
     return out
 
 
-_SEARCHERS = {"openverse": _search_openverse, "commons": _search_commons}
+WIKIDATA_API = "https://www.wikidata.org/w/api.php"
+
+
+def _lang_of(name):
+    """The search language from the name's script: kana -> ja, hangul -> ko, other CJK -> zh."""
+    s = str(name or "")
+    if re.search(r"[぀-ヿ]", s):
+        return "ja"
+    if re.search(r"[가-힯]", s):
+        return "ko"
+    if re.search(r"[一-鿿]", s):
+        return "zh"
+    return "en"
+
+
+def _claim(claims, prop):
+    return ((claims.get(prop) or [{}])[0].get("mainsnak") or {}).get("datavalue", {}).get("value")
+
+
+def _search_wikidata(query, rate_limiter, max_results, *, geo=None):
+    """Wikidata's representative image (P18) of the entity named `query` whose coordinates
+    (P625) lie within 1 km of the POI's verified geocode (spec §4). Probe on 30 public POIs:
+    17 hits, 17/17 the place itself. No coordinates, no lookup."""
+    lat0, lng0 = (geo or {}).get("lat"), (geo or {}).get("lng")
+    if not (isinstance(lat0, (int, float)) and isinstance(lng0, (int, float))):
+        return []
+    lang = _lang_of(query)
+    _wait(rate_limiter)
+    r = requests.get(WIKIDATA_API, params={"action": "wbsearchentities", "search": query, "language": lang,
+                                           "uselang": lang, "format": "json", "limit": max_results},
+                     headers={"User-Agent": USER_AGENT}, timeout=15)
+    r.raise_for_status()
+    ids = [e["id"] for e in (r.json() or {}).get("search", []) if e.get("id")]
+    if not ids:
+        return []
+    _wait(rate_limiter)
+    r = requests.get(WIKIDATA_API, params={"action": "wbgetentities", "ids": "|".join(ids), "props": "claims", "format": "json"},
+                     headers={"User-Agent": USER_AGENT}, timeout=15)
+    r.raise_for_status()
+    ents = (r.json() or {}).get("entities") or {}
+    for qid in ids:
+        claims = (ents.get(qid) or {}).get("claims") or {}
+        co, img = _claim(claims, "P625"), _claim(claims, "P18")
+        if not (co and img) or not in_region(co["latitude"], co["longitude"], lat0, lng0, 1.0):
+            continue
+        _wait(rate_limiter)
+        r = requests.get(COMMONS_API, params={"action": "query", "format": "json", "titles": "File:" + img,
+                                              "prop": "imageinfo", "iiprop": "url|extmetadata", "iiurlwidth": 1280},
+                         headers={"User-Agent": USER_AGENT}, timeout=15)
+        r.raise_for_status()
+        page = next(iter((((r.json() or {}).get("query") or {}).get("pages") or {"": {}}).values()))
+        ii = (page.get("imageinfo") or [{}])[0]
+        meta = ii.get("extmetadata") or {}
+        source_url = ii.get("descriptionurl")
+        image_url = ii.get("thumburl") or ii.get("url")
+        if not (image_url and source_url and str(source_url).startswith("https://")):
+            return []
+        return [{"source": "wikimedia", "image_url": image_url, "thumb_url": None,
+                 "license": (meta.get("LicenseShortName") or {}).get("value", ""),
+                 "author": _strip_html((meta.get("Artist") or {}).get("value", "")) or "Unknown",
+                 "source_url": source_url, "lat": co["latitude"], "lng": co["longitude"]}]
+    return []
+
+
+_SEARCHERS = {"wikidata": _search_wikidata, "openverse": _search_openverse, "commons": _search_commons}
 
 
 def _candidates(cands, geo, radius_km):
@@ -274,7 +338,7 @@ def _is_landmark(poi):
     return not any(tok in cat for tok in _NON_LANDMARK)
 
 
-def fetch_media_entry(poi, backend="none", *, sources=("openverse", "commons"),
+def fetch_media_entry(poi, backend="none", *, sources=("wikidata", "openverse", "commons"),
                       radius_km=5.0, rate_limiters=None, max_results=8, cache=None):
     """Resolve a license-clean, location-matched landmark photo for one POI.
 
@@ -314,7 +378,7 @@ def fetch_media_entry(poi, backend="none", *, sources=("openverse", "commons"),
         if not searcher:
             continue
         try:
-            cands = searcher(str(name), rate_limiters.get(src), max_results)
+            cands = searcher(str(name), rate_limiters.get(src), max_results, geo=geo)
         except requests.RequestException:
             continue
         for cand in _candidates(cands, geo, radius_km):
