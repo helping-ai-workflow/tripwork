@@ -28,15 +28,20 @@ canonical `verified-pois.yaml`.
 
 ## Photo enrichment (owned here, opt-in)
 
-This stage OWNS `trips/<slug>/data/verified-pois-media.yaml`; `scripts/photo_adapter.py` is its
-ONLY writer. Never hand-author media entries — a hand-written `photo_source: google` entry
-ships a permanently non-distributable deliverable, and the adapter's `google` backend is
-BLOCKED for exactly that reason (no display-surface licence).
+This stage OWNS `trips/<slug>/data/verified-pois-media.yaml`; within the plugin
+`scripts/photo_adapter.py` is its only writer. Never hand-author media entries — a hand-written
+`photo_source: google` entry ships a permanently non-distributable deliverable, and the adapter's
+`google` backend is BLOCKED for exactly that reason (no display-surface licence). An entry
+already in the side-file (e.g. one the user's own script wrote) is the user's: the adapter keeps
+it as is and fills only the POIs without one — delete an entry to have it fetched again.
 
 Run it only when the user asked for photos on this trip (`trip-brief.yaml`
 `preferences.photos: true`); otherwise skip — no side-file, deliverable unchanged.
 
     python scripts/photo_adapter.py trips/<slug> --backend wiki
+
+It looks up the POI's Wikidata image (the `image` statement of the entity within 1 km of the verified coordinates)
+first, then the geo-filtered Openverse/Commons search, and shrinks each photo to ≤ 640 px.
 
 Exit 0 written / 1 schema self-check failed (nothing written) / 2 missing input or
 `--backend google`.
@@ -53,6 +58,22 @@ it every run and would clobber it. The side-file is the only persistence; the ov
 render-time only (`export-gate` re-applies it itself when gating, and rejects an
 unattributed photo or an unsafe `<img src>`).
 
+## Publish for family (optional)
+
+Run only when the user asks to share the trip (family, friends). It makes a second reader —
+the same page plus phone gestures, behind a password — and puts it on Cloudflare Pages:
+
+    TRIPWORK_PUBLISH_PASSWORD=<password> python scripts/publish.py build trips/<slug> --share-base https://<project>.pages.dev/
+    python scripts/publish.py deploy trips/<slug> --project <project> --confirm
+
+Ask the user for the password (or let `build` prompt); never write it to a file. `build` keeps
+only the locked page (`trips/<slug>/publish/<code>/index.html`) and prints a share link that
+opens without typing the password — show it to the user, never save it. Needs Node 18+.
+The first time, if `deploy` says it is not logged in, ask the user to run `! npx wrangler login`;
+agree on the project name with the user (`<project>.pages.dev`).
+
+Before `deploy`, stop and ask the user: show the project name, the URL and that the page goes on the internet behind a password. Deploy only after an explicit yes.
+
 Return to `tripwork:orchestrator`.
 
 ## Stage Contract
@@ -60,6 +81,6 @@ Return to `tripwork:orchestrator`.
 | Field | Value |
 |---|---|
 | Input | `trips/<slug>/data/itinerary.yaml` (canonical) + `verified-pois.yaml` + optional `verified-pois-media.yaml` (photo side-file) + `gate-report.yaml` (status pass). All adapters render from `itinerary.yaml`; the photo side-file, when present, is overlaid onto the poi_map via `scripts/media_merge.py` before render; Notion runs only after `export-gate` passes. |
-| Output | `trips/<slug>/<stem>.md` (+ `<stem>.html`) + optional `verified-pois-media.yaml` (photo side-file, written by `scripts/photo_adapter.py`). |
-| Stop condition | `gate-report` status != pass → do not export; return upstream. |
+| Output | `trips/<slug>/<stem>.md` (+ `<stem>.html`) + optional `verified-pois-media.yaml` (photo side-file, written by `scripts/photo_adapter.py`) + optional `trips/<slug>/publish/` (the locked publish page, `scripts/publish.py`). |
+| Stop condition | `gate-report` status != pass → do not export; return upstream. Before `publish.py deploy` → stop for the user's explicit yes (it publishes to the internet). |
 | Next stage | `tripwork:orchestrator` (which routes to `export-gate`). |
