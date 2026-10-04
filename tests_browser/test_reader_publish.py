@@ -692,3 +692,109 @@ def test_sub_pages_swipe_right_to_home(chromium, publish_url):
     assert pg.evaluate("[...document.querySelectorAll('.page.sub,.page.home')].every(p=>!p.style.translate&&!p.style.position)")
     assert errors == []
     ctx.close()
+
+
+# ---- v1.2 Task 7: theme carry, today (T1), history (B1) -- every width ----
+
+DESKTOP = {"width": 1366, "height": 768}
+
+
+def _fake_today(pg, iso):
+    pg.add_init_script(f"(()=>{{const T=new Date('{iso}T10:00:00').getTime(),D=Date;"
+                       "window.Date=class extends D{constructor(...a){super(...(a.length?a:[T]))}static now(){return T}}})()")
+
+
+def test_theme_carries_and_is_saved(browser, publish_url):
+    errs = []
+    pg = browser.new_page(viewport=PHONE)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(publish_url)
+    pg.evaluate("localStorage.setItem('tripwork-theme','dark')")
+    pg.reload()
+    pg.wait_for_timeout(300)
+    assert pg.evaluate("document.getElementById('theme').checked")
+    pg.click(".bubble")
+    pg.wait_for_timeout(100)
+    assert pg.evaluate("localStorage.getItem('tripwork-theme')") == "light"
+    assert not errs
+    pg.close()
+
+
+def test_theme_carry_survives_storage_errors(browser, publish_url):
+    errs = []
+    pg = browser.new_page(viewport=PHONE)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.add_init_script("Object.defineProperty(window,'localStorage',{get(){throw new DOMException('denied','SecurityError')}})")
+    pg.goto(publish_url)
+    pg.wait_for_timeout(300)
+    pg.click(".bubble")
+    assert not errs and pg.evaluate("document.getElementById('theme').checked")
+    pg.close()
+
+
+@pytest.mark.parametrize("viewport", [PHONE, DESKTOP])
+def test_opens_today_during_the_trip(browser, publish_url, viewport):
+    from tests import reader_fixture as R
+    errs = []
+    d2 = R.itinerary()["days"][1]["date"]
+    pg = browser.new_page(viewport=viewport)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    _fake_today(pg, d2)
+    pg.goto(publish_url)
+    pg.wait_for_timeout(500)
+    assert _cur(pg) == "pg-d2" and not errs
+    pg.close()
+
+
+def test_a_link_target_beats_today(browser, publish_url):
+    from tests import reader_fixture as R
+    pg = browser.new_page(viewport=PHONE)
+    _fake_today(pg, R.itinerary()["days"][1]["date"])
+    pg.goto(publish_url + "#x")
+    pg.wait_for_timeout(500)
+    assert _cur(pg) == "pg-home"
+    pg.close()
+
+
+@pytest.mark.parametrize("viewport", [PHONE, DESKTOP])
+def test_opens_home_outside_the_trip(browser, publish_url, viewport):
+    errs = []
+    pg = browser.new_page(viewport=viewport)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    _fake_today(pg, "2020-01-01")
+    pg.goto(publish_url)
+    pg.wait_for_timeout(500)
+    assert _cur(pg) == "pg-home" and not errs
+    pg.close()
+
+
+@pytest.mark.parametrize("viewport", [PHONE, DESKTOP])
+def test_back_always_returns_to_the_overview(browser, publish_url, viewport):
+    errs = []
+    pg = browser.new_page(viewport=viewport)
+    pg.on("pageerror", lambda e: errs.append(str(e)))
+    pg.goto(publish_url)
+    pg.wait_for_timeout(300)
+    _go(pg, "pg-d1"); _go(pg, "pg-d2"); _go(pg, "pg-d3")
+    pg.go_back()
+    pg.wait_for_timeout(400)
+    assert _cur(pg) == "pg-home"
+    _go(pg, "pg-lodging")
+    pg.go_back()
+    pg.wait_for_timeout(400)
+    assert _cur(pg) == "pg-home" and not errs
+    pg.close()
+
+
+def test_back_after_a_swipe_still_lands_on_the_overview(browser, chromium, publish_url):
+    errs = []
+    ctx, pg = _new(chromium, PHONE, publish_url, touch=True, errors=errs)
+    pg.wait_for_timeout(300)
+    t = _touch(ctx, pg)
+    _go(pg, "pg-d2")
+    _angled(pg, t, 0, 260, left=True)
+    assert _cur(pg) == "pg-d3"
+    pg.go_back()
+    pg.wait_for_timeout(400)
+    assert _cur(pg) == "pg-home" and not errs
+    ctx.close()

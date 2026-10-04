@@ -142,4 +142,17 @@ const subEnd=()=>{if(!u||u.mode!=='x'){u=null;return}const s=u,W=innerWidth,v=s.
     a.cancel();['translate','position','inset','zIndex','boxShadow'].forEach(k=>s.p.style[k]='');['display','position','inset','zIndex'].forEach(k=>home.style[k]='')}};
 document.addEventListener('touchend',subEnd,{passive:true});document.addEventListener('touchcancel',subEnd,{passive:true});
 })();
+// every width: the theme is carried, today opens during the trip (T1), 返回 lands on the overview (B1)
+(()=>{const th=document.getElementById('theme');
+if(th){try{if(localStorage.getItem('tripwork-theme')==='dark')th.checked=true}catch(e){}
+  th.addEventListener('change',()=>{try{localStorage.setItem('tripwork-theme',th.checked?'dark':'light')}catch(e){}})}
+const cur=()=>{const r=document.querySelector('input[name=pg]:checked');return r?r.id.slice(3).replace(/f$/,''):'home'};
+const open=id=>{const r=document.getElementById('pg-'+id);if(r&&!r.checked){r.checked=true;r.dispatchEvent(new Event('change',{bubbles:true}))}};
+if(!location.hash){const n=new Date(),t=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  const s=document.querySelector('section.page.day[data-date="'+t+'"]');if(s)open(s.dataset.pg)}
+let last=cur(),popping=false;history.replaceState({pg:last},'');
+document.addEventListener('change',e=>{const r=e.target;if(!r.classList||!r.classList.contains('pgr')||popping)return;const id=cur();
+  if(id===last)return;if(last==='home'&&id!=='home')history.pushState({pg:id},'');else history.replaceState({pg:id},'');last=id});
+// a fragment jump (a stop link, the zoom layers) also fires popstate, with no state of ours: leave it be
+addEventListener('popstate',e=>{if(!e.state)return;popping=true;open('home');last='home';popping=false});})();
 """
