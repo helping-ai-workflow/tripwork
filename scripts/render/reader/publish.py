@@ -111,6 +111,20 @@ document.addEventListener('change',e=>{const r=e.target;if(!r.classList||!r.clas
 const init=days.findIndex(d=>radio(d).checked);if(init>=0)show(init);
 // the swipe: sideways only within 30 deg of horizontal; anything steeper is the day's own scroll
 const ANG=Math.tan(30*Math.PI/180);let s=null;
+// Z1: a zoomed map / photo follows a downward drag, its backdrop fades, past half (or a flick) it closes
+let z=null;
+document.addEventListener('touchstart',e=>{z=null;const box=document.querySelector('.zck:checked,.pz:checked');if(!box||e.touches.length!==1||e.target.closest('.zbar a'))return;
+  const layer=box.closest('.mv,.bp'),q=e.touches[0];if(!layer)return;z={box,layer,bg:layer.querySelector('.zbg'),y:q.clientY,x:q.clientX,mode:null,v:[],dy:0}},{passive:true});
+document.addEventListener('touchmove',e=>{if(!z||z.mode==='n')return;if(e.touches.length!==1){if(z.mode==='y')zEnd();else z=null;return}
+  const q=e.touches[0],dy=q.clientY-z.y,dx=q.clientX-z.x;
+  if(!z.mode){if(Math.abs(dx)<4&&Math.abs(dy)<4)return;z.mode=(dy>0&&Math.abs(dx)<=Math.abs(dy)*ANG)?'y':'n';if(z.mode==='n')return}
+  e.preventDefault();z.dy=Math.max(0,dy);const H=innerHeight;z.layer.style.translate='0 '+z.dy+'px';if(z.bg)z.bg.style.opacity=String(Math.max(0,1-z.dy/H));
+  z.v.push([e.timeStamp,q.clientY]);if(z.v.length>5)z.v.shift()},{passive:false});
+function zEnd(){if(!z||z.mode!=='y'){z=null;return}const s=z,H=innerHeight,v=s.v;z=null;
+  const vel=v.length>1?(v[v.length-1][1]-v[0][1])/Math.max(1,v[v.length-1][0]-v[0][0]):0,go=s.dy>H/2||vel>.5,o={duration:200,easing:'cubic-bezier(.2,.7,.2,1)',fill:'forwards'};
+  const a=s.layer.animate([{translate:'0 '+s.dy+'px'},{translate:'0 '+(go?H:0)+'px'}],o);if(s.bg)s.bg.animate([{opacity:Math.max(0,1-s.dy/H)},{opacity:go?0:1}],o);
+  a.onfinish=()=>{if(go)s.box.checked=false;s.layer.getAnimations().forEach(x=>x.cancel());if(s.bg)s.bg.getAnimations().forEach(x=>x.cancel());s.layer.style.translate='';if(s.bg)s.bg.style.opacity=''}}
+document.addEventListener('touchend',zEnd,{passive:true});document.addEventListener('touchcancel',zEnd,{passive:true});
 const blocked=t=>t.closest('.chips')||document.querySelector('.zck:checked,.pz:checked,.drv:target');
 T.addEventListener('touchstart',e=>{s=null;if(busyGlide||e.touches.length!==1||cur<0||blocked(e.target))return;
   const p=e.touches[0];s={x:p.clientX,y:p.clientY,mode:null,v:[],j:null}},{passive:true});

@@ -894,3 +894,62 @@ def test_round_trips_do_not_grow_the_history(browser, publish_url, viewport):
     assert pg.evaluate("history.length") <= n0 + 1 and _cur(pg) == "pg-home"
     assert pg.evaluate("history.state.pg") == "home" and not errs
     pg.close()
+
+
+# ---------------------------------------------------------------- Z1: pull down to close a zoom
+
+def _open_zoom(pg, kind):
+    """Day 2 has both a map with tiles and a photo; open the zoom and return its checkbox selector."""
+    _go(pg, "pg-d2")
+    if kind == "map":
+        pg.click("section[data-pg=d2] .mapc summary")
+        pg.wait_for_timeout(300)
+        box = "section[data-pg=d2] .zck"
+    else:
+        sid = pg.evaluate("document.querySelector('section[data-pg=d2] .pz').closest('.stop').id")
+        pg.evaluate(f"location.hash='#{sid}'")
+        pg.wait_for_timeout(500)
+        box = "section[data-pg=d2] .pz"
+    pg.evaluate(f"document.querySelector('{box}').click()")
+    pg.wait_for_timeout(400)
+    return box
+
+
+@pytest.mark.parametrize("kind", ["map", "photo"])
+def test_pull_down_closes_the_zoom(chromium, publish_url, kind):
+    errs = []
+    ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errs)
+    t = _touch(ctx, pg)
+    box = _open_zoom(pg, kind)
+    day = _cur(pg)
+    top = pg.evaluate(f"{_vs('d2')}.scrollTop")
+    _drag(pg, t, 180, 300, 0, 150)               # under half of 780: stays open
+    assert pg.evaluate(f"document.querySelector('{box}').checked")
+    assert _cur(pg) == day and pg.evaluate(f"{_vs('d2')}.scrollTop") == top   # the list underneath did not scroll
+    _drag(pg, t, 180, 300, 0, 420)               # past half: closes
+    assert not pg.evaluate(f"document.querySelector('{box}').checked")
+    assert pg.evaluate("[...document.querySelectorAll('.mv,.bp,.zbg')].every(e=>!e.style.translate&&!e.style.opacity)")
+    assert _cur(pg) == day
+    assert not errs
+    ctx.close()
+
+
+def test_pull_down_flick_closes_and_sideways_or_link_does_not(chromium, publish_url):
+    errs = []
+    ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errs)
+    t = _touch(ctx, pg)
+    box = _open_zoom(pg, "map")
+    day = _cur(pg)
+    _drag(pg, t, 180, 300, 200, 40)              # sideways: not a pull, and not a day swipe
+    assert pg.evaluate(f"document.querySelector('{box}').checked") and _cur(pg) == day
+    _drag(pg, t, 180, 300, 0, -150)              # upwards: not a pull
+    assert pg.evaluate(f"document.querySelector('{box}').checked")
+    link = pg.evaluate("(a=>{if(!a)return null;const r=a.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})"
+                       "(document.querySelector('section[data-pg=d2] .mv:has(.zck:checked) .zbar a'))")
+    if link:                                      # a touch that starts on the live-map link never pulls
+        _drag(pg, t, link[0], link[1], 0, 500)
+        assert pg.evaluate(f"document.querySelector('{box}').checked")
+    _drag(pg, t, 180, 300, 0, 120, steps=3, ms=0)  # short flick: closes
+    assert not pg.evaluate(f"document.querySelector('{box}').checked")
+    assert not errs
+    ctx.close()
