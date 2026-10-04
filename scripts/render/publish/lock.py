@@ -110,3 +110,11 @@ def staticrypt_args(password, template_path, out_dir, html_path, salt=None):
     if salt:
         argv[argv.index("-d"):argv.index("-d")] = ["-s", salt]
     return argv
+
+
+def staticrypt_share_args(password, salt, url):
+    """argv after `npx --yes` that prints `url#staticrypt_pwd=<hash>` -- a link that opens the
+    page without typing the password. staticrypt's --share only prints (it encrypts nothing),
+    and the hash depends on the salt: pass the one the page was encrypted with. The hash is
+    password-equivalent: show it to the user, never write it next to the uploaded pages."""
+    return [STATICRYPT, "-p", password, "-s", salt, "-c", "false", "--short", "--share", url]

@@ -1,7 +1,7 @@
 """The publish build's lock page (v1.2 spec section 2, K3): a staticrypt template in
 the reader's look. The page is public, so it names no trip; staticrypt fills its
 /*[|…|]*/0 placeholders and injects the copy from staticrypt_args()."""
-from scripts.render.publish.lock import LOCK_COPY, STATICRYPT, lock_template, staticrypt_args
+from scripts.render.publish.lock import LOCK_COPY, STATICRYPT, lock_template, staticrypt_args, staticrypt_share_args
 
 # every placeholder staticrypt 3.5.4's own template carries that this page uses:
 # a literal because the names live in the npm package, not in this repo
@@ -62,3 +62,9 @@ def test_args_never_write_a_config_file():
     assert "-s" not in a
     b = staticrypt_args("pw", "/t.html", "/out", "/in.html", salt="0" * 32)
     assert b[b.index("-s") + 1] == "0" * 32
+
+
+def test_share_args_print_a_link_with_the_pages_salt():
+    a = staticrypt_share_args("pw", "1" * 32, "https://x.pages.dev/abc/")
+    assert a[0] == STATICRYPT and a[a.index("-s") + 1] == "1" * 32 and a[a.index("--share") + 1] == "https://x.pages.dev/abc/"
+    assert a[a.index("-c") + 1] == "false"
