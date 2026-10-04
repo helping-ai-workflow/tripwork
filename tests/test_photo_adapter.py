@@ -352,11 +352,18 @@ def test_wikidata_without_coordinates_returns_nothing(mocker):
 
 def test_wikidata_is_tried_before_the_searches(mocker):
     from scripts import photo_adapter as pa
-    order = []
+    order, geos = [], {}
+    def stub(n):
+        def f(*a, geo="MISSING", **k):
+            order.append(n); geos[n] = geo
+            return []
+        return f
     for name in ("wikidata", "openverse", "commons"):
-        mocker.patch.dict(pa._SEARCHERS, {name: (lambda n: lambda *a, **k: order.append(n) or [])(name)})
-    pa.fetch_media_entry({"id": "x", "name_local": "X", "geocode": {"lat": 1, "lng": 2}}, "wiki")
+        mocker.patch.dict(pa._SEARCHERS, {name: stub(name)})
+    gc = {"lat": 1, "lng": 2}
+    pa.fetch_media_entry({"id": "x", "name_local": "X", "geocode": gc}, "wiki")
     assert order == ["wikidata", "openverse", "commons"]
+    assert geos == {"wikidata": gc, "openverse": gc, "commons": gc}
 
 
 def test_lang_of_reads_the_script():
@@ -391,3 +398,28 @@ def test_shrink_leaves_small_images_alone():
 def test_shrink_survives_garbage():
     from scripts.photo_adapter import _shrink
     assert _shrink(b"not an image", "image/jpeg") == (b"not an image", "image/jpeg")
+
+
+def test_shrink_applies_exif_orientation():
+    import io
+    from PIL import Image
+    from scripts.photo_adapter import _shrink
+    im = Image.new("RGB", (1200, 600), (10, 120, 200))
+    ex = Image.Exif(); ex[0x0112] = 6
+    b = io.BytesIO(); im.save(b, "JPEG", exif=ex.tobytes())
+    out, ctype = _shrink(b.getvalue(), "image/jpeg")
+    w, h = Image.open(io.BytesIO(out)).size
+    assert h > w and max(w, h) == 640
+
+
+def test_fetch_image_shrinks_what_it_downloads(mocker):
+    import base64, io
+    from PIL import Image
+    from scripts import photo_adapter as pa
+    resp = mocker.Mock(content=_png(2000, 1000), headers={"Content-Type": "image/png"})
+    resp.raise_for_status = lambda: None
+    mocker.patch.object(pa.requests, "get", return_value=resp)
+    uri = pa._fetch_image("https://x.example/a.png", None)
+    assert uri.startswith("data:image/jpeg;base64,")
+    im = Image.open(io.BytesIO(base64.b64decode(uri.split(",", 1)[1])))
+    assert max(im.size) == 640

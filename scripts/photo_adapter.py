@@ -293,9 +293,10 @@ def _shrink(content, ctype):
     """Long edge <= 640 px, JPEG q80: a reader page carries every photo inline (spec §4)."""
     try:
         import io
-        from PIL import Image
+        from PIL import Image, ImageOps
         im = Image.open(io.BytesIO(content))
         im.load()
+        im = ImageOps.exif_transpose(im)
     except Exception:
         return content, ctype
     if max(im.size) <= 640:
