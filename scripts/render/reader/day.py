@@ -273,7 +273,7 @@ def day_page(ctx, i):
     list_title = (f'<h2 class="dh dh-list"><span class="dht">{esc(theme)}</span>'
                   f'<span class="dstep dstep-d">{prev}<span class="dn">Day {i}</span>{nxt}</span></h2>')
     # the phone folds the mini calendar away by its own height: --wk weeks (theme.py --fold)
-    return (f'<section class="page day" data-pg="d{i}" style="--wk:{len(calendar.weeks(ctx.dates))}">'
+    return (f'<section class="page day" data-pg="d{i}" data-date="{ctx.dates[i - 1].isoformat()}" style="--wk:{len(calendar.weeks(ctx.dates))}">'
             f'<div class="dash"><div class="pcal">'
             f'<div class="ymrow"><label class="back" for="pg-home">‹ 總覽</label>'
             f'<b class="ym"><label class="unf" for="pg-d{i}" aria-label="展開月曆"></label>'

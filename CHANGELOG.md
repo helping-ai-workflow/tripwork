@@ -1,5 +1,53 @@
 # Changelog
 
+## 1.2.0 — publish build for family, photos from Wikidata, phone gestures
+
+### Added
+
+- **A page to share with family.** When you ask to share a trip, tripwork makes a second
+  reader -- the same page, behind a password -- and puts it on your Cloudflare Pages
+  (`python scripts/publish.py build`, then `deploy`). It stops and asks before anything
+  goes on the internet. The password page names no trip, date or place, takes a Chinese
+  password (an iPhone keeps 注音: the field is plain text with a 隱藏/顯示 mask), remembers
+  the password if you leave 「記得密碼」 ticked, and works in a private window. Only the
+  locked page is kept; the URL is a random path, and the printed share link opens the page
+  without typing the password (send it to family only). Re-publishing keeps the link
+  working; a new password ends it.
+- **The shared page moves on a phone.** Swipe left or right between days (past half, or a
+  flick, changes the day; the first and last day bounce); swipe 住宿 / 入境規定 / 行前清單
+  right to go home; pull a zoomed map or photo down to close it. Opened during the trip it
+  shows today; the phone's back button always lands on the overview; the light/dark choice
+  made on the password page carries over. On a phone the day page is rebuilt on native
+  scrolling, so the map, title and card no longer drift apart while the calendar folds. The
+  check page you open from Files or LINE is unchanged.
+
+### Changed
+
+- **Photos come from Wikidata first.** For a landmark, the photo adapter now takes the image
+  Wikidata records for it (the entity within 1 km of the verified coordinates), and only
+  then searches Openverse / Commons. Photos are shrunk to 640 px (JPEG), with the camera's
+  orientation applied.
+
+### Fixed
+
+- **A photo you provided is never replaced.** The adapter rebuilt the whole side-file
+  `verified-pois-media.yaml` on every run, so a run wiped entries another tool had written.
+  It now keeps every entry already there and fills only the POIs without one.
+- **A failed photo download tries the next candidate.** A failed thumbnail keeps the full
+  image, and one POI's error no longer stops the run.
+
+### Migration
+
+- Check pages (`<stem>.html`) need nothing.
+- Sharing needs Node.js 18+ and a free Cloudflare account; the first time, run
+  `npx wrangler login`.
+- Photo entries written by an earlier adapter run are kept as they are (not shrunk or
+  re-fetched): delete an entry to have it fetched again.
+- Gestures are checked in WebKit (iPhone) and Chromium at Android sizes; no real Android
+  phone was tested.
+
+Tests: 1739 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 436 passed (headless Chromium and WebKit; the lock page with the real staticrypt).
+
 ## 1.1.2 — the phone calendar is open or folded
 
 ### Changed

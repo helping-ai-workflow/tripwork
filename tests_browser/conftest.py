@@ -50,6 +50,11 @@ def build_pages(root):
     tour = root / "tour.html"
     tour.write_text(render_reader(F.tour(), pm, brief=F.tour_brief(), accommodations=acc,
                                   advisory=R.ADVISORY, legs=F.LEGS, maps=maps), encoding="utf-8")
+    # v1.2: the same tour as a publish page -- its D2 draws two maps, so the zoomed view
+    # scrolls on a phone held sideways (844x390), the case a pull-down must not take over
+    tour_publish = root / "tour-publish.html"
+    tour_publish.write_text(render_reader(F.tour(), pm, brief=F.tour_brief(), accommodations=acc, advisory=R.ADVISORY,
+                                          legs=F.LEGS, maps=maps, build="publish"), encoding="utf-8")
     # the Hakodate D2 (photo, four stops, an alternative) is long enough that the list
     # really scrolls at 1366x768, which the centring check needs -- on a list that
     # fits, every stop is 'bounded' and nothing is measured
@@ -66,7 +71,31 @@ def build_pages(root):
     from tests.mech_fixtures import brief_name_fields
     picker.write_text(picker_page(R.itinerary(), dict(R.brief(), **brief_name_fields()),
                                   R.reader_kwargs()["accommodations"]), encoding="utf-8")
-    return {"tour": tour, "hakodate": hakodate, "many": many, "rings": rings, "picker": picker}
+    # v1.2: the publish build's phone page (PUBLISH_JS), the check build of the same
+    # fixture as its pixel baseline, a trip across two months (its calendar spans Aug~Sep;
+    # day.py sets --wk from the whole trip, calendar.weeks(ctx.dates), so every day page
+    # still folds by the same height -- test_reader_publish.py's _two_weeks makes one day
+    # differ in the page to guard that prep() uses the TARGET day's own fold) and a one-day
+    # trip (no neighbour to swipe to)
+    import copy
+    import datetime
+    pub = root / "publish.html"
+    pub.write_text(render_reader(R.itinerary(), R.poi_map(), build="publish", **R.reader_kwargs()), encoding="utf-8")
+    chk = root / "check.html"
+    chk.write_text(render_reader(R.itinerary(), R.poi_map(), **R.reader_kwargs()), encoding="utf-8")
+    two = copy.deepcopy(R.itinerary())
+    while len(two["days"]) < 3:
+        two["days"].append(copy.deepcopy(two["days"][1]))
+    for k, d in enumerate(two["days"]):
+        d["date"] = (datetime.date(2026, 8, 30) + datetime.timedelta(days=k)).isoformat()
+    two_month = root / "two-month.html"
+    two_month.write_text(render_reader(two, R.poi_map(), build="publish", **R.reader_kwargs()), encoding="utf-8")
+    one = dict(copy.deepcopy(R.itinerary()), days=copy.deepcopy(R.itinerary()["days"][:1]))
+    one_day = root / "one-day.html"
+    one_day.write_text(render_reader(one, R.poi_map(), build="publish", **R.reader_kwargs()), encoding="utf-8")
+    return {"tour": tour, "hakodate": hakodate, "many": many, "rings": rings, "picker": picker,
+            "publish": pub, "check": chk, "two_month": two_month, "one_day": one_day,
+            "tour_publish": tour_publish}
 
 
 def _long_rings(R):
@@ -145,17 +174,50 @@ def picker_url(pages):
     return pages["picker"].as_uri()
 
 
+@pytest.fixture(scope="session")
+def publish_url(pages):
+    return pages["publish"].as_uri()
+
+
+@pytest.fixture(scope="session")
+def check_url(pages):
+    return pages["check"].as_uri()
+
+
+@pytest.fixture(scope="session")
+def two_month_url(pages):
+    return pages["two_month"].as_uri()
+
+
+@pytest.fixture(scope="session")
+def one_day_url(pages):
+    return pages["one_day"].as_uri()
+
+
+@pytest.fixture(scope="session")
+def tour_publish_url(pages):
+    return pages["tour_publish"].as_uri()
+
+
+@pytest.fixture(scope="session")
+def pw():
+    """One Playwright driver for the session: the sync API refuses a second one in the
+    same thread, so every browser -- the engine pair below and a test module's own
+    Chromium (test_reader_publish.py's touch tests) -- is launched from this one."""
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        yield p
+
+
 @pytest.fixture(scope="session", params=["chromium", "webkit"])
-def browser(request):
+def browser(request, pw):
     """Both engines: WebKit is the one iPhone previews (Files, LINE) run, and with
     JavaScript off it stands in for them (calibrated 2026-10-01 against the user's phone:
     same no-centring on v1.1 radios, same 1-in-3 on scroll-snap)."""
-    from playwright.sync_api import sync_playwright
-    with sync_playwright() as p:
-        b = getattr(p, request.param).launch()
-        b.engine = request.param
-        yield b
-        b.close()
+    b = getattr(pw, request.param).launch()
+    b.engine = request.param
+    yield b
+    b.close()
 
 
 @pytest.fixture

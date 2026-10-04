@@ -258,8 +258,11 @@ _SCRIPT_URL = re.compile(r"(?i)^\s*(javascript|vbscript|data:text/html)")
 
 def _script_hashes():
     # call the shipped constant, never a copied hash (CLAUDE.md "guards call their subject")
+    # the two shipped constants: the centring script (every build) and the publish page's
     from scripts.render.reader.centre import CENTRE_JS
-    return frozenset({hashlib.sha256(CENTRE_JS.encode()).hexdigest()})
+    from scripts.render.reader.publish import PUBLISH_JS
+    return frozenset({hashlib.sha256(CENTRE_JS.encode()).hexdigest(),
+                      hashlib.sha256(PUBLISH_JS.encode()).hexdigest()})
 
 
 _SCRIPT_SHA256 = _script_hashes()
@@ -310,7 +313,7 @@ class _ReaderScan(__import__("html.parser").parser.HTMLParser):
 
 def run_html_gate(html_text, pois, min_days=None, media_count=0):
     """Validate a rendered one-page HTML deliverable. Structure/format only:
-    non-empty, >= min_days day-cards, every href is http(s), no <script> but the reader's centring constant.
+    non-empty, >= min_days day-cards, every href is http(s), no <script> but the reader's two shipped constants.
     Output shape matches run_export_gate. (dogfood D4)
 
     P8: when `media_count` (the number of entries in the verified-pois-media side-file
@@ -336,8 +339,8 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
             elif not re.match(r"https?://", href):
                 failures.append(f"non-http href in deliverable: '{href}'")
         failures.extend(_maps_link_failures(_HREF.findall(html_text)))
-        # v1.0 P6 (spec §6.10): the only script allowed is the reader's own centring
-        # constant, byte for byte -- no attributes, no src, no inline handlers.
+        # v1.0 P6 (spec §6.10): the only scripts allowed are the reader's own shipped
+        # constants (centring, publish), byte for byte -- no attributes, no src, no inline handlers.
         scan = _ReaderScan()
         scan.feed(html_text)
         scripts = _SCRIPT.findall(html_text)
