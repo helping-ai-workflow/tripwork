@@ -4,10 +4,10 @@
 
 <p align="center">
   <img src="docs/images/readme/phone-home.jpg" width="250" alt="手機首頁：搞笑標題、紀念章月曆、住宿／入境規定／行前清單、旅程與費用">
-  <img src="docs/images/readme/phone-day.jpg" width="250" alt="手機的每日行程：小月曆、當天標題、地圖、一站接一站的行程卡">
+  <img src="docs/images/readme/phone-day.jpg" width="250" alt="手機的每日行程：點開一站，照片、停留時間、營業時間、安排與來源">
   <img src="docs/images/readme/phone-map.jpg" width="250" alt="每日地圖：點時間膠囊跳到那一站">
 </p>
-<p align="center"><sub>示意行程：東京 3 天 2 夜（虛構的例子）。左起依序是首頁、每日行程、每日地圖。</sub></p>
+<p align="center"><sub>示意行程：東京 3 天 2 夜（虛構的例子）。左起依序是首頁、每日行程（點開一站）、每日地圖。</sub></p>
 
 tripwork 是 Claude Code 的外掛，你**不需要會寫程式**。它不憑印象排行程：每個景點、餐廳、住宿、營業時間和入境規定，
 都要先找到 **2 個以上的獨立來源（至少 1 個是當地語言）**，而且**地圖座標要落在對的地方**，才會排進你的行程。
@@ -112,13 +112,19 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 ### 電腦：同一個檔案，變成大螢幕儀表板
 
 <p align="center"><img src="docs/images/readme/desktop-home.jpg" width="820" alt="電腦版首頁：放大的紀念章月曆，每枚印章外圈寫著當天主題；左欄是旅程與費用"></p>
-<p align="center"><img src="docs/images/readme/desktop-day.jpg" width="820" alt="電腦版每日頁：左邊月曆和地圖，右邊當天行程"></p>
+<p align="center"><img src="docs/images/readme/desktop-day.jpg" width="820" alt="電腦版每日頁：左邊月曆和地圖，右邊當天行程，點開的一站有照片、營業時間與來源"></p>
 
-首頁是放大的紀念章月曆，每枚印章外圈寫著當天的主題；點一天就進入儀表板，左邊是月曆和地圖，右邊是當天行程，點哪一站地圖就跟著跳過去。
+首頁是放大的紀念章月曆，每枚印章外圈寫著當天的主題；點一天就進入儀表板，左邊是月曆和地圖，右邊是當天行程，點開哪一站，地圖就跟著跳過去。
 
 ### 分享版：家人用手機瀏覽器打開
 
 同一份行程，放到網路上、加上密碼，給不在你身邊的家人朋友看（iPhone 用 Safari、Android 用 Chrome 都可以）。
+
+<p align="center"><img src="docs/images/readme/phone-lock.jpg" width="250" alt="分享版的密碼頁：只有「我們的旅程」、密碼欄、記得密碼與打開行程，看不出是哪一趟"></p>
+
+- **放在你自己的 Cloudflare 上**：用 Cloudflare Pages（免費方案就夠），網址像 `https://你取的名字.pages.dev/k3x9q2ab/`。
+  後面那段是隨機產生的，看不出地點或日期；行程在你電腦上就先加密，上傳到 Cloudflare 的只有加密過的頁面，
+  沒有密碼誰都打不開。第一次要登入 Cloudflare、電腦要裝 Node.js；**每次上傳前它都會先問你**。
 
 - **先輸入密碼**：頁面上不會出現行程名稱、日期或地點；密碼可以用中文，iPhone 照樣能用注音輸入。勾「記得密碼」，下次打開就不用再輸入。
 - **手機上滑著看**：左右滑換天，住宿／入境規定／行前清單往右滑回首頁，放大的地圖或照片往下拉就關掉。
@@ -190,28 +196,35 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 
 ## 常見問題
 
-**要付費或申請 API key 嗎？**
+### 要付費或申請 API key 嗎？
+
 不用。地圖座標用免費的 OpenStreetMap Nominatim；網路搜尋用 Claude Code 內建功能。要分享給家人的話，需要一個 Cloudflare 帳號（免費方案就夠）。
 
-**它會不會自己亂編地點？**
+### 它會不會自己亂編地點？
+
 不會。沒通過查證關卡的地點進不了行程，且會被標明原因留存，不會假裝成「已驗證」。
 
-**支援哪些目的地？**
+### 支援哪些目的地？
+
 任何地方都可以——只要該地點在網路上有 ≥2 個來源、且地圖查得到座標。會自動用
 當地語言搜尋，所以日本、韓國、東南亞等地的在地小店也涵蓋得到。
 
-**家人怎麼打開分享版？**
+### 家人怎麼打開分享版？
+
 把網址傳給他們，用手機瀏覽器打開、輸入密碼就好。也可以直接傳分享連結（點開不用輸入密碼，所以只傳給家人）。
 換一組密碼重新發布，舊的分享連結就會失效。
 
-**怎麼放進 Notion？**
+### 怎麼放進 Notion？
+
 把產好的 Markdown 行程貼進 Notion 頁面就好（透過你環境的 Notion MCP）。Notion 不是獨立的輸出步驟，貼的就是那份已驗證的 Markdown。
 
-**更新到 1.0 之後，舊的行程怎麼辦？**
+### 更新到 1.0 之後，舊的行程怎麼辦？
+
 下次請它繼續舊行程時，它會先停下來，請你同意把舊資料搬進行程資料夾裡的資料子資料夾（只搬位置、不改內容），
 接著補上新版需要的東西——例如每天一句短主題、讓你挑的搞笑標題、住宿所在地區——再重新產出成品。
 
-**我可以中途改需求嗎？**
+### 我可以中途改需求嗎？
+
 可以。每個階段的產物都是檔案，調度中心會從你改動的地方接續往下跑，不用整個重來。
 
 ---
