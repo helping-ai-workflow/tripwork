@@ -67,8 +67,11 @@ def build_pages(root):
     picker.write_text(picker_page(R.itinerary(), dict(R.brief(), **brief_name_fields()),
                                   R.reader_kwargs()["accommodations"]), encoding="utf-8")
     # v1.2: the publish build's phone page (PUBLISH_JS), the check build of the same
-    # fixture as its pixel baseline, a trip across two months (the calendar's fold height
-    # differs per day) and a one-day trip (no neighbour to swipe to)
+    # fixture as its pixel baseline, a trip across two months (its calendar spans Aug~Sep;
+    # day.py sets --wk from the whole trip, calendar.weeks(ctx.dates), so every day page
+    # still folds by the same height -- test_reader_publish.py's _two_weeks makes one day
+    # differ in the page to guard that prep() uses the TARGET day's own fold) and a one-day
+    # trip (no neighbour to swipe to)
     import copy
     import datetime
     pub = root / "publish.html"
