@@ -236,6 +236,8 @@ sudo .venv/bin/python -m playwright install-deps chromium webkit      # system l
   workspace for `tests/test_privacy.py` to compare real trips; where none exists that
   test reports `skipped`, not passed.
 - Python >= 3.11 (`pyproject.toml`; CI runs 3.11).
+- Node.js >= 18 with `npx` (since v1.2): `scripts/publish.py` and `tests_browser/test_lock_page.py`
+  run staticrypt / wrangler through `npx`. Missing Node fails those tests with a message; it never skips.
 
 ## Pre-ship gate
 
