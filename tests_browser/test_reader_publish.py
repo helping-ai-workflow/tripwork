@@ -673,3 +673,22 @@ def test_swipe_cost_budget(chromium, publish_url):
     assert per_move <= 2.5, (per_move, release)
     assert release <= 60, (per_move, release)
     ctx.close()
+
+
+def test_sub_pages_swipe_right_to_home(chromium, publish_url):
+    errors = []
+    ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errors)
+    t = _touch(ctx, pg)
+    for sub in ("lodging", "advisory", "checklist"):
+        _go(pg, f"pg-{sub}")
+        _drag(pg, t, 60, 500, 120, 0)          # under half: stays
+        assert _cur(pg) == f"pg-{sub}"
+        _drag(pg, t, 60, 500, 260, 0)          # past half: home
+        assert _cur(pg) == "pg-home"
+        _go(pg, f"pg-{sub}")
+        _drag(pg, t, 300, 500, -260, 0)        # left does nothing on a sub-page
+        assert _cur(pg) == f"pg-{sub}"
+        _go(pg, "pg-home")
+    assert pg.evaluate("[...document.querySelectorAll('.page.sub,.page.home')].every(p=>!p.style.translate&&!p.style.position)")
+    assert errors == []
+    ctx.close()

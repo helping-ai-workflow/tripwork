@@ -125,5 +125,21 @@ const fin=()=>{if(!s||s.mode!=='x'){s=null;return}const W=innerWidth,v=s.v,f=s.f
   const go=s.j!=null&&(Math.abs(s.dx)>W/2||(Math.abs(vel)>.5&&Math.sign(vel)===Math.sign(s.dx)));
   const j=s.j,dir=s.dx<0?1:-1;s=null;days.forEach(clear);glide(cur,j,dir,f,go)};
 T.addEventListener('touchend',fin,{passive:true});T.addEventListener('touchcancel',fin,{passive:true});
+// a sub-screen (住宿 / 入境規定 / 行前清單) slides off to the right over the home, iOS-style
+const SUBS=['lodging','advisory','checklist'],home=document.querySelector('.page.home');let u=null;
+const subOn=()=>{const r=document.querySelector('input[name=pg]:checked');const id=r&&r.id.slice(3);return SUBS.includes(id)?document.querySelector('.page[data-pg="'+id+'"]'):null};
+document.addEventListener('touchstart',e=>{u=null;const p=subOn();if(!p||e.touches.length!==1||e.target.closest('.chips,input,textarea'))return;
+  const q=e.touches[0];u={p,x:q.clientX,y:q.clientY,mode:null,v:[],dx:0}},{passive:true});
+document.addEventListener('touchmove',e=>{if(!u||u.mode==='y')return;const q=e.touches[0],dx=q.clientX-u.x,dy=q.clientY-u.y;
+  if(!u.mode){if(Math.abs(dx)<4&&Math.abs(dy)<4)return;u.mode=(dx>0&&Math.abs(dy)<=Math.abs(dx)*ANG)?'x':'y';if(u.mode==='y')return;
+    home.style.display='block';home.style.position='fixed';home.style.inset='0';home.style.zIndex='1';
+    u.p.style.position='fixed';u.p.style.inset='0';u.p.style.zIndex='2';u.p.style.boxShadow='-8px 0 24px rgba(0,0,0,.12)'}
+  e.preventDefault();u.dx=Math.max(0,dx);u.p.style.translate=u.dx+'px 0';u.v.push([e.timeStamp,q.clientX]);if(u.v.length>5)u.v.shift()},{passive:false});
+const subEnd=()=>{if(!u||u.mode!=='x'){u=null;return}const s=u,W=innerWidth,v=s.v;u=null;
+  const vel=v.length>1?(v[v.length-1][1]-v[0][1])/Math.max(1,v[v.length-1][0]-v[0][0]):0,go=s.dx>W/2||vel>.5;
+  const a=s.p.animate([{translate:s.dx+'px 0'},{translate:(go?W:0)+'px 0'}],{duration:240,easing:'cubic-bezier(.2,.7,.2,1)',fill:'forwards'});
+  a.onfinish=()=>{if(go){const r=document.getElementById('pg-home');r.checked=true;r.dispatchEvent(new Event('change',{bubbles:true}))}
+    a.cancel();['translate','position','inset','zIndex','boxShadow'].forEach(k=>s.p.style[k]='');['display','position','inset','zIndex'].forEach(k=>home.style[k]='')}};
+document.addEventListener('touchend',subEnd,{passive:true});document.addEventListener('touchcancel',subEnd,{passive:true});
 })();
 """
