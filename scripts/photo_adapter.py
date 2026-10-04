@@ -289,6 +289,27 @@ def _to_data_uri(content, content_type):
     return f"data:{content_type};base64,{base64.b64encode(content).decode('ascii')}"
 
 
+def _shrink(content, ctype):
+    """Long edge <= 640 px, JPEG q80: a reader page carries every photo inline (spec §4)."""
+    try:
+        import io
+        from PIL import Image
+        im = Image.open(io.BytesIO(content))
+        im.load()
+    except Exception:
+        return content, ctype
+    if max(im.size) <= 640:
+        return content, ctype
+    im.thumbnail((640, 640))
+    if im.mode not in ("RGB", "L"):
+        bg = Image.new("RGB", im.size, (255, 255, 255))
+        bg.paste(im.convert("RGBA"), mask=im.convert("RGBA").split()[-1])
+        im = bg
+    out = io.BytesIO()
+    im.save(out, "JPEG", quality=80, optimize=True)
+    return out.getvalue(), "image/jpeg"
+
+
 def _fetch_image(url, rate_limiter):
     _wait(rate_limiter)
     resp = requests.get(url, headers={"User-Agent": USER_AGENT}, timeout=15)
@@ -296,7 +317,8 @@ def _fetch_image(url, rate_limiter):
     ctype = (resp.headers.get("Content-Type") or "image/jpeg").split(";")[0].strip()
     if not ctype.startswith("image/"):
         return None
-    return _to_data_uri(resp.content, ctype)
+    data, ctype = _shrink(resp.content, ctype)
+    return _to_data_uri(data, ctype)
 
 
 def _download_entry(cand, rate_limiter):

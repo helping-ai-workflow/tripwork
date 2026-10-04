@@ -365,3 +365,29 @@ def test_lang_of_reads_the_script():
     assert _lang_of("경복궁") == "ko"
     assert _lang_of("日月潭") == "zh"
     assert _lang_of("Eiffel Tower") == "en"
+
+
+def _png(w, h):
+    import io
+    from PIL import Image
+    b = io.BytesIO(); Image.new("RGB", (w, h), (10, 120, 200)).save(b, "PNG"); return b.getvalue()
+
+
+def test_shrink_caps_the_long_edge_at_640_as_jpeg():
+    import io
+    from PIL import Image
+    from scripts.photo_adapter import _shrink
+    out, ctype = _shrink(_png(2000, 1000), "image/png")
+    im = Image.open(io.BytesIO(out))
+    assert ctype == "image/jpeg" and max(im.size) == 640 and im.size == (640, 320)
+
+
+def test_shrink_leaves_small_images_alone():
+    from scripts.photo_adapter import _shrink
+    raw = _png(300, 200)
+    assert _shrink(raw, "image/png") == (raw, "image/png")
+
+
+def test_shrink_survives_garbage():
+    from scripts.photo_adapter import _shrink
+    assert _shrink(b"not an image", "image/jpeg") == (b"not an image", "image/jpeg")
