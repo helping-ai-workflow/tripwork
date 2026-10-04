@@ -267,3 +267,38 @@ def test_one_failed_poi_does_not_stop_the_rest(mocker):
                  side_effect=[_ov([_OV_RESULT]), _Fail(500), _ov([_OV_RESULT]), _IMG_FULL, _IMG_THUMB])
     doc = build_media([_LANDMARK, other], "wiki", sources=("openverse",))
     assert list(doc["media"]) == ["p2"]
+
+
+def test_build_media_keeps_existing_entries_and_does_not_look_them_up(mocker):
+    from scripts import photo_adapter as pa
+    seen = []
+    mocker.patch.object(pa, "fetch_media_entry", side_effect=lambda poi, *a, **k: seen.append(poi["id"]) or {"photo": {"data": "data:image/png;base64,AA=="}, "photo_attribution": {"author": "a", "license": "CC0", "source_url": "https://x.example/1"}, "photo_source": "wikimedia"})
+    mine = {"photo": {"data": "data:image/jpeg;base64,BB=="}, "photo_attribution": {"author": "me", "license": "personal", "source_url": "https://y.example/2"}, "photo_source": "google"}
+    pois = [{"id": "a", "name_local": "A", "category": "sight"}, {"id": "b", "name_local": "B", "category": "sight"}]
+    doc = pa.build_media(pois, "wiki", existing={"a": mine})
+    assert doc["media"]["a"] == mine
+    assert seen == ["b"]
+
+
+def test_existing_entry_without_photo_is_still_kept(mocker):
+    from scripts import photo_adapter as pa
+    mocker.patch.object(pa, "fetch_media_entry", side_effect=AssertionError("must not look up a provided POI"))
+    odd = {"photo_source": "google", "note": "user left this"}
+    doc = pa.build_media([{"id": "a", "name_local": "A", "category": "sight"}], "wiki", existing={"a": odd})
+    assert doc["media"]["a"] == odd
+
+
+def test_cli_merges_into_the_existing_sidefile(tmp_path, mocker):
+    from scripts import photo_adapter as pa
+    from scripts.paths import artifact_path
+    import yaml
+    trip = tmp_path / "trips" / "t"
+    (trip / "data").mkdir(parents=True)
+    artifact_path(trip, "verified-pois.yaml").write_text(yaml.safe_dump({"pois": [
+        {"id": "a", "name_local": "A", "category": "sight"}, {"id": "b", "name_local": "B", "category": "sight"}]}), encoding="utf-8")
+    mine = {"photo": {"data": "data:image/jpeg;base64,BB=="}, "photo_attribution": {"author": "me", "license": "CC0", "source_url": "https://y.example/2"}, "photo_source": "wikimedia"}
+    artifact_path(trip, "verified-pois-media.yaml").write_text(yaml.safe_dump({"media": {"a": mine}}), encoding="utf-8")
+    mocker.patch.object(pa, "fetch_media_entry", return_value={"photo": {"data": "data:image/png;base64,AA=="}, "photo_attribution": {"author": "x", "license": "CC0", "source_url": "https://x.example/1"}, "photo_source": "wikimedia"})
+    assert pa.main([str(trip), "--backend", "wiki"]) == 0
+    media = yaml.safe_load(artifact_path(trip, "verified-pois-media.yaml").read_text(encoding="utf-8"))["media"]
+    assert media["a"] == mine and "b" in media

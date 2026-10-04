@@ -332,16 +332,17 @@ def fetch_media_entry(poi, backend="none", *, sources=("openverse", "commons"),
     return entry
 
 
-def build_media(pois, backend="none", *, landmark_only=True, **kw):
+def build_media(pois, backend="none", *, landmark_only=True, existing=None, **kw):
     """Build a verified-pois-media side-file doc {"media": {poi_id: entry}} for POIs.
 
-    Landmark-only by default (skips restaurant/hotel-type categories). Each POI is
-    resolved via fetch_media_entry; only successful matches are recorded.
+    Stage 1 (spec §4): an entry already in `existing` (the current side-file, e.g. one the
+    user's own script wrote) is the user's -- copied unchanged, never looked up again.
+    Stage 2: the rest are resolved via fetch_media_entry (landmark-only by default).
     """
-    media = {}
+    media = dict(existing or {})
     for poi in pois or []:
         pid = poi.get("id")
-        if not pid:
+        if not pid or pid in media:
             continue
         if landmark_only and not _is_landmark(poi):
             continue
@@ -439,9 +440,16 @@ def main(argv):
         print(f"{in_path}: 'pois' is not a list", file=_sys.stderr)
         return 2
 
-    media_doc = build_media(pois, args.backend)
-    n = len(media_doc["media"])
     out_path = artifact_path(trip_dir, "verified-pois-media.yaml")
+    existing = {}
+    if out_path.is_file():
+        try:
+            existing = (yaml.safe_load(out_path.read_text(encoding="utf-8")) or {}).get("media") or {}
+        except yaml.YAMLError as exc:
+            print(f"YAML parse error in {out_path}: {exc}", file=_sys.stderr)
+            return 2
+    media_doc = build_media(pois, args.backend, existing=existing)
+    n = len(media_doc["media"]) - len(existing)
 
     if args.dry_run:
         print(f"photo_adapter: --dry-run, would write {n} media entries to {out_path}")
