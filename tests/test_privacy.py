@@ -29,7 +29,8 @@ TRIPS = WORKSPACE / "trips"
 FORBIDDEN_DIRS = ("trips/", "work/", "docs/specs/", "docs/superpowers/", ".design-board/")
 IMAGE_DIRS = ("assets/icons/", "docs/images/readme/")
 IMAGE = re.compile(r"\.(png|jpe?g|gif|webp|svg|ico|heic)$", re.I)
-EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+")
+# the top-level domain is letters: a pinned npm package (staticrypt@3.5.4) is not an address
+EMAIL = re.compile(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)*\.[A-Za-z]{2,}\b")
 EMAIL_OK = re.compile(r"(^git@github\.com$|@users\.noreply\.github\.com$|@example\.(com|org)$|\.example$|^noreply@anthropic\.com$)")
 BINARY = re.compile(r"\.(png|jpe?g|gif|webp|ico|woff2?|ttf|otf|pdf|zip|gz)$", re.I)
 
@@ -75,6 +76,13 @@ def test_images_live_only_in_the_allowed_folders():
     """Screenshots come from the made-up demo trip (docs/images/readme/demo_trip.py)."""
     bad = [f for f in tracked() if IMAGE.search(f) and not f.startswith(IMAGE_DIRS)]
     assert not bad, f"images outside {IMAGE_DIRS}: {bad}"
+
+
+def test_an_npm_pin_is_not_an_email_but_an_address_is():
+    assert EMAIL.findall("npx --yes staticrypt@3.5.4 x") == []
+    at = "@"                                   # joined at run time, so this file carries no address
+    text = f"mail someone{at}gmail.com or a.b{at}mail.example.org."
+    assert EMAIL.findall(text) == [f"someone{at}gmail.com", f"a.b{at}mail.example.org"]
 
 
 def test_no_personal_email_address():

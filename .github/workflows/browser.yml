@@ -45,6 +45,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+      # v1.2: the lock page is made by staticrypt (npx staticrypt@3.5.4, pinned in scripts/render/publish/lock.py)
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
       - name: Install
         run: pip install -e ".[dev,browser]"
       - name: Playwright version
