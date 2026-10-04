@@ -267,3 +267,159 @@ def test_one_failed_poi_does_not_stop_the_rest(mocker):
                  side_effect=[_ov([_OV_RESULT]), _Fail(500), _ov([_OV_RESULT]), _IMG_FULL, _IMG_THUMB])
     doc = build_media([_LANDMARK, other], "wiki", sources=("openverse",))
     assert list(doc["media"]) == ["p2"]
+
+
+def test_build_media_keeps_existing_entries_and_does_not_look_them_up(mocker):
+    from scripts import photo_adapter as pa
+    seen = []
+    mocker.patch.object(pa, "fetch_media_entry", side_effect=lambda poi, *a, **k: seen.append(poi["id"]) or {"photo": {"data": "data:image/png;base64,AA=="}, "photo_attribution": {"author": "a", "license": "CC0", "source_url": "https://x.example/1"}, "photo_source": "wikimedia"})
+    mine = {"photo": {"data": "data:image/jpeg;base64,BB=="}, "photo_attribution": {"author": "me", "license": "personal", "source_url": "https://y.example/2"}, "photo_source": "google"}
+    pois = [{"id": "a", "name_local": "A", "category": "sight"}, {"id": "b", "name_local": "B", "category": "sight"}]
+    doc = pa.build_media(pois, "wiki", existing={"a": mine})
+    assert doc["media"]["a"] == mine
+    assert seen == ["b"]
+
+
+def test_existing_entry_without_photo_is_still_kept(mocker):
+    from scripts import photo_adapter as pa
+    mocker.patch.object(pa, "fetch_media_entry", side_effect=AssertionError("must not look up a provided POI"))
+    odd = {"photo_source": "google", "note": "user left this"}
+    doc = pa.build_media([{"id": "a", "name_local": "A", "category": "sight"}], "wiki", existing={"a": odd})
+    assert doc["media"]["a"] == odd
+
+
+def test_cli_merges_into_the_existing_sidefile(tmp_path, mocker):
+    from scripts import photo_adapter as pa
+    from scripts.paths import artifact_path
+    import yaml
+    trip = tmp_path / "trips" / "t"
+    (trip / "data").mkdir(parents=True)
+    artifact_path(trip, "verified-pois.yaml").write_text(yaml.safe_dump({"pois": [
+        {"id": "a", "name_local": "A", "category": "sight"}, {"id": "b", "name_local": "B", "category": "sight"}]}), encoding="utf-8")
+    mine = {"photo": {"data": "data:image/jpeg;base64,BB=="}, "photo_attribution": {"author": "me", "license": "CC0", "source_url": "https://y.example/2"}, "photo_source": "wikimedia"}
+    artifact_path(trip, "verified-pois-media.yaml").write_text(yaml.safe_dump({"media": {"a": mine}}), encoding="utf-8")
+    mocker.patch.object(pa, "fetch_media_entry", return_value={"photo": {"data": "data:image/png;base64,AA=="}, "photo_attribution": {"author": "x", "license": "CC0", "source_url": "https://x.example/1"}, "photo_source": "wikimedia"})
+    assert pa.main([str(trip), "--backend", "wiki"]) == 0
+    media = yaml.safe_load(artifact_path(trip, "verified-pois-media.yaml").read_text(encoding="utf-8"))["media"]
+    assert media["a"] == mine and "b" in media
+
+
+WD_SEARCH = {"search": [{"id": "Q1"}, {"id": "Q2"}]}
+WD_ENTITIES = {"entities": {
+    "Q1": {"claims": {"P625": [{"mainsnak": {"datavalue": {"value": {"latitude": 40.0, "longitude": 140.0}}}}],
+                      "P18": [{"mainsnak": {"datavalue": {"value": "Far.jpg"}}}]}},
+    "Q2": {"claims": {"P625": [{"mainsnak": {"datavalue": {"value": {"latitude": 35.7101, "longitude": 139.8107}}}}],
+                      "P18": [{"mainsnak": {"datavalue": {"value": "Skytree.jpg"}}}]}}}}
+WD_FILE = {"query": {"pages": {"1": {"imageinfo": [{"url": "https://upload.wikimedia.org/o.jpg", "thumburl": "https://upload.wikimedia.org/t.jpg",
+    "descriptionurl": "https://commons.wikimedia.org/wiki/File:Skytree.jpg",
+    "extmetadata": {"LicenseShortName": {"value": "CC BY-SA 4.0"}, "Artist": {"value": "<a>Someone</a>"}}}]}}}}
+
+
+def _wd_get(mocker):
+    from scripts import photo_adapter as pa
+    def fake(url, params=None, **kw):
+        r = mocker.Mock(); r.raise_for_status = lambda: None
+        if "wikidata" in url and params.get("action") == "wbsearchentities":
+            r.json = lambda: WD_SEARCH
+        elif "wikidata" in url:
+            r.json = lambda: WD_ENTITIES
+        else:
+            # the file page echoes the requested title, so picking the far entity is visible
+            title = params["titles"].split(":", 1)[1]
+            doc = json.loads(json.dumps(WD_FILE))
+            doc["query"]["pages"]["1"]["imageinfo"][0]["descriptionurl"] = "https://commons.wikimedia.org/wiki/File:" + title
+            r.json = lambda: doc
+        return r
+    return mocker.patch.object(pa.requests, "get", side_effect=fake)
+
+
+def test_wikidata_picks_the_entity_within_1km_and_reads_p18(mocker):
+    from scripts import photo_adapter as pa
+    _wd_get(mocker)
+    cands = pa._search_wikidata("東京スカイツリー", None, 5, geo={"lat": 35.7100, "lng": 139.8107})
+    assert len(cands) == 1
+    c = cands[0]
+    assert c["source"] == "wikimedia" and c["license"] == "CC BY-SA 4.0" and c["author"] == "Someone"
+    assert c["image_url"] == "https://upload.wikimedia.org/t.jpg"
+    assert c["source_url"] == "https://commons.wikimedia.org/wiki/File:Skytree.jpg"
+
+
+def test_wikidata_without_coordinates_returns_nothing(mocker):
+    from scripts import photo_adapter as pa
+    _wd_get(mocker)
+    assert pa._search_wikidata("東京スカイツリー", None, 5, geo={}) == []
+
+
+def test_wikidata_is_tried_before_the_searches(mocker):
+    from scripts import photo_adapter as pa
+    order, geos = [], {}
+    def stub(n):
+        def f(*a, geo="MISSING", **k):
+            order.append(n); geos[n] = geo
+            return []
+        return f
+    for name in ("wikidata", "openverse", "commons"):
+        mocker.patch.dict(pa._SEARCHERS, {name: stub(name)})
+    gc = {"lat": 1, "lng": 2}
+    pa.fetch_media_entry({"id": "x", "name_local": "X", "geocode": gc}, "wiki")
+    assert order == ["wikidata", "openverse", "commons"]
+    assert geos == {"wikidata": gc, "openverse": gc, "commons": gc}
+
+
+def test_lang_of_reads_the_script():
+    from scripts.photo_adapter import _lang_of
+    assert _lang_of("東京スカイツリー") == "ja"
+    assert _lang_of("경복궁") == "ko"
+    assert _lang_of("日月潭") == "zh"
+    assert _lang_of("Eiffel Tower") == "en"
+
+
+def _png(w, h):
+    import io
+    from PIL import Image
+    b = io.BytesIO(); Image.new("RGB", (w, h), (10, 120, 200)).save(b, "PNG"); return b.getvalue()
+
+
+def test_shrink_caps_the_long_edge_at_640_as_jpeg():
+    import io
+    from PIL import Image
+    from scripts.photo_adapter import _shrink
+    out, ctype = _shrink(_png(2000, 1000), "image/png")
+    im = Image.open(io.BytesIO(out))
+    assert ctype == "image/jpeg" and max(im.size) == 640 and im.size == (640, 320)
+
+
+def test_shrink_leaves_small_images_alone():
+    from scripts.photo_adapter import _shrink
+    raw = _png(300, 200)
+    assert _shrink(raw, "image/png") == (raw, "image/png")
+
+
+def test_shrink_survives_garbage():
+    from scripts.photo_adapter import _shrink
+    assert _shrink(b"not an image", "image/jpeg") == (b"not an image", "image/jpeg")
+
+
+def test_shrink_applies_exif_orientation():
+    import io
+    from PIL import Image
+    from scripts.photo_adapter import _shrink
+    im = Image.new("RGB", (1200, 600), (10, 120, 200))
+    ex = Image.Exif(); ex[0x0112] = 6
+    b = io.BytesIO(); im.save(b, "JPEG", exif=ex.tobytes())
+    out, ctype = _shrink(b.getvalue(), "image/jpeg")
+    w, h = Image.open(io.BytesIO(out)).size
+    assert h > w and max(w, h) == 640
+
+
+def test_fetch_image_shrinks_what_it_downloads(mocker):
+    import base64, io
+    from PIL import Image
+    from scripts import photo_adapter as pa
+    resp = mocker.Mock(content=_png(2000, 1000), headers={"Content-Type": "image/png"})
+    resp.raise_for_status = lambda: None
+    mocker.patch.object(pa.requests, "get", return_value=resp)
+    uri = pa._fetch_image("https://x.example/a.png", None)
+    assert uri.startswith("data:image/jpeg;base64,")
+    im = Image.open(io.BytesIO(base64.b64decode(uri.split(",", 1)[1])))
+    assert max(im.size) == 640

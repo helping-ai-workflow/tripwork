@@ -1,9 +1,12 @@
 """The README's screenshots: a made-up 3-day Tokyo trip (示意), rendered by the shipped reader.
 
 Never a user's real trip (their plans are private). Only public landmarks; the hotel and
-every source URL are placeholders, the hours are illustrative, and there are no photos.
-The day maps are drawn from real OpenStreetMap tiles (scripts/day_maps.py: its User-Agent,
-cache and one request a second), so the credit shows on every map.
+every source URL are placeholders and the hours are illustrative. The day maps are drawn
+from real OpenStreetMap tiles (scripts/day_maps.py: its User-Agent, cache and one request a
+second), so the credit shows on every map. The photos come from the plugin's own photo step
+(scripts/photo_adapter.py --backend wiki: Wikidata first, licence-checked, credited). The
+shared page's lock screen is the shipped template, locked by the real staticrypt (needs
+Node) with a made-up password.
 
     pip install -e ".[dev,browser,maps]"
     python docs/images/readme/demo_trip.py        # writes docs/images/readme/*.jpg
@@ -11,6 +14,7 @@ cache and one request a second), so the credit shows on every map.
 import copy
 import io
 import pathlib
+import subprocess
 import sys
 import tempfile
 
@@ -22,6 +26,7 @@ from tests import reader_fixture as R                    # noqa: E402
 from tests.reader_fixture import _closing, _mv, _poi, _src, _stop   # noqa: E402
 
 OUT = pathlib.Path(__file__).resolve().parent
+OPEN_STOP = "section[data-pg=d2] .stop:has(.bp)"           # D2's first stop with a photo
 
 
 def poi(pid, local, zh, cat, lat, lng, hours, district, intro=None, address=None):
@@ -148,16 +153,33 @@ def render(root):
                       ("itinerary.yaml", itin), ("cost.yaml", COST)):
         M.write_artifact(artifact_path(t, name), doc)
     maps = build(t, w)                                     # real OSM tiles, cached, 1 req/s
-    pm = {p["id"]: p for p in POIS + [HOTEL]}
+    from scripts import photo_adapter
+    from scripts.media_merge import apply_media, load_media
+    if photo_adapter.main([str(t), "--backend", "wiki"]) != 0:           # Wikidata first, then search
+        raise SystemExit("photo_adapter failed")
+    pm = apply_media({p["id"]: p for p in POIS + [HOTEL]},
+                     load_media(artifact_path(t, "verified-pois-media.yaml")))
     reader = root / "reader.html"
     reader.write_text(render_reader(itin, pm, brief=b, accommodations=ACC, advisory=R.ADVISORY,
                                     legs={"legs": []}, maps=maps, cost=COST), encoding="utf-8")
     picker = root / "picker.html"
     picker.write_text(picker_page(itin, b, ACC), encoding="utf-8")
-    return reader, picker
+    return reader, picker, lock(root, reader)
 
 
-def shoot(reader, picker):
+def lock(root, reader):
+    """The shared page's lock screen: the reader locked with the shipped template."""
+    from scripts.render.publish.lock import lock_template, staticrypt_args
+    d = root / "lock"
+    d.mkdir()
+    (d / "template.html").write_text(lock_template(), encoding="utf-8")
+    (d / "index.html").write_text(reader.read_text(encoding="utf-8"), encoding="utf-8")
+    subprocess.run(["npx", "--yes", *staticrypt_args("東京三天", d / "template.html", d / "out", d / "index.html")],
+                   cwd=d, check=True, capture_output=True)
+    return d / "out" / "index.html"
+
+
+def shoot(reader, picker, locked):
     from PIL import Image
     from playwright.sync_api import sync_playwright
 
@@ -172,8 +194,12 @@ def shoot(reader, picker):
         pg = wk.new_page(viewport={"width": 390, "height": 844}, device_scale_factor=2)
         pg.goto(reader.as_uri()); pg.wait_for_timeout(400)
         save(pg, "phone-home", 540)
+        # every day shot shows a stop opened -- the trip's first stop with a photo -- so the
+        # first look at the repo shows what a stop holds
         pg.evaluate("document.getElementById('pg-d2').checked=true"); pg.wait_for_timeout(300)
+        pg.evaluate(f"location.hash='#'+document.querySelector('{OPEN_STOP}').id"); pg.wait_for_timeout(900)
         save(pg, "phone-day", 540)
+        pg.evaluate("location.hash=''")
         pg.evaluate("document.getElementById('pg-d1').checked=true"); pg.wait_for_timeout(300)
         sid = pg.evaluate("document.querySelector('section[data-pg=d1] .stop:has(.drvbtn)').id")
         pg.evaluate(f"location.hash='#{sid}'"); pg.wait_for_timeout(900)
@@ -185,6 +211,8 @@ def shoot(reader, picker):
         pg.evaluate("document.getElementById('pg-d2').checked=true;document.querySelector('section[data-pg=d2] .mapc').open=true")
         pg.wait_for_timeout(500)
         save(pg, "phone-map", 540)
+        pg.goto(locked.as_uri()); pg.wait_for_selector(".lock", state="visible"); pg.wait_for_timeout(300)
+        save(pg, "phone-lock", 540)
         pg.close()
         wk.close()
         cr = p.chromium.launch()
@@ -192,6 +220,7 @@ def shoot(reader, picker):
         pg.goto(reader.as_uri()); pg.wait_for_timeout(500)
         save(pg, "desktop-home", 1440)
         pg.evaluate("document.getElementById('pg-d2').checked=true"); pg.wait_for_timeout(500)
+        pg.evaluate(f"location.hash='#'+document.querySelector('{OPEN_STOP}').id"); pg.wait_for_timeout(1200)
         save(pg, "desktop-day", 1440)
         pg.goto(picker.as_uri()); pg.wait_for_timeout(500)       # the title picker: used on a computer
         save(pg, "desktop-picker", 1440)

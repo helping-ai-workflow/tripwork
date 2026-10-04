@@ -4,10 +4,10 @@
 
 <p align="center">
   <img src="docs/images/readme/phone-home.jpg" width="250" alt="手機首頁：搞笑標題、紀念章月曆、住宿／入境規定／行前清單、旅程與費用">
-  <img src="docs/images/readme/phone-day.jpg" width="250" alt="手機的每日行程：小月曆、當天標題、地圖、一站接一站的行程卡">
+  <img src="docs/images/readme/phone-day.jpg" width="250" alt="手機的每日行程：點開一站，照片、停留時間、營業時間、安排與來源">
   <img src="docs/images/readme/phone-map.jpg" width="250" alt="每日地圖：點時間膠囊跳到那一站">
 </p>
-<p align="center"><sub>示意行程：東京 3 天 2 夜（虛構的例子）。左起依序是首頁、每日行程、每日地圖。</sub></p>
+<p align="center"><sub>示意行程：東京 3 天 2 夜（虛構的例子）。左起依序是首頁、每日行程（點開一站）、每日地圖。</sub></p>
 
 tripwork 是 Claude Code 的外掛，你**不需要會寫程式**。它不憑印象排行程：每個景點、餐廳、住宿、營業時間和入境規定，
 都要先找到 **2 個以上的獨立來源（至少 1 個是當地語言）**，而且**地圖座標要落在對的地方**，才會排進你的行程。
@@ -64,6 +64,10 @@ claude plugin install tripwork
 
 <p align="center"><img src="docs/images/readme/desktop-picker.jpg" width="820" alt="挑標題網頁（電腦）：大標題和每天的 6 句標題，一次挑完"></p>
 
+**想分享給家人？（選用）** 跟它說「把行程分享給家人」。它會另外做一份加上密碼的網頁版，放到你自己的 Cloudflare
+帳號（免費方案就夠）上，給你一個網址，和一個點開就不用輸入密碼的分享連結。**放上網路之前一定會先問你。**
+第一次要登入 Cloudflare，電腦也要裝 [Node.js](https://nodejs.org/)。
+
 **更新到新版：**
 
 ```bash
@@ -108,16 +112,31 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 ### 電腦：同一個檔案，變成大螢幕儀表板
 
 <p align="center"><img src="docs/images/readme/desktop-home.jpg" width="820" alt="電腦版首頁：放大的紀念章月曆，每枚印章外圈寫著當天主題；左欄是旅程與費用"></p>
-<p align="center"><img src="docs/images/readme/desktop-day.jpg" width="820" alt="電腦版每日頁：左邊月曆和地圖，右邊當天行程"></p>
+<p align="center"><img src="docs/images/readme/desktop-day.jpg" width="820" alt="電腦版每日頁：左邊月曆和地圖，右邊當天行程，點開的一站有照片、營業時間與來源"></p>
 
-首頁是放大的紀念章月曆，每枚印章外圈寫著當天的主題；點一天就進入儀表板，左邊是月曆和地圖，右邊是當天行程，點哪一站地圖就跟著跳過去。
+首頁是放大的紀念章月曆，每枚印章外圈寫著當天的主題；點一天就進入儀表板，左邊是月曆和地圖，右邊是當天行程，點開哪一站，地圖就跟著跳過去。
+
+### 分享版：家人用手機瀏覽器打開
+
+同一份行程，放到網路上、加上密碼，給不在你身邊的家人朋友看（iPhone 用 Safari、Android 用 Chrome 都可以）。
+
+<p align="center"><img src="docs/images/readme/phone-lock.jpg" width="250" alt="分享版的密碼頁：只有「我們的旅程」、密碼欄、記得密碼與打開行程，看不出是哪一趟"></p>
+
+- **放在你自己的 Cloudflare 上**：用 Cloudflare Pages（免費方案就夠），網址像 `https://你取的名字.pages.dev/k3x9q2ab/`。
+  後面那段是隨機產生的，看不出地點或日期；行程在你電腦上就先加密，上傳到 Cloudflare 的只有加密過的頁面，
+  沒有密碼誰都打不開。第一次要登入 Cloudflare、電腦要裝 Node.js；**每次上傳前它都會先問你**。
+
+- **先輸入密碼**：頁面上不會出現行程名稱、日期或地點；密碼可以用中文，iPhone 照樣能用注音輸入。勾「記得密碼」，下次打開就不用再輸入。
+- **手機上滑著看**：左右滑換天，住宿／入境規定／行前清單往右滑回首頁，放大的地圖或照片往下拉就關掉。
+- **旅行期間打開，直接是今天那一頁**；按手機的「返回」一律回到總覽。
+- 在密碼頁選的深色／淺色，打開行程後照樣沿用。
 
 ### 其他也一起交給你
 
 - **Markdown 行程**：地點名稱本身就是 Google Maps 連結（用當地語言店名，搭車導航最準），移動列附路線導航；可以直接貼進 Notion。
 - **行前清單**：要先訂位、先辦的事（含前置天數），以及這個季節要帶的東西。
 - **住宿、城際交通、費用估算**：每個過夜鎮一家查證過的旅館；每段城際交通搭哪班車、末班車幾點、Pass 划不划算；整趟花費加總對照你的預算（都標明是估算）。
-- **景點照片（選用，預設不開）**：只收授權清楚的照片（Wikimedia Commons、Openverse 等），一定標出作者與授權。
+- **景點照片（選用，預設不開）**：先用維基數據替這個景點登記的代表照片，找不到才去搜尋；只收授權清楚的照片（Wikimedia Commons、Openverse 等），一定標出作者與授權。你自己放進去的照片會原樣保留，不會被換掉。
 
 ---
 
@@ -136,6 +155,7 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 - **太遠太累**：跨區移動超過上限、自駕單日開太久、會趕不上末班車
 - **規定與安全**：某項物品被禁止、道路在你的旅遊期間封閉、旅館缺你需要的設施
 - **超出預算**：估算總額超過你設定的預算
+- **放上網路之前**：分享版上傳到 Cloudflare 之前
 
 你回答過的問題會被記下來，**同一件事不會問你第二次**。
 
@@ -166,6 +186,7 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 - 某段自駕**單日開太久**（超過你設定的上限，預設 5 小時） → 停下來建議你拆兩天
 - 估算總額**超出你設定的預算** → 停下來問你（刪減／降級某項，或接受）
 - 匯出前的檢查發現**資料本身有缺**（例如照片沒標作者授權、要訂位的點沒有官方來源），重新產生也修不好 → 停下來請你補資料，不會一直重產
+- 要把**分享版放上網路**（Cloudflare）→ 先告訴你網址、專案名稱，以及它會用密碼保護，你說好才上傳
 - 你回答過的問題會被記下來，**同一件事不會問你第二次**
 - 用**比較舊的行程資料夾**接續排（例如中途換過版本、缺了路線／交通／花費檔案）→ 輸出前的品質關卡現在會直接擋下來，不會像以前一樣默默放行；系統會自動導回該補的那一站幫你重新查（路線／交通／花費），不用你自己猜要重跑哪一步
 
@@ -175,24 +196,35 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 
 ## 常見問題
 
-**要付費或申請 API key 嗎？**
-不用。地圖座標用免費的 OpenStreetMap Nominatim；網路搜尋用 Claude Code 內建功能。
+### 要付費或申請 API key 嗎？
 
-**它會不會自己亂編地點？**
+不用。地圖座標用免費的 OpenStreetMap Nominatim；網路搜尋用 Claude Code 內建功能。要分享給家人的話，需要一個 Cloudflare 帳號（免費方案就夠）。
+
+### 它會不會自己亂編地點？
+
 不會。沒通過查證關卡的地點進不了行程，且會被標明原因留存，不會假裝成「已驗證」。
 
-**支援哪些目的地？**
+### 支援哪些目的地？
+
 任何地方都可以——只要該地點在網路上有 ≥2 個來源、且地圖查得到座標。會自動用
 當地語言搜尋，所以日本、韓國、東南亞等地的在地小店也涵蓋得到。
 
-**怎麼放進 Notion？**
+### 家人怎麼打開分享版？
+
+把網址傳給他們，用手機瀏覽器打開、輸入密碼就好。也可以直接傳分享連結（點開不用輸入密碼，所以只傳給家人）。
+換一組密碼重新發布，舊的分享連結就會失效。
+
+### 怎麼放進 Notion？
+
 把產好的 Markdown 行程貼進 Notion 頁面就好（透過你環境的 Notion MCP）。Notion 不是獨立的輸出步驟，貼的就是那份已驗證的 Markdown。
 
-**更新到 1.0 之後，舊的行程怎麼辦？**
+### 更新到 1.0 之後，舊的行程怎麼辦？
+
 下次請它繼續舊行程時，它會先停下來，請你同意把舊資料搬進行程資料夾裡的資料子資料夾（只搬位置、不改內容），
 接著補上新版需要的東西——例如每天一句短主題、讓你挑的搞笑標題、住宿所在地區——再重新產出成品。
 
-**我可以中途改需求嗎？**
+### 我可以中途改需求嗎？
+
 可以。每個階段的產物都是檔案，調度中心會從你改動的地方接續往下跑，不用整個重來。
 
 ---
@@ -245,7 +277,7 @@ flowchart TB
 | **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×**房數**×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**（預算對照的是整趟總額：住宿＋交通＋雜支）。全部標明是估算（含查詢日期），不是精確報價 |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單**；每天寫 **6 個標題候選**（有畫面、有梗、押韻照台灣讀音），用「挑標題」網頁讓你挑 |
 | **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點）。**現在還會**：①把路線時間、花費、關店 buffer 這些數字**重新算一遍**，跟行程裡記錄的核對是否一致，兜不起來就擋下來 ②檢查文案**有沒有 AI 罐頭味**（例如「首選必訪」這種空話、破折號濫用）③連**住宿**的查證狀態（名字有沒有對到、座標有沒有查證來源）也一起核對，不再只查景點 ④**景點與住宿的「已驗證」是不是用現在還算數的規則判定的**——例如營業狀態只是隨口打勾、沒有查證來源與日期，就算當初有記錄，現在也會被判定過時、擋下來重新查證 ⑤為新版閱讀器把關資料：每天從住宿出發、一站接一站、最後回到住宿，每一段都要寫清楚怎麼移動、多久、多遠（估算的會用兩站座標重算一次）；每一站都必須是查證過的地點；備案要掛在它對應的那一站；每天要有一句短主題；行前清單要分好「預約／出發前確認／打包」；來源要附網站名稱與說明；住宿要有地區短名；行程要有短名與你選定的搞笑標題 |
-| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、離線可看的一頁式 HTML（放在行程資料夾最上層，例：`2026-05-12 東京 3天2夜.html`，每天附一張地圖，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion）|
+| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、離線可看的一頁式 HTML（放在行程資料夾最上層，例：`2026-05-12 東京 3天2夜.html`，每天附一張地圖，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion；使用者要分享時，再用 `scripts/publish.py` 做加密的分享版並在確認後部署到 Cloudflare Pages）|
 | **export-gate** | 對輸出的成品做最後機械檢查（HTML 另查：離線可看、沒有來路不明的程式碼、授權與地圖出處都標了）：每個地點名稱本身是可點連結、**每個 Google Maps 連結都能正常打開（擋掉會失效、打不開的地圖連結）**、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；有問題就退回重產 |
 
 </details>
@@ -306,9 +338,10 @@ python -m pytest tests_browser
 
 - **流水線**：`skills/` 下有 18 個 skill：16 個流水線步驟、調度中心 `orchestrator`，以及給 agent 看的入口 `using-tripwork`；純邏輯在 `scripts/`（都有單元測試），schema 在 `schemas/`，端到端 fixture 在 `tests/`。
 - **CLI**：`python scripts/validate_artifact.py trips/<slug>/data/<artifact>.yaml` 驗 schema；`python scripts/gate.py trips/<slug>`、`python scripts/export_gate.py trips/<slug>` 跑關卡並寫 report；`python scripts/next_stage.py trips/<slug> --work-dir work/<slug>` 印出下一站。exit code：0 pass／1 fail／2 用法錯。
-- **HTML 閱讀器**：`scripts/render/reader/`。手機版全程純 CSS 與頁內錨點（LINE、iPhone「檔案」的預覽不跑 JavaScript）；電腦版（≥1024px）用同一份 DOM 重排成大月曆首頁與每日儀表板。唯一一段 script 是 `centre.py::CENTRE_JS`（電腦版把跳到的那站置中），`export-gate` 以 sha256 比對放行。每張圖在頁面裡只內嵌一次。
+- **HTML 閱讀器**：`scripts/render/reader/`。手機版全程純 CSS 與頁內錨點（LINE、iPhone「檔案」的預覽不跑 JavaScript）；電腦版（≥1024px）用同一份 DOM 重排成大月曆首頁與每日儀表板。檢查版唯一一段 script 是 `centre.py::CENTRE_JS`（電腦版把跳到的那站置中）；分享版（`render_reader(build="publish")`）再加一段 `publish.py::PUBLISH_JS`（手機手勢、開今天、返回回總覽），兩段都由 `export-gate` 以 sha256 比對放行。每張圖在頁面裡只內嵌一次。
 - **每日地圖（選用）**：`pip install -e '.[maps]'` 後跑 `python scripts/day_maps.py trips/<slug>`，從 OpenStreetMap 圖磚產生 `data/day-maps.yaml`（快取在 `work/<slug>/tile-cache/`、每秒最多一次請求、User-Agent 只有程式名與 repo 網址）；沒跑就畫示意方格。
-- **景點照片（選用）**：`scripts/photo_adapter.py`（backend `none`（預設）／`wiki`／`google`），授權白名單 `{CC0, PD, CC-BY, CC-BY-SA}`。照片存在側檔 `verified-pois-media.yaml`，輸出時由 `scripts/media_merge.py` 疊回去。`google` 來源因 ToS 標為不可散布（`export-gate` 會標 `distributable: false`）。
+- **分享版**：`scripts/publish.py build|deploy`。staticrypt 3.5.4（`npx`）用 `scripts/render/publish/lock.py` 的密碼頁加密，只留下 `trips/<slug>/publish/<code>/index.html`；`deploy` 要 `--confirm`，用 `wrangler@3` 把同一個 `trips/` 下每趟行程的加密頁一起部署（Pages 每次部署會取代整個網站）。需要 Node 18+。
+- **景點照片（選用）**：`scripts/photo_adapter.py`（backend `none`（預設）／`wiki`／`google`；`wiki` 先查 Wikidata 的代表照片，再搜尋 Openverse／Commons，縮到 640 px，側檔已有的條目一律保留），授權白名單 `{CC0, PD, CC-BY, CC-BY-SA}`。照片存在側檔 `verified-pois-media.yaml`，輸出時由 `scripts/media_merge.py` 疊回去。`google` 來源因 ToS 標為不可散布（`export-gate` 會標 `distributable: false`）。
 - **每日標題**：規則在 `scripts/day_titles.py`；押韻以**台灣讀音**判斷，讀教育部《國語小字典》（原檔不修改，放在 `assets/dict/moe-mini/`，由 `scripts/zhuyin.py` 讀）；挑選頁 `scripts/title_picker.py`，回覆解析 `scripts/title_picks.py`。
 - **樣式看板**：`python scripts/design_board.py board.yaml` 把要讓使用者選的樣式做成一頁離線 HTML（放在不進版控的 `.design-board/`），每張卡片標代號，按「複製選擇」得到一行文字貼回任何 AI agent；規則見 `CLAUDE.md` 的 Visual work。
 - **隱私**：這個 repo 不放任何真實行程；範例、測試資料、截圖都是虛構的。`tests/test_privacy.py` 會擋下工作區檔案、白名單外的圖片與 email，有工作區時也會比對每趟行程的代號、旅館、成員、住處與未來日期；規則見 `CLAUDE.md` 的 Privacy。

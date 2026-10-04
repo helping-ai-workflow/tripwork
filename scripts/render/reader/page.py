@@ -15,6 +15,7 @@ from scripts.render.heading import trip_title
 from scripts.render.reader import calendar
 from scripts.render.reader.assets import ICON_DIR, _FONTS, font_faces, icon
 from scripts.render.reader.centre import CENTRE_JS
+from scripts.render.reader.publish import PUBLISH_JS
 from scripts.render.reader.day import day_page
 from scripts.render.reader.home import advisory_screen, checklist_screen, home, lodging_screen
 from scripts.render.reader.maps import OSM_COPYRIGHT, nav_css as map_nav_css
@@ -72,7 +73,9 @@ def _nav_css(pages):
 
 
 def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, advisory=None, legs=None,
-                  maps=None, cost=None):
+                  maps=None, cost=None, build="check"):
+    if build not in ("check", "publish"):
+        raise ValueError(f"unknown build: {build!r}")
     ctx = _context(itinerary or {}, poi_map, brief, accommodations, advisory, legs, maps, cost)
     pages = ["home", "lodging", "advisory", "checklist"] + [f"d{i}" for i in range(1, len(ctx.days) + 1)]
     # each day has a second radio, pg-dNf: the day opened with its small calendar put away --
@@ -94,4 +97,5 @@ def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, adviso
     return ('<!doctype html>' + licence_notice() + '<html lang="zh-Hant"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>{esc(title)}</title><style>{css}</style></head><body>{body}'
-            f'<script>{CENTRE_JS}</script></body></html>')
+            f'<script>{CENTRE_JS}</script>'
+            + (f'<script>{PUBLISH_JS}</script>' if build == "publish" else "") + '</body></html>')
