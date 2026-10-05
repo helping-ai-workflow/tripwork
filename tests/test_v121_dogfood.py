@@ -119,6 +119,17 @@ def test_the_legs_skill_says_classify_leg_returns_a_pair():
     assert "(status, reason)" in para and "`status`" in para
 
 
+def test_every_skill_that_runs_classify_leg_says_it_returns_a_pair():
+    import pathlib
+    import re
+    root = pathlib.Path(__file__).resolve().parent.parent / "skills"
+    for f in sorted(root.glob("*/SKILL.md")):
+        text = f.read_text(encoding="utf-8")
+        for m in re.finditer(r"[Rr](?:e-)?(?:un|-run) `(?:scripts/legs\.py::)?classify_leg", text):
+            para = text[m.start():text.find("\n\n", m.start())]
+            assert "(status, reason)" in para, (f.parent.name, para[:120])
+
+
 def test_classify_leg_still_returns_status_and_reason():
     from scripts.legs import classify_leg
     assert classify_leg({"mode": "drive", "duration_mins": 30}) == ("ok", "")
