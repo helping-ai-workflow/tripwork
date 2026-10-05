@@ -352,3 +352,74 @@ def test_a_building_named_after_the_district_is_still_not_its_centre(monkeypatch
         return [{"lat": "41.70", "lon": "140.70", "class": "place", "display_name": "函館市立元町中学校, 元町"}]
     centre, _ = _district_run(monkeypatch, answers)
     assert centre is None
+
+
+# --- v1.3.0 (the user's call): a flaky network neither ends the run nor loses its progress
+# (e2e: one Nominatim read timeout ended a 6-minute source-verify run with nothing saved)
+
+import requests as _requests
+
+
+class _Status(_Resp):
+    def __init__(self, payload, status):
+        super().__init__(payload)
+        self.status_code = status
+
+
+def test_a_timeout_is_retried(monkeypatch):
+    calls, waits = [], []
+
+    def get(url, params=None, headers=None, timeout=None):
+        calls.append(params)
+        if len(calls) < 3:
+            raise _requests.exceptions.ReadTimeout("slow")
+        return _Resp([{"lat": "41.79", "lon": "140.75", "display_name": "五稜郭"}])
+    monkeypatch.setattr(G.requests, "get", get)
+    monkeypatch.setattr(G, "_sleep", waits.append)
+    r = G.geocode("五稜郭")
+    assert r.lat == 41.79 and len(calls) == 3 and waits == list(G._RETRY_WAITS)
+
+
+def test_a_busy_server_is_retried(monkeypatch):
+    answers = [_Status([], 503), _Status([], 429), _Status([{"lat": "1", "lon": "2", "display_name": "x"}], 200)]
+    monkeypatch.setattr(G.requests, "get", lambda *a, **k: answers.pop(0))
+    monkeypatch.setattr(G, "_sleep", lambda s: None)
+    assert G.geocode("x").lng == 2.0
+
+
+def test_a_network_that_stays_down_raises_and_caches_no_miss(monkeypatch):
+    def down(*a, **k):
+        raise _requests.exceptions.ConnectionError("down")
+    monkeypatch.setattr(G.requests, "get", down)
+    monkeypatch.setattr(G, "_sleep", lambda s: None)
+    cache = {}
+    with pytest.raises(_requests.exceptions.ConnectionError):
+        G.resolve_place("五稜郭", district="函館市", country="JP", cache=cache)
+    assert cache == {}                                  # a network failure is not "not found"
+
+
+def test_the_run_saves_its_progress_before_a_network_failure(tmp_path, monkeypatch, capsys):
+    import json
+    import yaml
+    from scripts import source_verify_run as svr
+    from scripts.paths import artifact_path
+    monkeypatch.setattr(svr.time, "sleep", lambda *_: None)
+
+    def resolve(name, district=None, country=None, timeout=10, cache=None, name_roman=None, pace=None, area=False):
+        if name == "二號店":
+            raise _requests.exceptions.ReadTimeout("slow")
+        cache[f"{name}|seen"] = {"lat": 1, "lng": 2, "source": "nominatim", "display_name": name}
+        return G.GeocodeResult(23.48, 120.44, name), "nominatim"
+    monkeypatch.setattr(svr, "resolve_place", resolve)
+    trip, work = tmp_path / "trips" / "t", tmp_path / "work" / "t"
+    (trip / "data").mkdir(parents=True)
+    work.mkdir(parents=True)
+    cands = [{"id": f"c{i}", "name_local": n, "category": "food",
+              "sources": [{"url": f"https://{i}.example/", "lang": "zh"}]} for i, n in enumerate(("一號店", "二號店"))]
+    for name, doc in (("trip-brief.yaml", {"destination": {"country": "TW", "local_lang": "zh"}}),
+                      ("candidates.yaml", {"candidates": cands})):
+        artifact_path(trip, name).write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
+    assert svr.main([str(trip), "--work-dir", str(work)]) == 1
+    saved = json.loads((work / "geocode-cache" / "geocode.json").read_text(encoding="utf-8"))
+    assert "一號店|seen" in saved                         # the first candidate's lookups survive
+    assert "re-run" in capsys.readouterr().err

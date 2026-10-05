@@ -1,5 +1,6 @@
 """OSM Nominatim geocoding wrapper. No API key; respects usage policy."""
 import re
+import time
 import unicodedata
 from dataclasses import dataclass
 import requests
@@ -7,6 +8,27 @@ from scripts.distance import haversine_km
 from scripts.geocode_cache import cache_key, cache_get, cache_put
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+# v1.3.0: a flaky network is retried, not fatal (e2e: one read timeout ended a 6-minute
+# source-verify run). Waits between the three tries; tests replace _sleep.
+_RETRY_WAITS = (2, 5)
+_RETRY_STATUS = {429, 502, 503, 504}
+_sleep = time.sleep
+
+
+def _get(params, timeout):
+    """requests.get on Nominatim, retried after a timeout, a dropped connection or a busy
+    server (429 / 502 / 503 / 504). The last failure is raised, so a caller never takes a
+    network failure for "not found" (and caches no miss)."""
+    for wait in (*_RETRY_WAITS, None):
+        try:
+            resp = requests.get(NOMINATIM_URL, params=params, headers={"User-Agent": USER_AGENT},
+                                timeout=timeout)
+            if getattr(resp, "status_code", 200) not in _RETRY_STATUS or wait is None:
+                return resp
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            if wait is None:
+                raise
+        _sleep(wait)
 USER_AGENT = "tripwork/0.2 (https://github.com/helping-ai-workflow/tripwork)"
 
 @dataclass
@@ -27,12 +49,7 @@ def geocode(query, timeout=10, countrycodes=None, feature_type=None):
         params["countrycodes"] = countrycodes
     if feature_type:
         params["featureType"] = feature_type
-    resp = requests.get(
-        NOMINATIM_URL,
-        params=params,
-        headers={"User-Agent": USER_AGENT},
-        timeout=timeout,
-    )
+    resp = _get(params, timeout)
     resp.raise_for_status()
     data = resp.json()
     if not data:
@@ -77,8 +94,7 @@ def geocode_structured(name, city=None, country=None, timeout=10):
         params["city"] = city
     if country:
         params["country"] = country
-    resp = requests.get(NOMINATIM_URL, params=params,
-                        headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    resp = _get(params, timeout)
     resp.raise_for_status()
     data = resp.json()
     if not data:
@@ -90,10 +106,8 @@ def geocode_structured(name, city=None, country=None, timeout=10):
 def geocode_country(country, timeout=10):
     """The ISO 3166-1 alpha-2 code ('jp') Nominatim gives a country name in any language
     ('日本', 'Japan', '台灣'), or None. Caller rate-limits."""
-    resp = requests.get(NOMINATIM_URL,
-                        params={"q": country, "featureType": "country", "addressdetails": 1,
-                                "format": "json", "limit": 1},
-                        headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    resp = _get({"q": country, "featureType": "country", "addressdetails": 1, "format": "json", "limit": 1},
+                timeout)
     resp.raise_for_status()
     data = resp.json()
     code = ((data[0].get("address") or {}).get("country_code") if data else None) or ""
@@ -287,7 +301,7 @@ def place_point(query, country=None, timeout=10, cache=None, pace=None):
     params = {"q": query, "format": "json", "limit": 5}
     if cc:
         params["countrycodes"] = cc
-    resp = requests.get(NOMINATIM_URL, params=params, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    resp = _get(params, timeout)
     if pace is not None:
         pace()
     resp.raise_for_status()

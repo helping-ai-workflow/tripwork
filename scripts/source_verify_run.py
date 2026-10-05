@@ -41,6 +41,7 @@ import re
 import sys
 import time
 
+import requests
 import yaml
 
 from scripts.geocode import (address_is_fine, address_point, country_code, in_region, pick_point,
@@ -436,45 +437,48 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False)
     prior_doc = (_load_yaml_file(prior_path) if prior_path.is_file() else None) or {}
     prior = {p.get("id"): p for p in (prior_doc.get("pois") or []) if isinstance(p, dict)}
 
-    for cand in candidates:
-        old = prior.get(cand.get("id"))
-        kept = None if regeocode else _confirmed_geocode(old, cand)
-        if kept is not None:
-            kept["resolved_name"] = old.get("resolved_name")
-        geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
-            cand, country, cache, offline, district_centroids, radius_km, kept=kept)
-        poi = _carry_over(_build_poi(cand, official_domains, resolved_name),
-                          prior.get(cand.get("id")), cand)
-        if geo is not None:
-            poi["geocode"] = geo
+    # v1.3.0: the cache is saved even when a failure (a network that outlasts the retries,
+    # Ctrl+C) leaves the loop, so it costs one re-run, not the run's progress
+    try:
+        for cand in candidates:
+            old = prior.get(cand.get("id"))
+            kept = None if regeocode else _confirmed_geocode(old, cand)
+            if kept is not None:
+                kept["resolved_name"] = old.get("resolved_name")
+            geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
+                cand, country, cache, offline, district_centroids, radius_km, kept=kept)
+            poi = _carry_over(_build_poi(cand, official_domains, resolved_name),
+                              prior.get(cand.get("id")), cand)
+            if geo is not None:
+                poi["geocode"] = geo
 
-        normalised, status, note = _verify_one(
-            poi, geocoded, in_region_flag, local_lang, resolved_name, today)
+            normalised, status, note = _verify_one(
+                poi, geocoded, in_region_flag, local_lang, resolved_name, today)
 
-        # Important finding 1 (fix round 1): _geocode_candidate hands
-        # classify_candidate in_region_flag=True whenever region_checked is
-        # False (nothing to disprove), so an absent/unresolvable
-        # claimed_district never collapses into a false 'conflicting'. That
-        # also means classify_candidate could return 'verified' without the
-        # region ever actually being confirmed — downgrade that specific case
-        # here, honestly, rather than upstream (verify.py's in_claimed_region
-        # is a plain bool with no tri-state to express "unknown" itself).
-        if status == "verified" and not region_checked:
-            status = "unverified"
-            note = ("region membership unconfirmed: no claimed_district was "
-                    "recorded, or its centroid could not be resolved, so the "
-                    "geocoded coordinate was never compared against a claimed "
-                    "region — record a claimed_district, or confirm the "
-                    "venue's district manually")
+            # Important finding 1 (fix round 1): _geocode_candidate hands
+            # classify_candidate in_region_flag=True whenever region_checked is
+            # False (nothing to disprove), so an absent/unresolvable
+            # claimed_district never collapses into a false 'conflicting'. That
+            # also means classify_candidate could return 'verified' without the
+            # region ever actually being confirmed — downgrade that specific case
+            # here, honestly, rather than upstream (verify.py's in_claimed_region
+            # is a plain bool with no tri-state to express "unknown" itself).
+            if status == "verified" and not region_checked:
+                status = "unverified"
+                note = ("region membership unconfirmed: no claimed_district was "
+                        "recorded, or its centroid could not be resolved, so the "
+                        "geocoded coordinate was never compared against a claimed "
+                        "region — record a claimed_district, or confirm the "
+                        "venue's district manually")
 
-        normalised["verify_status"] = status
-        if note:
-            normalised["status_reason"] = note
-            if status == "conflicting":
-                normalised["conflict_note"] = note
-        pois.append(normalised)
-
-    save_cache(str(cache_path), cache)
+            normalised["verify_status"] = status
+            if note:
+                normalised["status_reason"] = note
+                if status == "conflicting":
+                    normalised["conflict_note"] = note
+            pois.append(normalised)
+    finally:
+        save_cache(str(cache_path), cache)
 
     out_path = artifact_path(trip_dir, "verified-pois.yaml")
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -506,6 +510,12 @@ def main(argv):
         code, msgs, out_path, pois = run(
             args.trip_dir, args.work_dir, offline=args.offline,
             official_domains=args.official_domains, regeocode=args.regeocode)
+    except requests.exceptions.RequestException as exc:
+        # before OSError: requests' errors are OSErrors, and a network failure is not a
+        # missing input (v1.3.0). The geocode cache already holds what was looked up.
+        print(f"Nominatim could not be reached after retries ({exc.__class__.__name__}); "
+              "the lookups so far are saved -- re-run to continue", file=sys.stderr)
+        return 1
     except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError, OSError) as exc:
         print(f"missing/invalid required input: {exc!r}", file=sys.stderr)
         return 2
