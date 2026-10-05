@@ -14,12 +14,9 @@ import pytest
 import yaml
 from bs4 import BeautifulSoup
 
-from scripts.gate import poi_pool, run_gate
-from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
-from scripts.media_merge import apply_media, load_media
+from scripts.gate import run_gate
+from scripts.paths import artifact_path, deliverable_paths, report_path
 from scripts.render.heading import dates_line, trip_title
-from scripts.render.html_page import render_html_page
-from scripts.render.markdown import render_markdown_page
 from tests import e2e_v1_fixture as F
 from tests import mech_fixtures as M
 from tests import reader_fixture as R
@@ -72,19 +69,13 @@ def _trip(tmp_path, itin, brief, accommodations, legs, slug):
 
 
 def _export(t, maps=None):
-    """export-artifact's md + html, from the artifacts on disk, assembled as its
-    skill says: poi_pool(verified-pois, accommodations), overlaid with the photo side-file."""
-    def load(name):
-        return yaml.safe_load(artifact_path(t, name).read_text(encoding="utf-8"))
-    brief, acc, itin = load("trip-brief.yaml"), load("accommodations.yaml"), load("itinerary.yaml")
-    poi_map = poi_pool(load("verified-pois.yaml")["pois"], acc)
-    poi_map = apply_media(poi_map, load_media(artifact_path(t, "verified-pois-media.yaml")))
-    paths = deliverable_paths(t, brief)
-    paths["md"].write_text(render_markdown_page(itin, poi_map, load("cost.yaml"), brief=brief), encoding="utf-8")
-    html = render_html_page(itin, poi_map, brief=brief, accommodations=acc, advisory=load("advisory.yaml"),
-                            legs=load("legs.yaml"), maps=maps, cost=load("cost.yaml"))
-    paths["html"].write_text(html, encoding="utf-8")
-    return html
+    """export-artifact's md + html, by the shipped `export` (v2.0.0) -- never assembled
+    here. `maps` is only a reminder that day_maps.build already wrote data/day-maps.yaml,
+    which export reads like every other artifact."""
+    r = run_main("scripts.export", [t])
+    assert r.returncode == 0, r.stdout + r.stderr
+    brief = yaml.safe_load(artifact_path(t, "trip-brief.yaml").read_text(encoding="utf-8"))
+    return deliverable_paths(t, brief)["html"].read_text(encoding="utf-8")
 
 
 def _run(t, w):
