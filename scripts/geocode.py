@@ -270,6 +270,15 @@ def address_point(address, country=None, timeout=10, cache=None, pace=None):
     return None, None
 
 
+def address_is_fine(address, variant, country_code=None):
+    """True when `variant` is finer than the address's town: the address itself or its 丁目
+    (Japan), the address itself elsewhere. A town (or road) point is kilometres wide -- too
+    coarse to judge a name lookup (e2e 2026-10-05: one dropped a correct hit 2.9 km from its
+    town centre)."""
+    vs = address_variants(address, country_code)
+    return bool(vs) and variant in vs and (len(vs) == 1 or variant != vs[-1])
+
+
 ADDRESS_MATCH_KM = 2.0      # an address point is its 丁目 / town: closer than this is the same place
 
 

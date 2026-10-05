@@ -146,7 +146,8 @@ FAR = (36.124, 137.824)                        # a namesake in another prefectur
 NEAR = (41.7969, 140.7570)                     # ~0.3 km from the address point
 
 
-def _run(monkeypatch, name_hit, address_hit, address="北海道函館市五稜郭町43-9", centroid=HAKODATE):
+def _run(monkeypatch, name_hit, address_hit, address="北海道函館市五稜郭町4-9", centroid=HAKODATE,
+         variant="北海道函館市五稜郭町4丁目"):
     from scripts import source_verify_run as svr
     calls = {"address": 0}
 
@@ -155,7 +156,9 @@ def _run(monkeypatch, name_hit, address_hit, address="北海道函館市五稜�
 
     def addr(a, country, cache):
         calls["address"] += 1
-        return (G.GeocodeResult(*address_hit, "五稜郭町, 函館市"), "北海道函館市五稜郭町") if address_hit else (None, None)
+        if not address_hit:
+            return None, False
+        return G.GeocodeResult(*address_hit, "五稜郭町, 函館市"), G.address_is_fine(a, variant, "jp")
     monkeypatch.setattr(svr, "_rate_limited_resolve", resolve)
     monkeypatch.setattr(svr, "_rate_limited_address", addr)
     monkeypatch.setattr(svr, "_district_centroid", lambda *a, **k: centroid)
@@ -171,7 +174,7 @@ def test_a_namesake_far_from_the_address_gives_way_to_the_address(monkeypatch):
     (geo, geocoded, inside, resolved, checked), _ = _run(monkeypatch, FAR, HAKODATE)
     assert (geo["lat"], geo["lng"]) == HAKODATE and geo["geocode_source"] == "nominatim_address"
     assert geocoded and inside and checked and resolved is NO_RESOLVED_NAME
-    assert geo["query"]["address"] == "北海道函館市五稜郭町43-9"
+    assert geo["query"]["address"] == "北海道函館市五稜郭町4-9"
 
 
 def test_a_name_hit_near_the_address_keeps_its_exact_point(monkeypatch):
@@ -191,9 +194,28 @@ def test_without_an_address_nothing_changes(monkeypatch):
     assert "address" not in geo["query"]
 
 
-def test_an_address_point_outside_the_district_is_not_in_region(monkeypatch):
-    (geo, _, inside, _, checked), _ = _run(monkeypatch, None, HAKODATE, centroid=FAR)
-    assert geo["geocode_source"] == "nominatim_address" and checked and not inside
+# e2e on a consumer trip (2026-10-05): a full-text address can match far away (one landed
+# 1285 km off, one 58 km off and dropped a correct name hit), and a town-level point is too
+# coarse to judge a name hit (one dropped a correct hit 2.9 km from its town centre)
+
+def test_an_address_point_outside_the_district_is_ignored(monkeypatch):
+    (geo, _, inside, _, _), _ = _run(monkeypatch, NEAR, HAKODATE, centroid=FAR)
+    assert geo["geocode_source"] == "nominatim" and (geo["lat"], geo["lng"]) == NEAR     # the name hit stands
+    (geo, *_), _ = _run(monkeypatch, None, HAKODATE, centroid=FAR)
+    assert geo["geocode_source"] == "cluster_fallback"
+
+
+def test_a_town_level_address_point_neither_vetoes_nor_stands_in(monkeypatch):
+    town = "北海道函館市五稜郭町"
+    (geo, *_), _ = _run(monkeypatch, FAR, HAKODATE, variant=town, centroid=FAR)
+    assert geo["geocode_source"] == "nominatim"
+    (geo, *_), _ = _run(monkeypatch, None, HAKODATE, variant=town)
+    assert geo["geocode_source"] == "cluster_fallback"
+
+
+def test_without_a_district_centre_the_address_point_is_not_trusted(monkeypatch):
+    (geo, *_), _ = _run(monkeypatch, FAR, HAKODATE, centroid=None)
+    assert geo["geocode_source"] == "nominatim"
 
 
 def test_neither_falls_back_to_the_district_centroid(monkeypatch):
@@ -273,3 +295,12 @@ def test_the_corpus_measurement_counts_addresses_sources_and_geocode_sources():
     for trip, row in m.items():
         assert set(row) == {"pois", "with_address", "geocode_source", "source_lang"}, trip
         assert row["with_address"] <= row["pois"] and sum(row["geocode_source"].values()) <= row["pois"]
+
+
+def test_only_the_address_or_its_chome_is_fine():
+    a = "東京都台東区浅草2-3-1 浅草ビル5F"
+    assert G.address_is_fine(a, "東京都台東区浅草2-3-1", "jp") and G.address_is_fine(a, "東京都台東区浅草2丁目", "jp")
+    assert not G.address_is_fine(a, "東京都台東区浅草", "jp")
+    assert G.address_is_fine("嘉義市西區民族路100號2樓", "嘉義市西區民族路100號2樓", "tw")
+    assert not G.address_is_fine("嘉義市西區民族路100號2樓", "嘉義市西區民族路", "tw")
+    assert G.address_is_fine("12 Example Street, Queenstown", "12 Example Street, Queenstown", "nz")

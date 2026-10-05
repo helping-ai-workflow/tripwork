@@ -43,7 +43,7 @@ import time
 
 import yaml
 
-from scripts.geocode import address_point, in_region, pick_point, resolve_place
+from scripts.geocode import address_is_fine, address_point, country_code, in_region, pick_point, resolve_place
 from scripts.paths import artifact_path
 from scripts.geocode_cache import load_cache, save_cache
 from scripts.validate_artifact import validate_file
@@ -126,9 +126,12 @@ def _flag_official(source, extra_suffixes):
 
 
 def _rate_limited_address(address, country, cache):
-    """geocode.address_point, paced per request like _rate_limited_resolve."""
-    return address_point(address, country=country, cache=cache,
-                         pace=lambda: time.sleep(NOMINATIM_DELAY_S))
+    """geocode.address_point, paced per request like _rate_limited_resolve ->
+    (point or None, fine): fine when the point is the address or its 丁目, not its town."""
+    pace = lambda: time.sleep(NOMINATIM_DELAY_S)
+    ref, variant = address_point(address, country=country, cache=cache, pace=pace)
+    fine = ref is not None and address_is_fine(address, variant, country_code(country, cache=cache, pace=pace))
+    return ref, fine
 
 
 def _rate_limited_resolve(name, district, country, cache, name_roman=None, area=False):
@@ -316,8 +319,14 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     # address is a namesake (a bare-name tier found the same name elsewhere): dropped. With
     # no name hit left, the address point (its 丁目 or town) stands in, recorded as
     # nominatim_address -- approximate, disclosed like a centroid, a coordinate-only hit.
+    # An address point only counts when it is fine (the address or its 丁目, not the town)
+    # and lies in the claimed district: a full-text address can match far away (e2e
+    # 2026-10-05: 1285 km and 58 km off), and without a district centre nothing confirms it.
     if query.get("address"):
-        ref, _variant = _rate_limited_address(query["address"], country, cache)
+        ref, fine = _rate_limited_address(query["address"], country, cache)
+        if ref is not None and not (region_checked and fine
+                                    and in_region(ref.lat, ref.lng, centroid[0], centroid[1], radius_km)):
+            ref = None
         point, kind = pick_point(result, source, ref)
         if kind == "nominatim_address":
             geo = {"lat": point.lat, "lng": point.lng, "geocode_source": kind, "query": query}
