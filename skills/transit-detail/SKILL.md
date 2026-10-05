@@ -28,7 +28,7 @@ Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, el
 ## Output
 
 Write `trips/<slug>/data/transit.yaml`, then validate it:
-`python scripts/validate_artifact.py trips/<slug>/data/transit.yaml`
+`python <plugin>/scripts/tripwork.py validate <slug> transit`
 (exit 0 required before returning). A walk-everywhere / cash-only trip
 writes empty `peak_windows` / `walks` and no `ic_card`. Return to `tripwork:orchestrator`.
 

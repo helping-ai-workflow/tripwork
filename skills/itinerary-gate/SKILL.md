@@ -7,7 +7,7 @@ description: Use when itinerary.yaml + advisory.yaml are ready and the plan must
 
 Reads the **canonical `itinerary.yaml`** (never re-builds a day structure from the rendered
 `.md`). Content correctness of each source is `source-verify`'s job; this gate checks the
-assembled plan obeys the iron rules. Run `python scripts/gate.py trips/<slug>` — the CLI loads
+assembled plan obeys the iron rules. Run `python <plugin>/scripts/tripwork.py gate <slug>` — the CLI loads
 the canonical artifacts itself, folds each stop's chosen lodging, runs `run_gate`, and
 writes `work/<slug>/gate-report.yaml` (exit 0 pass / 1 fail).
 
@@ -27,7 +27,7 @@ writes `work/<slug>/gate-report.yaml` (exit 0 pass / 1 fail).
   lodging-less night (e.g. an overnight transit) is expressed as a `slot: "lodging"`
   row describing the transit, so the night-transit case still satisfies the floor.
 - `no_closed_day_violation` (when `calendar` passed) — no POI is scheduled on a day it is
-  closed (`scripts/calendar.py::poi_closed_on`).
+  closed (`scripts/trip_calendar.py::poi_closed_on`).
 - `must_do_covered` (when `must_do` passed) — every `trip-brief` must_do id is scheduled.
 - `advisory_present` — **ALWAYS-ON** safety floor: `advisory` is a **mandatory** input.
   An absent advisory **fails the gate** ("advisory absent — …"). Because the

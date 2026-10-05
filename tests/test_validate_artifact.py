@@ -1,17 +1,14 @@
 """D1: runtime schema validator CLI — exit 0 pass / 1 schema fail / 2 usage error."""
 import pathlib
-import subprocess
-import sys
 
 import yaml
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-CLI = ROOT / "scripts" / "validate_artifact.py"
 
 
 def _run(*args):
-    return subprocess.run([sys.executable, str(CLI), *[str(a) for a in args]],
-                          capture_output=True, text=True)
+    return run_main("scripts.validate_artifact", args)
 
 
 def _write(tmp_path, name, doc):

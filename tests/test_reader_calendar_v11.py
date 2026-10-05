@@ -3,20 +3,20 @@ import datetime as dt
 
 from bs4 import BeautifulSoup
 
-from scripts.render.reader import calendar
+from scripts.render.reader import month_calendar
 
 D = dt.date
 
 
 def _card(dates):
     areas = [("函館", "r1")] * len(dates)
-    return BeautifulSoup(calendar.months(dates, areas), "html.parser")
+    return BeautifulSoup(month_calendar.months(dates, areas), "html.parser")
 
 
 def test_title_single_cross_month_and_year():
-    assert calendar.month_title([D(2026, 11, 9), D(2026, 11, 16)]) == "2026 年 11 月"
-    assert calendar.month_title([D(2026, 10, 30), D(2026, 11, 2)]) == "2026 年 10～11 月"
-    assert calendar.month_title([D(2026, 12, 30), D(2027, 1, 2)]) == "2026 年 12 月～2027 年 1 月"
+    assert month_calendar.month_title([D(2026, 11, 9), D(2026, 11, 16)]) == "2026 年 11 月"
+    assert month_calendar.month_title([D(2026, 10, 30), D(2026, 11, 2)]) == "2026 年 10～11 月"
+    assert month_calendar.month_title([D(2026, 12, 30), D(2027, 1, 2)]) == "2026 年 12 月～2027 年 1 月"
 
 
 def test_a_single_month_trip_draws_the_whole_month_in_one_card():
@@ -45,7 +45,7 @@ def test_a_trip_across_years():
 
 def test_the_mini_calendar_uses_the_same_first_of_month_label():
     dates = [D(2026, 10, 31), D(2026, 11, 1)]
-    mini = BeautifulSoup(calendar.mini(dates, [("函館", "r1")] * 2, 2), "html.parser")
+    mini = BeautifulSoup(month_calendar.mini(dates, [("函館", "r1")] * 2, 2), "html.parser")
     assert mini.select_one('label.stamp[for="pg-d2"] b').get_text() == "11/1"
 
 
@@ -70,4 +70,4 @@ def test_a_trip_with_a_short_gap_keeps_its_weeks_continuous():
 
 
 def test_no_days_draw_no_card():
-    assert calendar.months([], []) == "" and calendar.month_title([]) == ""
+    assert month_calendar.months([], []) == "" and month_calendar.month_title([]) == ""

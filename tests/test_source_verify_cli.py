@@ -6,6 +6,7 @@ import sys
 
 import yaml
 from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
+from tests.cli_helpers import run_main
 
 # Tests derive the repo root from the file's own location, not a hardcoded
 # absolute path — a hardcoded ROOT breaks the moment this repo is checked out
@@ -42,10 +43,10 @@ def _candidate(id_, name, claimed_district=None, sources=None):
     cand = {
         "id": id_, "name_local": name, "name_display": name,
         "business_status": {"status": "OPERATIONAL",
-                            "source_url": "https://a.example.com/p",
+                            "source_url": "https://a.example/p",
                             "as_of": datetime.date.today().isoformat()},
-        "sources": sources or [{"url": "https://a.example.com/p", "lang": "zh"},
-                               {"url": "https://b.example.com/q", "lang": "en"}],
+        "sources": sources or [{"url": "https://a.example/p", "lang": "zh"},
+                               {"url": "https://b.example/q", "lang": "en"}],
     }
     if claimed_district is not None:
         cand["claimed_district"] = claimed_district
@@ -70,7 +71,7 @@ def test_the_cli_cannot_be_the_only_thing_forwarding_resolved_name():
                                "as_of": "2026-08-01"},
            "geocode": {"lat": 23.4, "lng": 120.4, "geocode_source": "nominatim"},
            "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
-                       {"url": "https://b.example.com/q", "lang": "en"}]}
+                       {"url": "https://b.example/q", "lang": "en"}]}
     today = datetime.date(2026, 8, 8)
     _, with_name, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
                                  local_lang="zh", resolved_name="星月驛站", today=today)
@@ -111,15 +112,13 @@ def test_cli_writes_a_schema_valid_artifact_and_forwards_both_gate_arguments(tmp
         {"id": "en-only", "name_local": "花磚博物館", "name_display": "花磚博物館",
          "claimed_district": "嘉義市西區",
          "business_status": {"status": "OPERATIONAL",
-                             "source_url": "https://a.example.com/p",
+                             "source_url": "https://a.example/p",
                              "as_of": datetime.date.today().isoformat()},
-         "sources": [{"url": "https://a.example.com/p", "lang": "en"},
-                     {"url": "https://b.example.com/q", "lang": "en"}]},
+         "sources": [{"url": "https://a.example/p", "lang": "en"},
+                     {"url": "https://b.example/q", "lang": "en"}]},
     ]}, allow_unicode=True), encoding="utf-8")
 
-    r = subprocess.run([sys.executable, "scripts/source_verify_run.py",
-                        str(trip), "--work-dir", str(work), "--offline"],
-                       cwd=ROOT, capture_output=True, text=True)
+    r = run_main("scripts.source_verify_run", [trip, "--work-dir", work, "--offline"])
     assert r.returncode == 0, r.stderr
 
     out = yaml.safe_load((artifact_path(trip, "verified-pois.yaml")).read_text(encoding="utf-8"))

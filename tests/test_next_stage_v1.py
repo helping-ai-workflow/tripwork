@@ -7,14 +7,12 @@ import yaml
 from scripts.next_stage import next_stage
 from scripts.paths import artifact_path, deliverable_paths, report_path
 from tests.mech_fixtures import build_full_trip, write_artifact
+from tests.cli_helpers import run_main
 
 
 def _gate_and_export(t, w):
-    import subprocess, sys, pathlib
-    root = pathlib.Path(__file__).resolve().parents[1]
-    for cli in ("gate.py", "export_gate.py"):
-        subprocess.run([sys.executable, str(root / "scripts" / cli), str(t)], check=False,
-                       capture_output=True, text=True)
+    for mod in ("scripts.gate", "scripts.export", "scripts.export_gate"):     # the pipeline's order
+        run_main(mod, [t])
 
 
 def test_a_full_v1_trip_completes(tmp_path):
@@ -32,7 +30,7 @@ def test_a_legacy_layout_stops_for_migration(tmp_path):
         p.rename(t / p.name)
     (t / "data").rmdir()
     nxt, why = next_stage(t, w)
-    assert nxt == "stop-and-ask" and "migrate_v1.py" in why
+    assert nxt == "stop-and-ask" and "tripwork.py migrate" in why
 
 
 def test_an_edited_artifact_makes_the_work_report_stale(tmp_path):

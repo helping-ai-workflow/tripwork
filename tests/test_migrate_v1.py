@@ -61,7 +61,7 @@ def test_the_migrated_trip_is_no_longer_stopped_for_migration(tmp_path):
     t, w = _legacy(tmp_path)
     migrate([str(t.parent), "--apply"])
     nxt, why = next_stage(t, w)
-    assert "migrate_v1.py" not in why
+    assert "rule 0.7" not in why
 
 
 def test_migration_never_rewrites_the_itinerary_and_lists_what_synthesis_converts(tmp_path, capsys):
@@ -102,7 +102,7 @@ def test_a_half_migrated_trip_is_still_stopped_and_finished_by_a_rerun(tmp_path)
     (t / "trip-brief.yaml").rename(artifact_path(t, "trip-brief.yaml"))
     assert is_legacy_layout(t)
     nxt, why = next_stage(t, w)
-    assert nxt == "stop-and-ask" and "migrate_v1.py" in why
+    assert nxt == "stop-and-ask" and "tripwork.py migrate" in why
     assert migrate([str(t.parent), "--apply"]) == 0
     assert not is_legacy_layout(t) and artifact_path(t, "itinerary.yaml").is_file()
 

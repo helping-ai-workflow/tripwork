@@ -5,7 +5,7 @@ from scripts.checklist import KINDS
 from scripts.render.centroid import centroid_items, centroid_note
 from scripts.render.gmaps_links import maps_url
 from scripts.render.heading import dates_line, trip_title
-from scripts.render.reader import calendar
+from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import icon
 from scripts.render.reader.text import esc, md, md_wd
 
@@ -108,7 +108,7 @@ def home(ctx):
             f'<div class="ttl"><h1 class="headline">{esc(title)}</h1>'
             f'<p class="dates">{_dates(ctx)}</p></div>'
             f'<div class="tiles">{tiles_html}</div>{trip_card(ctx)}</div>'
-            f'<div class="hcal">{calendar.months(ctx.dates, ctx.areas, rings)}</div></div></section>')
+            f'<div class="hcal">{month_calendar.months(ctx.dates, ctx.areas, rings)}</div></div></section>')
 
 
 def _sub(pg, title, body):

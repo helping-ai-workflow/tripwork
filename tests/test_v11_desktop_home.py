@@ -20,7 +20,7 @@ def test_the_day_title_also_heads_the_list():
     assert head.select_one(".dht").get_text() == d2.select_one(".pcal h2.dh .dht").get_text()
 
 
-from scripts.render.reader import calendar
+from scripts.render.reader import month_calendar
 
 
 def test_the_home_month_card_has_its_own_panel_and_no_big_grid():
@@ -44,8 +44,8 @@ def test_each_trip_stamp_carries_its_theme_on_a_ring():
 
 
 def test_a_long_theme_ends_in_an_ellipsis():
-    assert calendar.ring_text("一二三四五六七八九十一二三四五") == "一二三四五六七八九十一二三四五"   # 15 fits
-    assert calendar.ring_text("一二三四五六七八九十一二三四五六") == "一二三四五六七八九十一二三四…"
+    assert month_calendar.ring_text("一二三四五六七八九十一二三四五") == "一二三四五六七八九十一二三四五"   # 15 fits
+    assert month_calendar.ring_text("一二三四五六七八九十一二三四五六") == "一二三四五六七八九十一二三四…"
 
 
 def test_a_day_without_theme_rings_its_label_and_without_either_has_no_ring():

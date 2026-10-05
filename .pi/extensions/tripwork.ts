@@ -10,6 +10,7 @@ const extensionDir = dirname(fileURLToPath(import.meta.url));
 const packageRoot = resolve(extensionDir, "../..");
 const skillsDir = resolve(packageRoot, "skills");
 const bootstrapSkillPath = resolve(skillsDir, "using-tripwork", "SKILL.md");
+const tripworkPy = resolve(packageRoot, "scripts", "tripwork.py");
 
 let cachedBootstrap: string | null | undefined;
 
@@ -57,6 +58,8 @@ function getBootstrapContent(): string | null {
 ${BOOTSTRAP_MARKER}
 
 You have tripwork.
+
+tripwork scripts: python "${tripworkPy}" <command> <slug>  (run from the workspace root)
 
 The using-tripwork skill content is included below and is already loaded for this Pi session. Follow it now. Do not try to load using-tripwork again.
 

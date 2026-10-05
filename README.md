@@ -46,8 +46,8 @@ claude plugin marketplace add git@github.com:helping-ai-workflow/tripwork.git
 claude plugin install tripwork
 ```
 
-需要 Claude Code（桌面 App、CLI、IDE 外掛都可以）。**不用申請任何 API key**：查證用 Claude Code 內建的網路搜尋，
-地圖座標用免費的 OpenStreetMap。
+需要 Claude Code（桌面 App、CLI、IDE 外掛都可以，也能在雲端的 claude.ai/code 用——網路要先設定，見常見問題）。
+**不用申請任何 API key**：查證用 Claude Code 內建的網路搜尋，地圖座標用免費的 OpenStreetMap。
 
 **2. 用一句話描述你的旅程**（裝好後開一個新對話）
 
@@ -145,13 +145,13 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 > 沒有任何景點、餐廳、地址、營業時間或規定，能在「**仍在營業** ＋ 通過 ≥2 個獨立來源交叉比對（至少 1 個當地語言）
 > ＋ 地圖座標落在它聲稱的區域（且查到的就是它本人）」之前，被寫進你的行程。
 
-查的時候會同時找**當地的網站**和**台灣旅客寫的遊記**：遊記告訴你大家真的去了哪、喜歡什麼，也常寫出當地店名和地址；不過遊記只算一個來源，每個地點仍然要有至少 1 個當地語言的來源才算數。
+查的時候會同時找**當地的網站**和**台灣旅客寫的遊記**：遊記告訴你大家真的去了哪、喜歡什麼，也常寫出當地店名和地址。遊記照樣多收集，但**同一個部落格平台**上的多篇遊記算一個網站；每個地點仍然要有至少 1 個當地語言的來源才算數。**搜尋引擎的結果頁**只用來找網址，不算來源，也不能拿來證明一家店還開著。
 
 沒通過的地點**不會被偷偷丟掉**：它們會被記下來，並標明原因（已歇業、來源不足、查到的是別家店、座標跑到別區……），讓你看得到、自己決定。
 
 ### 它什麼時候會停下來問你
 
-- **你的選擇**：行程和每天的標題、還沒訂住宿的鎮要住哪一家
+- **你的選擇**：行程和每天的標題、還沒訂住宿的鎮要住哪一家；拿給你挑的餐廳、景點、住宿都先確認過還在營業，營業狀態查不到的不會出現在選項裡
 - **來源打架**：不同來源對同一個點的營業時間、地址講法不一樣
 - **排不進去**：必去的點剛好公休、任何時段都來不及、或找不到查證過的點
 - **太遠太累**：跨區移動超過上限、自駕單日開太久、會趕不上末班車
@@ -177,9 +177,10 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 - 你**指定必去**的主題，找不到任何查證過的點可以排 → 停下來問你
 - **國定假日**剛好落在你指定必去的點唯一能去的那天，而那天它公休 → 停下來問你
 - 某個過夜鎮你**還沒訂住宿** → 推薦 3 家查證過的讓你挑
+- 要你在幾家餐廳、景點或住宿之間挑 → 選項只會是查證過、**確認還在營業**的；營業狀態查不到的不列入，並告訴你少了幾家
 - 你訂的旅館**缺必備設施**（例如自駕沒車位） → 停下來問你換不換
 - 你訂的旅館**地圖座標落在別的鎮** → 停下來問你
-- 你訂的旅館**名字或座標查不到可信來源、或營業狀態沒有來源與日期** → 跟景點用同一套查證標準（含「還在營業」這一項），查不到來源一樣視為未驗證並提醒你
+- 你訂的旅館**名字或座標查不到可信來源、或營業狀態沒有來源與日期、或證據只是搜尋結果頁** → 跟景點用同一套查證標準（含「還在營業」這一項），查不到來源一樣視為未驗證並提醒你
 - 景點或住宿的「已驗證」其實是**用舊規則判定出來的**（例如營業狀態只是隨口打勾、沒有查證來源與日期）→ 品質關卡會擋下來，自動導回去補查證，不會讓過時的驗證結果矇混過關
 - 開車當天**晚於旅館櫃台關門**又沒 late check-in → 停下來提醒你
 - 某段路在你的旅遊期間**官方公告封閉**（例如雪季的高山公路） → 停下來問你怎麼調
@@ -188,6 +189,7 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 - 某段自駕**單日開太久**（超過你設定的上限，預設 5 小時） → 停下來建議你拆兩天
 - 估算總額**超出你設定的預算** → 停下來問你（刪減／降級某項，或接受）
 - 匯出前的檢查發現**資料本身有缺**（例如照片沒標作者授權、要訂位的點沒有官方來源），重新產生也修不好 → 停下來請你補資料，不會一直重產
+- 匯出前的檢查發現的**文字問題**（例如日文少了讀音），回頭修過原文後**同一個問題又出現** → 停下來告訴你這多半是 tripwork 本身的問題，請你回報
 - 要把**分享版放上網路**（Cloudflare）→ 先告訴你網址、專案名稱，以及它會用密碼保護，你說好才上傳
 - 你回答過的問題會被記下來，**同一件事不會問你第二次**
 - 用**比較舊的行程資料夾**接續排（例如中途換過版本、缺了路線／交通／花費檔案）→ 輸出前的品質關卡現在會直接擋下來，不會像以前一樣默默放行；系統會自動導回該補的那一站幫你重新查（路線／交通／花費），不用你自己猜要重跑哪一步
@@ -219,6 +221,30 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 ### 會參考台灣旅客的遊記嗎？
 
 會。每個主題都會查當地網站，也會查台灣旅客寫的遊記。遊記算一個來源，但每個地點一定還要有至少 1 個當地語言的來源，才會排進行程。
+
+### 在 Claude Code 雲端（claude.ai/code）用，要設定什麼？
+
+雲端環境預設只開放套件來源的網站，tripwork 要查的地圖、照片網站會被擋。在 claude.ai/code 輸入框上方點雲朵圖示 →
+環境旁的齒輪 → **Network access** 選 **Custom**，保留勾選「Also include default list of common package managers」，
+再把下面這些一行一個貼進 **Allowed domains**：
+
+<!-- cloud-allowlist -->
+```
+nominatim.openstreetmap.org     # 查地圖座標（查證地點）
+tile.openstreetmap.org          # 每日地圖
+www.wikidata.org                # 景點照片（代表照）
+commons.wikimedia.org           # 景點照片（Commons 搜尋）
+upload.wikimedia.org            # 照片檔本身
+api.openverse.org               # 景點照片（Openverse 搜尋）
+api.cloudflare.com              # 上傳分享版（不分享可以不加）
+```
+<!-- /cloud-allowlist -->
+
+Openverse 的照片檔放在原本的網站（例如 Flickr），雲端抓不到時會自動改用下一個來源。
+
+要在雲端分享給家人：雲端沒辦法開瀏覽器登入 Cloudflare，請在同一個環境設定的 **Environment variables** 加一行
+`CLOUDFLARE_API_TOKEN=…`（建立金鑰時只開「Cloudflare Pages 編輯」權限；用這個環境的人都看得到它，別放其他祕密）。
+分享版的**頁面密碼**不放這裡——每次都在對話裡問你，只用在那一次。
 
 ### 怎麼放進 Notion？
 
@@ -283,8 +309,8 @@ flowchart TB
 | **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×**房數**×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**（預算對照的是整趟總額：住宿＋交通＋雜支）。全部標明是估算（含查詢日期），不是精確報價 |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單**；每天寫 **6 個標題候選**（有畫面、有梗、押韻照台灣讀音），用「挑標題」網頁讓你挑 |
 | **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點）。**現在還會**：①把路線時間、花費、關店 buffer 這些數字**重新算一遍**，跟行程裡記錄的核對是否一致，兜不起來就擋下來 ②檢查文案**有沒有 AI 罐頭味**（例如「首選必訪」這種空話、破折號濫用）③連**住宿**的查證狀態（名字有沒有對到、座標有沒有查證來源）也一起核對，不再只查景點 ④**景點與住宿的「已驗證」是不是用現在還算數的規則判定的**——例如營業狀態只是隨口打勾、沒有查證來源與日期，就算當初有記錄，現在也會被判定過時、擋下來重新查證 ⑤為新版閱讀器把關資料：每天從住宿出發、一站接一站、最後回到住宿，每一段都要寫清楚怎麼移動、多久、多遠（估算的會用兩站座標重算一次）；每一站都必須是查證過的地點；備案要掛在它對應的那一站；每天要有一句短主題；行前清單要分好「預約／出發前確認／打包」；來源要附網站名稱與說明；住宿要有地區短名；行程要有短名與你選定的搞笑標題 |
-| **export-artifact** | 產出成品：Markdown 行程（附 Google Maps 連結）、離線可看的一頁式 HTML（放在行程資料夾最上層，例：`2026-05-12 東京 3天2夜.html`，每天附一張地圖，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion；使用者要分享時，再用 `scripts/publish.py` 做加密的分享版並在確認後部署到 Cloudflare Pages）|
-| **export-gate** | 對輸出的成品做最後機械檢查（HTML 另查：離線可看、沒有來路不明的程式碼、授權與地圖出處都標了）：每個地點名稱本身是可點連結、**每個 Google Maps 連結都能正常打開（擋掉會失效、打不開的地圖連結）**、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；有問題就退回重產 |
+| **export-artifact** | 一行 `tripwork.py export` 產出成品：Markdown 行程（附 Google Maps 連結）、離線可看的一頁式 HTML（放在行程資料夾最上層，例：`2026-05-12 東京 3天2夜.html`，每天附一張地圖，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion；使用者要分享時，再用 `tripwork.py publish` 做加密的分享版並在確認後部署到 Cloudflare Pages）|
+| **export-gate** | 對輸出的成品做最後機械檢查（HTML 另查：離線可看、沒有來路不明的程式碼、授權與地圖出處都標了）：每個地點名稱本身是可點連結、**每個 Google Maps 連結都能正常打開（擋掉會失效、打不開的地圖連結）**、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；文字有問題就退回 itinerary-synthesis 修原文（不直接改成品），同一個問題修過還出現就停下來問你 |
 
 </details>
 
@@ -343,13 +369,18 @@ python -m pytest tests_browser
 **程式在哪裡**
 
 - **流水線**：`skills/` 下有 18 個 skill：16 個流水線步驟、調度中心 `orchestrator`，以及給 agent 看的入口 `using-tripwork`；純邏輯在 `scripts/`（都有單元測試），schema 在 `schemas/`，端到端 fixture 在 `tests/`。
-- **CLI**：`python scripts/validate_artifact.py trips/<slug>/data/<artifact>.yaml` 驗 schema；`python scripts/gate.py trips/<slug>`、`python scripts/export_gate.py trips/<slug>` 跑關卡並寫 report；`python scripts/next_stage.py trips/<slug> --work-dir work/<slug>` 印出下一站。exit code：0 pass／1 fail／2 用法錯。
+- **CLI**：所有腳本只有一個入口，在工作資料夾（有 `trips/` 的那層）執行
+  `python <plugin>/scripts/tripwork.py <指令> <slug>`：`next`（印出下一站）、`verify`、`gate`、`export`、`export-gate`、
+  `maps`、`photos`、`picker`、`validate`、`fingerprint`、`publish`、`deploy`、`migrate`；它補上 `trips/<slug>`、
+  `--work-dir work/<slug>` 再呼叫各腳本自己的 `main()`，`-h` 列出全部。exit code：0 pass／1 fail／2 用法錯。
+  舊的 `python scripts/<x>.py` 會直接報錯並告訴你新指令。
 - **HTML 閱讀器**：`scripts/render/reader/`。手機版全程純 CSS 與頁內錨點（LINE、iPhone「檔案」的預覽不跑 JavaScript）；電腦版（≥1024px）用同一份 DOM 重排成大月曆首頁與每日儀表板。檢查版唯一一段 script 是 `centre.py::CENTRE_JS`（電腦版把跳到的那站置中）；分享版（`render_reader(build="publish")`）再加一段 `publish.py::PUBLISH_JS`（手機手勢、開今天、返回回總覽），兩段都由 `export-gate` 以 sha256 比對放行。每張圖在頁面裡只內嵌一次。
-- **每日地圖（選用）**：`pip install -e '.[maps]'` 後跑 `python scripts/day_maps.py trips/<slug>`，從 OpenStreetMap 圖磚產生 `data/day-maps.yaml`（快取在 `work/<slug>/tile-cache/`、每秒最多一次請求、User-Agent 只有程式名與 repo 網址）；沒跑就畫示意方格。
-- **分享版**：`scripts/publish.py build|deploy`。staticrypt 3.5.4（`npx`）用 `scripts/render/publish/lock.py` 的密碼頁加密，只留下 `trips/<slug>/publish/<code>/index.html`；`deploy` 要 `--confirm`，用 `wrangler@3` 把同一個 `trips/` 下每趟行程的加密頁一起部署（Pages 每次部署會取代整個網站）。需要 Node 18+。
-- **景點照片（選用）**：`scripts/photo_adapter.py`（backend `none`（預設）／`wiki`／`google`；`wiki` 先查 Wikidata 的代表照片，再搜尋 Openverse／Commons，縮到 640 px，側檔已有的條目一律保留），授權白名單 `{CC0, PD, CC-BY, CC-BY-SA}`。照片存在側檔 `verified-pois-media.yaml`，輸出時由 `scripts/media_merge.py` 疊回去。`google` 來源因 ToS 標為不可散布（`export-gate` 會標 `distributable: false`）。
+- **每日地圖（選用）**：`pip install -e '.[maps]'` 後跑 `tripwork.py maps <slug>`，從 OpenStreetMap 圖磚產生 `data/day-maps.yaml`（快取在 `work/<slug>/tile-cache/`、每秒最多一次請求、User-Agent 只有程式名與 repo 網址）；沒跑就畫示意方格。
+- **分享版**：`tripwork.py publish|deploy`（`scripts/publish.py`）。密碼用 `TRIPWORK_PUBLISH_PASSWORD='…'` 前綴只交給那一次執行，再以環境變數交給 staticrypt（不放在命令列）。staticrypt 3.5.4（`npx`）用 `scripts/render/publish/lock.py` 的密碼頁加密，只留下 `trips/<slug>/publish/<code>/index.html`；`deploy` 要 `--confirm`，用 `wrangler@3` 只部署這一趟的加密頁：一趟行程一個 Pages 專案（Pages 每次部署會取代整個網站，所以別讓兩趟共用專案）。需要 Node 18+。
+- **景點照片（選用）**：`tripwork.py photos <slug>`（`scripts/photo_adapter.py`，預設 `--backend wiki`（腳本本身的預設 `none` 什麼都不做，`google` 擋下）；`wiki` 先查 Wikidata 的代表照片，再搜尋 Openverse／Commons，縮到 640 px，側檔已有的條目一律保留），授權白名單 `{CC0, PD, CC-BY, CC-BY-SA}`。照片存在側檔 `verified-pois-media.yaml`，輸出時由 `scripts/media_merge.py` 疊回去。`google` 來源因 ToS 標為不可散布（`export-gate` 會標 `distributable: false`）。
 - **每日標題**：規則在 `scripts/day_titles.py`；押韻以**台灣讀音**判斷，讀教育部《國語小字典》（原檔不修改，放在 `assets/dict/moe-mini/`，由 `scripts/zhuyin.py` 讀）；挑選頁 `scripts/title_picker.py`，回覆解析 `scripts/title_picks.py`。
 - **樣式看板**：`python scripts/design_board.py board.yaml` 把要讓使用者選的樣式做成一頁離線 HTML（放在不進版控的 `.design-board/`），每張卡片標代號，按「複製選擇」得到一行文字貼回任何 AI agent；規則見 `CLAUDE.md` 的 Visual work。
+- **獨立來源的判定**：`scripts/verify.py::site_key` 用 Public Suffix List 把網址歸到同一個網站（`www.`、子網域、連接埠都算一個），快照放在 `assets/psl/`（gzip，只給程式讀）；發版時更新：`curl -sS https://publicsuffix.org/list/public_suffix_list.dat | gzip -9 -n > assets/psl/public_suffix_list.dat.gz`。搜尋引擎的結果頁由 `is_search_results_page` 擋下，不算來源也不算營業證據。
 - **隱私**：這個 repo 不放任何真實行程；範例、測試資料、截圖都是虛構的。`tests/test_privacy.py` 會擋下工作區檔案、白名單外的圖片與 email，有工作區時也會比對每趟行程的代號、旅館、成員、住處與未來日期；規則見 `CLAUDE.md` 的 Privacy。
 - **資料夾結構**：
   ```
@@ -359,7 +390,7 @@ python -m pytest tests_browser
   work/<slug>/                       ← gate-report / export-gate-report / stage-state / geocode 快取
   ```
   路徑一律由 `scripts/paths.py` 決定。舊版行程（資料檔放在 `trips/<slug>/` 最上層）先跑
-  `python scripts/migrate_v1.py trips` 看 dry run，再加 `--apply`；不會刪任何檔。
+  `python <plugin>/scripts/tripwork.py migrate <slug>` 看 dry run，再加 `--apply`；不會刪任何檔。
 
 **地圖座標用量限制**：使用 OSM Nominatim（免 API key），請遵守它的使用政策（≤ 1 req/s、帶 User-Agent）。
 `scripts/geocode.py` 已設好 User-Agent，呼叫端負責節流；每趟行程的查詢會快取在 `work/<slug>/geocode-cache/`。

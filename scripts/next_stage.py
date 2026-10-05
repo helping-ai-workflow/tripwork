@@ -5,19 +5,12 @@ is the spec; this script is its executable form). ADVISORY ORACLE ONLY — it
 suggests; stop-on-confirmation, slug binding (rule 0.5) and user interaction
 stay with the agent. It does not read stage-state.yaml (v1).
 
-Usage: python scripts/next_stage.py <trip-dir> --work-dir <work/<slug>>
+Usage: python <plugin>/scripts/tripwork.py next <slug>
 Output (stdout, YAML): {next: tripwork:<skill>|complete|stop-and-ask, reason: str}
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py next <slug>")
 
-import sys as _sys
 
 import argparse
 import pathlib
@@ -67,6 +60,17 @@ def _newer(a, b):
     return a.stat().st_mtime > b.stat().st_mtime
 
 
+def gate_report_stale(trip_dir, work_dir):
+    """What makes work/<slug>/gate-report.yaml unusable: ["gate-report.yaml"] when it
+    does not exist, else every GATE_INPUTS artifact newer than it (rule 13; `export`
+    refuses on the same answer)."""
+    t, w = pathlib.Path(trip_dir), pathlib.Path(work_dir)
+    gr = report_path(w, "gate-report.yaml")
+    if not gr.is_file():
+        return ["gate-report.yaml"]
+    return [n for n in GATE_INPUTS if artifact_path(t, n).is_file() and _newer(artifact_path(t, n), gr)]
+
+
 def next_stage(trip_dir, work_dir):
     t = pathlib.Path(trip_dir)
     w = pathlib.Path(work_dir)
@@ -81,8 +85,8 @@ def next_stage(trip_dir, work_dir):
     # "no trip-brief.yaml" and restart the pipeline over a finished trip.
     if is_legacy_layout(t):
         return ("stop-and-ask",
-                "rule 0.7: pre-v1.0 trip layout — run `python scripts/migrate_v1.py "
-                "<trips-root>` (dry run), then with --apply, and resume")
+                "rule 0.7: pre-v1.0 trip layout — run `python <plugin>/scripts/tripwork.py "
+                f"migrate {t.name}` (dry run), then with --apply, and resume")
 
     for name, skill, rule in _CHAIN:
         p = artifact_path(t, name)
@@ -135,11 +139,10 @@ def next_stage(trip_dir, work_dir):
     # saw it. This fires for real on the live corpus, not just a hypothetical
     # (see skills/orchestrator/SKILL.md's rule 13 note for a named example).
     gr = report_path(w, "gate-report.yaml")
-    stale_inputs = [n for n in GATE_INPUTS
-                    if artifact_path(t, n).is_file() and _newer(artifact_path(t, n), gr)] \
-        if gr.is_file() else []
-    if not gr.is_file() or stale_inputs:
-        why = f" ({', '.join(stale_inputs)} newer)" if stale_inputs else ""
+    stale_inputs = gate_report_stale(t, w)
+    if stale_inputs:
+        named = [n for n in stale_inputs if n != "gate-report.yaml"]
+        why = f" ({', '.join(named)} newer)" if named else ""
         return ("tripwork:itinerary-gate", f"rule 13: gate-report missing or stale{why}")
 
     # rule 13.5
@@ -166,6 +169,12 @@ def next_stage(trip_dir, work_dir):
     md = paths[REQUIRED_DELIVERABLE]
     if not md.is_file():
         return "tripwork:export-artifact", "rule 14: no export deliverable"
+    # The gate ran after the deliverables were rendered, so they may show an itinerary
+    # the gate never passed: export again before anything judges them (v2.0.0 review C1).
+    older = [d.name for d in deliverables if d.is_file() and _newer(gr, d)]
+    if older:
+        return ("tripwork:export-artifact",
+                f"rule 14: {', '.join(older)} older than gate-report.yaml — export again")
 
     # rule 15 — same widening as rule 13: the export-gate report must be newer
     # than EVERY deliverable export_gate.py judges (md + html, TW-077) AND
@@ -187,8 +196,13 @@ def next_stage(trip_dir, work_dir):
                 "re-run the gate")
     if ereport.get("status") == "fail":
         if ereport.get("retryable", True):
-            return ("tripwork:export-artifact",
-                    "rule 15: retryable render defect — re-render")
+            return ("tripwork:itinerary-synthesis",
+                    "rule 15: retryable render defect — fix the source text the "
+                    "export-gate names, then gate and export again")
+        if ereport.get("repeat_of_previous"):
+            return ("stop-and-ask",
+                    "rule 15: the same export-gate failure came back after the source was "
+                    "fixed once — likely a plugin render defect; report it")
         return ("stop-and-ask",
                 "rule 15: non-retryable data defect — fix the data "
                 "(attribution / official source), then re-verify")
@@ -209,7 +223,3 @@ def main(argv):
     print(yaml.safe_dump({"next": nxt, "reason": reason},
                          allow_unicode=True, sort_keys=False), end="")
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))

@@ -9,22 +9,18 @@ are thin (one cluster, no line items): this closure is about the reader data, no
 routing or cost stages, which have their own e2e files."""
 import io
 import pathlib
-import subprocess
-import sys
 
 import pytest
 import yaml
 from bs4 import BeautifulSoup
 
-from scripts.gate import poi_pool, run_gate
-from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
-from scripts.media_merge import apply_media, load_media
+from scripts.gate import run_gate
+from scripts.paths import artifact_path, deliverable_paths, report_path
 from scripts.render.heading import dates_line, trip_title
-from scripts.render.html_page import render_html_page
-from scripts.render.markdown import render_markdown_page
 from tests import e2e_v1_fixture as F
 from tests import mech_fixtures as M
 from tests import reader_fixture as R
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 # 朝市 is on D1 and D2 of the tour: its photo must be embedded once (the P7 corpus defect)
@@ -40,8 +36,8 @@ HTML_CHECKS = ("scripts_whitelisted", "img_src_offline", "licences_present", "ex
 
 
 def _cli(script, *args):
-    return subprocess.run([sys.executable, str(ROOT / "scripts" / script), *map(str, args)],
-                          capture_output=True, text=True)
+    return run_main("scripts." + script.removesuffix(".py"), args)
+
 
 
 def _brief(src):
@@ -73,23 +69,17 @@ def _trip(tmp_path, itin, brief, accommodations, legs, slug):
 
 
 def _export(t, maps=None):
-    """export-artifact's md + html, from the artifacts on disk, assembled as its
-    skill says: poi_pool(verified-pois, accommodations), overlaid with the photo side-file."""
-    def load(name):
-        return yaml.safe_load(artifact_path(t, name).read_text(encoding="utf-8"))
-    brief, acc, itin = load("trip-brief.yaml"), load("accommodations.yaml"), load("itinerary.yaml")
-    poi_map = poi_pool(load("verified-pois.yaml")["pois"], acc)
-    poi_map = apply_media(poi_map, load_media(artifact_path(t, "verified-pois-media.yaml")))
-    paths = deliverable_paths(t, brief)
-    paths["md"].write_text(render_markdown_page(itin, poi_map, load("cost.yaml"), brief=brief), encoding="utf-8")
-    html = render_html_page(itin, poi_map, brief=brief, accommodations=acc, advisory=load("advisory.yaml"),
-                            legs=load("legs.yaml"), maps=maps, cost=load("cost.yaml"))
-    paths["html"].write_text(html, encoding="utf-8")
-    return html
+    """export-artifact's md + html, by the shipped `export` (v2.0.0) -- never assembled
+    here. `maps` is only a reminder that day_maps.build already wrote data/day-maps.yaml,
+    which export reads like every other artifact."""
+    r = run_main("scripts.export", [t])
+    assert r.returncode == 0, r.stdout + r.stderr
+    brief = yaml.safe_load(artifact_path(t, "trip-brief.yaml").read_text(encoding="utf-8"))
+    return deliverable_paths(t, brief)["html"].read_text(encoding="utf-8")
 
 
 def _run(t, w):
-    assert _cli("gate.py", t).returncode == 0, _cli("gate.py", t).stdout
+    assert _cli("gate", t).returncode == 0, _cli("gate", t).stdout
     rep = yaml.safe_load(report_path(w, "gate-report.yaml").read_text(encoding="utf-8"))
     checks = {c["name"]: c["passed"] for c in rep["checks"]}
     assert all(checks[n] is True for n in V1_GATE_CHECKS), checks
@@ -105,7 +95,7 @@ def tour(tmp_path):
     from scripts.day_maps import build
     maps = build(t, w, fetch=_tile)
     html = _export(t, maps=maps)
-    r = _cli("export_gate.py", t)
+    r = _cli("export_gate", t)
     assert r.returncode == 0, r.stdout + r.stderr
     rep = yaml.safe_load(report_path(w, "export-gate-report.yaml").read_text(encoding="utf-8"))
     checks = {c["name"]: c["passed"] for c in rep["checks"]}
@@ -126,7 +116,7 @@ def test_the_fixtures_pass_the_real_gate():
 
 def test_the_tour_reaches_complete(tour):
     t, w, _maps, _soup = tour
-    r = _cli("next_stage.py", t, "--work-dir", w)
+    r = _cli("next_stage", t, "--work-dir", w)
     assert yaml.safe_load(r.stdout)["next"] == "complete", r.stdout
 
 
@@ -171,7 +161,7 @@ def test_a_day_trip_has_no_lodging_anywhere(tmp_path):
                  "2026-11-hakodate-day")
     _run(t, w)
     soup = BeautifulSoup(_export(t), "html.parser")
-    assert _cli("export_gate.py", t).returncode == 0
+    assert _cli("export_gate", t).returncode == 0
     assert soup.select_one('.hside label[for="pg-lodging"] small').get_text() == "0 間"
     assert soup.select_one('[data-pg="lodging"] .empty')
     assert soup.select_one(".hcal .stamp small").get_text() == "返程"

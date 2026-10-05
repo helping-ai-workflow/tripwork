@@ -1,0 +1,11 @@
+Public Suffix List snapshot, read only by scripts/verify.py::site_key to tell
+whether two source URLs belong to one site (one registrable domain).
+
+Source:   https://publicsuffix.org/list/public_suffix_list.dat
+Version:  2026-10-01_23-02-52_UTC (the file's own "// VERSION:" line)
+Licence:  Mozilla Public License 2.0 (header kept inside the file)
+Stored gzip-compressed so it stays a script input, not something to read.
+
+Refresh (at a release):
+    curl -sS https://publicsuffix.org/list/public_suffix_list.dat | gzip -9 -n > assets/psl/public_suffix_list.dat.gz
+then update the Version line above.

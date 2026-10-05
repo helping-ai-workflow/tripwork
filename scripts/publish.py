@@ -2,28 +2,23 @@
 with staticrypt, and deploy it to Cloudflare Pages -- the deploy only after the user's
 explicit yes, because it puts the page on the internet.
 
-    python scripts/publish.py build  <trips/slug> [--share-base https://<project>.pages.dev/]
-    python scripts/publish.py deploy <trips/slug> --project <name> --confirm
+    python <plugin>/scripts/tripwork.py publish <slug> [--share-base https://<project>.pages.dev/]
+    python <plugin>/scripts/tripwork.py deploy <slug> --project <name> --confirm
 
 The password comes from TRIPWORK_PUBLISH_PASSWORD or a prompt and is never written to
 the workspace. Only the locked page lands under trips/<slug>/publish/<code>/ (the plain
 page lives in a temporary directory); <code> is a random 8-character path, so the URL
 names no place or date.
 
-A Pages deploy replaces the whole site, so `deploy` uploads every trip's locked page
-under the same trips/ folder (each in its own <code>/), refuses any page that is not
+One trip is one Pages project: a Pages deploy replaces the whole site, so `deploy`
+uploads this trip's locked page only (in its <code>/), refuses it when it is not
 locked -- a build with non-distributable photos may only go out encrypted -- and
 uploads nothing else. The share link (`#staticrypt_pwd=…`) opens the page without
 typing the password: it is printed for the user, never written next to the pages.
 
 Exit 0 ok / 1 failure / 2 bad input. Node 18+ is required (npx)."""
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py publish <slug>  (or: deploy <slug> --project NAME --confirm)")
 
 import hashlib
 import os
@@ -38,11 +33,9 @@ import tempfile
 import yaml
 
 from scripts.export_gate import run_html_gate
-from scripts.gate import poi_pool
-from scripts.media_merge import apply_media, load_media
-from scripts.paths import artifact_path
 from scripts.render.html_page import render_html_page
-from scripts.render.publish.lock import lock_template, staticrypt_args, staticrypt_share_args
+from scripts.trip_inputs import TripInputError, trip_inputs  # noqa: F401  (re-exported)
+from scripts.render.publish.lock import lock_template, staticrypt_args, staticrypt_env, staticrypt_share_args
 
 WRANGLER = "wrangler@3"
 _CODE_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -53,37 +46,6 @@ _run = subprocess.run
 
 class PublishError(RuntimeError):
     """A step failed; the message says what to do."""
-
-
-class TripInputError(PublishError):
-    """The trip folder lacks what the page is rendered from (exit 2)."""
-
-
-def _load(trip_dir, name, required=False):
-    path = artifact_path(trip_dir, name)
-    try:
-        with open(path, encoding="utf-8") as fh:
-            return yaml.safe_load(fh)
-    except FileNotFoundError:
-        if required:
-            raise TripInputError(f"missing {path}") from None
-        return None
-    except yaml.YAMLError as exc:
-        raise TripInputError(f"malformed {path}: {exc}") from None
-
-
-def trip_inputs(trip_dir):
-    """(itinerary, poi_map, render kwargs, media count): the same inputs export-artifact
-    renders the check page from -- the gate's POI pool with the photo overlay."""
-    itin = _load(trip_dir, "itinerary.yaml", required=True) or {}
-    pois = (_load(trip_dir, "verified-pois.yaml", required=True) or {}).get("pois") or []
-    acc = _load(trip_dir, "accommodations.yaml")
-    media = load_media(artifact_path(trip_dir, "verified-pois-media.yaml"))
-    poi_map = apply_media(dict(poi_pool(pois, acc)), media)
-    kwargs = {"brief": _load(trip_dir, "trip-brief.yaml"), "accommodations": acc,
-              "advisory": _load(trip_dir, "advisory.yaml"), "legs": _load(trip_dir, "legs.yaml"),
-              "maps": _load(trip_dir, "day-maps.yaml"), "cost": _load(trip_dir, "cost.yaml")}
-    return itin, poi_map, kwargs, len((media or {}).get("media") or {})
 
 
 def publish_code(trip_dir):
@@ -135,8 +97,8 @@ def build(trip_dir, password, *, run=None, share_base=None):
         (tmp / "index.html").write_text(html, encoding="utf-8")
         (tmp / "template.html").write_text(lock_template(), encoding="utf-8")
         out = tmp / "locked"
-        _npx(run, staticrypt_args(password, tmp / "template.html", out, tmp / "index.html", salt=_salt(code)),
-             cwd=tmp)
+        _npx(run, staticrypt_args(tmp / "template.html", out, tmp / "index.html", salt=_salt(code)),
+             cwd=tmp, env=staticrypt_env(password))
         locked = out / "index.html"
         if not locked.is_file() or _LOCKED not in locked.read_text(encoding="utf-8"):
             raise PublishError("staticrypt wrote no locked page")
@@ -145,26 +107,27 @@ def build(trip_dir, password, *, run=None, share_base=None):
         share = None
         if share_base:
             url = share_base.rstrip("/") + f"/{code}/"
-            got = _npx(run, staticrypt_share_args(password, _salt(code), url), cwd=tmp).stdout or ""
+            got = _npx(run, staticrypt_share_args(_salt(code), url), cwd=tmp,
+                       env=staticrypt_env(password)).stdout or ""
             share = next((x.strip() for x in got.splitlines() if "#staticrypt_pwd=" in x), None)
     return {"page": dest, "share": share}
 
 
-def _site(trips_root, into):
-    """Copy every trip's locked page into `into`/<code>/index.html. Refuses a page that is
-    not locked; copies nothing else (code.txt and the trips stay home)."""
-    pages = sorted(trips_root.glob("*/publish/*/index.html"))
-    for page in pages:
-        if _LOCKED not in page.read_text(encoding="utf-8", errors="ignore"):
-            raise PublishError(f"{page} is not encrypted: rebuild it with `publish.py build` before deploying")
-        (into / page.parent.name).mkdir()
-        shutil.copyfile(page, into / page.parent.name / "index.html")
-    return pages
+def _site(page, into):
+    """Copy this trip's locked page into `into`/<code>/index.html -- one trip is one Pages
+    project, so nothing else goes up. Refuses a page that is not locked."""
+    if _LOCKED not in page.read_text(encoding="utf-8", errors="ignore"):
+        raise PublishError(f"{page} is not encrypted: rebuild it with "
+                           f"`python <plugin>/scripts/tripwork.py publish <slug>` before deploying")
+    (into / page.parent.name).mkdir()
+    shutil.copyfile(page, into / page.parent.name / "index.html")
+    return [page]
 
 
 def deploy(trip_dir, project, *, confirm=False, run=None):
-    """Upload every locked trip page to the Cloudflare Pages project. Needs confirm=True
-    (the user's explicit yes) and a wrangler login."""
+    """Upload this trip's locked page to its own Cloudflare Pages project (one trip, one
+    project: a Pages deploy replaces the whole site, so the project holds this trip only).
+    Needs confirm=True (the user's explicit yes) and a wrangler login."""
     if not confirm:
         raise PublishError("deploy needs --confirm: it publishes to the internet")
     run = run or _run
@@ -172,11 +135,11 @@ def deploy(trip_dir, project, *, confirm=False, run=None):
     code_file = trip_dir / "publish" / "code.txt"
     code = code_file.read_text(encoding="utf-8").strip() if code_file.is_file() else None
     if not code or not (trip_dir / "publish" / code / "index.html").is_file():
-        raise PublishError(f"no locked page for {trip_dir.name}: run `publish.py build` first")
+        raise PublishError(f"no locked page for {trip_dir.name}: run `python <plugin>/scripts/tripwork.py publish {trip_dir.name}` first")
     with tempfile.TemporaryDirectory() as tmp:
         site = pathlib.Path(tmp) / "site"
         site.mkdir()
-        _site(trip_dir.parent, site)
+        _site(trip_dir / "publish" / code / "index.html", site)
         try:
             _npx(run, [WRANGLER, "whoami"])
         except PublishError:
@@ -194,10 +157,20 @@ def deploy(trip_dir, project, *, confirm=False, run=None):
     return {"url": f"{base}/{code}/"}
 
 
+NO_PASSWORD = ("no password: ask the user for one in the conversation and run again as "
+               "TRIPWORK_PUBLISH_PASSWORD='<password>' python <plugin>/scripts/tripwork.py publish <slug> "
+               "(or the user runs that command in their own terminal, which asks without echo)")
+
+
 def _password():
+    """The page password for this one run: TRIPWORK_PUBLISH_PASSWORD, else a hidden prompt
+    when a person is at a terminal, else None -- an agent's shell has no terminal, and
+    getpass there dies with EOFError."""
     pw = os.environ.get("TRIPWORK_PUBLISH_PASSWORD")
     if pw:
         return pw
+    if not sys.stdin.isatty():
+        return None
     import getpass
     return getpass.getpass("password for the page: ")
 
@@ -218,9 +191,24 @@ def main(argv=None):
     if not trip_dir.is_dir():
         print(f"no trip folder: {trip_dir}", file=sys.stderr)
         return 2
+    if args.cmd == "build":
+        from scripts.paths import is_legacy_layout
+        if is_legacy_layout(trip_dir):
+            print(f"pre-v1.0 trip layout — run `python <plugin>/scripts/tripwork.py migrate {trip_dir.name}` "
+                  f"(dry run), then with --apply", file=sys.stderr)
+            return 2
+        try:
+            trip_inputs(trip_dir)                       # what the page needs, before any password
+        except TripInputError as exc:
+            print(exc, file=sys.stderr)
+            return 2
+    password = _password() if args.cmd == "build" else None
+    if args.cmd == "build" and not password:
+        print(NO_PASSWORD, file=sys.stderr)
+        return 2
     try:
         if args.cmd == "build":
-            res = build(trip_dir, _password(), run=_run, share_base=args.share_base)
+            res = build(trip_dir, password, run=_run, share_base=args.share_base)
             print(f"locked page: {res['page']}")
             if res["share"]:
                 print(f"share link (opens without the password -- send it to family only): {res['share']}")
@@ -234,7 +222,3 @@ def main(argv=None):
         print(exc, file=sys.stderr)
         return 1
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))

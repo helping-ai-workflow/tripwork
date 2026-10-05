@@ -6,16 +6,9 @@ naked $, broken links, name-not-a-link, and bookable POIs missing an official
 source link. Output shape matches itinerary-gate: {status, checks, failures}
 (reuses schemas/gate-report.schema.json).
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py export-gate <slug>")
 
-import sys as _sys
 
 import hashlib
 import re
@@ -33,11 +26,6 @@ _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 # Standalone map-token labels that mean the POI name was left as dead text.
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
 
-# Sentinel returned by main()'s opt() helper when an optional artifact exists
-# but fails to parse as YAML — distinct from None (absent), so callers can
-# tell "malformed" apart from "not provided" and exit 2 instead of proceeding
-# with a garbage value.
-_MALFORMED = object()
 
 def _photo_failures(pois):
     """Photo ATTRIBUTION presence (cross-axis matrix F4), shared by BOTH gates: a POI
@@ -487,6 +475,38 @@ def _find_rows(md_text, names):
     return rows
 
 
+def _inputs_fingerprint(trip_dir):
+    """Hash of every artifact export-gate judges the deliverables against
+    (EXPORT_GATE_INPUTS), so two reports can tell whether the source changed between them."""
+    import hashlib
+    from scripts.orchestration import EXPORT_GATE_INPUTS
+    from scripts.paths import artifact_path
+    h = hashlib.sha256()
+    for name in EXPORT_GATE_INPUTS:
+        p = artifact_path(trip_dir, name)
+        h.update(name.encode() + b"\0" + (p.read_bytes() if p.is_file() else b"") + b"\0")
+    return h.hexdigest()[:16]
+
+
+def _repeats(report, previous_path):
+    """True when this fail is exactly the previous report's retryable fail AND the source
+    changed in between. export is a fixed program (v2.0.0): a retryable fail goes back to
+    itinerary-synthesis to fix the source text, so the same failures from changed inputs
+    mean the plugin's own rendering is at fault. Re-running the gate on unchanged inputs
+    repeats nothing."""
+    import yaml
+    if report["status"] != "fail" or not previous_path.is_file():
+        return False
+    try:
+        prev = yaml.safe_load(previous_path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return False
+    return (prev.get("status") == "fail" and prev.get("retryable") is True
+            and sorted(prev.get("failures") or []) == sorted(report["failures"])
+            and bool(prev.get("inputs_fingerprint"))
+            and prev.get("inputs_fingerprint") != report.get("inputs_fingerprint"))
+
+
 def merge_reports(md_report, html_report):
     """Combine md + html gate reports into the single export-gate-report.
     html check names are prefixed `html_`, html failures prefixed `html: `;
@@ -508,7 +528,7 @@ def merge_reports(md_report, html_report):
 
 
 def main(argv):
-    """CLI: python scripts/export_gate.py <trip-dir> — gate the rendered
+    """CLI: python <plugin>/scripts/tripwork.py export-gate <slug> — gate the rendered
     deliverables (md + optional html) against the MERGED pois (verified-pois +
     chosen lodgings + media overlay, all assembled here) and write
     work/<slug>/export-gate-report.yaml (paths from scripts/paths.py).
@@ -517,9 +537,6 @@ def main(argv):
     import pathlib
     import sys
     import yaml
-
-    from scripts.gate import poi_pool
-    from scripts.media_merge import apply_media, load_media
 
     ap = argparse.ArgumentParser(description=main.__doc__)
     from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
@@ -541,36 +558,13 @@ def main(argv):
         print(f"missing deliverable: {md_path}", file=sys.stderr)
         return 2
 
-    def opt(name):
-        try:
-            with open(artifact_path(d, name), encoding="utf-8") as fh:
-                return yaml.safe_load(fh)
-        except FileNotFoundError:
-            return None
-        except yaml.YAMLError as exc:
-            print(f"malformed optional artifact {name}: {exc!r}",
-                  file=sys.stderr)
-            return _MALFORMED
-
-    pois_doc = opt("verified-pois.yaml")
-    if pois_doc is _MALFORMED:
+    from scripts.trip_inputs import TripInputError, trip_inputs
+    try:
+        itin, poi_map, _, media_count = trip_inputs(d)       # the renderers' own inputs
+    except TripInputError as exc:
+        print(exc, file=sys.stderr)
         return 2
-    if not pois_doc:
-        print("missing verified-pois.yaml", file=sys.stderr)
-        return 2
-    accommodations_doc = opt("accommodations.yaml")
-    if accommodations_doc is _MALFORMED:
-        return 2
-    poi_map = dict(poi_pool(pois_doc.get("pois") or [], accommodations_doc))   # TW-091: the gate's pool
-    media_doc = load_media(artifact_path(d, "verified-pois-media.yaml"))
-    media_count = len((media_doc or {}).get("media") or {})
-    poi_map = apply_media(poi_map, media_doc)      # NON-mutating: capture return
     merged_pois = list(poi_map.values())
-
-    itin = opt("itinerary.yaml")
-    if itin is _MALFORMED:
-        return 2
-    itin = itin or {}
     min_days = len(itin.get("days") or []) or None
 
     md_report = run_export_gate(md_path.read_text(encoding="utf-8"),
@@ -582,6 +576,10 @@ def main(argv):
                                     merged_pois, min_days=min_days,
                                     media_count=media_count)
     report = merge_reports(md_report, html_report)
+    report["inputs_fingerprint"] = _inputs_fingerprint(d)
+    report["repeat_of_previous"] = _repeats(report, report_path(w, "export-gate-report.yaml"))
+    if report["repeat_of_previous"]:
+        report["retryable"] = False
     w.mkdir(parents=True, exist_ok=True)
     report_path(w, "export-gate-report.yaml").write_text(
         yaml.safe_dump(report, allow_unicode=True, sort_keys=False),
@@ -591,7 +589,3 @@ def main(argv):
     for f in report["failures"]:
         print(f"  - {f}")
     return 0 if report["status"] == "pass" else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))

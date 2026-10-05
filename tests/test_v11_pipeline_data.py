@@ -11,6 +11,7 @@ import pytest
 import yaml
 
 from scripts.distance import haversine_km
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 
@@ -175,8 +176,6 @@ def test_the_export_gate_resolves_a_shared_id_as_the_renderer_does(tmp_path):
     """The report's sap-hotel: the same id in verified-pois and as a chosen
     lodging, each with a different first official source. The markdown is rendered
     from poi_pool (export-artifact's fold); the export gate must judge that record."""
-    import subprocess
-    import sys
     from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
     from scripts.render.markdown import render_markdown_page
     from scripts.gate import poi_pool
@@ -197,8 +196,7 @@ def test_the_export_gate_resolves_a_shared_id_as_the_renderer_does(tmp_path):
     brief = M.trip_brief()
     deliverable_paths(t, brief)["md"].write_text(
         render_markdown_page(M.itinerary(), pool, M.cost(), brief=brief), encoding="utf-8")
-    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "export_gate.py"), str(t)],
-                       capture_output=True, text=True)
+    r = run_main("scripts.export_gate", [t])
     rep = yaml.safe_load(report_path(work_dir_for(t), "export-gate-report.yaml").read_text(encoding="utf-8"))
     assert not [f for f in rep["failures"] if "official source link" in f], rep["failures"]
 

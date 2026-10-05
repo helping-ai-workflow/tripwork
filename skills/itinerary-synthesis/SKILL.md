@@ -74,7 +74,7 @@ picker page.
 
 ## Calendar-awareness (reads `calendar.yaml` + each POI's `closed_days`)
 
-Logic in `scripts/calendar.py` (`poi_closed_on`, `is_high_crowd`, `holiday_on`).
+Logic in `scripts/trip_calendar.py` (`poi_closed_on`, `is_high_crowd`, `holiday_on`).
 
 - **Hard-avoid closures.** Never place a POI on a day `poi_closed_on(poi, date, calendar)` returns closed (weekly fixed day, one-off date, or `public_holiday`). Move it to an open trip day or fall back to its alternative. If a `must_do` POI is closed on **every** feasible trip day → stop and ask the user.
 - **Holiday/weekend crowd handling.** For any day `is_high_crowd(date, calendar)` is true (weekend, or a public holiday flagged `crowds`): label the day with the holiday name, advise an earlier start + off-peak dining, and steer crowd-fragile spots (small shops, queue-heavy restaurants) onto calmer days. Do not silently leave them on the packed day.
@@ -211,16 +211,15 @@ For a `slot: move` row, put the two endpoints in the optional structured `from` 
 (e.g. `from: 函館空港`, `to: 函館駅`) — **not** buried in `text`. Export builds an A→B Google Maps
 **directions** link from them; a move row that leaves `from` / `to` empty renders as plain text
 with no directions link. (`from` / `to` are optional and backward-compatible.)
-`tripwork:export-artifact` renders the markdown deliverable from it via
-`scripts/render/markdown.py::render_markdown_page(itin, poi_map, cost, brief=brief)` — the page-level
-entrypoint that assembles every day's `render_day_table(day, poi_map)` plus the 備案 / 出發前
-檢查清單 / 費用估算 sections in one pass; never hand-assemble those sections around the day
-tables.
+`tripwork:export-artifact` renders the markdown deliverable from it with
+`python <plugin>/scripts/tripwork.py export <slug>`, which assembles every day's table plus the
+備案 / 出發前檢查清單 / 費用估算 sections in one pass; never hand-assemble those sections around
+the day tables.
 
 `itinerary.gate`, the HTML / Google-Maps / Notion exports all read `itinerary.yaml` — never
 re-build a day structure from the rendered `.md`. The `.md` is a derived view, not a source.
 
-Validate the canonical artifact: `python scripts/validate_artifact.py trips/<slug>/data/itinerary.yaml`
+Validate the canonical artifact: `python <plugin>/scripts/tripwork.py validate <slug> itinerary`
 (exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract

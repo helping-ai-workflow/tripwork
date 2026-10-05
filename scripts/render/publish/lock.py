@@ -9,6 +9,7 @@ optional 隱藏/顯示 mask. Light by default, like the reader (system dark mode
 the bubble's choice is kept in localStorage 'tripwork-theme', which PUBLISH_JS applies
 to the reader. Every storage call is in try/catch: a private window or an embedded
 preview still shows the form and still decrypts."""
+import os
 import re
 
 from scripts.render.reader.assets import font_faces, icon
@@ -96,13 +97,14 @@ def lock_template():
             + '</script></body></html>')
 
 
-def staticrypt_args(password, template_path, out_dir, html_path, salt=None):
-    """argv after `npx --yes`. `-c false`: staticrypt otherwise writes ./.staticrypt.json
+def staticrypt_args(template_path, out_dir, html_path, salt=None):
+    """argv after `npx --yes`. No password here: it goes in through staticrypt_env(),
+    never on a command line. `-c false`: staticrypt otherwise writes ./.staticrypt.json
     (the salt) into its working directory, which may be the user's workspace. Without a
     salt staticrypt draws a new one, which changes every share link; pass the trip's own
     to keep them."""
     c = LOCK_COPY
-    argv = [STATICRYPT, str(html_path), "-p", password, "-t", str(template_path), "-c", "false", "--short",
+    argv = [STATICRYPT, str(html_path), "-t", str(template_path), "-c", "false", "--short",
             "--remember", "0", "--template-title", c["title"], "--template-button", c["button"],
             "--template-placeholder", c["placeholder"], "--template-remember", c["remember"],
             "--template-error", c["error"], "--template-toggle-show", c["show"],
@@ -112,9 +114,16 @@ def staticrypt_args(password, template_path, out_dir, html_path, salt=None):
     return argv
 
 
-def staticrypt_share_args(password, salt, url):
+def staticrypt_env(password):
+    """The child environment for every staticrypt run: staticrypt reads a non-empty
+    STATICRYPT_PASSWORD before `-p` or its prompt, so set it to THIS password -- an
+    inherited one would otherwise lock the page with a different password, silently."""
+    return {**os.environ, "STATICRYPT_PASSWORD": password}
+
+
+def staticrypt_share_args(salt, url):
     """argv after `npx --yes` that prints `url#staticrypt_pwd=<hash>` -- a link that opens the
     page without typing the password. staticrypt's --share only prints (it encrypts nothing),
     and the hash depends on the salt: pass the one the page was encrypted with. The hash is
     password-equivalent: show it to the user, never write it next to the uploaded pages."""
-    return [STATICRYPT, "-p", password, "-s", salt, "-c", "false", "--short", "--share", url]
+    return [STATICRYPT, "-s", salt, "-c", "false", "--short", "--share", url]

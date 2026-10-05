@@ -27,9 +27,11 @@ class Fake:
 
     def __init__(self, logged_in=True, projects=("tripwork-demo",)):
         self.calls, self.logged_in, self.projects, self.uploaded = [], logged_in, list(projects), None
+        self.envs = []
 
     def __call__(self, argv, **kw):
         self.calls.append(list(argv))
+        self.envs.append(dict(kw.get("env") or {}))
         if STATICRYPT in argv and "--share" in argv:      # staticrypt only prints the link then
             return subprocess.CompletedProcess(argv, 0, argv[argv.index("--share") + 1] + "#staticrypt_pwd=deadbeef\n", "")
         if STATICRYPT in argv:
@@ -150,15 +152,15 @@ def test_deploy_refuses_without_confirm(tmp_path):
     assert fake.calls == []
 
 
-def test_deploy_uploads_every_trips_locked_page_and_nothing_else(tmp_path):
-    # a Pages deploy replaces the whole site: uploading one trip's folder would take the
-    # other trips offline, so the site is every trip's locked page, and only those
+def test_deploy_uploads_this_trips_locked_page_and_nothing_else(tmp_path):
+    # v2.0.0 (consumer report D1): one trip is one Pages project, so the site is this
+    # trip's locked page only -- never the other trips under the same trips/ folder
     a, b = _trip(tmp_path, "2026-05-demo"), _trip(tmp_path, "2026-06-demo")
     P.build(a, "pw", run=Fake())
     P.build(b, "pw", run=Fake())
     fake = Fake()
     res = P.deploy(a, "tripwork-demo", confirm=True, run=fake)
-    assert fake.uploaded == sorted([f"{P.publish_code(a)}/index.html", f"{P.publish_code(b)}/index.html"])
+    assert fake.uploaded == [f"{P.publish_code(a)}/index.html"]
     wr = [c for c in fake.calls if "deploy" in c][0]
     assert wr[:4] == ["npx", "--yes", "wrangler@3", "pages"] and wr[wr.index("--project-name") + 1] == "tripwork-demo"
     assert res["url"] == f"https://tripwork-demo.pages.dev/{P.publish_code(a)}/"
@@ -176,7 +178,7 @@ def test_deploy_refuses_a_page_that_is_not_locked(tmp_path):
 
 def test_deploy_without_a_build_asks_for_one(tmp_path):
     t = _trip(tmp_path)
-    with pytest.raises(P.PublishError, match="build"):
+    with pytest.raises(P.PublishError, match="tripwork.py publish"):
         P.deploy(t, "tripwork-demo", confirm=True, run=Fake())
 
 
@@ -205,7 +207,8 @@ def test_cli_build_reads_the_password_from_the_environment(tmp_path, monkeypatch
     monkeypatch.setenv("TRIPWORK_PUBLISH_PASSWORD", "旅行密碼")
     monkeypatch.setattr(P, "_run", fake)
     assert P.main(["build", str(t), "--share-base", "https://tripwork-demo.pages.dev/"]) == 0
-    assert {c[c.index("-p") + 1] for c in fake.calls if STATICRYPT in c} == {"旅行密碼"}
+    assert {e.get("STATICRYPT_PASSWORD") for c, e in zip(fake.calls, fake.envs) if STATICRYPT in c} == {"旅行密碼"}
+    assert not [c for c in fake.calls if "-p" in c or "旅行密碼" in c]
     out = capsys.readouterr().out
     assert "#staticrypt_pwd=deadbeef" in out
 

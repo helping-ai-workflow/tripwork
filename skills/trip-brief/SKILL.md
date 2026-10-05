@@ -94,7 +94,7 @@ a cache keyed on the old destination would otherwise hand stale coordinates to t
 ## Output
 
 Write `trips/<slug>/data/trip-brief.yaml`, then validate it:
-`python scripts/validate_artifact.py trips/<slug>/data/trip-brief.yaml`
+`python <plugin>/scripts/tripwork.py validate <slug> trip-brief`
 (exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract

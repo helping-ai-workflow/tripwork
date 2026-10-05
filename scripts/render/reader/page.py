@@ -12,7 +12,7 @@ import re
 from types import SimpleNamespace
 
 from scripts.render.heading import trip_title
-from scripts.render.reader import calendar
+from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import ICON_DIR, _FONTS, font_faces, icon
 from scripts.render.reader.centre import CENTRE_JS
 from scripts.render.reader.publish import PUBLISH_JS
@@ -60,7 +60,7 @@ def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=Non
         local_lang=((brief.get("destination") or {}).get("local_lang")),
         maps=maps if isinstance(maps, dict) else None, map_images={},
         cost=cost if isinstance(cost, dict) else None)
-    ctx.areas = calendar.day_areas({"days": days}, ctx.accommodations)
+    ctx.areas = month_calendar.day_areas({"days": days}, ctx.accommodations)
     return ctx
 
 

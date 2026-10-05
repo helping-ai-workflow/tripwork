@@ -306,7 +306,7 @@ def test_tw025_notion_is_gated_md_paste_not_adapter():
 
 def test_tw032_independent_and_conflict_defined():
     t = _skill("source-verify")
-    assert "root domain" in t and "material factual disagreement" in t
+    assert "registrable domain" in t and "material factual disagreement" in t   # v2.0.0: was "root domain"
 
 def test_tw033_hours_recency_as_of():
     t = _skill("source-verify")
@@ -359,15 +359,15 @@ _VALIDATOR_SKILLS = ["trip-brief", "destination-research", "source-verify",
 
 def test_stage_skills_cite_validator_cli():
     missing = [n for n in _VALIDATOR_SKILLS
-               if "validate_artifact.py" not in _skill(n)]
+               if "tripwork.py validate" not in _skill(n)]
     assert not missing, f"skills missing the validator CLI line: {missing}"
 
 def test_gate_skills_cite_gate_clis():
-    assert "python scripts/gate.py" in _skill("itinerary-gate")
-    assert "python scripts/export_gate.py" in _skill("export-gate")
+    assert "tripwork.py gate" in _skill("itinerary-gate")
+    assert "tripwork.py export-gate" in _skill("export-gate")
 
 def test_orchestrator_cites_next_stage_cli():
-    assert "next_stage.py" in _orch()
+    assert "tripwork.py next" in _orch()
 
 def test_iron_rule_halts_on_provenance_not_on_a_tool_name():
     """TW-064: the rule's target is model memory, not a vendor tool.

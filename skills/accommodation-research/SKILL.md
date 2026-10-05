@@ -27,7 +27,10 @@ recorded `sources`, `geocode.geocode_source`, `resolved_name` and
 `business_status` — if the artifact doesn't carry the field, the gate fails and
 routes back here.
 
-- **Operating (Gate 0):** record a chosen candidate's `business_status`
+- **Operating (Gate 0):** record the `business_status` of every candidate offered for the pick
+  (not only the chosen one — a closed hotel must never be an option), and offer only candidates
+  `classify_candidate` returns `verified` with an `OPERATIONAL` signal; tell the user how many
+  were left out because their operating status could not be found. Record it
   in the **sourced object form** — `{status, source_url, as_of}`, `status` from
   the Google Places vocabulary (`OPERATIONAL` / `CLOSED_TEMPORARILY` /
   `CLOSED_PERMANENTLY`) — the identical shape and identical routes
@@ -111,7 +114,7 @@ booking sources.
 ## Output
 
 Write `trips/<slug>/data/accommodations.yaml`, then validate it:
-`python scripts/validate_artifact.py trips/<slug>/data/accommodations.yaml`
+`python <plugin>/scripts/tripwork.py validate <slug> accommodations`
 (exit 0 required before returning). Never silently drop a
 candidate — `conflicting`/`rejected`/`unverified` stay recorded with their reason. Return
 to `tripwork:orchestrator`.

@@ -10,8 +10,6 @@ allOf forces the lodging path, which hits the known name_zh gap. The no-meal
 defect exercises the same gate-report fail/exit-1 contract without that
 construction problem."""
 import pathlib
-import subprocess
-import sys
 
 import yaml
 
@@ -22,6 +20,7 @@ from tests.mech_fixtures import (SLUG, build_full_trip, write_artifact,
                                  verified_pois, routing, accommodations,
                                  legs, calendar, seasonal, transit, cost,
                                  itinerary, MD_DELIVERABLE, HTML_DELIVERABLE)
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
@@ -54,9 +53,7 @@ DOCS = {"trip-brief.yaml": trip_brief, "advisory.yaml": advisory,
 
 
 def _cli(script, *args):
-    return subprocess.run([sys.executable, str(SCRIPTS / script),
-                           *[str(a) for a in args]],
-                          capture_output=True, text=True)
+    return run_main("scripts." + script.removesuffix(".py"), args)
 
 
 def _next(t, w):
@@ -65,7 +62,7 @@ def _next(t, w):
     message must carry `reason` too, or diagnosing the next occurrence means
     re-running the suite dozens of times hunting for a repro. What is
     asserted is unchanged; only what a failure reports grows."""
-    r = _cli("next_stage.py", t, "--work-dir", w)
+    r = _cli("next_stage", t, "--work-dir", w)
     assert r.returncode == 0, r.stderr
     return yaml.safe_load(r.stdout)
 
@@ -79,14 +76,14 @@ def test_full_walk_in_new_order(tmp_path):
         if step == "stamp":
             (tmp_path / "work" / ".preflight-completed").touch()
         elif step == "gate":
-            assert _cli("gate.py", t).returncode == 0
+            assert _cli("gate", t).returncode == 0
         elif step == "exports":
             (deliverable_paths(t, trip_brief())["md"]).write_text(
                 MD_DELIVERABLE, encoding="utf-8")
             (deliverable_paths(t, trip_brief())["html"]).write_text(
                 HTML_DELIVERABLE, encoding="utf-8")
         elif step == "egate":
-            assert _cli("export_gate.py", t).returncode == 0
+            assert _cli("export_gate", t).returncode == 0
         elif step is not None:
             write_artifact(artifact_path(t, step), DOCS[step]())
         got = _next(t, w)
@@ -112,7 +109,7 @@ def test_injected_schema_violation_caught(tmp_path):
 
 def test_gate_reports_written_by_clis_validate(tmp_path):
     t, _ = build_full_trip(tmp_path)
-    assert _cli("gate.py", t).returncode == 0
-    assert _cli("export_gate.py", t).returncode == 0
+    assert _cli("gate", t).returncode == 0
+    assert _cli("export_gate", t).returncode == 0
     assert validate_file(report_path(work_dir_for(t), "gate-report.yaml"))[0] == 0
     assert validate_file(report_path(work_dir_for(t), "export-gate-report.yaml"))[0] == 0

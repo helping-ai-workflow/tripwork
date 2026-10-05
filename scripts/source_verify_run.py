@@ -7,7 +7,7 @@ claimed district's centroid once, official-domain flagging, writing the file —
 landed on every consumer, once per trip. Each hand-written driver was a fresh
 chance to drop a keyword argument and silently disable a gate (TW-068).
 
-Usage: python scripts/source_verify_run.py <trip-dir> --work-dir <work/<slug>>
+Usage: python <plugin>/scripts/tripwork.py verify <slug>
        [--offline] [--official-domain SUFFIX ...]
 
 Reads <trip-dir>/trip-brief.yaml + <trip-dir>/candidates.yaml, resolves each
@@ -23,16 +23,9 @@ Exit codes (mirrors scripts/gate.py's CLI convention): 0 written and
 schema-valid / 1 written but schema-invalid / 2 bad invocation or missing
 required input.
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py verify <slug>")
 
-import sys as _sys
 
 import argparse
 import datetime
@@ -534,7 +527,3 @@ def main(argv):
     counts = dict(Counter(p["verify_status"] for p in pois))
     print(f"source-verify: wrote {out_path} ({len(pois)} POIs) {counts}")
     return 0 if code == 0 else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))

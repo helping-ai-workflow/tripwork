@@ -52,7 +52,6 @@ produce neither a cluster_fallback coordinate (defect 1) nor any geocode at all.
 import datetime
 import json
 import pathlib
-import subprocess
 import sys
 import tempfile
 import types
@@ -68,10 +67,11 @@ from scripts.validate_artifact import validate_file
 from scripts.verify import NO_RESOLVED_NAME, verify_poi
 from scripts.paths import REPORTS, artifact_path, report_path, work_dir_for
 from tests.mech_fixtures import brief_name_fields, upgrade_to_v1
+from tests.cli_helpers import run_tripwork
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-SOURCE_VERIFY_CLI = ROOT / "scripts" / "source_verify_run.py"
-GATE_CLI = ROOT / "scripts" / "gate.py"
+SOURCE_VERIFY_CLI = "verify"            # v2.0.0: commands of scripts/tripwork.py
+GATE_CLI = "gate"
 
 SLUG = "2026-09-e2e-closure"
 COUNTRY = "TW"
@@ -320,10 +320,11 @@ def _advisory():
     }]}
 
 
-def _run_cli(cli, *args):
-    """Absolute script path, foreign cwd. Never `python -m`, never cwd=repo."""
-    return subprocess.run([sys.executable, str(cli), *[str(a) for a in args]],
-                          cwd=FOREIGN_CWD, capture_output=True, text=True)
+def _run_cli(cmd, trip, *args):
+    """The real single entry point, absolute path, run from the consumer workspace
+    root -- never `python -m`, never cwd=repo (v2.0.0: tripwork.py fills in
+    --work-dir work/<slug> itself)."""
+    return run_tripwork(pathlib.Path(trip).parent.parent, cmd, pathlib.Path(trip).name, *args)
 
 
 def _build_closure(root):
@@ -337,7 +338,7 @@ def _build_closure(root):
                           encoding="utf-8")
 
     # ---- layer 1: WRITE TIME -------------------------------------------------
-    sv = _run_cli(SOURCE_VERIFY_CLI, trip, "--work-dir", work)
+    sv = _run_cli(SOURCE_VERIFY_CLI, trip)
     written = yaml.safe_load((artifact_path(trip, "verified-pois.yaml")).read_text(encoding="utf-8"))
     write_time_pois = {p["id"]: p for p in written["pois"]}
 

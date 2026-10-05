@@ -5,10 +5,10 @@ The photo adapter (backend wiki/google) writes media to a SEPARATE side-file,
 canonical `verified-pois.yaml` because `source-verify` wholesale-rewrites that file
 on every run (skills/source-verify/SKILL.md) and would clobber any inline media.
 
-At export, the agent overlays the side-file onto the poi_map it assembled from
-verified-pois.yaml, BEFORE calling render_day_table / render_html_page:
+At export, scripts/trip_inputs.py::trip_inputs overlays the side-file onto the POI pool
+before anything renders or gates it (`tripwork.py export`, `publish`, `export-gate`):
 
-    poi_map = apply_media(poi_map, load_media("trips/<slug>/data/verified-pois-media.yaml"))
+    poi_map = apply_media(poi_map, load_media(artifact_path(trip_dir, "verified-pois-media.yaml")))
 
 File-lifecycle discipline (graceful-absent load) mirrors scripts/geocode_cache.py;
 the merge is a pure, non-mutating dict overlay.

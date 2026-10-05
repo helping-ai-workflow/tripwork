@@ -1,17 +1,15 @@
 """D3: stage-selection oracle — one fixture state per orchestrator rule."""
 import os
 import pathlib
-import subprocess
-import sys
 
 import yaml
 
 from scripts.orchestration import ADVISORY_PROJECTION, input_fingerprint
 from scripts.paths import artifact_path, deliverable_paths, report_path
 from tests.mech_fixtures import SLUG, build_full_trip, trip_brief, write_artifact
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-CLI = ROOT / "scripts" / "next_stage.py"
 
 # (artifact-to-remove-from-here-on, expected next) — walking backwards from full
 WALK = [
@@ -34,9 +32,7 @@ PASS_REPORT = {"status": "pass", "checks": [{"name": "x", "passed": True}],
 
 
 def _next(t, w):
-    r = subprocess.run(
-        [sys.executable, str(CLI), str(t), "--work-dir", str(w)],
-        capture_output=True, text=True)
+    r = run_main("scripts.next_stage", [t, "--work-dir", w])
     assert r.returncode == 0, r.stderr
     return yaml.safe_load(r.stdout)
 
@@ -50,8 +46,10 @@ def _full(tmp_path):
     t, w = build_full_trip(tmp_path)
     write_artifact(report_path(w, "gate-report.yaml"), PASS_REPORT)
     write_artifact(report_path(w, "export-gate-report.yaml"), PASS_REPORT)
-    # deliverables/reports must be newer than their inputs
+    # the real order: gate, then export, then export-gate -- each newer than the last
     _bump(report_path(w, "gate-report.yaml"), 60)
+    for d in deliverable_paths(t, trip_brief()).values():
+        _bump(d, 90)
     _bump(report_path(w, "export-gate-report.yaml"), 120)
     return t, w
 
@@ -297,14 +295,16 @@ def test_rule15_bogus_status_export_gate_report_reruns_gate(tmp_path):
     assert got["next"] == "tripwork:export-gate"
 
 
-def test_rule15_retryable_fail_rerenders(tmp_path):
+def test_rule15_retryable_fail_goes_back_to_the_source_text(tmp_path):
+    """v2.0.0 R2-1: export is a fixed program, so a re-render reproduces the defect;
+    the fix is in the source text itinerary-synthesis owns."""
     t, w = _full(tmp_path)
     write_artifact(report_path(w, "export-gate-report.yaml"), {
         "status": "fail", "retryable": True, "distributable": True,
         "checks": [{"name": "no_naked_dollar", "passed": False}],
         "failures": ["naked '$' found; prices must be escaped as '\\$'"]})
     _bump(report_path(w, "export-gate-report.yaml"), 120)
-    assert _next(t, w)["next"] == "tripwork:export-artifact"
+    assert _next(t, w)["next"] == "tripwork:itinerary-synthesis"
 
 
 def test_rule15_nonretryable_fail_stops(tmp_path):

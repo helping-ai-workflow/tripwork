@@ -1,5 +1,122 @@
 # Changelog
 
+## 2.0.0 — one command for every script, sources counted by site, only open places offered
+
+### Added
+
+- **One entry point: `python <plugin>/scripts/tripwork.py <command> <slug>`.** Run from the
+  workspace root, it fills in `trips/<slug>` and `--work-dir work/<slug>` and calls the
+  script's own `main()`; everything after the slug passes through unchanged. Commands:
+  `next`, `verify`, `gate`, `export`, `export-gate`, `maps`, `photos` (defaults to
+  `--backend wiki`), `picker` (with a reply line it writes the picks back), `validate`
+  (without a name: every artifact), `fingerprint`, `publish`, `deploy`, `migrate`;
+  `-h` lists them. No Makefile: a cloud container has no `make`, and the oracle already
+  decides what runs next.
+- **`tripwork.py export` renders the deliverables.** The agent no longer writes the
+  rendering Python itself. md and html come from the same inputs `publish` renders from and
+  `export-gate` judges against, are written only together, and only after a gate report that
+  passed and is newer than every artifact the gate reads; a pre-v1.0 trip is sent to
+  `migrate`.
+- **The agent is told where tripwork.py is.** The session start names the absolute path
+  (Claude Code, Cursor, Codex, OpenCode, Pi; GEMINI.md names Gemini's install folder);
+  using-tripwork says how to find it otherwise, starting with the skill's Base directory.
+- **README: using tripwork in a Claude Code cloud environment** — the hosts to allow under
+  Network access › Custom, and the Cloudflare login there.
+
+### Changed
+
+- **Sources are counted by site.** Two URLs on one registrable domain are one source:
+  `www.example.com` and `example.com`, a port or `user@`, and two sub-domains of one site
+  (`zh.` and `en.wikipedia.org`). The Public Suffix List decides what one site is (a gzip'd
+  snapshot ships in `assets/psl/`); a blog platform it lists (blogspot.com, hatenablog.com)
+  keeps one site per author, a platform it does not list (pixnet.net) is one site. This
+  **reverses 1.3.0's "two travellers on one blog platform count as two"**: collect every
+  write-up as before, they just do not count twice. The gate note names the shared site.
+- **A search engine's results page is never a source** (Google, Bing, DuckDuckGo, Yahoo,
+  Naver, Daum, Baidu, Yandex): it does not count toward the two independent sources, and it
+  is no evidence that a place is still open — and its language does not count as the
+  local-language source.
+- **Only verified, still-open places are offered to pick from.** Research no longer asks the
+  user to choose between candidates it just found (one asked between brunch places, one of
+  them closed for good); picks come from verified POIs after source-verify. Hotels offered
+  for a pick each need a sourced OPERATIONAL status; routing-audit's replacement options are
+  verified POIs. The user is told how many places were left out. (A rule for the agent: the
+  plugin cannot intercept the question itself.)
+- **A retryable export-gate failure goes back to the source text.** `export` is a fixed
+  program, so re-rendering reproduced the defect forever. It now returns to
+  itinerary-synthesis to fix the artifact (never the rendered file), then gate, export and
+  export-gate again. When the inputs changed and the same failures come back, it stops and
+  asks, as a likely plugin defect (`repeat_of_previous`; the report keeps an
+  `inputs_fingerprint` to tell).
+- **A deliverable older than the gate report is exported again** before anything judges it.
+  An upstream change used to re-run the gate and then the export-gate on the old file, which
+  could end as "complete" on a deliverable the gate never saw.
+- **One trip is one Cloudflare Pages project.** `deploy` uploads this trip's locked page
+  only; it used to upload every trip under `trips/` into the one project.
+- `scripts/calendar.py` is `scripts/trip_calendar.py`, `scripts/render/reader/calendar.py`
+  is `month_calendar.py`: both shadowed the standard library's `calendar`.
+
+### Removed
+
+- **`python scripts/<x>.py` for pipeline scripts.** Each now exits non-zero and prints the
+  `tripwork.py` command to use. `scripts/_cli_bootstrap.py` is gone. Developer tools
+  (`design_board.py`, `bump_version.py`, `build_font_subsets.py`) still run directly.
+
+### Fixed
+
+- **`publish` without a password no longer crashes in an agent's shell** (getpass raised
+  EOFError with no terminal). It exits 2 and says to ask the user in the conversation and
+  pass the password as the `TRIPWORK_PUBLISH_PASSWORD='…'` prefix of that one command — or
+  to run it in the user's own terminal, which asks without echo.
+- **A page could be locked with a different password than the one asked for.** staticrypt
+  prefers an inherited `STATICRYPT_PASSWORD` over `-p`; every staticrypt run now gets this
+  run's password through its environment and none on its command line.
+- `build_font_subsets.py` started from no directory (the reader's `calendar.py` shadowed
+  the standard library).
+- **A place with an address wrote a verified-pois file that failed its own schema** (since
+  1.3.0: `geocode.query.address` was not allowed). The schema takes it now.
+- `export-gate` exits 2 when `itinerary.yaml` is missing (it used to judge against an empty
+  one); `publish` and `export` exit 2 on an empty itinerary or verified-pois, and `publish`
+  checks the trip (and a pre-v1.0 layout) before asking for a password.
+- `tripwork.py validate <slug>` with nothing to validate is an error, not a silent pass;
+  `tripwork.py next` works in a brand-new workspace with no `trips/` yet.
+
+### Migration
+
+- Replace every `python scripts/<x>.py …` in your own notes with
+  `python <plugin>/scripts/tripwork.py <command> <slug>`:
+
+  | before | now |
+  |---|---|
+  | `next_stage.py trips/<slug> --work-dir work/<slug>` | `next <slug>` |
+  | `source_verify_run.py trips/<slug> --work-dir work/<slug>` | `verify <slug>` |
+  | `gate.py trips/<slug>` / `export_gate.py trips/<slug>` | `gate <slug>` / `export-gate <slug>` |
+  | `day_maps.py trips/<slug>` / `photo_adapter.py trips/<slug> --backend wiki` | `maps <slug>` / `photos <slug>` |
+  | `title_picker.py trips/<slug>` / `title_picks.py trips/<slug> '<line>'` | `picker <slug>` / `picker <slug> '<line>'` |
+  | `validate_artifact.py trips/<slug>/data/<x>.yaml` | `validate <slug> <x>` |
+  | `input_fingerprint.py trips/<slug>/data/trip-brief.yaml advisory` | `fingerprint <slug> advisory` |
+  | `publish.py build trips/<slug> …` / `publish.py deploy trips/<slug> …` | `publish <slug> …` / `deploy <slug> …` |
+  | `migrate_v1.py trips[/<slug>]` | `migrate [<slug>]` |
+
+- Run `tripwork.py gate <slug>` once per trip: a POI whose second source was a search results
+  page, or whose operating evidence was one, is caught and sent back to source-verify to find
+  the real page.
+- A cloud environment needs the hosts listed in the README's FAQ allowed; deploying from the
+  cloud needs `CLOUDFLARE_API_TOKEN` in the environment's variables.
+- Give each trip its own Pages project name. A project that held several trips' pages keeps
+  only the trip deployed last.
+- The workspace layout is fixed: run tripwork.py from the folder holding `trips/` and `work/`.
+
+### Known limitations
+
+- The pick rule is a rule for the agent; the plugin cannot stop a question from being asked.
+- The pip wheel does not package `scripts.render.publish` (nor `assets/psl/`); tripwork is
+  installed as a plugin folder, which has both.
+- The official-source checks (a bookable POI's official link, travel-advisory's official
+  source) do not yet reject a search results page; no trip has one today.
+
+Tests: 1984 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 481 passed (headless Chromium and WebKit).
+
 ## 1.3.0 — local sites and Taiwan travellers' write-ups, places checked by their address
 
 ### Added

@@ -57,7 +57,15 @@
     },
     "retryable": {
       "type": "boolean",
-      "description": "export-gate only: on status==fail, false means every failure is an upstream DATA defect (missing photo attribution / no official source) that re-rendering cannot fix — the orchestrator must halt and ask the user to fix the data, not loop export-artifact. true means a render-fixable defect remains (re-render). (F1, P7-twin)"
+      "description": "export-gate only: on status==fail, false means re-rendering cannot help -- every failure is an upstream DATA defect (missing photo attribution / no official source), or the same failures came back after the source text was fixed once (repeat_of_previous) -- and the orchestrator halts and asks. true means a source-text defect to fix in itinerary-synthesis. (F1, P7-twin, R2-1)"
+    },
+    "inputs_fingerprint": {
+      "type": "string",
+      "description": "export-gate only: hash of the artifacts the deliverables were judged against, so the next report can tell whether the source changed in between (repeat_of_previous)."
+    },
+    "repeat_of_previous": {
+      "type": "boolean",
+      "description": "export-gate only: true when this fail repeats the previous report's retryable fail exactly although the inputs changed in between -- the source was fixed once and the defect came back, so it is likely a plugin render defect; such a report has retryable false."
     }
   },
   "allOf": [

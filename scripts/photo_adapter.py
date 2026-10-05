@@ -22,14 +22,8 @@ photo_source mapping (schema enum {wikimedia, openverse, google}): the `wiki` ba
 resolves to source `wikimedia` (Commons) or `openverse`; the `commons` searcher emits
 `wikimedia`, the `openverse` searcher emits `openverse`.
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py photos <slug>")
 
 import sys as _sys
 import pathlib as _pathlib
@@ -476,7 +470,7 @@ def write_media_sidefile(path, doc):
 
 
 def main(argv):
-    """CLI: python scripts/photo_adapter.py <trip-dir> --backend {none,wiki}
+    """CLI: python <plugin>/scripts/tripwork.py photos <slug> [--backend {none,wiki}]
     [--dry-run] -- build & write trips/<slug>/data/verified-pois-media.yaml from
     trips/<slug>/data/verified-pois.yaml.
 
@@ -554,7 +548,3 @@ def main(argv):
 
     print(f"photo_adapter: wrote {n} media entries to {out_path}")
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))

@@ -45,8 +45,11 @@ When tripwork skills request actions, substitute OpenCode equivalents:
   the stage and tell the user only when every rung of the source ladder is unavailable
   (Source-Verified-First: "No unsourced fact") — model recall is never a source.`;
 
+    const tripworkPy = path.resolve(__dirname, '../../scripts/tripwork.py');
     _bootstrapCache = `<EXTREMELY_IMPORTANT>
 You have tripwork.
+
+tripwork scripts: python "${tripworkPy}" <command> <slug>  (run from the workspace root)
 
 **IMPORTANT: The using-tripwork skill content is included below. It is ALREADY LOADED - you are currently following it. Do NOT use the skill tool to load "using-tripwork" again.**
 

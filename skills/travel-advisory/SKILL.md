@@ -18,13 +18,11 @@ Regulations can harm travellers if wrong, so the **Source-Verified-First** rule 
 ## Output
 
 Write `trips/<slug>/data/advisory.yaml` (schema: `schemas/advisory.schema.json`) **only when routed in by the orchestrator (Stage Selection rule 1.5, or the rule 11 staleness re-check)**. In that pipeline mode, then validate it:
-`python scripts/validate_artifact.py trips/<slug>/data/advisory.yaml`
+`python <plugin>/scripts/tripwork.py validate <slug> advisory`
 (exit 0 required before returning). Any `restricted`/`banned` item -> surface prominently and feed it into the synthesis checklist. Stop and require user acknowledgement for `banned` items.
 
 Record `input_fingerprints: {"trip-brief.yaml": <fp>}` where `<fp>` is the stdout of
-`python scripts/input_fingerprint.py trips/<slug>/data/trip-brief.yaml advisory` (prefix the
-path with the plugin root if your cwd is the consumer workspace, same as every other
-script instruction in this plugin). Without it, rule 11 falls back to comparing file
+`python <plugin>/scripts/tripwork.py fingerprint <slug> advisory`. Without it, rule 11 falls back to comparing file
 timestamps and re-runs this stage after any unrelated edit to the brief.
 
 **Standalone mode (ad-hoc regulation question).** When invoked directly (not via the orchestrator), do **NOT** write `trips/<slug>/data/advisory.yaml` — that file is the pipeline artifact, and writing it out of band lets the orchestrator's rule 11 treat the stage as already done and skip the real gate. Answer inline, or write `work/<slug>/advisory-adhoc.yaml` instead.

@@ -44,7 +44,7 @@ def test_storage_is_guarded():
 
 
 def test_args_carry_the_copy():
-    a = staticrypt_args("pw", "/t.html", "/out", "/in.html")
+    a = staticrypt_args("/t.html", "/out", "/in.html")
     assert a[0] == STATICRYPT == "staticrypt@3.5.4" and a[1] == "/in.html"
     assert a[a.index("--remember") + 1] == "0"
     for flag, key in (("--template-title", "title"), ("--template-button", "button"),
@@ -57,14 +57,14 @@ def test_args_carry_the_copy():
 def test_args_never_write_a_config_file():
     # staticrypt writes ./.staticrypt.json (the salt) into its working directory
     # unless --config false; that directory may be the user's workspace
-    a = staticrypt_args("pw", "/t.html", "/out", "/in.html")
+    a = staticrypt_args("/t.html", "/out", "/in.html")
     assert a[a.index("-c") + 1] == "false"
     assert "-s" not in a
-    b = staticrypt_args("pw", "/t.html", "/out", "/in.html", salt="0" * 32)
+    b = staticrypt_args("/t.html", "/out", "/in.html", salt="0" * 32)
     assert b[b.index("-s") + 1] == "0" * 32
 
 
 def test_share_args_print_a_link_with_the_pages_salt():
-    a = staticrypt_share_args("pw", "1" * 32, "https://x.pages.dev/abc/")
+    a = staticrypt_share_args("1" * 32, "https://x.pages.dev/abc/")
     assert a[0] == STATICRYPT and a[a.index("-s") + 1] == "1" * 32 and a[a.index("--share") + 1] == "https://x.pages.dev/abc/"
     assert a[a.index("-c") + 1] == "false"

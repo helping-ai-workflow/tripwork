@@ -112,8 +112,8 @@ def test_every_day_has_a_folded_radio_and_the_phone_arrows_carry_both():
 def test_each_day_page_carries_its_calendars_week_count():
     """The phone folds the mini calendar by its own height (theme.py --fold = 22 + 38 x --wk):
     the fixture's trip (10/12-10/14) sits inside one week."""
-    from scripts.render.reader import calendar
+    from scripts.render.reader import month_calendar
     soup = _soup()
     secs = soup.select("section.page.day")
     assert secs and all(s.get("style") == "--wk:1" for s in secs), [s.get("style") for s in secs]
-    assert len(calendar.weeks([__import__("datetime").date(2026, 10, 30), __import__("datetime").date(2026, 11, 2)])) == 2
+    assert len(month_calendar.weeks([__import__("datetime").date(2026, 10, 30), __import__("datetime").date(2026, 11, 2)])) == 2

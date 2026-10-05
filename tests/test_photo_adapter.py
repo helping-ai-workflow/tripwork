@@ -12,6 +12,7 @@ from scripts.photo_adapter import (
     USER_AGENT, RateLimiter, license_allowed, fetch_media_entry, build_media,
     write_media_sidefile, _select_candidate,
 )
+from tests.cli_helpers import run_main
 
 SCHEMAS = pathlib.Path(__file__).resolve().parent.parent / "schemas"
 
@@ -183,8 +184,6 @@ def test_build_media_skips_non_landmark(mocker):
 
 # ---- Task 6: photo enrichment gets an owner (CLI + loud google refusal) ----
 
-import subprocess
-import sys
 from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
@@ -210,24 +209,20 @@ def test_write_media_sidefile_refuses_to_leave_an_invalid_file_on_disk(tmp_path)
 def test_cli_refuses_google_with_exit_2_and_writes_nothing(tmp_path):
     trip = tmp_path / "trip"; artifact_path(trip, "x").parent.mkdir(parents=True)
     (artifact_path(trip, "verified-pois.yaml")).write_text("pois: []\n", encoding="utf-8")
-    r = subprocess.run([sys.executable, "scripts/photo_adapter.py", str(trip),
-                        "--backend", "google"], cwd=str(ROOT), capture_output=True, text=True)
+    r = run_main("scripts.photo_adapter", [trip, "--backend", "google"])
     assert r.returncode == 2
     assert not (artifact_path(trip, "verified-pois-media.yaml")).exists()
 
 
 def test_cli_missing_input_exits_2(tmp_path):
-    r = subprocess.run([sys.executable, "scripts/photo_adapter.py",
-                        str(tmp_path / "nope"), "--backend", "wiki"],
-                       cwd=str(ROOT), capture_output=True, text=True)
+    r = run_main("scripts.photo_adapter", [tmp_path / "nope", "--backend", "wiki"])
     assert r.returncode == 2
 
 
 def test_backend_none_is_a_noop_that_exits_zero(tmp_path):
     trip = tmp_path / "trip"; artifact_path(trip, "x").parent.mkdir(parents=True)
     (artifact_path(trip, "verified-pois.yaml")).write_text("pois: []\n", encoding="utf-8")
-    r = subprocess.run([sys.executable, "scripts/photo_adapter.py", str(trip),
-                        "--backend", "none"], cwd=str(ROOT), capture_output=True, text=True)
+    r = run_main("scripts.photo_adapter", [trip, "--backend", "none"])
     assert r.returncode == 0
 
 

@@ -14,7 +14,7 @@ The first pipeline invocation in any cwd is gated here. It validates that the tr
 
 ## Checks
 
-1. Confirm a writable `trips/` location (per the target repo CLAUDE.md convention) and a `work/` location for rebuildable state. v1.0 layout: each trip keeps its deliverables at the top of `trips/<slug>/`, every artifact under `trips/<slug>/data/`, and reports / stage-state / caches under `work/<slug>/` (`scripts/paths.py`). A trip with artifacts at the top of `trips/<slug>/` is pre-v1.0: have the user run `python scripts/migrate_v1.py trips` (dry run, then `--apply`).
+1. Confirm a writable `trips/` folder at the workspace root (the layout is fixed: `tripwork.py` runs from the folder holding `trips/` and `work/`) and a `work/` location for rebuildable state. v1.0 layout: each trip keeps its deliverables at the top of `trips/<slug>/`, every artifact under `trips/<slug>/data/`, and reports / stage-state / caches under `work/<slug>/` (`scripts/paths.py`). A trip with artifacts at the top of `trips/<slug>/` is pre-v1.0: have the user run `python <plugin>/scripts/tripwork.py migrate` (dry run, then `--apply`).
 2. If the cwd already contains unrelated files (brownfield), do NOT write anything until the user confirms the chosen `trips/<slug>/` and `work/<slug>/` paths.
 3. On a blank workspace, propose the default layout and ask for confirmation.
 
