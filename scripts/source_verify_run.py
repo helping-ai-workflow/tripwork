@@ -125,7 +125,7 @@ def _flag_official(source, extra_suffixes):
     return out
 
 
-def _rate_limited_resolve(name, district, country, cache, name_roman=None):
+def _rate_limited_resolve(name, district, country, cache, name_roman=None, area=False):
     """resolve_place wrapper that sleeps NOMINATIM_DELAY_S after every request
     that actually reached the network — never after a cache hit.
 
@@ -138,7 +138,7 @@ def _rate_limited_resolve(name, district, country, cache, name_roman=None):
     really issued, and drops the duplicate cache_get that pre-check needed.
     """
     return resolve_place(name, district=district, country=country, cache=cache,
-                         name_roman=name_roman,
+                         name_roman=name_roman, area=area,
                          pace=lambda: time.sleep(NOMINATIM_DELAY_S))
 
 
@@ -165,8 +165,29 @@ def district_key(district):
     return m.group(0) if m else s
 
 
+def _own_place(name):
+    """A result's own name below its city, whole: '嘉義市西區' -> '西区', but
+    '嘉義市西區國民小學' -> '西区国民小学' (district_key would cut it to '西区')."""
+    s = re.sub(r"[（(][^）)]*[）)]", "", str(name or "")).strip().translate(_VARIANTS)
+    if not re.search(r"[\u3400-\u9fff]", s):
+        return s.casefold()
+    while (m := _UPPER_UNIT.match(s)) and m.end() < len(s):
+        s = s[m.end():]
+    return s
+
+
 def _landed_in(district, display_name):
-    return district_key(district) in str(display_name or "").translate(_VARIANTS).casefold()
+    """The result IS the district: its own name (display_name's first part, below its
+    city) is the district -- with its unit (函館 -> 函館市), one of its numbered blocks
+    (堺町一丁目), or its deepest part (壮瞥町昭和新山 -> 昭和新山). A school or office named after the district, or one that only lies in
+    it, is not its centroid."""
+    own = _own_place(str(display_name or "").split(",")[0])
+    key = district_key(district)
+    if re.fullmatch(re.escape(key) + r"(?:[都道府県市郡区町村郷鎮]|[0-9０-９一二三四五六七八九十]+丁目)?", own):
+        return True
+    # the district's deepest part: '壮瞥町昭和新山' landed on '昭和新山'
+    whole = _own_place(district)
+    return len(own) >= 2 and whole.endswith(own)
 
 
 def _district_centroid(district, country, cache, offline, district_centroids):
@@ -178,7 +199,9 @@ def _district_centroid(district, country, cache, offline, district_centroids):
     A result whose display_name does not name the district (district_key) is
     refused (TW-092: '小樽市堺町' resolved to a museum in 色内, 0.75 km off): a
     wrong centroid would pass the region check and stand in as a venue's
-    coordinate. Refused means None -- region unconfirmed, honestly unverified --
+    coordinate. The district is looked up as a place (area=True: a settlement,
+    no street-slot venue query), and only a result whose own name is the district
+    counts -- a school named after the district is not it (v1.2.1). Refused means None -- region unconfirmed, honestly unverified --
     and `district_query` is how the candidate supplies a lookup string that lands."""
     if not district:
         return None
@@ -186,7 +209,7 @@ def _district_centroid(district, country, cache, offline, district_centroids):
         return district_centroids[district]
     centroid = None
     if not offline:
-        result, _source = _rate_limited_resolve(district, None, country, cache)
+        result, _source = _rate_limited_resolve(district, None, country, cache, area=True)
         if result is not None and _landed_in(district, result.display_name):
             centroid = (result.lat, result.lng)
     district_centroids[district] = centroid

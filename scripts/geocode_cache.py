@@ -8,9 +8,12 @@ import json
 import os
 
 
-def cache_key(name, district=None, country=None):
-    """Normalized lookup key: lower-cased, stripped, '|'-joined; None parts -> ''."""
-    return "|".join((p or "").strip().lower() for p in (name, district, country))
+def cache_key(name, district=None, country=None, area=False):
+    """Normalized lookup key: lower-cased, stripped, '|'-joined; None parts -> ''.
+    `area=True` is a district / town looked up as a place (resolve_place(area=True)),
+    kept apart from a venue of the same name."""
+    key = "|".join((p or "").strip().lower() for p in (name, district, country))
+    return key + "|@area" if area else key
 
 
 def cache_get(cache, key):

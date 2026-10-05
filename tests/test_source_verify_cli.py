@@ -27,7 +27,7 @@ def _stub_resolve_place(table):
     single issued request, which is what a canned table lookup stands in for.
     """
     def fake(name, district=None, country=None, timeout=10, cache=None,
-             name_roman=None, pace=None):
+             name_roman=None, pace=None, area=False):
         if pace is not None:
             pace()
         return table.get(name, (None, None))
@@ -286,7 +286,7 @@ def test_the_driver_hands_resolve_place_a_pacing_callback(monkeypatch, tmp_path)
     monkeypatch.setattr(svr.time, "sleep", lambda s: slept.append(s))
 
     def spy(name, district=None, country=None, timeout=10, cache=None,
-            name_roman=None, pace=None):
+            name_roman=None, pace=None, area=False):
         seen["pace"] = pace
         if pace is not None:
             pace()

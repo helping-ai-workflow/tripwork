@@ -14,14 +14,21 @@ class GeocodeResult:
     lng: float
     display_name: str
 
-def geocode(query, timeout=10):
+def geocode(query, timeout=10, countrycodes=None, feature_type=None):
     """Resolve a place name to coordinates. Returns GeocodeResult or None.
 
+    `countrycodes` (ISO 3166-1 alpha-2, e.g. 'jp') keeps the search inside one country;
+    `feature_type` is Nominatim's featureType ('settlement' for a district or town).
     Caller is responsible for rate limiting (Nominatim policy: <= 1 req/s).
     """
+    params = {"q": query, "format": "json", "limit": 1}
+    if countrycodes:
+        params["countrycodes"] = countrycodes
+    if feature_type:
+        params["featureType"] = feature_type
     resp = requests.get(
         NOMINATIM_URL,
-        params={"q": query, "format": "json", "limit": 1},
+        params=params,
         headers={"User-Agent": USER_AGENT},
         timeout=timeout,
     )
@@ -79,8 +86,41 @@ def geocode_structured(name, city=None, country=None, timeout=10):
     return GeocodeResult(lat=float(top["lat"]), lng=float(top["lon"]),
                          display_name=top.get("display_name", ""))
 
+def geocode_country(country, timeout=10):
+    """The ISO 3166-1 alpha-2 code ('jp') Nominatim gives a country name in any language
+    ('日本', 'Japan', '台灣'), or None. Caller rate-limits."""
+    resp = requests.get(NOMINATIM_URL,
+                        params={"q": country, "featureType": "country", "addressdetails": 1,
+                                "format": "json", "limit": 1},
+                        headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    resp.raise_for_status()
+    data = resp.json()
+    code = ((data[0].get("address") or {}).get("country_code") if data else None) or ""
+    return code.lower() if re.fullmatch(r"[A-Za-z]{2}", code) else None
+
+
+def country_code(country, timeout=10, cache=None, pace=None):
+    """`country` as an alpha-2 code: kept as is when it already is one, else looked up
+    once (geocode_country) and remembered in the per-trip cache, a miss included."""
+    if not country or not str(country).strip():
+        return None
+    if re.fullmatch(r"[A-Za-z]{2}", str(country).strip()):
+        return str(country).strip().lower()
+    key = cache_key(country, "@country", None)
+    if cache is not None:
+        hit, value = cache_get(cache, key)
+        if hit:
+            return value.get("country_code") if isinstance(value, dict) else None
+    code = geocode_country(country, timeout=timeout)
+    if pace is not None:
+        pace()
+    if cache is not None:
+        cache_put(cache, key, {"country_code": code} if code else None)
+    return code
+
+
 def resolve_place(name, district=None, country=None, timeout=10, cache=None,
-                  name_roman=None, pace=None):
+                  name_roman=None, pace=None, area=False):
     """Multi-tier resolve (structured query first, then free-text fallbacks) with an
     optional per-trip cache.
 
@@ -97,6 +137,11 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
       3. free-text '<name>' (bare core name)
       4. free-text '<name_roman> <district> <country>' (when name_roman given)
       5. free-text '<name_roman>'                       (when name_roman given)
+    Every free-text tier is kept inside `country` (Nominatim `countrycodes`, the code
+    looked up once per trip cache): a bare name otherwise matches a namesake abroad.
+    `area=True` looks up a district or town, not a venue: no street-slot query, the
+    free-text tiers ask for a settlement, and the cache keeps it apart from a venue
+    of the same name.
     `pace` is a zero-argument callback invoked once after EVERY request this
     function actually issues — never on a cache hit, never on a tier that was
     not reached. Nominatim's policy is <= 1 req/s, and a hard-to-resolve POI
@@ -117,7 +162,7 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
     if not name or not str(name).strip():
         raise ValueError("resolve_place requires a non-empty place name "
                          "(a blank name_local would silently geocode the city itself)")
-    key = cache_key(name, district, country) if cache is not None else None
+    key = cache_key(name, district, country, area=area) if cache is not None else None
     if cache is not None:
         hit, value = cache_get(cache, key)
         if hit:
@@ -131,10 +176,11 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
                 return (GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")),
                         value["source"])
 
-    result = _paced(geocode_structured, name, city=district, country=country,
-                    timeout=timeout)
+    result = None if area else _paced(geocode_structured, name, city=district, country=country,
+                                      timeout=timeout)
     source = "nominatim_structured"
     if result is None:
+        cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
         attempts = [" ".join(p for p in (name, district, country) if p), name]
         if name_roman:
             attempts.append(" ".join(p for p in (name_roman, district, country) if p))
@@ -142,7 +188,8 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
         for q in attempts:
             if not q or not str(q).strip():
                 continue
-            result = _paced(geocode, q, timeout=timeout)
+            result = _paced(geocode, q, timeout=timeout, countrycodes=cc,
+                            feature_type="settlement" if area else None)
             if result is not None:
                 break
         source = "nominatim" if result is not None else None

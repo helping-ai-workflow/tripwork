@@ -49,7 +49,9 @@ human-readable note.
 
 ## Feasibility (logic in `scripts/legs.py::classify_leg`)
 
-Run `classify_leg(leg, trip-brief.routing.max_single_drive_mins or 300)`:
+Run `classify_leg(leg, trip-brief.routing.max_single_drive_mins or 300)`. It returns a pair
+`(status, reason)` (unlike `classify_hop`, which returns the status alone): write `status` into the
+leg's `status` field and use `reason` in what you tell the user — the schema rejects the pair itself.
 - `drive_too_long` — a single-day drive over the maximum (default 300 min) → **stop and
   ask** (split across two days / add a midpoint overnight).
 - `missed_last_service` — a planned same-day departure later than the last train/bus →

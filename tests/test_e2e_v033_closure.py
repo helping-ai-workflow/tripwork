@@ -171,7 +171,8 @@ def _geocode_cache():
         return {"lat": lat, "lng": lng, "display_name": display, "source": "nominatim"}
 
     return {
-        cache_key(DISTRICT, None, COUNTRY): hit(23.48, 120.44, "嘉義市, 臺灣"),
+        # the district centroid is looked up as a place (v1.2.1: resolve_place(area=True))
+        cache_key(DISTRICT, None, COUNTRY, area=True): hit(23.48, 120.44, "嘉義市, 臺灣"),
         cache_key("文化路夜市", DISTRICT, COUNTRY):
             hit(23.479, 120.443, "文化路夜市, 東區, 嘉義市, 臺灣"),
         cache_key("嘉義市立美術館", DISTRICT, COUNTRY):

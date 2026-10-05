@@ -178,13 +178,14 @@ class TestP3GeocodeResilience:
         def fake_structured(name, city=None, country=None, timeout=10):
             return None  # street-slot misses for non-address POIs
 
-        def fake_geocode(query, timeout=10):
+        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None):
             if query in bare or query in romans:
                 return g.GeocodeResult(23.8, 120.9, f"{query} result")
             return None  # the combined "<name> <district> <country>" query misses
 
         monkeypatch.setattr(g, "geocode_structured", fake_structured)
         monkeypatch.setattr(g, "geocode", fake_geocode)
+        monkeypatch.setattr(g, "geocode_country", lambda country, timeout=10: "tw")   # v1.2.1
 
         resolved = sum(
             1 for name, roman in self.LANDMARKS
@@ -200,13 +201,14 @@ class TestP3GeocodeResilience:
         def fake_structured(name, city=None, country=None, timeout=10):
             return None
 
-        def fake_geocode(query, timeout=10):
+        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None):
             if query == "九族文化村":  # only the bare core name resolves
                 return g.GeocodeResult(23.8, 120.9, "九族文化村 result")
             return None
 
         monkeypatch.setattr(g, "geocode_structured", fake_structured)
         monkeypatch.setattr(g, "geocode", fake_geocode)
+        monkeypatch.setattr(g, "geocode_country", lambda country, timeout=10: "tw")   # v1.2.1
         res, _ = resolve_place("九族文化村", district="日月潭", country="Taiwan")
         assert res is not None
 

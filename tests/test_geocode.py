@@ -50,6 +50,9 @@ def test_resolve_place_falls_back_to_freetext(mocker):
     from scripts.geocode import resolve_place
     mocker.patch("scripts.geocode.requests.get",
                  side_effect=[_FakeResp([]),
+                              # v1.2.1: the free-text tiers first look up the country's code
+                              _FakeResp([{"lat": "-41", "lon": "174", "display_name": "New Zealand",
+                                          "address": {"country_code": "nz"}}]),
                               _FakeResp([{"lat": "3.0", "lon": "4.0", "display_name": "Y"}])])
     r, source = resolve_place("Arran Motel", district="Tekapo", country="New Zealand")
     assert r.lng == pytest.approx(4.0)
@@ -182,7 +185,7 @@ def test_resolve_place_paces_every_request_not_just_the_call(monkeypatch):
     """
     import scripts.geocode as geocode
 
-    calls = {"structured": 0, "free": 0, "pace": 0}
+    calls = {"structured": 0, "country": 0, "free": 0, "pace": 0}
 
     def fake_structured(*a, **kw):
         calls["structured"] += 1
@@ -192,17 +195,23 @@ def test_resolve_place_paces_every_request_not_just_the_call(monkeypatch):
         calls["free"] += 1
         return None
 
+    def fake_country(*a, **kw):
+        calls["country"] += 1
+        return "tw"
+
     monkeypatch.setattr(geocode, "geocode_structured", fake_structured)
     monkeypatch.setattr(geocode, "geocode", fake_geocode)
+    monkeypatch.setattr(geocode, "geocode_country", fake_country)
 
     result, source = geocode.resolve_place(
         "難解的店", district="嘉義市西區", country="Taiwan", name_roman="Hard Shop",
         pace=lambda: calls.__setitem__("pace", calls["pace"] + 1))
 
     assert (result, source) == (None, None)
-    # 1 structured + 4 free-text attempts = the five the docstring warns about.
-    assert (calls["structured"], calls["free"]) == (1, 4)
-    assert calls["pace"] == 5, "every issued request must be paced, not just the call"
+    # 1 structured + 4 free-text attempts = the five the docstring warns about,
+    # plus (v1.2.1) the one country-code lookup the free-text tiers need.
+    assert (calls["structured"], calls["country"], calls["free"]) == (1, 1, 4)
+    assert calls["pace"] == 6, "every issued request must be paced, not just the call"
 
 
 def test_resolve_place_never_paces_a_cache_hit(monkeypatch):
