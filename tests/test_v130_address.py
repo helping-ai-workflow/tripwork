@@ -219,3 +219,45 @@ def test_the_lodging_skill_uses_the_same_rule():
     geo = geo[:geo.index("\n- **")] if "\n- **" in geo else geo
     assert "address_point" in geo and "pick_point" in geo and "nominatim_address" in geo
     assert geo.index("pick_point") < geo.index("cluster_fallback")       # the centroid only after both miss
+
+
+# --- Task 5: local + Taiwan traveller sources -------------------------------------------
+
+def _skill(name):
+    import pathlib
+    return (pathlib.Path(__file__).resolve().parent.parent / "skills" / name / "SKILL.md").read_text(encoding="utf-8")
+
+
+def test_research_runs_a_local_and_a_taiwan_track():
+    text = _skill("destination-research")
+    assert "local track" in text and "Taiwan track" in text and "zh-TW" in text
+    assert "Taiwanese travellers" in text
+
+
+def test_source_verify_says_a_taiwan_page_is_one_source():
+    gate1 = _skill("source-verify").split("1. **Multi-source** (Gate 1)")[1].split("\n2. ")[0]
+    assert "zh-TW" in gate1 and "never replaces" in gate1 and "sub-domain" in gate1
+
+
+def test_two_taiwan_pages_without_a_local_source_are_not_enough():
+    from scripts.verify import classify_candidate
+    cand = {"sources": [_src("zh-TW", "https://a.example/trip"), _src("zh-TW", "https://b.example/trip")]}
+    status, note = classify_candidate(cand, True, True, local_lang="ja", geocode_source="nominatim")
+    assert status == "unverified" and "local language" in note
+
+
+def test_a_taiwan_page_and_a_local_source_pass():
+    from scripts.verify import classify_candidate
+    cand = {"sources": [_src("zh-TW", "https://a.example/trip"), _src("ja", "https://shop.example.jp/")]}
+    assert classify_candidate(cand, True, True, local_lang="ja", geocode_source="nominatim")[0] == "verified"
+
+
+def test_two_travellers_on_one_platform_are_two_sources():
+    from scripts.verify import classify_candidate
+    cand = {"sources": [_src("zh-TW", "https://amy.blog.example/okinawa"), _src("ja", "https://bob.blog.example/x")]}
+    assert classify_candidate(cand, True, True, local_lang="ja", geocode_source="nominatim")[0] == "verified"
+
+
+def test_source_verify_says_the_address_checks_the_name():
+    text = _skill("source-verify")
+    assert "pick_point" in text and "nominatim_address" in text
