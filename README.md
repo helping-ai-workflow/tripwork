@@ -322,13 +322,17 @@ flowchart TB
 <summary><b>本機開發與測試</b></summary>
 
 ```bash
+python3 -m venv .venv && . .venv/bin/activate   # Ubuntu 23.04 起不讓 pip 直接裝進系統 Python
 pip install -e ".[dev]"
 pytest                    # 單元與端到端測試（CI 每個 PR 都跑）
 
 # 閱讀器的互動量測（headless Chromium + WebKit；CI 另一個 workflow，改到閱讀器、字型、圖示時才跑）
-pip install -e ".[dev,browser]" && python -m playwright install --with-deps chromium webkit
+pip install -e ".[dev,browser]" && python -m playwright install chromium webkit
+sudo .venv/bin/python -m playwright install-deps chromium webkit   # 系統函式庫（apt，要輸入密碼）
 python -m pytest tests_browser
 ```
+
+完整的新機器設定與常見錯誤見 `CLAUDE.md` 的 Dev environment。
 
 **程式在哪裡**
 

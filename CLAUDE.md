@@ -211,6 +211,34 @@ What follows from this:
     `python -m tests.corpus_measure --write`, and commit the regenerated diff
     in the same PR for human review.
 
+## Dev environment (every machine, before the first test run)
+
+A missing piece does not always fail loudly: without the system libraries WebKit
+errors only once a test reaches it, and without a workspace the privacy check of
+real trips is skipped while the run still looks green. Set up a new machine in this
+order (Ubuntu / WSL; macOS skips the `sudo` line):
+
+```bash
+python3 -m venv .venv                 # gitignored; Ubuntu >= 23.04 refuses a system-wide pip install (PEP 668)
+.venv/bin/python -m pip install -e ".[dev,browser,maps]"
+.venv/bin/python -m playwright install chromium webkit                # browsers, no sudo
+sudo .venv/bin/python -m playwright install-deps chromium webkit      # system libraries via apt
+```
+
+- The `sudo` line asks for the user's password, so an agent cannot run it: tell the
+  user to run it in a separate terminal tab, that the password prompt shows nothing
+  while typing, and to report back when it ends without an `E:` line. Symptom when it
+  was skipped: `Host system is missing dependencies to run browsers` from a WebKit test.
+- Unit sweep: `.venv/bin/python -m pytest -q`. Browser suite:
+  `.venv/bin/python -m pytest tests_browser -q`. WebKit is the iPhone engine: a
+  Chromium-only run never counts as a browser pass.
+- `TRIPWORK_WORKSPACE` (default `../tripwork-workspace`) must point at the consumer
+  workspace for `tests/test_privacy.py` to compare real trips; where none exists that
+  test reports `skipped`, not passed.
+- Python >= 3.11 (`pyproject.toml`; CI runs 3.11).
+- Node.js >= 18 with `npx` (since v1.2): `scripts/publish.py` and `tests_browser/test_lock_page.py`
+  run staticrypt / wrangler through `npx`. Missing Node fails those tests with a message; it never skips.
+
 ## Pre-ship gate
 
 This repo follows the user's 8-step plugin pre-ship gate (TDD red→green,
