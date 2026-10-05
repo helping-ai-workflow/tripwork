@@ -180,7 +180,7 @@ def test_places_api_is_still_operating_evidence():
 def test_psl_snapshot_ships_and_stays_out_of_the_skills():
     gz = ROOT / "assets" / "psl" / "public_suffix_list.dat.gz"
     text = gzip.decompress(gz.read_bytes()).decode("utf-8")
-    assert "Mozilla Public License" in text and "// VERSION:" in text
+    assert "Mozilla Public" in text and "MPL" in text and "// VERSION:" in text
     assert (ROOT / "assets" / "psl" / "README").is_file()
     for p in (ROOT / "skills").rglob("*.md"):
         assert "assets/psl" not in p.read_text(encoding="utf-8"), p

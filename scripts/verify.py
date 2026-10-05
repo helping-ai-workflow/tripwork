@@ -6,6 +6,10 @@ passed in; this function holds the decision logic so it is unit-testable.
 """
 
 import datetime
+import functools
+import gzip
+import ipaddress
+import pathlib
 from urllib.parse import urlsplit
 from scripts.geocode import normalize_geocode_keys, name_matches
 
@@ -23,9 +27,116 @@ NO_RESOLVED_NAME = object()
 GEOCODE_SOURCE_MISSING = object()
 
 
-def _distinct_netlocs(sources):
-    """Set of distinct lower-cased domains across a candidate's source urls."""
-    return {urlsplit(s.get("url", "")).netloc.lower() for s in sources if s.get("url")}
+_PSL = pathlib.Path(__file__).resolve().parents[1] / "assets" / "psl" / "public_suffix_list.dat.gz"
+
+
+@functools.lru_cache(maxsize=1)
+def _psl_rules():
+    """(rules, wildcards, exceptions) from the Public Suffix List snapshot, every rule
+    in its ASCII (IDNA) form. Loaded once, on the first site_key() call."""
+    rules, wild, exc = set(), set(), set()
+    for line in gzip.decompress(_PSL.read_bytes()).decode("utf-8").splitlines():
+        line = line.strip()
+        if not line or line.startswith("//"):
+            continue
+        rule = line.split()[0]
+        kind = rules
+        if rule.startswith("!"):
+            kind, rule = exc, rule[1:]
+        elif rule.startswith("*."):
+            kind, rule = wild, rule[2:]
+        kind.add(_ascii(rule))
+    return rules, wild, exc
+
+
+def _ascii(host):
+    try:
+        return host.encode("idna").decode("ascii").lower()
+    except UnicodeError:
+        return host.lower()
+
+
+def site_key(url):
+    """The site a URL belongs to: its registrable domain (Public Suffix List eTLD+1),
+    so `www.`, a port, `user@`, a trailing dot, letter case and sub-domains of one site
+    collapse to one key (v2.0.0 spec §5a/§5b). PSL private-section platforms
+    (blogspot.com, github.io, hatenablog.com …) keep one site per sub-domain; platforms
+    the PSL does not list are one site. An IP address is its own key; a URL with no
+    host is None (not a source)."""
+    try:
+        host = urlsplit(url or "").hostname
+    except ValueError:
+        return None
+    host = (host or "").rstrip(".")
+    if not host:
+        return None
+    try:
+        return str(ipaddress.ip_address(host))
+    except ValueError:
+        pass
+    labels = _ascii(host).split(".")
+    rules, wild, exc = _psl_rules()
+    suffix_len = 1                                       # the PSL's implicit "*" rule
+    for i in range(len(labels)):
+        cand = ".".join(labels[i:])
+        if cand in exc:
+            suffix_len = len(labels) - i - 1
+            break
+        if cand in rules or (i + 1 < len(labels) and ".".join(labels[i + 1:]) in wild):
+            suffix_len = len(labels) - i
+            break
+    return ".".join(labels[-(suffix_len + 1):]) if len(labels) > suffix_len else ".".join(labels)
+
+
+def is_search_results_page(url):
+    """True for a search engine's results page -- never a source and never an operating
+    signal: the source ladder allows it for discovery only (v2.0.0 spec §5c, D9).
+
+    A literal list on purpose (guard rule (b)): the engines are a small set that hardly
+    changes, unlike blog platforms. The engine is recognised by its registrable domain,
+    then the results page by host prefix or path, so every sub-domain is covered
+    (tw.search.yahoo.com, m.search.naver.com, cn.bing.com) while place pages stay
+    sources (google.com/maps/place, map.naver.com/p/entry, the Places API)."""
+    site = site_key(url)
+    if not site:
+        return False
+    parts = urlsplit(url)
+    host = _ascii((parts.hostname or "").rstrip("."))
+    path = parts.path or "/"
+    name = site.split(".")[0]
+    if name == "google":
+        return path == "/search" or path.startswith(("/search/", "/maps/search"))
+    if site == "bing.com":
+        return path == "/search" or path.startswith("/search/")
+    if site == "duckduckgo.com":
+        return True
+    if name == "yahoo":
+        return host.startswith("search.yahoo.") or ".search.yahoo." in host
+    if site == "naver.com":
+        return host in ("search.naver.com", "m.search.naver.com")
+    if site == "daum.net":
+        return host in ("search.daum.net", "m.search.daum.net")
+    if site == "baidu.com":
+        return path == "/s" or path.startswith("/s/")
+    if name == "yandex":
+        return path == "/search" or path.startswith("/search/")
+    return False
+
+
+def _independence(sources):
+    """(distinct sites, search-results hosts) over a candidate's source urls."""
+    sites, searches = set(), []
+    for s in sources:
+        url = s.get("url") if isinstance(s, dict) else None
+        if not url:
+            continue
+        if is_search_results_page(url):
+            searches.append(urlsplit(url).hostname or url)
+            continue
+        key = site_key(url)
+        if key:
+            sites.add(key)
+    return sites, searches
 
 
 # Google Places `businessStatus` vocabulary — the operating signal source-verify
@@ -105,6 +216,9 @@ def operating_from_status(business_status, today=None):
         return None, f"unrecognised business_status.status {key!r}"
     if not str(business_status.get("source_url") or "").strip():
         return None, "business_status has no source_url — the signal is unauditable"
+    if is_search_results_page(str(business_status.get("source_url"))):
+        return None, ("business_status.source_url is a search results page — record the "
+                      "venue's own recent page or post, or a phone check")
 
     as_of = _parse_iso(business_status.get("as_of"))
     if as_of is None:
@@ -243,10 +357,18 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     if not operating:
         return "rejected", "permanently/temporarily closed (defunct)"
 
-    # Gate 1a: must have >= 2 INDEPENDENT sources. Independence is by distinct domain —
-    # two pages of the same site are one source, not two. (TW-023)
-    if len(_distinct_netlocs(sources)) < 2:
-        return "unverified", "needs >=2 independent sources (distinct domains)"
+    # Gate 1a: must have >= 2 INDEPENDENT sources. Independence is by distinct site —
+    # two pages of one site are one source, not two (TW-023) — and a search engine's
+    # results page is no source at all (v2.0.0 D7/D9).
+    sites, searches = _independence(sources)
+    if len(sites) < 2:
+        note = "needs >=2 independent sources (distinct sites)"
+        if len(sites) == 1 and len([s for s in sources if isinstance(s, dict) and s.get("url")]) - len(searches) >= 2:
+            note += f": both sources are on {next(iter(sites))} — add one from another site"
+        if searches:
+            note += (f"; a search results page is not a source ({', '.join(sorted(set(searches)))}): "
+                     f"fetch the page it links to")
+        return "unverified", note
 
     # Gate 1b: at least one source in destination's local language
     if local_lang is not None and local_lang not in langs:

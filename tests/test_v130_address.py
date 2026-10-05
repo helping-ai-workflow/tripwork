@@ -258,7 +258,7 @@ def test_research_runs_a_local_and_a_taiwan_track():
 
 def test_source_verify_says_a_taiwan_page_is_one_source():
     gate1 = _skill("source-verify").split("1. **Multi-source** (Gate 1)")[1].split("\n2. ")[0]
-    assert "zh-TW" in gate1 and "never replaces" in gate1 and "sub-domain" in gate1
+    assert "zh-TW" in gate1 and "never replaces" in gate1 and "keep every traveller write-up in sources" in gate1
 
 
 def test_two_taiwan_pages_without_a_local_source_are_not_enough():
@@ -274,10 +274,15 @@ def test_a_taiwan_page_and_a_local_source_pass():
     assert classify_candidate(cand, True, True, local_lang="ja", geocode_source="nominatim")[0] == "verified"
 
 
-def test_two_travellers_on_one_platform_are_two_sources():
+def test_two_travellers_on_one_unlisted_platform_are_one_source():
+    """v2.0.0 Q1 reverses v1.3.0: write-ups on one blog platform the Public Suffix List
+    does not list count as one site (the user: keep collecting them, they just do not
+    count twice). A PSL-listed platform keeps one site per author -- see
+    tests/test_source_independence.py::test_distinct_sites_are_two_sources."""
     from scripts.verify import classify_candidate
     cand = {"sources": [_src("zh-TW", "https://amy.blog.example/okinawa"), _src("ja", "https://bob.blog.example/x")]}
-    assert classify_candidate(cand, True, True, local_lang="ja", geocode_source="nominatim")[0] == "verified"
+    status, note = classify_candidate(cand, True, True, local_lang="ja", geocode_source="nominatim")
+    assert status == "unverified" and "blog.example" in note
 
 
 def test_source_verify_says_the_address_checks_the_name():
