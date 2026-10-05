@@ -288,5 +288,53 @@
       "provenance_missing": 11,
       "total_missing": 11
     }
+  },
+  "sources": {
+    "trip-a": {
+      "geocode_source": {
+        "nominatim": 28,
+        "nominatim_structured": 3
+      },
+      "pois": 34,
+      "source_lang": {
+        "zh": 68
+      },
+      "with_address": 0
+    },
+    "trip-b": {
+      "geocode_source": {
+        "cluster_fallback": 3,
+        "nominatim": 16,
+        "nominatim_structured": 13
+      },
+      "pois": 45,
+      "source_lang": {
+        "zh": 131
+      },
+      "with_address": 0
+    },
+    "trip-c": {
+      "geocode_source": {
+        "cluster_fallback": 9,
+        "nominatim": 5,
+        "nominatim_structured": 6
+      },
+      "pois": 20,
+      "source_lang": {
+        "zh": 49
+      },
+      "with_address": 0
+    },
+    "trip-d": {
+      "geocode_source": {
+        "nominatim": 15,
+        "nominatim_structured": 13
+      },
+      "pois": 36,
+      "source_lang": {
+        "zh": 121
+      },
+      "with_address": 0
+    }
   }
 }

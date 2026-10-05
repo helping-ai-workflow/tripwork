@@ -261,3 +261,15 @@ def test_two_travellers_on_one_platform_are_two_sources():
 def test_source_verify_says_the_address_checks_the_name():
     text = _skill("source-verify")
     assert "pick_point" in text and "nominatim_address" in text
+
+
+# --- Task 6: the corpus counts what the new rule works on -----------------------------
+
+def test_the_corpus_measurement_counts_addresses_sources_and_geocode_sources():
+    from tests.corpus_measure import measure_corpus
+    from tests.mech_fixtures import CORPUS_TRIPS
+    m = measure_corpus()["sources"]
+    assert sorted(m) == sorted(CORPUS_TRIPS)
+    for trip, row in m.items():
+        assert set(row) == {"pois", "with_address", "geocode_source", "source_lang"}, trip
+        assert row["with_address"] <= row["pois"] and sum(row["geocode_source"].values()) <= row["pois"]
