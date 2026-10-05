@@ -195,7 +195,7 @@ def test_starts_from_a_copy_without_editable_install(tmp_path):
     assert r.returncode == 0, r.stderr[-800:]
     loaded = [ln for ln in r.stderr.splitlines() if ln.startswith("tripwork: scripts from ")]
     assert loaded and loaded[0].endswith(str(repo / "scripts")), r.stderr[-800:]
-    assert "complete" in r.stdout
+    assert r.stdout.startswith("next: tripwork:")      # the oracle ran (this fixture has no gate report yet)
 
 
 def test_no_parameter_copies():
