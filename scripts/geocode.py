@@ -1,5 +1,6 @@
 """OSM Nominatim geocoding wrapper. No API key; respects usage policy."""
 import re
+import unicodedata
 from dataclasses import dataclass
 import requests
 from scripts.distance import haversine_km
@@ -200,6 +201,74 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
                    "display_name": result.display_name, "source": source})
 
     return (result, source) if result is not None else (None, None)
+
+_DASH = str.maketrans({c: "-" for c in "－−ー‐–—―"})
+_KANJI_CHOME = re.compile(r"^(.*?)([一二三四五六七八九十]+丁目)")
+_FIRST_NUMBER = re.compile(r"^(.*?[^\d\s-])(\d+)(?:丁目|-|番|$)")
+
+
+def address_variants(address, country_code=None):
+    """The strings an address is looked up as, finest first. Nominatim resolves a Japanese
+    address to its 丁目 at best (probed 2026-10-05: `浅草2-3-1` never resolves, `浅草2丁目`
+    does), so for Japan: the address without building / floor, its 丁目 (the first number,
+    when it is a 丁目 -- 20 or less; a larger one is a 番地), then the town. Elsewhere: the
+    address, then without a trailing house number (`…路100號2樓` -> `…路`)."""
+    s = unicodedata.normalize("NFKC", str(address or "")).translate(_DASH).strip()
+    if not s:
+        return []
+    out = []
+    if (country_code or "").lower() == "jp":
+        s = re.split(r"\s", s)[0]                                   # building / floor follow a space
+        m = _KANJI_CHOME.match(s)
+        if m:
+            out = [s, m.group(1) + m.group(2), m.group(1)]
+        else:
+            m = _FIRST_NUMBER.match(s)
+            whole = re.match(r"^.*?\d[\d\-番地号丁目]*", s)
+            out = [whole.group(0) if whole else s]
+            if m:
+                if int(m.group(2)) <= 20:
+                    out.append(f"{m.group(1)}{int(m.group(2))}丁目")
+                out.append(m.group(1))
+    else:
+        out = [s]
+        m = re.match(r"^(.*?\D)\s*\d+\s*(?:號|号|번지|번)", s)
+        if m and m.group(1).strip():
+            out.append(m.group(1).strip())
+    seen = []
+    for v in out:
+        if v and v not in seen:
+            seen.append(v)
+    return seen
+
+
+def address_point(address, country=None, timeout=10, cache=None, pace=None):
+    """A reference point for a venue from its sourced street address: the first of
+    address_variants() Nominatim resolves inside the trip's country -> (GeocodeResult,
+    variant), or (None, None). A 丁目 / town point is a few hundred metres wide: it checks
+    a name lookup and stands in when there is none, it is not the venue. Each variant is
+    cached (misses too) under its own key; `pace` runs after every issued request."""
+    if not str(address or "").strip():
+        return None, None
+    cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
+    for v in address_variants(address, cc):
+        key = cache_key(v, None, country, kind="address") if cache is not None else None
+        if cache is not None:
+            hit, value = cache_get(cache, key)
+            if hit:
+                if value:
+                    return GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")), v
+                continue
+        r = geocode(v, timeout=timeout, countrycodes=cc)
+        if pace is not None:
+            pace()
+        if cache is not None:
+            cache_put(cache, key, None if r is None else
+                      {"lat": r.lat, "lng": r.lng, "display_name": r.display_name, "source": "nominatim_address"})
+        if r is not None:
+            return r, v
+    return None, None
+
 
 def cluster_centroid(points):
     """Mean (lat, lng) of a non-empty list of (lat, lng) tuples; None if empty."""

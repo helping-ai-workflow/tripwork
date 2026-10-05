@@ -8,12 +8,14 @@ import json
 import os
 
 
-def cache_key(name, district=None, country=None, area=False):
+def cache_key(name, district=None, country=None, area=False, kind=None):
     """Normalized lookup key: lower-cased, stripped, '|'-joined; None parts -> ''.
-    `area=True` is a district / town looked up as a place (resolve_place(area=True)),
-    kept apart from a venue of the same name."""
+    `kind` keeps other lookups of the same text apart from a venue: "area" (a district /
+    town looked up as a place, resolve_place(area=True); `area=True` says the same) and
+    "address" (a street address, geocode.address_point)."""
     key = "|".join((p or "").strip().lower() for p in (name, district, country))
-    return key + "|@area" if area else key
+    kind = kind or ("area" if area else None)
+    return f"{key}|@{kind}" if kind else key
 
 
 def cache_get(cache, key):
