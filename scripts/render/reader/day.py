@@ -4,7 +4,7 @@ a time (the URL fragment names it, v1.1 §8.1), alternatives under their stop, a
 import re
 
 from scripts.render.gmaps_links import maps_url
-from scripts.render.reader import calendar
+from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import MODE_ICON, SLOT_ICON, icon
 from scripts.render.reader.home import _name, navb
 from scripts.render.reader.maps import DATA_IMAGE, image_class, map_card, target
@@ -273,12 +273,12 @@ def day_page(ctx, i):
     list_title = (f'<h2 class="dh dh-list"><span class="dht">{esc(theme)}</span>'
                   f'<span class="dstep dstep-d">{prev}<span class="dn">Day {i}</span>{nxt}</span></h2>')
     # the phone folds the mini calendar away by its own height: --wk weeks (theme.py --fold)
-    return (f'<section class="page day" data-pg="d{i}" data-date="{ctx.dates[i - 1].isoformat()}" style="--wk:{len(calendar.weeks(ctx.dates))}">'
+    return (f'<section class="page day" data-pg="d{i}" data-date="{ctx.dates[i - 1].isoformat()}" style="--wk:{len(month_calendar.weeks(ctx.dates))}">'
             f'<div class="dash"><div class="pcal">'
             f'<div class="ymrow"><label class="back" for="pg-home">‹ 總覽</label>'
             f'<b class="ym"><label class="unf" for="pg-d{i}" aria-label="展開月曆"></label>'
-            f'{esc(calendar.month_title(ctx.dates))}</b><span></span></div>'
-            f'{calendar.mini(ctx.dates, ctx.areas, i)}{title}</div>'
+            f'{esc(month_calendar.month_title(ctx.dates))}</b><span></span></div>'
+            f'{month_calendar.mini(ctx.dates, ctx.areas, i)}{title}</div>'
             f'<div class="pmap">{map_card(ctx, i, day)}</div>'
             # H1c: the phone list card's top edge (its clipped top has no outline of its own)
             # and foot fade, drawn beside it so they do not scroll (theme.py)

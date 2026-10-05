@@ -1,10 +1,10 @@
-"""Unit tests for scripts/calendar.py — holiday + per-POI closure logic.
+"""Unit tests for scripts/trip_calendar.py — holiday + per-POI closure logic.
 
 Pure functions: the skill supplies the calendar (public holidays) and each
 POI's closed_days; these helpers decide weekday, crowd level, and whether a
 POI is closed on a given trip day. Mirrors the verify.py / distance.py split.
 """
-from scripts.calendar import weekday_of, holiday_on, is_high_crowd, poi_closed_on
+from scripts.trip_calendar import weekday_of, holiday_on, is_high_crowd, poi_closed_on
 
 CAL = {
     "holidays": [

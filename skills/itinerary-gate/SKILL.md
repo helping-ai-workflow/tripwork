@@ -27,7 +27,7 @@ writes `work/<slug>/gate-report.yaml` (exit 0 pass / 1 fail).
   lodging-less night (e.g. an overnight transit) is expressed as a `slot: "lodging"`
   row describing the transit, so the night-transit case still satisfies the floor.
 - `no_closed_day_violation` (when `calendar` passed) — no POI is scheduled on a day it is
-  closed (`scripts/calendar.py::poi_closed_on`).
+  closed (`scripts/trip_calendar.py::poi_closed_on`).
 - `must_do_covered` (when `must_do` passed) — every `trip-brief` must_do id is scheduled.
 - `advisory_present` — **ALWAYS-ON** safety floor: `advisory` is a **mandatory** input.
   An absent advisory **fails the gate** ("advisory absent — …"). Because the

@@ -29,7 +29,7 @@ import json
 
 from scripts.day_titles import THEME_MAX, display_order, rhyme_label
 from scripts.brief_names import HEADLINE_MAX
-from scripts.render.reader.calendar import TILT, day_areas
+from scripts.render.reader.month_calendar import TILT, day_areas
 from scripts.render.reader.text import md_wd, to_date
 
 PAGE_NAME = "挑標題.html"

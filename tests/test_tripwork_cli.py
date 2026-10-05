@@ -188,7 +188,8 @@ def test_starts_from_a_copy_without_editable_install(tmp_path):
         shutil.copytree(ROOT / d, repo / d, ignore=shutil.ignore_patterns("__pycache__"))
     wsdir = tmp_path / "ws"
     M.build_full_trip(wsdir)
-    env = {**os.environ, "TRIPWORK_DEBUG_IMPORT": "1"}
+    from tests.test_entrypoints import no_editable_env
+    env = {**no_editable_env(), "TRIPWORK_DEBUG_IMPORT": "1"}
     r = subprocess.run([sys.executable, "-S", "-P", str(repo / "scripts" / "tripwork.py"), "next", SLUG],
                        cwd=wsdir, capture_output=True, text=True, env=env)
     assert r.returncode == 0, r.stderr[-800:]

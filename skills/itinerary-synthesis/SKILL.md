@@ -74,7 +74,7 @@ picker page.
 
 ## Calendar-awareness (reads `calendar.yaml` + each POI's `closed_days`)
 
-Logic in `scripts/calendar.py` (`poi_closed_on`, `is_high_crowd`, `holiday_on`).
+Logic in `scripts/trip_calendar.py` (`poi_closed_on`, `is_high_crowd`, `holiday_on`).
 
 - **Hard-avoid closures.** Never place a POI on a day `poi_closed_on(poi, date, calendar)` returns closed (weekly fixed day, one-off date, or `public_holiday`). Move it to an open trip day or fall back to its alternative. If a `must_do` POI is closed on **every** feasible trip day → stop and ask the user.
 - **Holiday/weekend crowd handling.** For any day `is_high_crowd(date, calendar)` is true (weekend, or a public holiday flagged `crowds`): label the day with the holiday name, advise an earlier start + off-peak dining, and steer crowd-fragile spots (small shops, queue-heavy restaurants) onto calmer days. Do not silently leave them on the packed day.

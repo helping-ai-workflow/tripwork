@@ -23,7 +23,7 @@ from scripts.day_chain import (alternative_failures, chain_failures, legacy_fail
                                move_record_failures, theme_failures)
 from scripts.day_titles import pick_notices
 from scripts.facilities import stop_meets_required
-from scripts.calendar import poi_closed_on
+from scripts.trip_calendar import poi_closed_on
 from scripts.rederive import run_rederivation
 from scripts.source_records import area_label_failures, source_record_failures
 from scripts.text_hygiene import (ai_tone_failures, jargon_failures,

@@ -57,7 +57,7 @@ Gates are evaluated in strict order — Gate 0 fires before Gate 1, Gate 1 befor
 
 ## Record closure days + hours
 
-While verifying opening hours, record each POI's `closed_days` (the per-POI closure axis consumed by synthesis via `scripts/calendar.py::poi_closed_on`). Values: weekday names (`tuesday`) for fixed weekly closures, ISO dates (`2026-05-25`) for one-off closures, or the token `public_holiday` when a place shuts on any public holiday. Closures come from the same cross-source hours check — a POI's stated regular closing day (e.g. a palace closed Tuesdays, a small shop closed on holidays) belongs here, not invented.
+While verifying opening hours, record each POI's `closed_days` (the per-POI closure axis consumed by synthesis via `scripts/trip_calendar.py::poi_closed_on`). Values: weekday names (`tuesday`) for fixed weekly closures, ISO dates (`2026-05-25`) for one-off closures, or the token `public_holiday` when a place shuts on any public holiday. Closures come from the same cross-source hours check — a POI's stated regular closing day (e.g. a palace closed Tuesdays, a small shop closed on holidays) belongs here, not invented.
 
 Also record the intra-day `hours` object (consumed by synthesis via `scripts/hours.py::closing_status`): `close`, and where applicable `last_order` (restaurant L.O.) / `last_entry` (sight last admission), plus `typical_visit_mins` (how long a visit needs). These come from the same verified sources — never guess a closing time. **Recency:** hours / `closed_days` must come from the official page or a source dated within the last 12 months; record `hours.as_of` (the date the hours were stated) so stale opening times can be re-checked rather than silently driving minute-level scheduling.
 

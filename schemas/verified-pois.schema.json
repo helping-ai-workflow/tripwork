@@ -170,7 +170,7 @@
                 }
               ]
             },
-            "description": "Canonical lowercase weekday names, ISO dates, or 'public_holiday'. Matched by scripts/calendar.py::poi_closed_on."
+            "description": "Canonical lowercase weekday names, ISO dates, or 'public_holiday'. Matched by scripts/trip_calendar.py::poi_closed_on."
           },
           "hours": {
             "type": "object",

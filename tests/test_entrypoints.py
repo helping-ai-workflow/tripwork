@@ -62,6 +62,16 @@ def _main_guards(path):
     return [n for n in ast.walk(tree) if _is_main_guard(n)]
 
 
+def no_editable_env():
+    """Environment for `python -S`: third-party packages stay importable through
+    PYTHONPATH (which processes no .pth file), while the editable install's .pth
+    finder -- the thing that makes `import scripts` work from any cwd in the dev
+    venv but not for a consumer -- stays off."""
+    import os
+    import site
+    return {**os.environ, "PYTHONPATH": os.pathsep.join(site.getsitepackages())}
+
+
 def _repo_copy(tmp_path):
     dst = tmp_path / "repo"
     for d in ("scripts", "schemas", "assets"):
@@ -77,9 +87,18 @@ def test_no_script_module_shadows_the_stdlib():
     assert not hits, f"these modules shadow the stdlib when their directory is on sys.path: {hits}"
 
 
-def test_build_font_subsets_starts():
-    r = subprocess.run([sys.executable, "-S", str(SCRIPTS / "render/reader/build_font_subsets.py"), "--help"],
-                       cwd=ROOT, capture_output=True, text=True)
+def _probe_imports(script, cwd):
+    """Run a script's module body (not its main) with its own directory first on
+    sys.path -- exactly where `python <script>` puts it, which is where a sibling
+    named like a stdlib module does its shadowing."""
+    code = (f"import runpy, sys; sys.path.insert(0, {str(script.parent)!r}); "
+            f"runpy.run_path({str(script)!r}, run_name='probe')")
+    return subprocess.run([sys.executable, "-S", "-c", code], cwd=cwd, capture_output=True, text=True,
+                          env=no_editable_env())
+
+
+def test_build_font_subsets_starts(tmp_path):
+    r = _probe_imports(SCRIPTS / "render/reader/build_font_subsets.py", tmp_path)
     assert r.returncode == 0, r.stderr[-800:]
 
 
@@ -108,7 +127,7 @@ def test_old_path_fails_loudly(mod, tmp_path):
     elsewhere = tmp_path / "elsewhere"
     elsewhere.mkdir()
     r = subprocess.run([sys.executable, "-S", str(repo / (mod.replace(".", "/") + ".py")), "trips/x"],
-                       cwd=elsewhere, capture_output=True, text=True)
+                       cwd=elsewhere, capture_output=True, text=True, env=no_editable_env())
     assert r.returncode != 0
     assert "tripwork.py" in r.stderr, r.stderr[-800:]
     assert "Traceback" not in r.stderr, r.stderr[-800:]
@@ -124,11 +143,10 @@ def test_only_known_entrypoints():
     assert sorted(real) == sorted(DEV_TOOLS)
 
 
-@pytest.mark.parametrize("tool,args", [("design_board.py", ["--help"]), ("bump_version.py", ["--help"]),
-                                       ("render/reader/build_font_subsets.py", ["--help"])])
-def test_dev_tools_start_from_a_foreign_cwd(tool, args, tmp_path):
-    r = subprocess.run([sys.executable, "-S", "-P", str(SCRIPTS / tool), *args],
-                       cwd=tmp_path, capture_output=True, text=True)
+@pytest.mark.parametrize("tool", ["design_board.py", "bump_version.py"])
+def test_dev_tools_start_from_a_foreign_cwd(tool, tmp_path):
+    r = subprocess.run([sys.executable, "-S", "-P", str(SCRIPTS / tool), "--help"],
+                       cwd=tmp_path, capture_output=True, text=True, env=no_editable_env())
     assert r.returncode == 0, r.stderr[-800:]
 
 

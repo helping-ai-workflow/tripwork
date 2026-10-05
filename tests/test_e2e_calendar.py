@@ -9,7 +9,7 @@ Monday substitute, high crowd) and a POI with a fixed weekly closure
 """
 import pathlib, json, yaml
 import jsonschema
-from scripts.calendar import poi_closed_on, is_high_crowd
+from scripts.trip_calendar import poi_closed_on, is_high_crowd
 from scripts.hours import closing_status
 
 SCHEMAS = pathlib.Path(__file__).resolve().parent.parent / "schemas"
