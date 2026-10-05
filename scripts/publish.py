@@ -33,10 +33,8 @@ import tempfile
 import yaml
 
 from scripts.export_gate import run_html_gate
-from scripts.gate import poi_pool
-from scripts.media_merge import apply_media, load_media
-from scripts.paths import artifact_path
 from scripts.render.html_page import render_html_page
+from scripts.trip_inputs import TripInputError, trip_inputs  # noqa: F401  (re-exported)
 from scripts.render.publish.lock import lock_template, staticrypt_args, staticrypt_share_args
 
 WRANGLER = "wrangler@3"
@@ -48,37 +46,6 @@ _run = subprocess.run
 
 class PublishError(RuntimeError):
     """A step failed; the message says what to do."""
-
-
-class TripInputError(PublishError):
-    """The trip folder lacks what the page is rendered from (exit 2)."""
-
-
-def _load(trip_dir, name, required=False):
-    path = artifact_path(trip_dir, name)
-    try:
-        with open(path, encoding="utf-8") as fh:
-            return yaml.safe_load(fh)
-    except FileNotFoundError:
-        if required:
-            raise TripInputError(f"missing {path}") from None
-        return None
-    except yaml.YAMLError as exc:
-        raise TripInputError(f"malformed {path}: {exc}") from None
-
-
-def trip_inputs(trip_dir):
-    """(itinerary, poi_map, render kwargs, media count): the same inputs export-artifact
-    renders the check page from -- the gate's POI pool with the photo overlay."""
-    itin = _load(trip_dir, "itinerary.yaml", required=True) or {}
-    pois = (_load(trip_dir, "verified-pois.yaml", required=True) or {}).get("pois") or []
-    acc = _load(trip_dir, "accommodations.yaml")
-    media = load_media(artifact_path(trip_dir, "verified-pois-media.yaml"))
-    poi_map = apply_media(dict(poi_pool(pois, acc)), media)
-    kwargs = {"brief": _load(trip_dir, "trip-brief.yaml"), "accommodations": acc,
-              "advisory": _load(trip_dir, "advisory.yaml"), "legs": _load(trip_dir, "legs.yaml"),
-              "maps": _load(trip_dir, "day-maps.yaml"), "cost": _load(trip_dir, "cost.yaml")}
-    return itin, poi_map, kwargs, len((media or {}).get("media") or {})
 
 
 def publish_code(trip_dir):

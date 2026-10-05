@@ -26,11 +26,6 @@ _LINK = re.compile(r"\[([^\]]*)\]\(([^)]*)\)")
 # Standalone map-token labels that mean the POI name was left as dead text.
 _MAP_TOKENS = {"地圖", "地图", "Map", "map"}
 
-# Sentinel returned by main()'s opt() helper when an optional artifact exists
-# but fails to parse as YAML — distinct from None (absent), so callers can
-# tell "malformed" apart from "not provided" and exit 2 instead of proceeding
-# with a garbage value.
-_MALFORMED = object()
 
 def _photo_failures(pois):
     """Photo ATTRIBUTION presence (cross-axis matrix F4), shared by BOTH gates: a POI
@@ -511,9 +506,6 @@ def main(argv):
     import sys
     import yaml
 
-    from scripts.gate import poi_pool
-    from scripts.media_merge import apply_media, load_media
-
     ap = argparse.ArgumentParser(description=main.__doc__)
     from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
 
@@ -534,36 +526,13 @@ def main(argv):
         print(f"missing deliverable: {md_path}", file=sys.stderr)
         return 2
 
-    def opt(name):
-        try:
-            with open(artifact_path(d, name), encoding="utf-8") as fh:
-                return yaml.safe_load(fh)
-        except FileNotFoundError:
-            return None
-        except yaml.YAMLError as exc:
-            print(f"malformed optional artifact {name}: {exc!r}",
-                  file=sys.stderr)
-            return _MALFORMED
-
-    pois_doc = opt("verified-pois.yaml")
-    if pois_doc is _MALFORMED:
+    from scripts.trip_inputs import TripInputError, trip_inputs
+    try:
+        itin, poi_map, _, media_count = trip_inputs(d)       # the renderers' own inputs
+    except TripInputError as exc:
+        print(exc, file=sys.stderr)
         return 2
-    if not pois_doc:
-        print("missing verified-pois.yaml", file=sys.stderr)
-        return 2
-    accommodations_doc = opt("accommodations.yaml")
-    if accommodations_doc is _MALFORMED:
-        return 2
-    poi_map = dict(poi_pool(pois_doc.get("pois") or [], accommodations_doc))   # TW-091: the gate's pool
-    media_doc = load_media(artifact_path(d, "verified-pois-media.yaml"))
-    media_count = len((media_doc or {}).get("media") or {})
-    poi_map = apply_media(poi_map, media_doc)      # NON-mutating: capture return
     merged_pois = list(poi_map.values())
-
-    itin = opt("itinerary.yaml")
-    if itin is _MALFORMED:
-        return 2
-    itin = itin or {}
     min_days = len(itin.get("days") or []) or None
 
     md_report = run_export_gate(md_path.read_text(encoding="utf-8"),

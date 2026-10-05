@@ -60,6 +60,17 @@ def _newer(a, b):
     return a.stat().st_mtime > b.stat().st_mtime
 
 
+def gate_report_stale(trip_dir, work_dir):
+    """What makes work/<slug>/gate-report.yaml unusable: ["gate-report.yaml"] when it
+    does not exist, else every GATE_INPUTS artifact newer than it (rule 13; `export`
+    refuses on the same answer)."""
+    t, w = pathlib.Path(trip_dir), pathlib.Path(work_dir)
+    gr = report_path(w, "gate-report.yaml")
+    if not gr.is_file():
+        return ["gate-report.yaml"]
+    return [n for n in GATE_INPUTS if artifact_path(t, n).is_file() and _newer(artifact_path(t, n), gr)]
+
+
 def next_stage(trip_dir, work_dir):
     t = pathlib.Path(trip_dir)
     w = pathlib.Path(work_dir)
@@ -128,11 +139,10 @@ def next_stage(trip_dir, work_dir):
     # saw it. This fires for real on the live corpus, not just a hypothetical
     # (see skills/orchestrator/SKILL.md's rule 13 note for a named example).
     gr = report_path(w, "gate-report.yaml")
-    stale_inputs = [n for n in GATE_INPUTS
-                    if artifact_path(t, n).is_file() and _newer(artifact_path(t, n), gr)] \
-        if gr.is_file() else []
-    if not gr.is_file() or stale_inputs:
-        why = f" ({', '.join(stale_inputs)} newer)" if stale_inputs else ""
+    stale_inputs = gate_report_stale(t, w)
+    if stale_inputs:
+        named = [n for n in stale_inputs if n != "gate-report.yaml"]
+        why = f" ({', '.join(named)} newer)" if named else ""
         return ("tripwork:itinerary-gate", f"rule 13: gate-report missing or stale{why}")
 
     # rule 13.5
