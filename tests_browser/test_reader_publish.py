@@ -987,3 +987,49 @@ def test_pull_down_leaves_a_scrolled_zoom_to_scroll(chromium, tour_publish_url):
     assert not pg.evaluate(f"document.querySelector('{box}').checked")
     assert not errs
     ctx.close()
+
+
+# ---- v1.2.1: the phone's own back gesture starts at the screen edge (iOS: the left edge;
+# Android gesture navigation: either edge). A swipe that starts there is the system's: the
+# page's sub-page / day swipe must stay still, or both run and the pages stack (the user's
+# phone showed the home twice beside a sliding 行前清單). ----
+
+def _moved(pg):
+    return pg.evaluate("[...document.querySelectorAll('.page')].some(p=>p.style.translate||p.style.position)"
+                       "||[...document.querySelectorAll('.pwrap,.lcap,.pcard,.lfoot')].some(e=>e.style.translate)"
+                       "||!!document.querySelector('section.page.day.sw,section.page.day.to')")
+
+
+def test_a_swipe_from_the_screen_edge_is_left_to_the_system(chromium, publish_url):
+    errors = []
+    ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errors)
+    t = _touch(ctx, pg)
+    W = ANDROID["width"]
+    for sub in ("lodging", "advisory", "checklist"):
+        _go(pg, f"pg-{sub}")
+        t("touchStart", 4, 500)
+        for i in range(1, 11):
+            t("touchMove", 4 + 26 * i, 500)
+            pg.wait_for_timeout(20)
+        assert not _moved(pg), sub                       # mid-gesture: nothing of ours moves
+        t("touchEnd")
+        pg.wait_for_timeout(500)
+        assert _cur(pg) == f"pg-{sub}"
+    _go(pg, "pg-d2")
+    for x0, dx in ((4, 260), (W - 4, -260)):              # left edge rightwards, right edge leftwards
+        t("touchStart", x0, 500)
+        for i in range(1, 11):
+            t("touchMove", x0 + dx * i / 10, 500)
+            pg.wait_for_timeout(20)
+        assert not _moved(pg), x0
+        t("touchEnd")
+        pg.wait_for_timeout(500)
+        assert _cur(pg) == "pg-d2"
+    # the same swipe from inside the screen still works
+    _drag(pg, t, 60, 500, 260, 0)
+    assert _cur(pg) == "pg-d1"
+    _go(pg, "pg-checklist")
+    _drag(pg, t, 60, 500, 260, 0)
+    assert _cur(pg) == "pg-home"
+    assert errors == []
+    ctx.close()
