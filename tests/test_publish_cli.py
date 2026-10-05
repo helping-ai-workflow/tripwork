@@ -27,9 +27,11 @@ class Fake:
 
     def __init__(self, logged_in=True, projects=("tripwork-demo",)):
         self.calls, self.logged_in, self.projects, self.uploaded = [], logged_in, list(projects), None
+        self.envs = []
 
     def __call__(self, argv, **kw):
         self.calls.append(list(argv))
+        self.envs.append(dict(kw.get("env") or {}))
         if STATICRYPT in argv and "--share" in argv:      # staticrypt only prints the link then
             return subprocess.CompletedProcess(argv, 0, argv[argv.index("--share") + 1] + "#staticrypt_pwd=deadbeef\n", "")
         if STATICRYPT in argv:
@@ -205,7 +207,8 @@ def test_cli_build_reads_the_password_from_the_environment(tmp_path, monkeypatch
     monkeypatch.setenv("TRIPWORK_PUBLISH_PASSWORD", "旅行密碼")
     monkeypatch.setattr(P, "_run", fake)
     assert P.main(["build", str(t), "--share-base", "https://tripwork-demo.pages.dev/"]) == 0
-    assert {c[c.index("-p") + 1] for c in fake.calls if STATICRYPT in c} == {"旅行密碼"}
+    assert {e.get("STATICRYPT_PASSWORD") for c, e in zip(fake.calls, fake.envs) if STATICRYPT in c} == {"旅行密碼"}
+    assert not [c for c in fake.calls if "-p" in c or "旅行密碼" in c]
     out = capsys.readouterr().out
     assert "#staticrypt_pwd=deadbeef" in out
 

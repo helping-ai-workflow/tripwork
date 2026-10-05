@@ -35,7 +35,7 @@ import yaml
 from scripts.export_gate import run_html_gate
 from scripts.render.html_page import render_html_page
 from scripts.trip_inputs import TripInputError, trip_inputs  # noqa: F401  (re-exported)
-from scripts.render.publish.lock import lock_template, staticrypt_args, staticrypt_share_args
+from scripts.render.publish.lock import lock_template, staticrypt_args, staticrypt_env, staticrypt_share_args
 
 WRANGLER = "wrangler@3"
 _CODE_CHARS = "abcdefghijklmnopqrstuvwxyz0123456789"
@@ -97,8 +97,8 @@ def build(trip_dir, password, *, run=None, share_base=None):
         (tmp / "index.html").write_text(html, encoding="utf-8")
         (tmp / "template.html").write_text(lock_template(), encoding="utf-8")
         out = tmp / "locked"
-        _npx(run, staticrypt_args(password, tmp / "template.html", out, tmp / "index.html", salt=_salt(code)),
-             cwd=tmp)
+        _npx(run, staticrypt_args(tmp / "template.html", out, tmp / "index.html", salt=_salt(code)),
+             cwd=tmp, env=staticrypt_env(password))
         locked = out / "index.html"
         if not locked.is_file() or _LOCKED not in locked.read_text(encoding="utf-8"):
             raise PublishError("staticrypt wrote no locked page")
@@ -107,7 +107,8 @@ def build(trip_dir, password, *, run=None, share_base=None):
         share = None
         if share_base:
             url = share_base.rstrip("/") + f"/{code}/"
-            got = _npx(run, staticrypt_share_args(password, _salt(code), url), cwd=tmp).stdout or ""
+            got = _npx(run, staticrypt_share_args(_salt(code), url), cwd=tmp,
+                       env=staticrypt_env(password)).stdout or ""
             share = next((x.strip() for x in got.splitlines() if "#staticrypt_pwd=" in x), None)
     return {"page": dest, "share": share}
 
@@ -156,10 +157,20 @@ def deploy(trip_dir, project, *, confirm=False, run=None):
     return {"url": f"{base}/{code}/"}
 
 
+NO_PASSWORD = ("no password: ask the user for one in the conversation and run again as "
+               "TRIPWORK_PUBLISH_PASSWORD='<password>' python <plugin>/scripts/tripwork.py publish <slug> "
+               "(or the user runs that command in their own terminal, which asks without echo)")
+
+
 def _password():
+    """The page password for this one run: TRIPWORK_PUBLISH_PASSWORD, else a hidden prompt
+    when a person is at a terminal, else None -- an agent's shell has no terminal, and
+    getpass there dies with EOFError."""
     pw = os.environ.get("TRIPWORK_PUBLISH_PASSWORD")
     if pw:
         return pw
+    if not sys.stdin.isatty():
+        return None
     import getpass
     return getpass.getpass("password for the page: ")
 
@@ -180,9 +191,13 @@ def main(argv=None):
     if not trip_dir.is_dir():
         print(f"no trip folder: {trip_dir}", file=sys.stderr)
         return 2
+    password = _password() if args.cmd == "build" else None
+    if args.cmd == "build" and not password:
+        print(NO_PASSWORD, file=sys.stderr)
+        return 2
     try:
         if args.cmd == "build":
-            res = build(trip_dir, _password(), run=_run, share_base=args.share_base)
+            res = build(trip_dir, password, run=_run, share_base=args.share_base)
             print(f"locked page: {res['page']}")
             if res["share"]:
                 print(f"share link (opens without the password -- send it to family only): {res['share']}")

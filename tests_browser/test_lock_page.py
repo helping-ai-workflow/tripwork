@@ -6,7 +6,7 @@ import subprocess
 
 import pytest
 
-from scripts.render.publish.lock import LOCK_COPY, lock_template, staticrypt_args
+from scripts.render.publish.lock import LOCK_COPY, lock_template, staticrypt_args, staticrypt_env
 
 PHONE = {"width": 390, "height": 844}
 PASSWORD = "旅行密碼"          # CJK on purpose: the field is type="text" so an iPhone keeps 注音
@@ -22,8 +22,8 @@ def locked_url(tmp_path_factory, pages):
     html = root / "index.html"
     html.write_text(pages["publish"].read_text(encoding="utf-8"), encoding="utf-8")
     out = root / "out"
-    subprocess.run(["npx", "--yes", *staticrypt_args(PASSWORD, tpl, out, html)], cwd=root, check=True,
-                   capture_output=True, text=True, timeout=300)
+    subprocess.run(["npx", "--yes", *staticrypt_args(tpl, out, html)], cwd=root, check=True,
+                   capture_output=True, text=True, timeout=300, env=staticrypt_env(PASSWORD))
     assert not (root / ".staticrypt.json").exists()          # -c false: no config file left behind
     return (out / "index.html").as_uri()
 

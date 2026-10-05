@@ -169,13 +169,13 @@ def render(root):
 
 def lock(root, reader):
     """The shared page's lock screen: the reader locked with the shipped template."""
-    from scripts.render.publish.lock import lock_template, staticrypt_args
+    from scripts.render.publish.lock import lock_template, staticrypt_args, staticrypt_env
     d = root / "lock"
     d.mkdir()
     (d / "template.html").write_text(lock_template(), encoding="utf-8")
     (d / "index.html").write_text(reader.read_text(encoding="utf-8"), encoding="utf-8")
-    subprocess.run(["npx", "--yes", *staticrypt_args("東京三天", d / "template.html", d / "out", d / "index.html")],
-                   cwd=d, check=True, capture_output=True)
+    subprocess.run(["npx", "--yes", *staticrypt_args(d / "template.html", d / "out", d / "index.html")],
+                   cwd=d, check=True, capture_output=True, env=staticrypt_env("東京三天"))
     return d / "out" / "index.html"
 
 
