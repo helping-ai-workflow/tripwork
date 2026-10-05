@@ -147,13 +147,14 @@ class TestE2EAllNineDefects:
         def fake_structured(name, city=None, country=None, timeout=10):
             return None  # street-slot misses
 
-        def fake_geocode(query, timeout=10):
+        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None):
             if query in ("水社碼頭", "Shuishe Pier"):  # bare or roman resolves
                 return g.GeocodeResult(23.86, 120.91, "水社碼頭 result")
             return None
 
         monkeypatch.setattr(g, "geocode_structured", fake_structured)
         monkeypatch.setattr(g, "geocode", fake_geocode)
+        monkeypatch.setattr(g, "geocode_country", lambda country, timeout=10: "tw")   # v1.2.1
         res, _ = resolve_place("水社碼頭", district="日月潭", country="Taiwan",
                                name_roman="Shuishe Pier")
         assert res is not None

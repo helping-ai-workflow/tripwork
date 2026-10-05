@@ -127,7 +127,10 @@ function zEnd(){if(!z||z.mode!=='y'){z=null;return}const s=z,H=innerHeight,v=s.v
   a.onfinish=()=>{if(go)s.box.checked=false;s.layer.getAnimations().forEach(x=>x.cancel());if(s.bg)s.bg.getAnimations().forEach(x=>x.cancel());s.layer.style.translate='';if(s.bg)s.bg.style.opacity=''}}
 document.addEventListener('touchend',zEnd,{passive:true});document.addEventListener('touchcancel',zEnd,{passive:true});
 const blocked=t=>t.closest('.chips')||document.querySelector('.zck:checked,.pz:checked,.drv:target');
-T.addEventListener('touchstart',e=>{s=null;if(busyGlide||e.touches.length!==1||cur<0||blocked(e.target))return;
+// a touch that starts at the screen edge is the phone's own back gesture (iOS: the left edge; Android
+// gesture navigation: either edge): the page's swipes leave it alone, or both run and the pages stack
+const edge=p=>p.clientX<24||p.clientX>innerWidth-24;
+T.addEventListener('touchstart',e=>{s=null;if(busyGlide||e.touches.length!==1||cur<0||blocked(e.target)||edge(e.touches[0]))return;
   const p=e.touches[0];s={x:p.clientX,y:p.clientY,mode:null,v:[],j:null}},{passive:true});
 T.addEventListener('touchmove',e=>{if(!s||s.mode==='y')return;const p=e.touches[0],dx=p.clientX-s.x,dy=p.clientY-s.y;
   if(!s.mode){if(Math.abs(dx)<4&&Math.abs(dy)<4)return;s.mode=Math.abs(dy)<=Math.abs(dx)*ANG?'x':'y';if(s.mode==='y')return;days[cur].classList.add('sw')}
@@ -143,7 +146,7 @@ T.addEventListener('touchend',fin,{passive:true});T.addEventListener('touchcance
 // a sub-screen (住宿 / 入境規定 / 行前清單) slides off to the right over the home, iOS-style
 const SUBS=['lodging','advisory','checklist'],home=document.querySelector('.page.home');let u=null;
 const subOn=()=>{const r=document.querySelector('input[name=pg]:checked');const id=r&&r.id.slice(3);return SUBS.includes(id)?document.querySelector('.page[data-pg="'+id+'"]'):null};
-document.addEventListener('touchstart',e=>{u=null;const p=subOn();if(!p||e.touches.length!==1||e.target.closest('.chips,input,textarea'))return;
+document.addEventListener('touchstart',e=>{u=null;const p=subOn();if(!p||e.touches.length!==1||e.target.closest('.chips,input,textarea')||edge(e.touches[0]))return;
   const q=e.touches[0];u={p,x:q.clientX,y:q.clientY,mode:null,v:[],dx:0}},{passive:true});
 document.addEventListener('touchmove',e=>{if(!u||u.mode==='y')return;const q=e.touches[0],dx=q.clientX-u.x,dy=q.clientY-u.y;
   if(!u.mode){if(Math.abs(dx)<4&&Math.abs(dy)<4)return;u.mode=(dx>0&&Math.abs(dy)<=Math.abs(dx)*ANG)?'x':'y';if(u.mode==='y')return;

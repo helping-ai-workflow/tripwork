@@ -56,9 +56,24 @@ def must_do_names(brief):
     return out
 
 
+def _sounds(ch):
+    """A character's syllables without tone (沖 and 衝 both give ㄔㄨㄥ)."""
+    from scripts.zhuyin import readings
+    return {r.translate(_TONELESS) for r in readings(ch)}
+
+
+_TONELESS = str.maketrans("", "", "ˊˇˋ˙")
+
+
 def riff_overlap_ok(text, riff):
+    """The title reworks the line it riffs on: at least half of the riff's characters
+    are kept, or swapped for one that sounds the same -- a pun (沖沖沖 <- 衝衝衝)."""
     chars = set(_PUNCT.sub("", riff or ""))
-    return bool(chars) and text != riff and 2 * len(chars & set(text)) >= len(chars)
+    if not chars or text == riff:
+        return False
+    heard = set().union(*(_sounds(c) for c in set(text))) if text else set()
+    kept = {c for c in chars if c in text or _sounds(c) & heard}
+    return 2 * len(kept) >= len(chars)
 
 
 def name_failures(brief):

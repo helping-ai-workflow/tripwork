@@ -219,7 +219,7 @@ def _centroid(monkeypatch, display):
     from scripts import source_verify_run as svr
     from scripts.geocode import GeocodeResult
     monkeypatch.setattr(svr, "_rate_limited_resolve",
-                        lambda name, d, c, cache, name_roman=None: (GeocodeResult(43.19, 141.0, display), "nominatim"))
+                        lambda name, d, c, cache, name_roman=None, area=False: (GeocodeResult(43.19, 141.0, display), "nominatim"))
     return svr._district_centroid("小樽市堺町", "JP", {}, False, {})
 
 
@@ -237,7 +237,7 @@ def test_district_query_geocodes_while_district_stays_for_reading(tmp_path, monk
     from scripts.paths import artifact_path
     asked = []
 
-    def fake(name, district=None, country=None, timeout=10, cache=None, name_roman=None, pace=None):
+    def fake(name, district=None, country=None, timeout=10, cache=None, name_roman=None, pace=None, area=False):
         asked.append((name, district))
         if name == "堺町（小樽市）":
             return GeocodeResult(43.1935, 141.0035, "堺町, 小樽市, 北海道, 日本"), "nominatim"

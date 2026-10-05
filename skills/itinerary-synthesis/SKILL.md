@@ -124,7 +124,8 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   re-judge it. **`missed_last_service` MUST be re-checked here**, because the planned
   departure is only known at scheduling time: when you place each travel-day transit move,
   set its now-known `depart` on the leg and re-run `scripts/legs.py::classify_leg` (or
-  `misses_last_service`). A `missed_last_service` result at synthesis time is a
+  `misses_last_service`); `classify_leg` returns a pair `(status, reason)` -- write `status` into
+  the leg's `status`. A `missed_last_service` result at synthesis time is a
   stop-on-confirmation — depart earlier, move to the next day, or change mode.
 - **A `kind: home` leg is not between two overnight stops, so the rule above never places
   it.** `itinerary-gate` already re-derives its `classify_leg` verdict and

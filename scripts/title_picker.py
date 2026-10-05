@@ -43,7 +43,6 @@ CSS = """
 html,body{height:100%%;overflow:hidden}body{display:flex;flex-direction:column}
 main{flex:1;min-height:0;display:flex;flex-direction:column;width:100%%;max-width:1240px;margin:0 auto;padding:14px 16px 8px}
 h1{flex:none;font:700 22px var(--f-round);margin:0 0 6px}
-.ns{max-width:1240px;margin:0 auto 14px;padding:12px 14px;border-radius:12px;background:var(--card);box-shadow:0 0 0 1px var(--rule);font-size:14px;line-height:1.6}
 .days{flex:1;min-height:0;display:flex;flex-direction:column}
 .days h2{flex:none;font:700 15px var(--f-round);margin:0 0 8px;color:var(--mut)}
 .row{flex:1;min-height:0;display:flex;align-items:stretch;gap:12px;overflow-x:auto;scroll-snap-type:x mandatory;padding:2px 2px 4px;scrollbar-width:none}.row::-webkit-scrollbar{display:none}
@@ -78,14 +77,19 @@ h1{flex:none;font:700 22px var(--f-round);margin:0 0 6px}
 .bar{flex:none;background:var(--card);box-shadow:0 -1px 0 var(--rule);padding:10px 16px 12px}
 .bar .in{max-width:1240px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px 16px;align-items:center}
 .bar .hn{font:700 17px var(--f-round);grid-column:1/-1;display:flex;gap:10px;align-items:baseline;margin:0}.bar .hn small{font:500 12px var(--f-body);color:var(--mut)}
-.strip{display:flex;gap:10px;overflow-x:auto}
+.strip{display:flex;gap:10px;overflow-x:auto;padding:3px;margin:-3px}
 .mini{flex:0 0 112px;display:grid;grid-template-columns:30px minmax(0,1fr);gap:6px;align-items:center;font-size:12px;line-height:1.3}
-.mini i{--c:var(--r1);width:28px;height:28px;border-radius:50%%;border:1.5px solid var(--c);outline:1px solid var(--c);outline-offset:1px;color:var(--c);display:grid;place-items:center;font:700 11px var(--f-round);font-style:normal}
+/* the bar's stamp is the reader's day-page mini stamp (theme.py .stamp + .pcal .mini .stamp): 30 px,
+   lines 1.5 / 1 @ 1.5, date 12, area 7, the day's tilt and colour */
+.mini i{--c:var(--r1);width:30px;height:30px;border-radius:50%%;border:1.5px solid var(--c);outline:1px solid var(--c);outline-offset:1.5px;color:var(--c);display:flex;flex-direction:column;align-items:center;justify-content:center;font-family:var(--f-round);font-style:normal;background:color-mix(in srgb,var(--c) 10%%,var(--bg));transform:rotate(var(--t))}
+.mini i b{font-size:12px;font-weight:700;line-height:1}.mini i small{font-size:7px;font-weight:700;line-height:1.2}
+.mini i.r2{--c:var(--r2)}.mini i.r3{--c:var(--r3)}.mini i.r4{--c:var(--r4)}.mini i.r0{--c:var(--r0)}
 .mini span.no{color:var(--mut)}
 .bar button{font:700 15px var(--f-round);border:0;border-radius:999px;padding:11px 20px;background:var(--ink);color:var(--bg);cursor:pointer}
 .bar button[disabled]{opacity:.4;cursor:default}
-.bar .line{grid-column:1/-1;margin:0;font-size:12px;color:var(--mut);overflow-wrap:anywhere;user-select:all}
-.bar .line:empty{display:none}
+.bar .line{grid-column:1/-1;margin:0;font-size:13px;line-height:15px;color:var(--ink);border-radius:10px;border:1px solid var(--rule);padding:7px 10px;background:var(--bg);overflow-wrap:anywhere;-webkit-user-select:all;user-select:all}
+.bar .line b,.mini .mm b,.hn b{font-weight:inherit}.mini em{font-style:normal}
+.bar .nsb{grid-column:1/-1;margin:-2px 0 0;font-size:12px;color:var(--mut)}
 /* the widest line -- 13 characters and a rhyme tag -- needs 264 px of text box (measured in
    both engines) + 24 px padding: desktop cards are 292 px; the phone's 78vw is 304 px */
 @media (min-width:641px){.card{flex-basis:292px}}
@@ -95,13 +99,15 @@ h1{flex:none;font:700 22px var(--f-round);margin:0 0 6px}
 # One state per day: a candidate number, "+", or the user's own words (quotes removed:
 # the reply line quotes them). The line is title_picks.parse()'s input.
 JS = r"""
+document.documentElement.classList.add('js');
 const DAYS=%(days)d,H0=%(h0)s;const pick={},txt={};let H=null,HT=%(ht)s;
 const strip=s=>s.replace(/["“”「」『』＂]/g,'').trim();
-function line(){let s='tripwork 標題';if(H!==null)s+=' H='+(typeof H==='string'&&H!=='+'?'"'+H+'"':H);
- for(let i=1;i<=DAYS;i++){const v=pick[i];if(v===undefined)continue;s+=' D'+i+'='+(typeof v==='string'&&v!=='+'?'"'+v+'"':v)}return s}
+// the reply line; `shown` keeps a day not picked yet as D3=? (the line is on screen from the start)
+function line(shown){let s='tripwork 標題';if(H!==null)s+=' H='+(typeof H==='string'&&H!=='+'?'"'+H+'"':H);
+ for(let i=1;i<=DAYS;i++){const v=pick[i];if(v===undefined){if(shown)s+=' D'+i+'=?';continue}s+=' D'+i+'='+(typeof v==='string'&&v!=='+'?'"'+v+'"':v)}return s}
 function paint(){document.querySelectorAll('.mini').forEach(m=>{const i=m.dataset.i,s=m.querySelector('span');s.textContent=txt[i]||'還沒選';s.className=txt[i]?'':'no'});
  document.getElementById('hn').textContent=HT;const n=Object.keys(pick).length,b=document.getElementById('copy');
- b.disabled=n<DAYS;b.textContent=n<DAYS?'還差 '+(DAYS-n)+' 天':'複製選擇';document.getElementById('line').textContent=n<DAYS?'':line();}
+ b.disabled=n<DAYS;b.textContent=n<DAYS?'還差 '+(DAYS-n)+' 天':'複製選擇';document.getElementById('line').textContent=line(true);}
 function setDay(i,v,t){if(v===null){delete pick[i];delete txt[i]}else{pick[i]=v;txt[i]=t}
  const tp=document.querySelector('.col[data-i="'+i+'"] textPath');if(tp)tp.textContent=(v===null||v==='+')?'':t;paint()}
 document.querySelectorAll('input[name=h]').forEach(r=>r.addEventListener('change',()=>{H=+r.value===H0?null:+r.value;HT=r.dataset.t;
@@ -121,7 +127,10 @@ document.querySelectorAll('.col').forEach(c=>{const i=c.dataset.i,r=c.querySelec
  if(r){pick[i]=+r.value;txt[i]=r.dataset.t}else if(strip(own.value)){pick[i]=strip(own.value);txt[i]=pick[i]}
  const tp=c.querySelector('textPath');if(tp&&txt[i])tp.textContent=txt[i];});
 document.getElementById('copy').addEventListener('click',()=>{const s=line(),b=document.getElementById('copy');
- const done=()=>{b.textContent='已複製，貼回對話'},hand=()=>{b.textContent='請手動複製下面那行'};
+ // the line is selected either way: a preview that blocks the copy while reporting success
+ // leaves it one ⌘C / Ctrl+C away
+ const sel=()=>{try{getSelection().selectAllChildren(document.getElementById('line'))}catch(e){}};
+ const done=()=>{b.textContent='已複製，貼回對話';sel()},hand=()=>{b.textContent='請手動複製下面那行';sel()};
  const t=document.createElement('textarea');t.value=s;t.setAttribute('readonly','');t.style.cssText='position:fixed;opacity:0';
  document.body.appendChild(t);t.select();let ok=false;try{ok=document.execCommand('copy')}catch(e){}t.remove();
  if(ok)done();else if(navigator.clipboard)navigator.clipboard.writeText(s).then(done,hand);else hand();});
@@ -141,6 +150,71 @@ def _days(itinerary, accommodations):
 def _opt(name, value, text, number, mark="", checked=False):
     return (f'<label class="opt"><input type="radio" name="{name}" value="{value}" data-t="{_e(text)}"'
             f'{" checked" if checked else ""}><span><i>{number}</i>{_e(text)}{mark}</span></label>')
+
+
+OWN = "（你寫的字）"
+
+
+def _states(scope, n_opts, more, own, headline=False):
+    """{piece: [CSS condition, ...]} for one pick while the page runs no script. Without a
+    script a tap cannot clear the other inputs, so precedence comes from what the page
+    started with (the checked / value attributes) against what the user did since: words
+    typed into an empty box, then 再給我 3 個, then a newly tapped line, then the words the
+    page started with, then the line it started on, else nothing yet (?). The headline
+    joins the line only when it changes (the script's H), so it has no start-up pieces."""
+    radio = f"{scope} input[type=radio]"
+    lines = lambda attr: [(f"v{n}", f'{radio}[value="{n}"]:checked{attr}') for n in range(1, n_opts + 1)]
+    # tiers, highest first; each is ([(piece, condition)], the condition the whole tier holds on)
+    tiers = [([("o", f"{own}:not([value]):not(:placeholder-shown)")], None),
+             ([("m", f"{more}:checked")], None),
+             (lines(":not([checked])"), f"{radio}:checked:not([checked])")]
+    if not headline:
+        tiers += [([("o", f"{own}[value]:not(:placeholder-shown)")], None),
+                  (lines("[checked]"), f"{radio}:checked[checked]")]
+    out, above = {}, []
+    for pieces, whole in tiers:
+        for key, c in pieces:
+            out.setdefault(key, []).append("html:not(.js)" + f":has({c})" + "".join(f":not(:has({h}))" for h in above))
+        above.append(whole or pieces[0][1])
+    if not headline:
+        out["q"] = ["html:not(.js)" + "".join(f":not(:has({h}))" for h in
+                                               (f"{own}:not(:placeholder-shown)", f"{more}:checked", f"{radio}:checked"))]
+    return out
+
+
+def _mirrors(day_texts, h_texts, h0):
+    """A page that runs no script (the Claude Code app's HTML preview, LINE, iPhone Files)
+    still taps the radios, so the reply line, each day's mini and the headline follow the
+    taps in CSS: every possible piece is in the page, and only the one the picks name is
+    shown. Hidden pieces are display:none, so selecting the line copies exactly the reply.
+    Returns (line html, {day: mini html}, headline html, css)."""
+    css = ["html:not(.js) .line b,html:not(.js) .mm b,html:not(.js) .hm b{display:none}",
+           ".js .mm,.js .hm{display:none}", "html:not(.js) #copy{display:none}"]
+    parts, minis = [], {}
+    for i, texts in enumerate(day_texts, start=1):
+        st = _states(f'.col[data-i="{i}"]', len(texts), f'.col[data-i="{i}"] .mb input', f'.col[data-i="{i}"] .own')
+        parts.append(f'<span class="d{i}"><b class="q"> D{i}=?</b>'
+                     + "".join(f'<b class="v{n}"> D{i}={n}</b>' for n in range(1, len(texts) + 1))
+                     + f'<b class="m"> D{i}=+</b><b class="o"> D{i}="{OWN}"</b></span>')
+        minis[i] = ('<em class="mm">' + "".join(f'<b class="v{n}">{_e(t)}</b>' for n, t in enumerate(texts, start=1))
+                    + '<b class="m">再給我 3 個</b><b class="o">自己寫的</b></em>')
+        for k, conds in st.items():
+            for cond in conds:
+                css.append(f'{cond} .line .d{i}>.{k},{cond} .mini[data-i="{i}"] .mm>.{k}{{display:inline}}')
+                if k != "q":
+                    css.append(f'{cond} .mini[data-i="{i}"] .no{{display:none}}')
+    # the headline joins the line only when it changes (the script's H): a radio other than
+    # the one the page started on (its checked attribute), 再給我 3 個, or own words
+    hst = _states(".hcard", len(h_texts), "#h-more", "#h-own", headline=True)
+    hpart = ('<span class="h">' + "".join(f'<b class="v{n}"> H={n}</b>' for n in range(1, len(h_texts) + 1))
+             + f'<b class="m"> H=+</b><b class="o"> H="{OWN}"</b></span>')
+    hmirror = ('<span class="hm">' + "".join(f'<b class="v{n}">{_e(t)}</b>' for n, t in enumerate(h_texts, start=1))
+               + '<b class="m">再給我 3 個</b><b class="o">自己寫的</b></span>')
+    for k, conds in hst.items():
+        for cond in conds:
+            css.append(f"{cond} .line .h>.{k},{cond} .hm>.{k}{{display:inline}}")
+            css.append(f"{cond} #hn{{display:none}}")
+    return "tripwork 標題" + hpart + "".join(parts), minis, hmirror, "\n".join(css)
 
 
 def _headline_current(brief):
@@ -165,7 +239,7 @@ def page(itinerary, brief, accommodations=None):
     hcard = (f'<section class="card hcard"><p class="hd">整趟大標題</p><div class="lines">{hl}</div>'
              '<label class="opt mb"><input type="checkbox" id="h-more"><span>＋ 再給我 3 個</span></label>'
              f'<input class="own" id="h-own" type="text" placeholder="或自己寫（{HEADLINE_MAX} 字內）" maxlength="{HEADLINE_MAX + 6}"></section>')
-    cols, minis = [], []
+    cols, minis, day_texts = [], [], []
     r = 29 + 3 + 3 + 2 + 3                                  # stamp half + border + offset + outline + gap
     for i, (d, (area, cls)) in enumerate(zip(days, areas), start=1):
         date = to_date(d.get("date"))
@@ -175,9 +249,10 @@ def page(itinerary, brief, accommodations=None):
         kept = (d.get("theme") or "").strip()
         own = kept if kept and d.get("theme_user_written") else ""
         own_attr = ' value="%s"' % _e(own) if own else ""            # no nested quotes: CI runs 3.11
-        items = []
+        items, texts = [], []
         for n, k in enumerate(display_order(cands), start=1):
             text = cands[k].get("text") if isinstance(cands[k], dict) else ""
+            texts.append(text)
             tag = rhyme_label(text)
             items.append(_opt(f"d{i}", n, text, n, f'<em class="rm">{tag}</em>' if tag else "",
                               checked=bool(kept) and not own and text == kept))
@@ -192,20 +267,24 @@ def page(itinerary, brief, accommodations=None):
                     f'<label class="opt mb"><input type="checkbox"><span>＋ 再給我 3 個</span></label>'
                     f'<input class="own" type="text" placeholder="或自己寫（{THEME_MAX} 字內）" maxlength="{THEME_MAX}"'
                     f'{own_attr}></section>')
-        minis.append(f'<div class="mini" data-i="{i}"><i class="{cls}">{date.day}</i><span class="no">還沒選</span></div>')
+        day_texts.append(texts)
+        minis.append((i, cls, date.day, area, tilt))
+    line, mm, hmirror, mcss = _mirrors(day_texts, [c.get("text") or "" for c in hcands], h0)
+    minis = [f'<div class="mini" data-i="{i}"><i class="{cls}" style="--t:{tilt}deg"><b>{day}</b><small>{_e(area)}</small></i>'
+             f'<span class="no">還沒選</span>{mm[i]}</div>' for i, cls, day, area, tilt in minis]
     htext = hcands[h0 - 1].get("text") if h0 else ((brief.get("headline") or {}).get("text") or "")
-    body = (f'<main><h1>挑標題</h1><noscript><p class="ns">這個瀏覽器沒有執行網頁程式，按鈕不會動。'
-            f'請直接在對話裡回覆號碼——{_e(REPLY_HINT)}</p></noscript>'
+    body = (f'<main><h1>挑標題</h1>'
             f'<section class="days"><h2>大標題和每天的標題（左右滑動看其他天）</h2>'
             f'<div class="row">{hcard}{"".join(cols)}</div></section></main>'
-            f'<div class="bar"><div class="in"><p class="hn"><span id="hn">{_e(htext)}</span><small>大標題</small></p>'
+            f'<div class="bar"><div class="in"><p class="hn"><span id="hn">{_e(htext)}</span>{hmirror}<small>大標題</small></p>'
             f'<div class="strip">{"".join(minis)}</div><button type="button" id="copy" disabled>還差 {len(days)} 天</button>'
-            f'<p class="line" id="line"></p></div></div>')
+            f'<p class="line" id="line">{line}</p>'
+            '<noscript><p class="nsb">長按這行選取整行，複製後貼回對話</p></noscript></div></div>')
     glyphs = html.unescape(body) + "還沒選還差天複製選擇已複製，貼回對話請手動複製下面那行再給我個tripwork標題HD=+\"0123456789"
     js = JS % {"days": len(days), "h0": h0, "ht": json.dumps(htext, ensure_ascii=False)}
     return (f'<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8">'
             f'<meta name="viewport" content="width=device-width,initial-scale=1"><title>挑標題</title>'
-            f'<style>{font_faces("".join(sorted(set(glyphs))))}{CSS % {"light": WARM_LIGHT}}</style></head>'
+            f'<style>{font_faces("".join(sorted(set(glyphs))))}{CSS % {"light": WARM_LIGHT}}{mcss}</style></head>'
             f'<body>{body}<script>{js}</script></body></html>')
 
 

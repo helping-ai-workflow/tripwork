@@ -1,5 +1,44 @@
 # Changelog
 
+## 1.2.1 — fixes from the first shared trip
+
+### Fixed
+
+- **The title picker works in a phone preview.** The iPhone and Android Claude app preview
+  runs no script, so every day looked picked while the button stayed at 「還差 N 天」 and
+  nothing could be copied. The reply line now follows your picks without a script and is
+  real text: long-press it to select the whole line, copy, paste it back (a day not picked
+  yet reads `D3=?`). In a browser the 複製選擇 button works as before, and the line is
+  selected after a copy in case the copy was blocked. The page no longer explains scripts.
+- **The picker's small stamps are the reader's stamps.** They now show the place name, the
+  day's tilt and the day's colour (a 返程 day is grey and dashed again), and the bar no
+  longer cuts their outer ring.
+- **The 住宿 / 入境規定 / 行前清單 cards keep their side lines.** The scrolling area cut the
+  left and right lines off, leaving only the corners, on the phone and on the desktop.
+- **A swipe from the screen edge is the phone's own back gesture.** On the shared page a
+  back swipe from the left edge also slid the sub-page, so the pages showed stacked and went
+  back twice. Swipes that start at either screen edge are left to the phone.
+- **Lookups stay in the trip's country.** When a place is not found by its name and
+  district, the fallback searches searched the whole world and could land on a namesake
+  abroad; they now stay in the destination country.
+- **A district's centre is the district.** It could land on a school or office named after
+  the district; districts are now looked up as places, and only a result that is the
+  district itself counts.
+- **A pun may swap a character for one that sounds the same.** A title that riffs on a
+  phrase with homophones (沖沖沖 for 衝衝衝) was rejected as "not reworked".
+
+### Changed (for agents)
+
+- `inter-stop-legs` and `itinerary-synthesis` say that `classify_leg` returns
+  `(status, reason)`: write `status` into the leg.
+
+### Migration
+
+- None. District centres cached by an earlier run are looked up again once (they have a
+  key of their own now). Re-run the title picker to get the new page.
+
+Tests: 1752 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 481 passed (headless Chromium and WebKit).
+
 ## 1.2.0 — publish build for family, photos from Wikidata, phone gestures
 
 ### Added
