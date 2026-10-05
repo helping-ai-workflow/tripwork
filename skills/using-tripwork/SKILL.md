@@ -13,6 +13,29 @@ tripwork is a staged, orchestrator-driven pipeline for building source-verified 
 
 Example paths throughout these skills (`trips/<slug>/`, `work/<slug>/`) reflect the target repo's convention. The authoritative layout is defined in the target repo's `CLAUDE.md`, not in plugin skills. Plugin scripts accept explicit paths as arguments and do not hardcode layout.
 
+## Running the scripts
+
+Every script runs through one entry point, from the workspace root (the folder holding `trips/`):
+
+    python <plugin>/scripts/tripwork.py <command> <slug> [arguments]
+
+`python <plugin>/scripts/tripwork.py -h` lists the commands (`next`, `verify`, `gate`, `export`,
+`export-gate`, `maps`, `photos`, `picker`, `validate`, `fingerprint`, `publish`, `deploy`,
+`migrate`). `<plugin>` is the tripwork install folder; take the first of these you have:
+
+1. **Claude Code:** the "Base directory for this skill: …/skills/<name>" line shown when a tripwork
+   skill loads — `<plugin>` is two folders up from it.
+2. The `tripwork scripts: python "…/scripts/tripwork.py"` line the session start injected
+   (Claude Code, Cursor, Codex, OpenCode, Pi) or GEMINI.md names (Gemini:
+   `~/.gemini/extensions/tripwork/`). Kimi installs plugins under
+   `$KIMI_CODE_HOME/plugins/managed/<id>/`.
+3. Claude Code's install record: `installPath` of `tripwork@tripwork` in
+   `${CLAUDE_CONFIG_DIR:-~/.claude}/plugins/installed_plugins.json` (prefer the project-scope entry
+   whose `projectPath` is the workspace).
+
+Never pick a folder by globbing a plugin cache — several versions sit there side by side. If none
+of the above gives a path, ask the user where tripwork is installed.
+
 ## Pipeline
 
 The orchestrator's Stage Selection is canonical for order and predicates; this tree mirrors it.

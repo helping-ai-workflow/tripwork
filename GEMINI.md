@@ -3,6 +3,10 @@
 You have tripwork. The using-tripwork skill is included below and is already
 loaded for this session — follow it; do not load it again.
 
+tripwork scripts: `python ~/.gemini/extensions/tripwork/scripts/tripwork.py <command> <slug>`
+(run from the workspace root). That is where `gemini extensions install` puts the
+extension; if it is not there, ask the user where tripwork is installed.
+
 @./skills/using-tripwork/SKILL.md
 
 ## Gemini tool mapping

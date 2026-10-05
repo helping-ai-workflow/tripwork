@@ -306,7 +306,7 @@ def test_tw025_notion_is_gated_md_paste_not_adapter():
 
 def test_tw032_independent_and_conflict_defined():
     t = _skill("source-verify")
-    assert "root domain" in t and "material factual disagreement" in t
+    assert "registrable domain" in t and "material factual disagreement" in t   # v2.0.0: was "root domain"
 
 def test_tw033_hours_recency_as_of():
     t = _skill("source-verify")
