@@ -1,22 +1,19 @@
 # tests/test_gate_cli.py
 """D2: gate CLI loads the trip dir itself, writes gate-report.yaml, exits 0/1/2."""
 import pathlib
-import subprocess
-import sys
 
 import yaml
 
 from scripts.validate_artifact import validate_file
 from tests.mech_fixtures import build_full_trip, write_artifact, itinerary
 from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-CLI = ROOT / "scripts" / "gate.py"
 
 
 def _run(trip_dir):
-    return subprocess.run([sys.executable, str(CLI), str(trip_dir)],
-                          capture_output=True, text=True)
+    return run_main("scripts.gate", [trip_dir])
 
 
 def test_pass_writes_valid_report_and_exits_zero(tmp_path):

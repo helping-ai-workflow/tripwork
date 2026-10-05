@@ -2,13 +2,12 @@
 driver copies them into verified-pois unchanged."""
 import datetime
 import pathlib
-import subprocess
-import sys
 
 import yaml
 
 from scripts.validate_artifact import validate_file
 from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
+from tests.cli_helpers import run_main
 
 ROOT = str(pathlib.Path(__file__).resolve().parents[1])
 
@@ -31,9 +30,7 @@ def test_driver_carries_site_fields_into_verified_pois(tmp_path):
                              "as_of": datetime.date.today().isoformat()}}]},
         allow_unicode=True), encoding="utf-8")
     assert validate_file(str(artifact_path(trip, "candidates.yaml")))[0] == 0
-    r = subprocess.run([sys.executable, "scripts/source_verify_run.py", str(trip),
-                        "--work-dir", str(work), "--offline"],
-                       cwd=ROOT, capture_output=True, text=True)
+    r = run_main("scripts.source_verify_run", [trip, "--work-dir", work, "--offline"])
     assert r.returncode == 0, r.stderr
     out = yaml.safe_load((artifact_path(trip, "verified-pois.yaml")).read_text(encoding="utf-8"))
     got = out["pois"][0]["sources"]
@@ -64,9 +61,7 @@ def test_driver_carries_intro_and_booking_so_a_reverify_keeps_them(tmp_path):
                              "as_of": datetime.date.today().isoformat()}}]},
         allow_unicode=True), encoding="utf-8")
     assert validate_file(str(artifact_path(trip, "candidates.yaml")))[0] == 0
-    r = subprocess.run([sys.executable, "scripts/source_verify_run.py", str(trip),
-                        "--work-dir", str(work), "--offline"],
-                       cwd=ROOT, capture_output=True, text=True)
+    r = run_main("scripts.source_verify_run", [trip, "--work-dir", work, "--offline"])
     assert r.returncode == 0, r.stderr
     poi = yaml.safe_load((artifact_path(trip, "verified-pois.yaml")).read_text(encoding="utf-8"))["pois"][0]
     assert poi.get("intro") == "日本唯一的啤酒博物館。"

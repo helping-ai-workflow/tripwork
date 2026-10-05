@@ -9,25 +9,18 @@ instruction is actually executed: a consumer workspace, whose own `scripts/`
 is unrelated to the plugin's. There it raises ModuleNotFoundError, silently,
 end to end (the agent has no CLI-shaped fallback and just omits the field).
 
-Every other script instruction in this plugin is `python scripts/<file>.py
-<args>`, invocable with a path prefix to the plugin regardless of cwd — a
-`python -c` import cannot be. This is that CLI, following the same
-sys.path-bootstrap shape as `scripts/next_stage.py`.
+Every script instruction in this plugin is `python <plugin>/scripts/tripwork.py
+<command> <slug>`, invocable regardless of cwd — a `python -c` import cannot be.
+This module is the `fingerprint` command's target.
 
-Usage: python scripts/input_fingerprint.py <trip-brief.yaml> <projection>
+Usage: python <plugin>/scripts/tripwork.py fingerprint <slug> <projection>
 Prints the fingerprint to stdout. <projection> selects which fields are
 hashed (scripts/orchestration.py::input_fingerprint); the only one defined
 today is `advisory` (ADVISORY_PROJECTION = destination/dates/airline, rule 11's
 staleness anchor).
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py fingerprint <slug> advisory")
 
 import sys as _sys
 
@@ -63,7 +56,3 @@ def main(argv):
         return 2
     print(input_fingerprint(doc, PROJECTIONS[args.projection]))
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))

@@ -176,7 +176,7 @@ def test_deploy_refuses_a_page_that_is_not_locked(tmp_path):
 
 def test_deploy_without_a_build_asks_for_one(tmp_path):
     t = _trip(tmp_path)
-    with pytest.raises(P.PublishError, match="build"):
+    with pytest.raises(P.PublishError, match="tripwork.py publish"):
         P.deploy(t, "tripwork-demo", confirm=True, run=Fake())
 
 

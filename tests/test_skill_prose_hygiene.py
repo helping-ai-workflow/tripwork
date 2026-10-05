@@ -21,8 +21,6 @@ Two defect families, both found by the 2026-09-25 prompt audit:
 """
 import pathlib
 import re
-import subprocess
-import sys
 
 import pytest
 import yaml
@@ -31,6 +29,7 @@ from scripts.cost import pass_break_even
 from tests.mech_fixtures import write_artifact
 from tests.test_next_stage import _bump, _full, _next
 from scripts.paths import report_path, work_dir_for
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 SKILLS = ROOT / "skills"
@@ -86,8 +85,7 @@ def test_export_gate_stop_condition_matches_rule_15(tmp_path, defect):
     # (rule 15) decides what happens next. The SKILL row must say the same.
     t, w = _full(tmp_path)
     defect(t)
-    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "export_gate.py"), str(t)],
-                       capture_output=True, text=True)
+    r = run_main("scripts.export_gate", [t])
     assert r.returncode == 1, r.stdout + r.stderr
     report = yaml.safe_load(report_path(work_dir_for(t), "export-gate-report.yaml").read_text(encoding="utf-8"))
     assert report["status"] == "fail"
@@ -110,8 +108,7 @@ def test_the_two_defects_cover_both_retryable_values(tmp_path):
     for i, defect in enumerate((_render_defect, _data_defect)):
         t, _ = _full(tmp_path / str(i))
         defect(t)
-        subprocess.run([sys.executable, str(ROOT / "scripts" / "export_gate.py"), str(t)],
-                       capture_output=True, text=True)
+        run_main("scripts.export_gate", [t])
         seen.add(yaml.safe_load(
             report_path(work_dir_for(t), "export-gate-report.yaml").read_text(encoding="utf-8"))["retryable"])
     assert seen == {True, False}

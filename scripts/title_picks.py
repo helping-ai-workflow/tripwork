@@ -14,14 +14,11 @@ same title: the user hears it now, not after a gate failure routed to a stage th
 cannot change their words. A picked day is marked `theme_picked`, so a picker written
 again after 再給我 3 個 keeps it.
 
-CLI: python scripts/title_picks.py <trip-dir> '<reply line>'
+CLI: python <plugin>/scripts/tripwork.py picker <slug> '<reply line>'
 Exit 0 written (a `more:` line lists what needs three more) / 2 the reply is not valid.
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # repo root on sys.path, scripts/ shadow dropped (scripts/_cli_bootstrap.py)
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py picker <slug> '<reply>'")
 
 import re
 import unicodedata
@@ -194,8 +191,3 @@ def main(argv):
     asks = [f"D{n}" for n in more["days"]] + (["H"] if more["headline"] else [])
     print("title picks: written" + (f"\nmore: {' '.join(asks)}" if asks else ""))
     return 0
-
-
-if __name__ == "__main__":
-    import sys
-    sys.exit(main(sys.argv[1:]))

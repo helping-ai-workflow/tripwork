@@ -6,6 +6,7 @@ import sys
 
 import yaml
 from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
+from tests.cli_helpers import run_main
 
 # Tests derive the repo root from the file's own location, not a hardcoded
 # absolute path — a hardcoded ROOT breaks the moment this repo is checked out
@@ -117,9 +118,7 @@ def test_cli_writes_a_schema_valid_artifact_and_forwards_both_gate_arguments(tmp
                      {"url": "https://b.example.com/q", "lang": "en"}]},
     ]}, allow_unicode=True), encoding="utf-8")
 
-    r = subprocess.run([sys.executable, "scripts/source_verify_run.py",
-                        str(trip), "--work-dir", str(work), "--offline"],
-                       cwd=ROOT, capture_output=True, text=True)
+    r = run_main("scripts.source_verify_run", [trip, "--work-dir", work, "--offline"])
     assert r.returncode == 0, r.stderr
 
     out = yaml.safe_load((artifact_path(trip, "verified-pois.yaml")).read_text(encoding="utf-8"))

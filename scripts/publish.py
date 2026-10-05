@@ -2,8 +2,8 @@
 with staticrypt, and deploy it to Cloudflare Pages -- the deploy only after the user's
 explicit yes, because it puts the page on the internet.
 
-    python scripts/publish.py build  <trips/slug> [--share-base https://<project>.pages.dev/]
-    python scripts/publish.py deploy <trips/slug> --project <name> --confirm
+    python <plugin>/scripts/tripwork.py publish <slug> [--share-base https://<project>.pages.dev/]
+    python <plugin>/scripts/tripwork.py deploy <slug> --project <name> --confirm
 
 The password comes from TRIPWORK_PUBLISH_PASSWORD or a prompt and is never written to
 the workspace. Only the locked page lands under trips/<slug>/publish/<code>/ (the plain
@@ -17,13 +17,8 @@ uploads nothing else. The share link (`#staticrypt_pwd=…`) opens the page with
 typing the password: it is printed for the user, never written next to the pages.
 
 Exit 0 ok / 1 failure / 2 bad input. Node 18+ is required (npx)."""
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py publish <slug>  (or: deploy <slug> --project NAME --confirm)")
 
 import hashlib
 import os
@@ -156,7 +151,7 @@ def _site(trips_root, into):
     pages = sorted(trips_root.glob("*/publish/*/index.html"))
     for page in pages:
         if _LOCKED not in page.read_text(encoding="utf-8", errors="ignore"):
-            raise PublishError(f"{page} is not encrypted: rebuild it with `publish.py build` before deploying")
+            raise PublishError(f"{page} is not encrypted: rebuild it with `python <plugin>/scripts/tripwork.py publish <slug>` before deploying")
         (into / page.parent.name).mkdir()
         shutil.copyfile(page, into / page.parent.name / "index.html")
     return pages
@@ -172,7 +167,7 @@ def deploy(trip_dir, project, *, confirm=False, run=None):
     code_file = trip_dir / "publish" / "code.txt"
     code = code_file.read_text(encoding="utf-8").strip() if code_file.is_file() else None
     if not code or not (trip_dir / "publish" / code / "index.html").is_file():
-        raise PublishError(f"no locked page for {trip_dir.name}: run `publish.py build` first")
+        raise PublishError(f"no locked page for {trip_dir.name}: run `python <plugin>/scripts/tripwork.py publish {trip_dir.name}` first")
     with tempfile.TemporaryDirectory() as tmp:
         site = pathlib.Path(tmp) / "site"
         site.mkdir()
@@ -234,7 +229,3 @@ def main(argv=None):
         print(exc, file=sys.stderr)
         return 1
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))

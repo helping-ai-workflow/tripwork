@@ -20,5 +20,5 @@ def test_skills_name_artifacts_under_data_and_reports_under_work():
 
 def test_readme_describes_the_v1_layout():
     from tests.test_readme_freshness import README as text     # already the README's text
-    assert "data/" in text and "migrate_v1.py" in text
+    assert "data/" in text and "tripwork.py migrate" in text
     assert "exports/<slug>-itinerary" not in text

@@ -2,7 +2,7 @@
 tiles (spec §6.5). Optional -- needs the [maps] extra (Pillow) and the network; the
 reader draws a schematic without it.
 
-    python scripts/day_maps.py trips/<slug> [--work-dir work/<slug>] [--offline]
+    python <plugin>/scripts/tripwork.py maps <slug> [--offline]
 
 Segments and points come from the reader itself (scripts/render/reader/maps.py::
 day_points / _segments), so the images line up with the pins the reader draws.
@@ -13,10 +13,8 @@ OSM tile usage policy: an identifying User-Agent that carries NO personal data
 (program name + repo URL), every tile cached under work/<slug>/tile-cache/, and at
 least one second between network requests.
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py maps <slug>")
 
 import argparse
 import base64
@@ -198,7 +196,3 @@ def main(argv):
     n = sum(len(v) for v in doc["days"].values())
     print(f"day-maps: {len(doc['days'])} day(s), {n} map(s)")
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))

@@ -1,6 +1,6 @@
 """Migrate pre-v1.0 trip folders to the v1.0 layout (spec §5.3).
 
-    python scripts/migrate_v1.py <trips-root | trips/<slug>> [--work-root DIR] [--apply]
+    python <plugin>/scripts/tripwork.py migrate [<slug>] [--apply]
 
 Dry run by default: prints every move and every note, touches nothing. --apply
 performs them. Idempotent, and it finishes a half-done migration: a trip is done
@@ -14,10 +14,8 @@ signal spec §4.4 names as wrong (trip-e D5), while the v1.0 gate's `legacy …`
 classes route both to itinerary-synthesis, which reads the text. short_name,
 headline and themes are likewise left to the stages that write them.
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py migrate [<slug>] [--apply]")
 
 import argparse
 import pathlib
@@ -135,7 +133,3 @@ def main(argv):
     if not args.apply:
         print("dry run — nothing changed; re-run with --apply (paths move under data/)")
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(sys.argv[1:]))

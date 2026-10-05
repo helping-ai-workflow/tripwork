@@ -6,16 +6,9 @@ POI may be scheduled on a closed day; every must_do must be covered; every
 banned/restricted advisory item must be surfaced. Content correctness of the
 sources themselves is source-verify's job; this gate checks the assembled plan.
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py gate <slug>")
 
-import sys as _sys
 
 from scripts.brief_names import headline_failures, name_failures
 from scripts.checklist import checklist_failures, checklist_texts
@@ -458,7 +451,7 @@ class _MalformedOptionalArtifact(Exception):
 
 
 def main(argv):
-    """CLI: python scripts/gate.py <trip-dir> [--work-dir DIR] — run the itinerary
+    """CLI: python <plugin>/scripts/tripwork.py gate <slug> — run the itinerary
     gate over the canonical artifacts in <trip-dir>/data/ and write
     work/<slug>/gate-report.yaml (paths from scripts/paths.py).
     Exit 0 pass / 1 fail / 2 missing/invalid required or optional artifact."""
@@ -524,7 +517,3 @@ def main(argv):
     for n in report.get("notices") or []:                 # never change the status
         print(f"  notice: {n}")
     return 0 if report["status"] == "pass" else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))

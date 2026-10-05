@@ -1,17 +1,15 @@
 """D3: stage-selection oracle — one fixture state per orchestrator rule."""
 import os
 import pathlib
-import subprocess
-import sys
 
 import yaml
 
 from scripts.orchestration import ADVISORY_PROJECTION, input_fingerprint
 from scripts.paths import artifact_path, deliverable_paths, report_path
 from tests.mech_fixtures import SLUG, build_full_trip, trip_brief, write_artifact
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-CLI = ROOT / "scripts" / "next_stage.py"
 
 # (artifact-to-remove-from-here-on, expected next) — walking backwards from full
 WALK = [
@@ -34,9 +32,7 @@ PASS_REPORT = {"status": "pass", "checks": [{"name": "x", "passed": True}],
 
 
 def _next(t, w):
-    r = subprocess.run(
-        [sys.executable, str(CLI), str(t), "--work-dir", str(w)],
-        capture_output=True, text=True)
+    r = run_main("scripts.next_stage", [t, "--work-dir", w])
     assert r.returncode == 0, r.stderr
     return yaml.safe_load(r.stdout)
 

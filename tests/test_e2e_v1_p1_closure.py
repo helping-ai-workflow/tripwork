@@ -2,14 +2,13 @@
 the real gate CLI must flag every one, route them in _ROUTES order, and pass once
 each producing stage's file is restored."""
 import pathlib
-import subprocess
-import sys
 
 import yaml
 
 from scripts.orchestration import route_gate_failures
 from tests.mech_fixtures import build_full_trip
 from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
+from tests.cli_helpers import run_main
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 NEW = ("day_chain_complete", "moves_recorded", "alternatives_valid", "day_theme_valid",
@@ -17,8 +16,7 @@ NEW = ("day_chain_complete", "moves_recorded", "alternatives_valid", "day_theme_
 
 
 def _gate(t):
-    r = subprocess.run([sys.executable, str(ROOT / "scripts" / "gate.py"), str(t)],
-                       capture_output=True, text=True)
+    r = run_main("scripts.gate", [t])
     return r.returncode, yaml.safe_load((report_path(work_dir_for(t), "gate-report.yaml")).read_text(encoding="utf-8"))
 
 

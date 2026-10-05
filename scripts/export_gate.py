@@ -6,16 +6,9 @@ naked $, broken links, name-not-a-link, and bookable POIs missing an official
 source link. Output shape matches itinerary-gate: {status, checks, failures}
 (reuses schemas/gate-report.schema.json).
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py export-gate <slug>")
 
-import sys as _sys
 
 import hashlib
 import re
@@ -508,7 +501,7 @@ def merge_reports(md_report, html_report):
 
 
 def main(argv):
-    """CLI: python scripts/export_gate.py <trip-dir> — gate the rendered
+    """CLI: python <plugin>/scripts/tripwork.py export-gate <slug> — gate the rendered
     deliverables (md + optional html) against the MERGED pois (verified-pois +
     chosen lodgings + media overlay, all assembled here) and write
     work/<slug>/export-gate-report.yaml (paths from scripts/paths.py).
@@ -591,7 +584,3 @@ def main(argv):
     for f in report["failures"]:
         print(f"  - {f}")
     return 0 if report["status"] == "pass" else 1
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))

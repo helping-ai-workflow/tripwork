@@ -17,6 +17,7 @@ import re
 import pytest
 
 from tests.test_skill_prose_hygiene import SKILLS, _contract_row, _skill
+from tests.cli_helpers import run_main
 
 # Stages that ask the user something but are NOT pipeline halts the orchestrator
 # records. A literal because it is a judgement about each skill, not pipeline
@@ -99,11 +100,8 @@ def test_rule_15_stop_and_ask_is_a_registered_flag(tmp_path):
     """next_stage.py emits `stop-and-ask` itself for rule 15; that halt must have a
     flag to record it under like every other."""
     from tests.test_skill_prose_hygiene import _data_defect, _next, _full
-    import subprocess, sys
-    from tests.test_skill_prose_hygiene import ROOT
     t, w = _full(tmp_path)
     _data_defect(t)
-    subprocess.run([sys.executable, str(ROOT / "scripts" / "export_gate.py"), str(t)],
-                   capture_output=True, text=True)
+    run_main("scripts.export_gate", [t])
     assert _next(t, w)["next"] == "stop-and-ask"
     assert any(s == "export-gate" for s, _ in _stop_flags())

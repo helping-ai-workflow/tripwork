@@ -5,19 +5,12 @@ is the spec; this script is its executable form). ADVISORY ORACLE ONLY — it
 suggests; stop-on-confirmation, slug binding (rule 0.5) and user interaction
 stay with the agent. It does not read stage-state.yaml (v1).
 
-Usage: python scripts/next_stage.py <trip-dir> --work-dir <work/<slug>>
+Usage: python <plugin>/scripts/tripwork.py next <slug>
 Output (stdout, YAML): {next: tripwork:<skill>|complete|stop-and-ask, reason: str}
 """
-if __name__ == "__main__" and __package__ in (None, ""):
-    # Drop the auto-added scripts/ dir (it shadows stdlib `calendar` with
-    # scripts/calendar.py) and put the repo root on sys.path so `from scripts.X
-    # import ...` resolves. See scripts/_cli_bootstrap.py for the full account.
-    # Must precede every other import: the shadow breaks `import requests` too.
-    import pathlib as _bootpath, sys as _bootsys
-    _bootsys.path.insert(0, str(_bootpath.Path(__file__).resolve().parent))
-    import _cli_bootstrap        # noqa: F401  (imported for its side effect)
+if __name__ == "__main__":
+    raise SystemExit("moved in tripwork 2.0: python <plugin>/scripts/tripwork.py next <slug>")
 
-import sys as _sys
 
 import argparse
 import pathlib
@@ -81,8 +74,8 @@ def next_stage(trip_dir, work_dir):
     # "no trip-brief.yaml" and restart the pipeline over a finished trip.
     if is_legacy_layout(t):
         return ("stop-and-ask",
-                "rule 0.7: pre-v1.0 trip layout — run `python scripts/migrate_v1.py "
-                "<trips-root>` (dry run), then with --apply, and resume")
+                "rule 0.7: pre-v1.0 trip layout — run `python <plugin>/scripts/tripwork.py "
+                f"migrate {t.name}` (dry run), then with --apply, and resume")
 
     for name, skill, rule in _CHAIN:
         p = artifact_path(t, name)
@@ -209,7 +202,3 @@ def main(argv):
     print(yaml.safe_dump({"next": nxt, "reason": reason},
                          allow_unicode=True, sort_keys=False), end="")
     return 0
-
-
-if __name__ == "__main__":
-    raise SystemExit(main(_sys.argv[1:]))
