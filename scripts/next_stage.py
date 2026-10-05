@@ -190,8 +190,13 @@ def next_stage(trip_dir, work_dir):
                 "re-run the gate")
     if ereport.get("status") == "fail":
         if ereport.get("retryable", True):
-            return ("tripwork:export-artifact",
-                    "rule 15: retryable render defect — re-render")
+            return ("tripwork:itinerary-synthesis",
+                    "rule 15: retryable render defect — fix the source text the "
+                    "export-gate names, then gate and export again")
+        if ereport.get("repeat_of_previous"):
+            return ("stop-and-ask",
+                    "rule 15: the same export-gate failure came back after the source was "
+                    "fixed once — likely a plugin render defect; report it")
         return ("stop-and-ask",
                 "rule 15: non-retryable data defect — fix the data "
                 "(attribution / official source), then re-verify")

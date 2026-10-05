@@ -128,9 +128,13 @@ Do not delete `gate-report.yaml` by hand.
     verified-pois-media / trip-brief) **is newer than export-gate-report.yaml** -> run
     `tripwork:export-gate` — see **report staleness** in Definitions.
     On `export-gate-report` status==fail, branch on `retryable`:
-    - **retryable==true** (a render-fixable defect — naked `$`, broken link, 0 rendered
-      photos) -> delete the stale export-gate-report and return to `tripwork:export-artifact`
-      to re-render.
+    - **retryable==true** (a defect in the source text — naked `$`, a kana run without
+      its reading, internal jargon) -> return to `tripwork:itinerary-synthesis` to fix that
+      text in the artifact, then gate and export again; never edit the rendered deliverable
+      (`export` is a fixed program and would write the defect back). The export-gate keeps
+      the previous report: the same failures twice in a row come back as
+      `retryable: false` + `repeat_of_previous: true` -> STOP and ask (likely a plugin
+      render defect — say so, so the user can report it).
     - **retryable==false** (an upstream DATA defect re-render cannot fix — a photo with no
       attribution, a bookable POI with no official source) -> **STOP and ask the user to fix
       the data** (add the attribution / mark the official source), then re-verify. Do NOT

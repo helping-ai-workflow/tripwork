@@ -293,14 +293,16 @@ def test_rule15_bogus_status_export_gate_report_reruns_gate(tmp_path):
     assert got["next"] == "tripwork:export-gate"
 
 
-def test_rule15_retryable_fail_rerenders(tmp_path):
+def test_rule15_retryable_fail_goes_back_to_the_source_text(tmp_path):
+    """v2.0.0 R2-1: export is a fixed program, so a re-render reproduces the defect;
+    the fix is in the source text itinerary-synthesis owns."""
     t, w = _full(tmp_path)
     write_artifact(report_path(w, "export-gate-report.yaml"), {
         "status": "fail", "retryable": True, "distributable": True,
         "checks": [{"name": "no_naked_dollar", "passed": False}],
         "failures": ["naked '$' found; prices must be escaped as '\\$'"]})
     _bump(report_path(w, "export-gate-report.yaml"), 120)
-    assert _next(t, w)["next"] == "tripwork:export-artifact"
+    assert _next(t, w)["next"] == "tripwork:itinerary-synthesis"
 
 
 def test_rule15_nonretryable_fail_stops(tmp_path):

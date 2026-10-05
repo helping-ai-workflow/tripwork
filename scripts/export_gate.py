@@ -475,6 +475,22 @@ def _find_rows(md_text, names):
     return rows
 
 
+def _repeats(report, previous_path):
+    """True when this fail is exactly the previous report's retryable fail. export is a
+    fixed program (v2.0.0), so re-rendering cannot change a deliverable whose inputs did
+    not change: a retryable fail goes back to itinerary-synthesis to fix the source text,
+    and the same failures after that fix mean the plugin's own rendering is at fault."""
+    import yaml
+    if report["status"] != "fail" or not previous_path.is_file():
+        return False
+    try:
+        prev = yaml.safe_load(previous_path.read_text(encoding="utf-8")) or {}
+    except yaml.YAMLError:
+        return False
+    return (prev.get("status") == "fail" and prev.get("retryable") is True
+            and sorted(prev.get("failures") or []) == sorted(report["failures"]))
+
+
 def merge_reports(md_report, html_report):
     """Combine md + html gate reports into the single export-gate-report.
     html check names are prefixed `html_`, html failures prefixed `html: `;
@@ -544,6 +560,9 @@ def main(argv):
                                     merged_pois, min_days=min_days,
                                     media_count=media_count)
     report = merge_reports(md_report, html_report)
+    report["repeat_of_previous"] = _repeats(report, report_path(w, "export-gate-report.yaml"))
+    if report["repeat_of_previous"]:
+        report["retryable"] = False
     w.mkdir(parents=True, exist_ok=True)
     report_path(w, "export-gate-report.yaml").write_text(
         yaml.safe_dump(report, allow_unicode=True, sort_keys=False),

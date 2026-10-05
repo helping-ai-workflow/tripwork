@@ -58,10 +58,13 @@ gates both the md and html deliverables, and writes
 `work/<slug>/export-gate-report.yaml` (schema: `schemas/gate-report.schema.json`
 — reused; same status/checks/failures shape, plus the optional `distributable` + `retryable`
 flags). On `status: fail`, the report's **`retryable`** tells the orchestrator how to react:
-`retryable: true` (a render-fixable defect) → re-render; `retryable: false` (the only
+`retryable: true` (a defect in the source text — naked `$`, a kana run without its
+reading, internal jargon) → back to `itinerary-synthesis` to fix that text in the
+artifact, then gate and export again — **never edit the rendered deliverable**: `export`
+is a fixed program and would write the defect back; `retryable: false` (the only
 failures are upstream DATA defects — a photo with no attribution, a bookable POI with no
-official source — that re-rendering cannot fix) → **stop and ask the user to fix the data**,
-do NOT loop. A `status: pass` report with `distributable: false` is a **clean terminal
+official source — or `repeat_of_previous: true`, the same failures back after the source
+was fixed once, likely a plugin render defect) → **stop and ask the user**, do NOT loop. A `status: pass` report with `distributable: false` is a **clean terminal
 personal variant** (google-photo HTML): the orchestrator completes it as "complete —
 non-distributable, 勿散布", it does NOT re-export loop.
 
@@ -71,5 +74,5 @@ non-distributable, 勿散布", it does NOT re-export loop.
 |---|---|
 | Input | `trips/<slug>/<stem>.md` (named from `trips/<slug>/data/trip-brief.yaml`'s `short_name` via `scripts/paths.py::deliverable_paths`) + the MERGED pois (`trips/<slug>/data/verified-pois.yaml` overlaid with `trips/<slug>/data/accommodations.yaml`'s chosen lodgings and optional `trips/<slug>/data/verified-pois-media.yaml` via `scripts/media_merge.py::apply_media`), plus optional `trips/<slug>/data/itinerary.yaml` (for `min_days`), so the photo / distributability checks see the same photos the deliverable rendered. |
 | Output | `work/<slug>/export-gate-report.yaml` (`status` pass/fail + failures). |
-| Stop condition | `status: fail` + `retryable: true` → return to `export-artifact` to re-render; `retryable: false` → stop and ask the user to fix the data (`nonretryable_export_fail`). |
+| Stop condition | `status: fail` + `retryable: true` → return to `itinerary-synthesis` to fix the source text (never edit the rendered deliverable); `retryable: false` → stop and ask the user (`nonretryable_export_fail`): fix the data, or report a repeated failure as a plugin defect. |
 | Next stage | `tripwork:orchestrator` (pipeline complete on pass). |
