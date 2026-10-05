@@ -259,7 +259,7 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     passing on data that was never checked.
 
     geocode_dict, when present, always carries geocode_source
-    ('nominatim_structured' / 'nominatim' / 'cluster_fallback') — Task 0 made an
+    ('nominatim_structured' / 'nominatim' / 'nominatim_address' / 'cluster_fallback') — Task 0 made an
     absent value a refusal (the GEOCODE_SOURCE_MISSING sentinel,
     scripts/verify.py::classify_candidate's Gate 2), so a POI this function
     actually geocoded must never come back without it.

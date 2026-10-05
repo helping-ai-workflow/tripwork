@@ -239,8 +239,9 @@ def _centroid_only(by_id, pid):
     """True when a pool record's coordinate is its district's centroid
     (geocode_source cluster_fallback, "not the venue's address"). Not a rederive_*
     name for the same reason as _point."""
+    from scripts.render.centroid import APPROX_SOURCES
     geo = (by_id.get(pid) or {}).get("geocode") or {}
-    return geo.get("geocode_source") == "cluster_fallback"
+    return geo.get("geocode_source") in APPROX_SOURCES
 
 
 def _move_segments(itinerary):

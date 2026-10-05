@@ -269,7 +269,7 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     if geocode_source is GEOCODE_SOURCE_MISSING:
         return ("unverified",
                 "geocode_source not recorded — record geocode.geocode_source: "
-                "nominatim / nominatim_structured / cluster_fallback")
+                "nominatim / nominatim_structured / nominatim_address / cluster_fallback")
 
     # Gate 2's cluster_fallback sub-check (TW-062) is RETIRED as of v0.34.0
     # Task 6 (user ruling, 2026-08-09), not merely inactive. It required an

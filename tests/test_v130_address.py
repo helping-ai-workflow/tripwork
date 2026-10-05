@@ -93,3 +93,47 @@ def test_no_variant_resolves(monkeypatch):
     monkeypatch.setattr(G.requests, "get", get)
     assert G.address_point("北海道小樽市堺町7-26", country="日本") == (None, None)
     assert G.address_point("", country="日本") == (None, None)
+
+
+# --- Task 2: an address point is a recorded, approximate geocode source ---------------
+
+def _src(lang, url):
+    return {"url": url, "lang": lang}
+
+
+def test_schemas_accept_an_address_point():
+    import json
+    import pathlib
+    import jsonschema
+    root = pathlib.Path(__file__).resolve().parent.parent / "schemas"
+    for name in ("verified-pois.schema.json", "accommodations.schema.json"):
+        text = (root / name).read_text(encoding="utf-8")
+        assert '"nominatim_address"' in text, name
+    schema = json.loads((root / "verified-pois.schema.json").read_text(encoding="utf-8"))
+    geo = schema["properties"]["pois"]["items"]["properties"]["geocode"]
+    jsonschema.validate({"lat": 43.19, "lng": 141.0, "geocode_source": "nominatim_address"}, geo)
+
+
+def test_verify_accepts_an_address_point():
+    from scripts.verify import classify_candidate
+    cand = {"sources": [_src("ja", "https://a.example/x"), _src("zh-TW", "https://b.example/y")]}
+    status, note = classify_candidate(cand, True, True, local_lang="ja", geocode_source="nominatim_address")
+    assert status == "verified", note
+
+
+def test_an_address_point_is_disclosed_like_a_centroid():
+    from scripts.render.centroid import centroid_items, centroid_note
+    poi = {"id": "cafe", "name_display": "示意咖啡", "geocode": {"lat": 43.19, "lng": 141.0,
+                                                               "geocode_source": "nominatim_address"}}
+    itin = {"days": [{"rows": [{"poi_id": "cafe"}]}]}
+    assert centroid_items(itin, {"cafe": poi}) == [poi]
+    assert "地址" in centroid_note(poi) and "不是它本身的位置" in centroid_note(poi)
+    cpoi = dict(poi, geocode=dict(poi["geocode"], geocode_source="cluster_fallback"))
+    assert "所在區域的中心點" in centroid_note(cpoi)                       # unchanged
+
+
+def test_rederive_does_not_judge_an_address_point_by_the_straight_line():
+    from scripts.rederive import _centroid_only
+    by_id = {"cafe": {"geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim_address"}},
+             "shrine": {"geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"}}}
+    assert _centroid_only(by_id, "cafe") and not _centroid_only(by_id, "shrine")
