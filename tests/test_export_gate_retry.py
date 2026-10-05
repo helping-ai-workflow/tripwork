@@ -12,8 +12,10 @@ from tests import mech_fixtures as M
 def trip(tmp_path):
     from scripts import gate
     from scripts.paths import deliverable_paths
+    from scripts import export
     t, w = M.build_full_trip(tmp_path)
     assert gate.main([str(t), "--work-dir", str(w)]) == 0
+    assert export.main([str(t), "--work-dir", str(w)]) == 0       # the pipeline's order
     md = deliverable_paths(t, M.trip_brief())["md"]
     return t, w, md
 
@@ -39,10 +41,15 @@ def test_first_retryable_fail_routes_to_synthesis(trip):
     assert "fix the source text" in why
 
 
-def test_same_failure_twice_stops(trip):
+def test_same_failure_after_a_changed_input_stops(trip):
+    """A repeat needs the source to have changed between the two reports (the agent
+    fixed something and the defect came back); see tests/test_v2_review_fixes.py for the
+    whole loop followed through the oracle."""
+    from scripts.paths import artifact_path
     t, w, md = trip
     md.write_text(md.read_text(encoding="utf-8") + "\n門票 $5\n", encoding="utf-8")
     _gate(t, w)
+    M.write_artifact(artifact_path(t, "verified-pois-media.yaml"), {"media": {}})   # an input changes
     rep = _gate(t, w)
     assert rep["retryable"] is False and rep["repeat_of_previous"] is True
     nxt, why = _next(t, w)

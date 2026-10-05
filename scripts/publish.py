@@ -191,6 +191,17 @@ def main(argv=None):
     if not trip_dir.is_dir():
         print(f"no trip folder: {trip_dir}", file=sys.stderr)
         return 2
+    if args.cmd == "build":
+        from scripts.paths import is_legacy_layout
+        if is_legacy_layout(trip_dir):
+            print(f"pre-v1.0 trip layout — run `python <plugin>/scripts/tripwork.py migrate {trip_dir.name}` "
+                  f"(dry run), then with --apply", file=sys.stderr)
+            return 2
+        try:
+            trip_inputs(trip_dir)                       # what the page needs, before any password
+        except TripInputError as exc:
+            print(exc, file=sys.stderr)
+            return 2
     password = _password() if args.cmd == "build" else None
     if args.cmd == "build" and not password:
         print(NO_PASSWORD, file=sys.stderr)

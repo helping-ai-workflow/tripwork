@@ -99,9 +99,12 @@ def test_readback_requires_the_table_flag_verbatim():
 def test_rule_15_stop_and_ask_is_a_registered_flag(tmp_path):
     """next_stage.py emits `stop-and-ask` itself for rule 15; that halt must have a
     flag to record it under like every other."""
+    from scripts.paths import report_path
+    from tests.test_next_stage import _bump
     from tests.test_skill_prose_hygiene import _data_defect, _next, _full
     t, w = _full(tmp_path)
     _data_defect(t)
     run_main("scripts.export_gate", [t])
+    _bump(report_path(w, "export-gate-report.yaml"), 150)    # newest, like the fixture's other files
     assert _next(t, w)["next"] == "stop-and-ask"
     assert any(s == "export-gate" for s, _ in _stop_flags())

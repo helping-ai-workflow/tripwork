@@ -11,7 +11,7 @@ from tests.cli_helpers import run_main
 
 
 def _gate_and_export(t, w):
-    for mod in ("scripts.gate", "scripts.export_gate"):
+    for mod in ("scripts.gate", "scripts.export", "scripts.export_gate"):     # the pipeline's order
         run_main(mod, [t])
 
 

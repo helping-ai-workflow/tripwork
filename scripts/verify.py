@@ -351,7 +351,10 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     any more, because there is nothing left here to forward it to.
     """
     sources = candidate.get("sources", [])
-    langs = {s.get("lang") for s in sources}
+    # Gate 1b reads the language of the sources that count: a search results page or a
+    # URL with no host is no source, so it cannot be the local-language one either.
+    langs = {s.get("lang") for s in sources if isinstance(s, dict) and s.get("url")
+             and not is_search_results_page(s["url"]) and site_key(s["url"])}
 
     # Gate 0: permanently/temporarily closed (defunct) -> rejected.
     if not operating:

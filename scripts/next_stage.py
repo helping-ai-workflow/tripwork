@@ -169,6 +169,12 @@ def next_stage(trip_dir, work_dir):
     md = paths[REQUIRED_DELIVERABLE]
     if not md.is_file():
         return "tripwork:export-artifact", "rule 14: no export deliverable"
+    # The gate ran after the deliverables were rendered, so they may show an itinerary
+    # the gate never passed: export again before anything judges them (v2.0.0 review C1).
+    older = [d.name for d in deliverables if d.is_file() and _newer(gr, d)]
+    if older:
+        return ("tripwork:export-artifact",
+                f"rule 14: {', '.join(older)} older than gate-report.yaml — export again")
 
     # rule 15 — same widening as rule 13: the export-gate report must be newer
     # than EVERY deliverable export_gate.py judges (md + html, TW-077) AND

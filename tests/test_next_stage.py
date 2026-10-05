@@ -46,8 +46,10 @@ def _full(tmp_path):
     t, w = build_full_trip(tmp_path)
     write_artifact(report_path(w, "gate-report.yaml"), PASS_REPORT)
     write_artifact(report_path(w, "export-gate-report.yaml"), PASS_REPORT)
-    # deliverables/reports must be newer than their inputs
+    # the real order: gate, then export, then export-gate -- each newer than the last
     _bump(report_path(w, "gate-report.yaml"), 60)
+    for d in deliverable_paths(t, trip_brief()).values():
+        _bump(d, 90)
     _bump(report_path(w, "export-gate-report.yaml"), 120)
     return t, w
 

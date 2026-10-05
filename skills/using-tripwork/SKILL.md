@@ -9,9 +9,9 @@ tripwork is a staged, orchestrator-driven pipeline for building source-verified 
 
 **Entry point:** Always start with `tripwork:workspace-shape-preflight` (first time in a cwd) then `tripwork:orchestrator`. Never jump directly to synthesis or export.
 
-## File Paths Are Target-Repo Convention
+## The Workspace Layout
 
-Example paths throughout these skills (`trips/<slug>/`, `work/<slug>/`) reflect the target repo's convention. The authoritative layout is defined in the target repo's `CLAUDE.md`, not in plugin skills. Plugin scripts accept explicit paths as arguments and do not hardcode layout.
+A workspace is the folder holding `trips/` and `work/`: each trip lives in `trips/<slug>/` (its artifacts in `trips/<slug>/data/`) and its rebuildable state in `work/<slug>/`; the layout is fixed: `tripwork.py` runs from that folder and fills in exactly these paths — so the target repo's `CLAUDE.md` may add conventions of its own but cannot move these folders.
 
 ## Running the scripts
 

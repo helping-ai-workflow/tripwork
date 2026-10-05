@@ -58,12 +58,21 @@ def test_inter_stop_legs_points_at_the_shipped_break_even_owner():
         "inter-stop-legs still says the break-even is deferred to a future phase")
 
 
+def _as_exported(path, text):
+    """Rewrite a deliverable as if `export` had written it: keep its mtime, which the
+    fixture placed after the gate report (rule 14 re-exports a deliverable older than it)."""
+    import os
+    st = path.stat()
+    path.write_text(text, encoding="utf-8")
+    os.utime(path, (st.st_atime, st.st_mtime))
+
+
 def _render_defect(t):
     """A naked '$' in the md deliverable: a defect re-rendering fixes."""
     from scripts.paths import deliverable_paths
     from tests.mech_fixtures import trip_brief
     md = deliverable_paths(t, trip_brief())["md"]
-    md.write_text(md.read_text(encoding="utf-8") + "\n門票 $120\n", encoding="utf-8")
+    _as_exported(md, md.read_text(encoding="utf-8") + "\n門票 $120\n")
 
 
 def _data_defect(t):
@@ -73,8 +82,8 @@ def _data_defect(t):
     write_artifact(artifact_path(t, "verified-pois-media.yaml"), {"media": {"poi-1": {
         "photo": {"data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=="}, "photo_source": "wiki"}}})
     html = deliverable_paths(t, trip_brief())["html"]
-    html.write_text(html.read_text(encoding="utf-8")
-                    + '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==">', encoding="utf-8")
+    _as_exported(html, html.read_text(encoding="utf-8")
+                 + '<img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==">')
 
 
 @pytest.mark.parametrize("defect", [_render_defect, _data_defect],
@@ -86,6 +95,7 @@ def test_export_gate_stop_condition_matches_rule_15(tmp_path, defect):
     t, w = _full(tmp_path)
     defect(t)
     r = run_main("scripts.export_gate", [t])
+    _bump(report_path(w, "export-gate-report.yaml"), 150)    # newest, like the fixture's other files
     assert r.returncode == 1, r.stdout + r.stderr
     report = yaml.safe_load(report_path(work_dir_for(t), "export-gate-report.yaml").read_text(encoding="utf-8"))
     assert report["status"] == "fail"

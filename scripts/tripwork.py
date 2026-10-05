@@ -49,9 +49,15 @@ def _validate(slug, rest):
     if rest and not rest[0].startswith("-"):
         name = rest[0] if rest[0].endswith(".yaml") else rest[0] + ".yaml"
         return [("scripts.validate_artifact", [f"{_trip(slug)}/data/{name}", *rest[1:]])]
+    from scripts.paths import is_legacy_layout
+    if is_legacy_layout(_trip(slug)):
+        raise UsageError(f"pre-v1.0 trip layout — run `python <plugin>/scripts/tripwork.py migrate {slug}` "
+                         f"(dry run), then with --apply")
     data = pathlib.Path(_trip(slug)) / "data"
-    return [("scripts.validate_artifact", [f"{_trip(slug)}/data/{p.name}", *rest])
-            for p in sorted(data.glob("*.yaml"))]
+    found = sorted(data.glob("*.yaml"))
+    if not found:
+        raise UsageError(f"no artifacts in {_trip(slug)}/data to validate")
+    return [("scripts.validate_artifact", [f"{_trip(slug)}/data/{p.name}", *rest]) for p in found]
 
 
 def _picker(slug, rest):
@@ -133,7 +139,7 @@ def main(argv):
         print(f"unknown command {cmd!r}\n\n{_table()}", file=sys.stderr)
         return 2
     try:
-        if not pathlib.Path("trips").is_dir():
+        if cmd != "next" and not pathlib.Path("trips").is_dir():
             raise UsageError("no trips/ here — run tripwork.py from the workspace root (the folder with trips/)")
         if cmd == "migrate":
             slug = resolve_slug(rest.pop(0)) if rest and not rest[0].startswith("-") else None
@@ -145,10 +151,11 @@ def main(argv):
         # fresh slug (orchestrator rule 0.5) and the oracle routes it to rule 0 / 1.
         if slug and cmd != "next" and not pathlib.Path(_trip(slug)).is_dir():
             raise UsageError(f"no trip folder {_trip(slug)}")
+        calls = COMMANDS[cmd](slug, rest)
     except UsageError as exc:
         print(f"tripwork.py: {exc}", file=sys.stderr)
         return 2
-    codes = [_call(module, args, cmd) for module, args in COMMANDS[cmd](slug, rest)]
+    codes = [_call(module, args, cmd) for module, args in calls]
     return max(codes, default=0)
 
 

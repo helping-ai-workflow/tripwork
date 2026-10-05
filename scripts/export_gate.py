@@ -475,11 +475,25 @@ def _find_rows(md_text, names):
     return rows
 
 
+def _inputs_fingerprint(trip_dir):
+    """Hash of every artifact export-gate judges the deliverables against
+    (EXPORT_GATE_INPUTS), so two reports can tell whether the source changed between them."""
+    import hashlib
+    from scripts.orchestration import EXPORT_GATE_INPUTS
+    from scripts.paths import artifact_path
+    h = hashlib.sha256()
+    for name in EXPORT_GATE_INPUTS:
+        p = artifact_path(trip_dir, name)
+        h.update(name.encode() + b"\0" + (p.read_bytes() if p.is_file() else b"") + b"\0")
+    return h.hexdigest()[:16]
+
+
 def _repeats(report, previous_path):
-    """True when this fail is exactly the previous report's retryable fail. export is a
-    fixed program (v2.0.0), so re-rendering cannot change a deliverable whose inputs did
-    not change: a retryable fail goes back to itinerary-synthesis to fix the source text,
-    and the same failures after that fix mean the plugin's own rendering is at fault."""
+    """True when this fail is exactly the previous report's retryable fail AND the source
+    changed in between. export is a fixed program (v2.0.0): a retryable fail goes back to
+    itinerary-synthesis to fix the source text, so the same failures from changed inputs
+    mean the plugin's own rendering is at fault. Re-running the gate on unchanged inputs
+    repeats nothing."""
     import yaml
     if report["status"] != "fail" or not previous_path.is_file():
         return False
@@ -488,7 +502,9 @@ def _repeats(report, previous_path):
     except yaml.YAMLError:
         return False
     return (prev.get("status") == "fail" and prev.get("retryable") is True
-            and sorted(prev.get("failures") or []) == sorted(report["failures"]))
+            and sorted(prev.get("failures") or []) == sorted(report["failures"])
+            and bool(prev.get("inputs_fingerprint"))
+            and prev.get("inputs_fingerprint") != report.get("inputs_fingerprint"))
 
 
 def merge_reports(md_report, html_report):
@@ -560,6 +576,7 @@ def main(argv):
                                     merged_pois, min_days=min_days,
                                     media_count=media_count)
     report = merge_reports(md_report, html_report)
+    report["inputs_fingerprint"] = _inputs_fingerprint(d)
     report["repeat_of_previous"] = _repeats(report, report_path(w, "export-gate-report.yaml"))
     if report["repeat_of_previous"]:
         report["retryable"] = False
