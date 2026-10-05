@@ -43,7 +43,8 @@ import time
 
 import yaml
 
-from scripts.geocode import address_is_fine, address_point, country_code, in_region, pick_point, resolve_place
+from scripts.geocode import (address_is_fine, address_point, country_code, in_region, pick_point,
+                             place_point, resolve_place)
 from scripts.paths import artifact_path
 from scripts.geocode_cache import load_cache, save_cache
 from scripts.validate_artifact import validate_file
@@ -199,6 +200,22 @@ def _landed_in(district, display_name):
     return len(own) >= 2 and whole.endswith(own)
 
 
+def _district_fallback(district, country, cache):
+    """A district the settlement lookup missed (v1.3.0): OSM may hold it only as its 丁目
+    or tag it neighbourhood (e2e: three of a trip's districts). A plain query for a place of
+    that name, then (Japan) its first 丁目, paced -- only a result that is the district
+    (_landed_in), never a building or stop named after it. None when neither lands."""
+    pace = lambda: time.sleep(NOMINATIM_DELAY_S)
+    tries = [district]
+    if country_code(country, cache=cache, pace=pace) == "jp" and re.search(r"[\u3400-\u9fff]", district):
+        tries.append(district + "一丁目")
+    for q in tries:
+        r = place_point(q, country=country, cache=cache, pace=pace)
+        if r is not None and _landed_in(district, r.display_name):
+            return r
+    return None
+
+
 def _district_centroid(district, country, cache, offline, district_centroids):
     """Resolve one claimed district's centroid once per run, reusing the same
     per-trip cache resolve_place uses for POIs (skills/source-verify/SKILL.md
@@ -221,6 +238,10 @@ def _district_centroid(district, country, cache, offline, district_centroids):
         result, _source = _rate_limited_resolve(district, None, country, cache, area=True)
         if result is not None and _landed_in(district, result.display_name):
             centroid = (result.lat, result.lng)
+        else:
+            r = _district_fallback(district, country, cache)
+            if r is not None:
+                centroid = (r.lat, r.lng)
     district_centroids[district] = centroid
     return centroid
 

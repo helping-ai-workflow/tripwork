@@ -220,6 +220,7 @@ def _centroid(monkeypatch, display):
     from scripts.geocode import GeocodeResult
     monkeypatch.setattr(svr, "_rate_limited_resolve",
                         lambda name, d, c, cache, name_roman=None, area=False: (GeocodeResult(43.19, 141.0, display), "nominatim"))
+    monkeypatch.setattr(svr, "_district_fallback", lambda *a: None)         # v1.3.0: nor does the fallback
     return svr._district_centroid("小樽市堺町", "JP", {}, False, {})
 
 
@@ -337,6 +338,7 @@ def _ichibankan_run(tmp_path, monkeypatch, prior_status="verified", district="�
     monkeypatch.setattr(svr, "resolve_place", _stub_resolve_place({
         "壮瞥町昭和新山": (GeocodeResult(42.5425, 140.8643, "昭和新山, 壮瞥町, 北海道"), "nominatim"),
         "一番館": (GeocodeResult(34.6900, 135.7140, "一番館, 奈良市, 奈良県"), "nominatim")}))
+    monkeypatch.setattr(svr, "_district_fallback", lambda *a: None)   # v1.3.0: the table is every lookup
     trip, work = tmp_path / "trip", tmp_path / "work"
     (trip / "data").mkdir(parents=True); work.mkdir()
     cand = _candidate("toya-ichibankan", "一番館", claimed_district=district)

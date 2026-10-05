@@ -270,6 +270,35 @@ def address_point(address, country=None, timeout=10, cache=None, pace=None):
     return None, None
 
 
+def place_point(query, country=None, timeout=10, cache=None, pace=None):
+    """The first result of a plain free-text query (no featureType) that is a place in
+    OSM's sense (class place: a quarter, neighbourhood, town ...), inside the trip's country;
+    None otherwise. A district the settlement lookup misses (OSM has only its 丁目, or tags it
+    neighbourhood) is found this way, while a parking lot or bus stop named after it is not.
+    Cached under cache_key(kind="place"); `pace` after every issued request."""
+    if not str(query or "").strip():
+        return None
+    key = cache_key(query, None, country, kind="place") if cache is not None else None
+    if cache is not None:
+        hit, value = cache_get(cache, key)
+        if hit:
+            return GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")) if value else None
+    cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
+    params = {"q": query, "format": "json", "limit": 5}
+    if cc:
+        params["countrycodes"] = cc
+    resp = requests.get(NOMINATIM_URL, params=params, headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    if pace is not None:
+        pace()
+    resp.raise_for_status()
+    top = next((d for d in resp.json() or [] if d.get("class") == "place"), None)
+    out = GeocodeResult(float(top["lat"]), float(top["lon"]), top.get("display_name", "")) if top else None
+    if cache is not None:
+        cache_put(cache, key, None if out is None else
+                  {"lat": out.lat, "lng": out.lng, "display_name": out.display_name, "source": "nominatim"})
+    return out
+
+
 def address_is_fine(address, variant, country_code=None):
     """True when `variant` is finer than the address's town: the address itself or its 丁目
     (Japan), the address itself elsewhere. A town (or road) point is kilometres wide -- too

@@ -78,6 +78,7 @@ def _district(monkeypatch, display, district="小樽市堺町"):
     monkeypatch.setattr(svr, "_rate_limited_resolve",
                         lambda name, d, c, cache, name_roman=None, area=False:
                         (G.GeocodeResult(43.19, 141.0, display), "nominatim"))
+    monkeypatch.setattr(svr, "_district_fallback", lambda *a: None)         # v1.3.0: nor does the fallback
     return svr._district_centroid(district, "日本", {}, False, {})
 
 

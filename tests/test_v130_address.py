@@ -304,3 +304,51 @@ def test_only_the_address_or_its_chome_is_fine():
     assert G.address_is_fine("嘉義市西區民族路100號2樓", "嘉義市西區民族路100號2樓", "tw")
     assert not G.address_is_fine("嘉義市西區民族路100號2樓", "嘉義市西區民族路", "tw")
     assert G.address_is_fine("12 Example Street, Queenstown", "12 Example Street, Queenstown", "nz")
+
+
+# --- v1.3.0 (the user's call): a district the settlement lookup misses -----------------
+# (e2e: 首里赤田町 / 西洲 / 嘉数-like districts exist in OSM only as their 丁目; a plain query
+# returns a parking lot, a pump station, a bus stop)
+
+def _district_run(monkeypatch, answers, district="函館市元町"):
+    from scripts import source_verify_run as svr
+    monkeypatch.setattr(svr.time, "sleep", lambda *_: None)
+    get, seen = _nominatim(answers)
+    monkeypatch.setattr(G.requests, "get", get)
+    return svr._district_centroid(district, "日本", {}, False, {}), seen
+
+
+def test_a_district_found_only_as_a_place_by_a_plain_query(monkeypatch):
+    def answers(p):
+        if p.get("featureType") == "country":
+            return JP
+        if p.get("featureType") == "settlement":
+            return []
+        if p.get("q") == "函館市元町":
+            return [{"lat": "41.70", "lon": "140.70", "class": "highway", "display_name": "元町, 某バス停"},
+                    {"lat": "41.76", "lon": "140.71", "class": "place", "display_name": "元町, 函館市, 北海道"}]
+        return []
+    centre, seen = _district_run(monkeypatch, answers)
+    assert centre == (41.76, 140.71)                     # the place, not the bus stop named after it
+
+
+def test_a_district_found_only_as_its_first_chome(monkeypatch):
+    def answers(p):
+        if p.get("featureType") == "country":
+            return JP
+        if p.get("q") == "函館市元町一丁目" and "featureType" not in p:
+            return [{"lat": "41.761", "lon": "140.712", "class": "place", "display_name": "元町一丁目, 函館市"}]
+        if p.get("q") == "函館市元町" and "featureType" not in p:
+            return [{"lat": "41.70", "lon": "140.70", "class": "amenity", "display_name": "元町駐車場, 元町一丁目"}]
+        return []
+    centre, _ = _district_run(monkeypatch, answers)
+    assert centre == (41.761, 140.712)
+
+
+def test_a_building_named_after_the_district_is_still_not_its_centre(monkeypatch):
+    def answers(p):
+        if p.get("featureType") == "country":
+            return JP
+        return [{"lat": "41.70", "lon": "140.70", "class": "place", "display_name": "函館市立元町中学校, 元町"}]
+    centre, _ = _district_run(monkeypatch, answers)
+    assert centre is None
