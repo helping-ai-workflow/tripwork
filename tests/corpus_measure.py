@@ -650,7 +650,24 @@ def measure_corpus():
         "gate_aggregate": _measure_gate_aggregate(),
         "rederive_axes": _measure_rederive_axes(),
         "counterfactual": _measure_counterfactual(),
+        "sources": {t: _measure_sources(t) for t in CORPUS_TRIPS},
     }
+
+
+def _measure_sources(trip):
+    """v1.3.0: what the address check and the two research tracks work on -- POIs with a
+    sourced address, POIs per geocode source, sources per language. Counts only."""
+    pois = (load_trip(trip)["pois"] or {}).get("pois") or []
+    gs, langs = {}, {}
+    for p in pois:
+        src = (p.get("geocode") or {}).get("geocode_source")
+        if src:
+            gs[src] = gs.get(src, 0) + 1
+        for s in p.get("sources") or []:
+            lang = s.get("lang") or "?"
+            langs[lang] = langs.get(lang, 0) + 1
+    return {"pois": len(pois), "with_address": sum(1 for p in pois if p.get("address_local")),
+            "geocode_source": gs, "source_lang": langs}
 
 
 def _write():

@@ -143,6 +143,7 @@
                       "enum": [
                         "nominatim",
                         "nominatim_structured",
+                        "nominatim_address",
                         "cluster_fallback"
                       ]
                     }

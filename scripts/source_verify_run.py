@@ -41,9 +41,11 @@ import re
 import sys
 import time
 
+import requests
 import yaml
 
-from scripts.geocode import in_region, resolve_place
+from scripts.geocode import (address_is_fine, address_point, country_code, in_region, pick_point,
+                             place_point, resolve_place)
 from scripts.paths import artifact_path
 from scripts.geocode_cache import load_cache, save_cache
 from scripts.validate_artifact import validate_file
@@ -125,6 +127,15 @@ def _flag_official(source, extra_suffixes):
     return out
 
 
+def _rate_limited_address(address, country, cache):
+    """geocode.address_point, paced per request like _rate_limited_resolve ->
+    (point or None, fine): fine when the point is the address or its 丁目, not its town."""
+    pace = lambda: time.sleep(NOMINATIM_DELAY_S)
+    ref, variant = address_point(address, country=country, cache=cache, pace=pace)
+    fine = ref is not None and address_is_fine(address, variant, country_code(country, cache=cache, pace=pace))
+    return ref, fine
+
+
 def _rate_limited_resolve(name, district, country, cache, name_roman=None, area=False):
     """resolve_place wrapper that sleeps NOMINATIM_DELAY_S after every request
     that actually reached the network — never after a cache hit.
@@ -190,6 +201,22 @@ def _landed_in(district, display_name):
     return len(own) >= 2 and whole.endswith(own)
 
 
+def _district_fallback(district, country, cache):
+    """A district the settlement lookup missed (v1.3.0): OSM may hold it only as its 丁目
+    or tag it neighbourhood (e2e: three of a trip's districts). A plain query for a place of
+    that name, then (Japan) its first 丁目, paced -- only a result that is the district
+    (_landed_in), never a building or stop named after it. None when neither lands."""
+    pace = lambda: time.sleep(NOMINATIM_DELAY_S)
+    tries = [district]
+    if country_code(country, cache=cache, pace=pace) == "jp" and re.search(r"[\u3400-\u9fff]", district):
+        tries.append(district + "一丁目")
+    for q in tries:
+        r = place_point(q, country=country, cache=cache, pace=pace)
+        if r is not None and _landed_in(district, r.display_name):
+            return r
+    return None
+
+
 def _district_centroid(district, country, cache, offline, district_centroids):
     """Resolve one claimed district's centroid once per run, reusing the same
     per-trip cache resolve_place uses for POIs (skills/source-verify/SKILL.md
@@ -212,6 +239,10 @@ def _district_centroid(district, country, cache, offline, district_centroids):
         result, _source = _rate_limited_resolve(district, None, country, cache, area=True)
         if result is not None and _landed_in(district, result.display_name):
             centroid = (result.lat, result.lng)
+        else:
+            r = _district_fallback(district, country, cache)
+            if r is not None:
+                centroid = (r.lat, r.lng)
     district_centroids[district] = centroid
     return centroid
 
@@ -224,6 +255,8 @@ def _lookup_query(cand):
          "district": cand.get("district_query") or cand.get("claimed_district") or ""}
     if cand.get("name_roman"):
         q["name_roman"] = cand["name_roman"]
+    if cand.get("address_local"):                     # v1.3.0: the address checks the name lookup
+        q["address"] = cand["address_local"]
     return q
 
 
@@ -259,7 +292,7 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     passing on data that was never checked.
 
     geocode_dict, when present, always carries geocode_source
-    ('nominatim_structured' / 'nominatim' / 'cluster_fallback') — Task 0 made an
+    ('nominatim_structured' / 'nominatim' / 'nominatim_address' / 'cluster_fallback') — Task 0 made an
     absent value a refusal (the GEOCODE_SOURCE_MISSING sentinel,
     scripts/verify.py::classify_candidate's Gate 2), so a POI this function
     actually geocoded must never come back without it.
@@ -304,6 +337,25 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
 
     result, source = _rate_limited_resolve(name_local, district, country, cache,
                                            name_roman=name_roman)
+    # v1.3.0: the venue's sourced address checks the name lookup. A name hit far from the
+    # address is a namesake (a bare-name tier found the same name elsewhere): dropped. With
+    # no name hit left, the address point (its 丁目 or town) stands in, recorded as
+    # nominatim_address -- approximate, disclosed like a centroid, a coordinate-only hit.
+    # An address point only counts when it is fine (the address or its 丁目, not the town)
+    # and lies in the claimed district: a full-text address can match far away (e2e
+    # 2026-10-05: 1285 km and 58 km off), and without a district centre nothing confirms it.
+    if query.get("address"):
+        ref, fine = _rate_limited_address(query["address"], country, cache)
+        if ref is not None and not (region_checked and fine
+                                    and in_region(ref.lat, ref.lng, centroid[0], centroid[1], radius_km)):
+            ref = None
+        point, kind = pick_point(result, source, ref)
+        if kind == "nominatim_address":
+            geo = {"lat": point.lat, "lng": point.lng, "geocode_source": kind, "query": query}
+            in_region_flag = (in_region(point.lat, point.lng, centroid[0], centroid[1], radius_km)
+                              if region_checked else True)
+            return geo, True, in_region_flag, NO_RESOLVED_NAME, region_checked
+        result = point
     if result is not None:
         geo = {"lat": result.lat, "lng": result.lng, "geocode_source": source, "query": query}
         in_region_flag = (in_region(result.lat, result.lng, centroid[0], centroid[1], radius_km)
@@ -385,45 +437,48 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False)
     prior_doc = (_load_yaml_file(prior_path) if prior_path.is_file() else None) or {}
     prior = {p.get("id"): p for p in (prior_doc.get("pois") or []) if isinstance(p, dict)}
 
-    for cand in candidates:
-        old = prior.get(cand.get("id"))
-        kept = None if regeocode else _confirmed_geocode(old, cand)
-        if kept is not None:
-            kept["resolved_name"] = old.get("resolved_name")
-        geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
-            cand, country, cache, offline, district_centroids, radius_km, kept=kept)
-        poi = _carry_over(_build_poi(cand, official_domains, resolved_name),
-                          prior.get(cand.get("id")), cand)
-        if geo is not None:
-            poi["geocode"] = geo
+    # v1.3.0: the cache is saved even when a failure (a network that outlasts the retries,
+    # Ctrl+C) leaves the loop, so it costs one re-run, not the run's progress
+    try:
+        for cand in candidates:
+            old = prior.get(cand.get("id"))
+            kept = None if regeocode else _confirmed_geocode(old, cand)
+            if kept is not None:
+                kept["resolved_name"] = old.get("resolved_name")
+            geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
+                cand, country, cache, offline, district_centroids, radius_km, kept=kept)
+            poi = _carry_over(_build_poi(cand, official_domains, resolved_name),
+                              prior.get(cand.get("id")), cand)
+            if geo is not None:
+                poi["geocode"] = geo
 
-        normalised, status, note = _verify_one(
-            poi, geocoded, in_region_flag, local_lang, resolved_name, today)
+            normalised, status, note = _verify_one(
+                poi, geocoded, in_region_flag, local_lang, resolved_name, today)
 
-        # Important finding 1 (fix round 1): _geocode_candidate hands
-        # classify_candidate in_region_flag=True whenever region_checked is
-        # False (nothing to disprove), so an absent/unresolvable
-        # claimed_district never collapses into a false 'conflicting'. That
-        # also means classify_candidate could return 'verified' without the
-        # region ever actually being confirmed — downgrade that specific case
-        # here, honestly, rather than upstream (verify.py's in_claimed_region
-        # is a plain bool with no tri-state to express "unknown" itself).
-        if status == "verified" and not region_checked:
-            status = "unverified"
-            note = ("region membership unconfirmed: no claimed_district was "
-                    "recorded, or its centroid could not be resolved, so the "
-                    "geocoded coordinate was never compared against a claimed "
-                    "region — record a claimed_district, or confirm the "
-                    "venue's district manually")
+            # Important finding 1 (fix round 1): _geocode_candidate hands
+            # classify_candidate in_region_flag=True whenever region_checked is
+            # False (nothing to disprove), so an absent/unresolvable
+            # claimed_district never collapses into a false 'conflicting'. That
+            # also means classify_candidate could return 'verified' without the
+            # region ever actually being confirmed — downgrade that specific case
+            # here, honestly, rather than upstream (verify.py's in_claimed_region
+            # is a plain bool with no tri-state to express "unknown" itself).
+            if status == "verified" and not region_checked:
+                status = "unverified"
+                note = ("region membership unconfirmed: no claimed_district was "
+                        "recorded, or its centroid could not be resolved, so the "
+                        "geocoded coordinate was never compared against a claimed "
+                        "region — record a claimed_district, or confirm the "
+                        "venue's district manually")
 
-        normalised["verify_status"] = status
-        if note:
-            normalised["status_reason"] = note
-            if status == "conflicting":
-                normalised["conflict_note"] = note
-        pois.append(normalised)
-
-    save_cache(str(cache_path), cache)
+            normalised["verify_status"] = status
+            if note:
+                normalised["status_reason"] = note
+                if status == "conflicting":
+                    normalised["conflict_note"] = note
+            pois.append(normalised)
+    finally:
+        save_cache(str(cache_path), cache)
 
     out_path = artifact_path(trip_dir, "verified-pois.yaml")
     out_path.parent.mkdir(parents=True, exist_ok=True)
@@ -455,6 +510,12 @@ def main(argv):
         code, msgs, out_path, pois = run(
             args.trip_dir, args.work_dir, offline=args.offline,
             official_domains=args.official_domains, regeocode=args.regeocode)
+    except requests.exceptions.RequestException as exc:
+        # before OSError: requests' errors are OSErrors, and a network failure is not a
+        # missing input (v1.3.0). The geocode cache already holds what was looked up.
+        print(f"Nominatim could not be reached after retries ({exc.__class__.__name__}); "
+              "the lookups so far are saved -- re-run to continue", file=sys.stderr)
+        return 1
     except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError, OSError) as exc:
         print(f"missing/invalid required input: {exc!r}", file=sys.stderr)
         return 2

@@ -1,11 +1,34 @@
 """OSM Nominatim geocoding wrapper. No API key; respects usage policy."""
 import re
+import time
+import unicodedata
 from dataclasses import dataclass
 import requests
 from scripts.distance import haversine_km
 from scripts.geocode_cache import cache_key, cache_get, cache_put
 
 NOMINATIM_URL = "https://nominatim.openstreetmap.org/search"
+# v1.3.0: a flaky network is retried, not fatal (e2e: one read timeout ended a 6-minute
+# source-verify run). Waits between the three tries; tests replace _sleep.
+_RETRY_WAITS = (2, 5)
+_RETRY_STATUS = {429, 502, 503, 504}
+_sleep = time.sleep
+
+
+def _get(params, timeout):
+    """requests.get on Nominatim, retried after a timeout, a dropped connection or a busy
+    server (429 / 502 / 503 / 504). The last failure is raised, so a caller never takes a
+    network failure for "not found" (and caches no miss)."""
+    for wait in (*_RETRY_WAITS, None):
+        try:
+            resp = requests.get(NOMINATIM_URL, params=params, headers={"User-Agent": USER_AGENT},
+                                timeout=timeout)
+            if getattr(resp, "status_code", 200) not in _RETRY_STATUS or wait is None:
+                return resp
+        except (requests.exceptions.Timeout, requests.exceptions.ConnectionError):
+            if wait is None:
+                raise
+        _sleep(wait)
 USER_AGENT = "tripwork/0.2 (https://github.com/helping-ai-workflow/tripwork)"
 
 @dataclass
@@ -26,12 +49,7 @@ def geocode(query, timeout=10, countrycodes=None, feature_type=None):
         params["countrycodes"] = countrycodes
     if feature_type:
         params["featureType"] = feature_type
-    resp = requests.get(
-        NOMINATIM_URL,
-        params=params,
-        headers={"User-Agent": USER_AGENT},
-        timeout=timeout,
-    )
+    resp = _get(params, timeout)
     resp.raise_for_status()
     data = resp.json()
     if not data:
@@ -76,8 +94,7 @@ def geocode_structured(name, city=None, country=None, timeout=10):
         params["city"] = city
     if country:
         params["country"] = country
-    resp = requests.get(NOMINATIM_URL, params=params,
-                        headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    resp = _get(params, timeout)
     resp.raise_for_status()
     data = resp.json()
     if not data:
@@ -89,10 +106,8 @@ def geocode_structured(name, city=None, country=None, timeout=10):
 def geocode_country(country, timeout=10):
     """The ISO 3166-1 alpha-2 code ('jp') Nominatim gives a country name in any language
     ('日本', 'Japan', '台灣'), or None. Caller rate-limits."""
-    resp = requests.get(NOMINATIM_URL,
-                        params={"q": country, "featureType": "country", "addressdetails": 1,
-                                "format": "json", "limit": 1},
-                        headers={"User-Agent": USER_AGENT}, timeout=timeout)
+    resp = _get({"q": country, "featureType": "country", "addressdetails": 1, "format": "json", "limit": 1},
+                timeout)
     resp.raise_for_status()
     data = resp.json()
     code = ((data[0].get("address") or {}).get("country_code") if data else None) or ""
@@ -200,6 +215,130 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
                    "display_name": result.display_name, "source": source})
 
     return (result, source) if result is not None else (None, None)
+
+_DASH = str.maketrans({c: "-" for c in "－−ー‐–—―"})
+_KANJI_CHOME = re.compile(r"^(.*?)([一二三四五六七八九十]+丁目)")
+_FIRST_NUMBER = re.compile(r"^(.*?[^\d\s-])(\d+)(?:丁目|-|番|$)")
+
+
+def address_variants(address, country_code=None):
+    """The strings an address is looked up as, finest first. Nominatim resolves a Japanese
+    address to its 丁目 at best (probed 2026-10-05: `浅草2-3-1` never resolves, `浅草2丁目`
+    does), so for Japan: the address without building / floor, its 丁目 (the first number,
+    when it is a 丁目 -- 20 or less; a larger one is a 番地), then the town. Elsewhere: the
+    address, then without a trailing house number (`…路100號2樓` -> `…路`)."""
+    s = unicodedata.normalize("NFKC", str(address or "")).translate(_DASH).strip()
+    if not s:
+        return []
+    out = []
+    if (country_code or "").lower() == "jp":
+        s = re.split(r"\s", s)[0]                                   # building / floor follow a space
+        m = _KANJI_CHOME.match(s)
+        if m:
+            out = [s, m.group(1) + m.group(2), m.group(1)]
+        else:
+            m = _FIRST_NUMBER.match(s)
+            whole = re.match(r"^.*?\d[\d\-番地号丁目]*", s)
+            out = [whole.group(0) if whole else s]
+            if m:
+                if int(m.group(2)) <= 20:
+                    out.append(f"{m.group(1)}{int(m.group(2))}丁目")
+                out.append(m.group(1))
+    else:
+        out = [s]
+        m = re.match(r"^(.*?\D)\s*\d+\s*(?:號|号|번지|번)", s)
+        if m and m.group(1).strip():
+            out.append(m.group(1).strip())
+    seen = []
+    for v in out:
+        if v and v not in seen:
+            seen.append(v)
+    return seen
+
+
+def address_point(address, country=None, timeout=10, cache=None, pace=None):
+    """A reference point for a venue from its sourced street address: the first of
+    address_variants() Nominatim resolves inside the trip's country -> (GeocodeResult,
+    variant), or (None, None). A 丁目 / town point is a few hundred metres wide: it checks
+    a name lookup and stands in when there is none, it is not the venue. Each variant is
+    cached (misses too) under its own key; `pace` runs after every issued request."""
+    if not str(address or "").strip():
+        return None, None
+    cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
+    for v in address_variants(address, cc):
+        key = cache_key(v, None, country, kind="address") if cache is not None else None
+        if cache is not None:
+            hit, value = cache_get(cache, key)
+            if hit:
+                if value:
+                    return GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")), v
+                continue
+        r = geocode(v, timeout=timeout, countrycodes=cc)
+        if pace is not None:
+            pace()
+        if cache is not None:
+            cache_put(cache, key, None if r is None else
+                      {"lat": r.lat, "lng": r.lng, "display_name": r.display_name, "source": "nominatim_address"})
+        if r is not None:
+            return r, v
+    return None, None
+
+
+def place_point(query, country=None, timeout=10, cache=None, pace=None):
+    """The first result of a plain free-text query (no featureType) that is a place in
+    OSM's sense (class place: a quarter, neighbourhood, town ...), inside the trip's country;
+    None otherwise. A district the settlement lookup misses (OSM has only its 丁目, or tags it
+    neighbourhood) is found this way, while a parking lot or bus stop named after it is not.
+    Cached under cache_key(kind="place"); `pace` after every issued request."""
+    if not str(query or "").strip():
+        return None
+    key = cache_key(query, None, country, kind="place") if cache is not None else None
+    if cache is not None:
+        hit, value = cache_get(cache, key)
+        if hit:
+            return GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")) if value else None
+    cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
+    params = {"q": query, "format": "json", "limit": 5}
+    if cc:
+        params["countrycodes"] = cc
+    resp = _get(params, timeout)
+    if pace is not None:
+        pace()
+    resp.raise_for_status()
+    top = next((d for d in resp.json() or [] if d.get("class") == "place"), None)
+    out = GeocodeResult(float(top["lat"]), float(top["lon"]), top.get("display_name", "")) if top else None
+    if cache is not None:
+        cache_put(cache, key, None if out is None else
+                  {"lat": out.lat, "lng": out.lng, "display_name": out.display_name, "source": "nominatim"})
+    return out
+
+
+def address_is_fine(address, variant, country_code=None):
+    """True when `variant` is finer than the address's town: the address itself or its 丁目
+    (Japan), the address itself elsewhere. A town (or road) point is kilometres wide -- too
+    coarse to judge a name lookup (e2e 2026-10-05: one dropped a correct hit 2.9 km from its
+    town centre)."""
+    vs = address_variants(address, country_code)
+    return bool(vs) and variant in vs and (len(vs) == 1 or variant != vs[-1])
+
+
+ADDRESS_MATCH_KM = 2.0      # an address point is its 丁目 / town: closer than this is the same place
+
+
+def pick_point(name_hit, name_source, address_hit):
+    """The coordinate a venue stands on, from its name lookup and its sourced address
+    point (address_point): the name hit when it is within ADDRESS_MATCH_KM of the address
+    (or there is no address point) -- exact; else the address point, `nominatim_address`
+    -- approximate (a name hit farther away is a namesake). (None, None) when neither."""
+    if address_hit is not None and name_hit is not None and \
+            haversine_km(name_hit.lat, name_hit.lng, address_hit.lat, address_hit.lng) > ADDRESS_MATCH_KM:
+        name_hit = None
+    if name_hit is not None:
+        return name_hit, name_source
+    if address_hit is not None:
+        return address_hit, "nominatim_address"
+    return None, None
+
 
 def cluster_centroid(points):
     """Mean (lat, lng) of a non-empty list of (lat, lng) tuples; None if empty."""

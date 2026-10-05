@@ -76,9 +76,10 @@
                 "enum": [
                   "nominatim",
                   "nominatim_structured",
+                  "nominatim_address",
                   "cluster_fallback"
                 ],
-                "description": "Where this coordinate came from. Optional in schema (old verified-pois.yaml stays valid); required by source-verify's Gate 2. An absent value is a refusal, not a skip: verify_poi cannot tell 'nobody recorded where this coordinate came from' apart from 'this coordinate is a district centroid', so it returns unverified. Recording provenance is its own requirement, independent of any further check on the value. (I3) Note a recorded 'cluster_fallback' now proceeds like any other value — the extra existence-proof check that used to be demanded of it (TW-062's sub-check) is retired, subsumed by Gate 0 once a sourced business_status became an existence proof in its own right (TW-072)."
+                "description": "Where this coordinate came from. nominatim_address: an approximate point from the venue's sourced street address (address_local) -- the 丁目 or town it lies in -- used when the name lookup missed or landed on a namesake. Optional in schema (old verified-pois.yaml stays valid); required by source-verify's Gate 2. An absent value is a refusal, not a skip: verify_poi cannot tell 'nobody recorded where this coordinate came from' apart from 'this coordinate is a district centroid', so it returns unverified. Recording provenance is its own requirement, independent of any further check on the value. (I3) Note a recorded 'cluster_fallback' now proceeds like any other value — the extra existence-proof check that used to be demanded of it (TW-062's sub-check) is retired, subsumed by Gate 0 once a sourced business_status became an existence proof in its own right (TW-072)."
               },
               "pin_exact": {
                 "type": "boolean",

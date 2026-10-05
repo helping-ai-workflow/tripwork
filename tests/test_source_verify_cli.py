@@ -182,6 +182,7 @@ def test_unresolvable_claimed_district_is_unverified_not_conflicting(tmp_path, m
         "花磚博物館": (GeocodeResult(23.481, 120.441, "花磚博物館"), "nominatim"),
         # "嘉義市西區" deliberately absent from the table -> district lookup misses.
     }))
+    monkeypatch.setattr(svr, "_district_fallback", lambda *a: None)   # v1.3.0: the fallback misses too
 
     trip, work = tmp_path / "trip", tmp_path / "work"
     trip.mkdir(); work.mkdir(); (trip / "data").mkdir()

@@ -191,8 +191,9 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
    already live on the day. Packing items that repeat an entry rule may stay (reinforcement).
    Quote `due` (and `opens_at`) in YAML — `due: "2026-10-17 08:00"`; an unquoted date parses as
    a date object and fails the schema.
-   Do not write district-centroid location notes here; the renderers append one per scheduled
-   POI or lodging with a `cluster_fallback` geocode (`scripts/render/centroid.py`).
+   Do not write location notes for approximate coordinates here; the renderers append one per
+   scheduled POI or lodging whose geocode is `cluster_fallback` or `nominatim_address`
+   (`scripts/render/centroid.py`).
    Auto-extract from verified-pois `booking.required==true` (with `lead_time` /
    `lead_time_days`) plus passport/visa basics. For each booking carrying `lead_time_days`,
    run `scripts/booking.py::lead_time_missed(today, trip-brief.dates.start, lead_time_days)`;

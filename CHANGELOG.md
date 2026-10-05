@@ -1,5 +1,49 @@
 # Changelog
 
+## 1.3.0 — local sites and Taiwan travellers' write-ups, places checked by their address
+
+### Added
+
+- **Research reads Taiwanese travellers' write-ups too.** Every topic is searched twice: in
+  the destination's language (official sites, local review and listing sites) and in
+  Traditional Chinese for write-ups by Taiwanese travellers -- where people actually went,
+  what they liked, and the local name and address they give. A write-up counts as one source;
+  a place still needs at least one source in the local language before it goes on the plan.
+- **A place is checked against its address.** When a source gives the street address, the
+  map lookup by name is checked against it: a name match more than 2 km from the address is
+  taken as a namesake somewhere else (a cafe landing in another prefecture), and the place
+  is put on the street block its address names instead. That point is approximate and the
+  checklist says so, like a district centre. A name match near its address keeps its exact
+  point.
+
+  The address only counts when it is found to the street block (丁目) or finer and lies in
+  the place's district: an address matched far away, or only to its town, is ignored.
+
+### Changed
+
+- A place whose name is not on the map at all now sits on its address's street block, not
+  on the district centre, when it has one.
+- Hotels follow the same rule (accommodation-research).
+
+### Fixed
+
+- **Districts that exist on the map only as their 丁目 are found again.** 1.2.1 looked a
+  district up as a settlement, which kept schools named after it out but missed districts the
+  map holds only street block by street block; their places dropped to "unverified". Such a
+  district is now found as a place of that name, or by its first 丁目 -- still never a
+  building or bus stop named after it.
+- **A flaky connection no longer ends source-verify.** A map lookup that times out or finds
+  the server busy is retried; if the network stays down, the run stops with "re-run to
+  continue" and keeps every lookup made so far (it used to lose them all and report a
+  missing input).
+
+### Migration
+
+- Re-run source-verify on a trip to apply the address check; POIs with an address are looked
+  up again once. A new geocode source, `nominatim_address`, may appear in verified-pois.
+
+Tests: 1791 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 481 passed (headless Chromium and WebKit).
+
 ## 1.2.1 — fixes from the first shared trip
 
 ### Fixed
