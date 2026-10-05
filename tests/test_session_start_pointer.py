@@ -52,3 +52,29 @@ def test_pointer_is_tier1_not_full_body():
     assert "## Iron Rules" not in ctx
     assert "## Stage Contract" not in ctx
     assert len(ctx) < 700, f"pointer should be ~80 tokens, got {len(ctx)} chars"
+
+
+# --- v2.0.0 spec §2: the pointer tells the agent where tripwork.py is ----------------
+
+def _run_with(env_over, drop=("CURSOR_PLUGIN_ROOT", "COPILOT_CLI", "CLAUDE_PLUGIN_ROOT")):
+    env = {k: v for k, v in os.environ.items() if k not in drop}
+    env.update(env_over)
+    return subprocess.check_output(["bash", str(HOOK)], env=env, text=True)
+
+
+def test_pointer_names_tripwork_py_from_the_host_root(tmp_path):
+    root = tmp_path / 'odd "dir" \\ with space'
+    root.mkdir()
+    ctx = json.loads(_run_with({"CLAUDE_PLUGIN_ROOT": str(root)}))["hookSpecificOutput"]["additionalContext"]
+    assert f'python "{root}/scripts/tripwork.py" <command> <slug>' in ctx
+
+
+def test_pointer_falls_back_to_the_hook_directory():
+    out = _run_with({})
+    ctx = json.loads(out)["additionalContext"]
+    assert f'"{REPO}/scripts/tripwork.py"' in ctx
+
+
+def test_pointer_stays_short_apart_from_the_path():
+    ctx = json.loads(_run_claude())["hookSpecificOutput"]["additionalContext"]
+    assert len(ctx.replace(str(REPO), "<root>")) < 700
