@@ -43,8 +43,7 @@ import time
 
 import yaml
 
-from scripts.distance import haversine_km
-from scripts.geocode import address_point, in_region, resolve_place
+from scripts.geocode import address_point, in_region, pick_point, resolve_place
 from scripts.paths import artifact_path
 from scripts.geocode_cache import load_cache, save_cache
 from scripts.validate_artifact import validate_file
@@ -54,10 +53,6 @@ from scripts.verify import NO_RESOLVED_NAME, is_official_url, verify_poi
 # Gate 2). Only paid when a lookup actually reaches the network — a cache hit
 # never sleeps, so a re-run over an already-resolved trip stays fast.
 NOMINATIM_DELAY_S = 1.0
-# v1.3.0: a name hit farther than this from the venue's sourced address is a namesake.
-# The address point is the 丁目 (a few hundred metres) or the town, so closer than this
-# is the same place.
-ADDRESS_MATCH_KM = 2.0
 
 DEFAULT_REGION_RADIUS_KM = 5.0
 
@@ -323,14 +318,13 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     # nominatim_address -- approximate, disclosed like a centroid, a coordinate-only hit.
     if query.get("address"):
         ref, _variant = _rate_limited_address(query["address"], country, cache)
-        if ref is not None:
-            if result is not None and haversine_km(result.lat, result.lng, ref.lat, ref.lng) > ADDRESS_MATCH_KM:
-                result = None
-            if result is None:
-                geo = {"lat": ref.lat, "lng": ref.lng, "geocode_source": "nominatim_address", "query": query}
-                in_region_flag = (in_region(ref.lat, ref.lng, centroid[0], centroid[1], radius_km)
-                                  if region_checked else True)
-                return geo, True, in_region_flag, NO_RESOLVED_NAME, region_checked
+        point, kind = pick_point(result, source, ref)
+        if kind == "nominatim_address":
+            geo = {"lat": point.lat, "lng": point.lng, "geocode_source": kind, "query": query}
+            in_region_flag = (in_region(point.lat, point.lng, centroid[0], centroid[1], radius_km)
+                              if region_checked else True)
+            return geo, True, in_region_flag, NO_RESOLVED_NAME, region_checked
+        result = point
     if result is not None:
         geo = {"lat": result.lat, "lng": result.lng, "geocode_source": source, "query": query}
         in_region_flag = (in_region(result.lat, result.lng, centroid[0], centroid[1], radius_km)

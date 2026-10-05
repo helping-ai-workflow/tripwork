@@ -270,6 +270,24 @@ def address_point(address, country=None, timeout=10, cache=None, pace=None):
     return None, None
 
 
+ADDRESS_MATCH_KM = 2.0      # an address point is its 丁目 / town: closer than this is the same place
+
+
+def pick_point(name_hit, name_source, address_hit):
+    """The coordinate a venue stands on, from its name lookup and its sourced address
+    point (address_point): the name hit when it is within ADDRESS_MATCH_KM of the address
+    (or there is no address point) -- exact; else the address point, `nominatim_address`
+    -- approximate (a name hit farther away is a namesake). (None, None) when neither."""
+    if address_hit is not None and name_hit is not None and \
+            haversine_km(name_hit.lat, name_hit.lng, address_hit.lat, address_hit.lng) > ADDRESS_MATCH_KM:
+        name_hit = None
+    if name_hit is not None:
+        return name_hit, name_source
+    if address_hit is not None:
+        return address_hit, "nominatim_address"
+    return None, None
+
+
 def cluster_centroid(points):
     """Mean (lat, lng) of a non-empty list of (lat, lng) tuples; None if empty."""
     if not points:

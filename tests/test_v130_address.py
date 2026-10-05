@@ -199,3 +199,23 @@ def test_an_address_point_outside_the_district_is_not_in_region(monkeypatch):
 def test_neither_falls_back_to_the_district_centroid(monkeypatch):
     (geo, *_), _ = _run(monkeypatch, None, None)
     assert geo["geocode_source"] == "cluster_fallback"
+
+
+# --- Task 4: one rule for venues and hotels -------------------------------------------
+
+def test_pick_point_keeps_a_near_name_hit_and_drops_a_namesake():
+    near, far, ref = G.GeocodeResult(*NEAR, "n"), G.GeocodeResult(*FAR, "f"), G.GeocodeResult(*HAKODATE, "a")
+    assert G.pick_point(near, "nominatim", ref) == (near, "nominatim")
+    assert G.pick_point(far, "nominatim", ref) == (ref, "nominatim_address")
+    assert G.pick_point(None, None, ref) == (ref, "nominatim_address")
+    assert G.pick_point(far, "nominatim", None) == (far, "nominatim")
+    assert G.pick_point(None, None, None) == (None, None)
+
+
+def test_the_lodging_skill_uses_the_same_rule():
+    import pathlib
+    text = (pathlib.Path(__file__).resolve().parent.parent / "skills" / "accommodation-research" / "SKILL.md").read_text(encoding="utf-8")
+    geo = text[text.index("**Geocode"):]
+    geo = geo[:geo.index("\n- **")] if "\n- **" in geo else geo
+    assert "address_point" in geo and "pick_point" in geo and "nominatim_address" in geo
+    assert geo.index("pick_point") < geo.index("cluster_fallback")       # the centroid only after both miss

@@ -47,8 +47,12 @@ routes back here.
   without it, and `itinerary-gate` fails the folded lodging (`no name_zh gloss`). Pure-Han
   names (駅前旅館) are exempt. Same discipline as `source-verify`'s POI gloss.
 - **Geocode (D7, no API key):** resolve by `scripts/geocode.py::resolve_place(name_local,
-  district, country)` — structured Nominatim query first, free-text fallback. On
-  NO_RESULT, fall back to the stop's cluster `centroid` from `routing.yaml`
+  district, country)` — structured Nominatim query first, free-text fallback. When the
+  hotel has a sourced `address_local`, also take `scripts/geocode.py::address_point(address_local,
+  country, cache=cache)` and keep what `scripts/geocode.py::pick_point(name_hit, name_source,
+  address_hit)` returns: the name hit when it is near the address, else the address point
+  (`geocode_source: nominatim_address` — approximate, disclosed like a centroid). Only when both
+  miss, fall back to the stop's cluster `centroid` from `routing.yaml`
   (`geocode.geocode_source: cluster_fallback`). **The centroid fallback needs no
   existence proof beyond Gate 0 above (subsumed by it — see `source-verify`'s
   `cluster_fallback` paragraph):** a sourced `business_status` is itself independent
