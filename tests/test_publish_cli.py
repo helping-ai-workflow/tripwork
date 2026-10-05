@@ -152,15 +152,15 @@ def test_deploy_refuses_without_confirm(tmp_path):
     assert fake.calls == []
 
 
-def test_deploy_uploads_every_trips_locked_page_and_nothing_else(tmp_path):
-    # a Pages deploy replaces the whole site: uploading one trip's folder would take the
-    # other trips offline, so the site is every trip's locked page, and only those
+def test_deploy_uploads_this_trips_locked_page_and_nothing_else(tmp_path):
+    # v2.0.0 (consumer report D1): one trip is one Pages project, so the site is this
+    # trip's locked page only -- never the other trips under the same trips/ folder
     a, b = _trip(tmp_path, "2026-05-demo"), _trip(tmp_path, "2026-06-demo")
     P.build(a, "pw", run=Fake())
     P.build(b, "pw", run=Fake())
     fake = Fake()
     res = P.deploy(a, "tripwork-demo", confirm=True, run=fake)
-    assert fake.uploaded == sorted([f"{P.publish_code(a)}/index.html", f"{P.publish_code(b)}/index.html"])
+    assert fake.uploaded == [f"{P.publish_code(a)}/index.html"]
     wr = [c for c in fake.calls if "deploy" in c][0]
     assert wr[:4] == ["npx", "--yes", "wrangler@3", "pages"] and wr[wr.index("--project-name") + 1] == "tripwork-demo"
     assert res["url"] == f"https://tripwork-demo.pages.dev/{P.publish_code(a)}/"

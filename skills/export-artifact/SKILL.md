@@ -102,7 +102,7 @@ Logging in to Cloudflare, the first time `deploy` says it is not logged in:
   (a token limited to *Cloudflare Pages: Edit*) to the environment's variables; anyone who uses
   that environment can read it, and it is not the page password.
 
-Agree on the project name with the user (`<project>.pages.dev`).
+One trip is one Pages project: `deploy` uploads this trip's page only and a deploy replaces the whole site, so agree on a project name for THIS trip with the user (`<project>.pages.dev`) — never reuse another trip's project.
 
 Before `deploy`, stop and ask the user: show the project name, the URL and that the page goes on the internet behind a password. Deploy only after an explicit yes.
 

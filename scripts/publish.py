@@ -10,8 +10,8 @@ the workspace. Only the locked page lands under trips/<slug>/publish/<code>/ (th
 page lives in a temporary directory); <code> is a random 8-character path, so the URL
 names no place or date.
 
-A Pages deploy replaces the whole site, so `deploy` uploads every trip's locked page
-under the same trips/ folder (each in its own <code>/), refuses any page that is not
+One trip is one Pages project: a Pages deploy replaces the whole site, so `deploy`
+uploads this trip's locked page only (in its <code>/), refuses it when it is not
 locked -- a build with non-distributable photos may only go out encrypted -- and
 uploads nothing else. The share link (`#staticrypt_pwd=…`) opens the page without
 typing the password: it is printed for the user, never written next to the pages.
@@ -113,21 +113,21 @@ def build(trip_dir, password, *, run=None, share_base=None):
     return {"page": dest, "share": share}
 
 
-def _site(trips_root, into):
-    """Copy every trip's locked page into `into`/<code>/index.html. Refuses a page that is
-    not locked; copies nothing else (code.txt and the trips stay home)."""
-    pages = sorted(trips_root.glob("*/publish/*/index.html"))
-    for page in pages:
-        if _LOCKED not in page.read_text(encoding="utf-8", errors="ignore"):
-            raise PublishError(f"{page} is not encrypted: rebuild it with `python <plugin>/scripts/tripwork.py publish <slug>` before deploying")
-        (into / page.parent.name).mkdir()
-        shutil.copyfile(page, into / page.parent.name / "index.html")
-    return pages
+def _site(page, into):
+    """Copy this trip's locked page into `into`/<code>/index.html -- one trip is one Pages
+    project, so nothing else goes up. Refuses a page that is not locked."""
+    if _LOCKED not in page.read_text(encoding="utf-8", errors="ignore"):
+        raise PublishError(f"{page} is not encrypted: rebuild it with "
+                           f"`python <plugin>/scripts/tripwork.py publish <slug>` before deploying")
+    (into / page.parent.name).mkdir()
+    shutil.copyfile(page, into / page.parent.name / "index.html")
+    return [page]
 
 
 def deploy(trip_dir, project, *, confirm=False, run=None):
-    """Upload every locked trip page to the Cloudflare Pages project. Needs confirm=True
-    (the user's explicit yes) and a wrangler login."""
+    """Upload this trip's locked page to its own Cloudflare Pages project (one trip, one
+    project: a Pages deploy replaces the whole site, so the project holds this trip only).
+    Needs confirm=True (the user's explicit yes) and a wrangler login."""
     if not confirm:
         raise PublishError("deploy needs --confirm: it publishes to the internet")
     run = run or _run
@@ -139,7 +139,7 @@ def deploy(trip_dir, project, *, confirm=False, run=None):
     with tempfile.TemporaryDirectory() as tmp:
         site = pathlib.Path(tmp) / "site"
         site.mkdir()
-        _site(trip_dir.parent, site)
+        _site(trip_dir / "publish" / code / "index.html", site)
         try:
             _npx(run, [WRANGLER, "whoami"])
         except PublishError:
