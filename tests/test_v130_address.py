@@ -137,3 +137,65 @@ def test_rederive_does_not_judge_an_address_point_by_the_straight_line():
     by_id = {"cafe": {"geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim_address"}},
              "shrine": {"geocode": {"lat": 1, "lng": 2, "geocode_source": "nominatim"}}}
     assert _centroid_only(by_id, "cafe") and not _centroid_only(by_id, "shrine")
+
+
+# --- Task 3: source-verify -- the name first, the sourced address as its check -------
+
+HAKODATE = (41.7958, 140.7538)                 # 五稜郭町 (the address point)
+FAR = (36.124, 137.824)                        # a namesake in another prefecture
+NEAR = (41.7969, 140.7570)                     # ~0.3 km from the address point
+
+
+def _run(monkeypatch, name_hit, address_hit, address="北海道函館市五稜郭町43-9", centroid=HAKODATE):
+    from scripts import source_verify_run as svr
+    calls = {"address": 0}
+
+    def resolve(name, district, country, cache, name_roman=None, area=False):
+        return (G.GeocodeResult(*name_hit, "示意咖啡, 某町"), "nominatim") if name_hit else (None, None)
+
+    def addr(a, country, cache):
+        calls["address"] += 1
+        return (G.GeocodeResult(*address_hit, "五稜郭町, 函館市"), "北海道函館市五稜郭町") if address_hit else (None, None)
+    monkeypatch.setattr(svr, "_rate_limited_resolve", resolve)
+    monkeypatch.setattr(svr, "_rate_limited_address", addr)
+    monkeypatch.setattr(svr, "_district_centroid", lambda *a, **k: centroid)
+    cand = {"id": "cafe", "name_local": "示意カフェ", "claimed_district": "函館市五稜郭町"}
+    if address:
+        cand["address_local"] = address
+    out = svr._geocode_candidate(cand, "日本", {}, False, {}, 5.0)
+    return out, calls
+
+
+def test_a_namesake_far_from_the_address_gives_way_to_the_address(monkeypatch):
+    from scripts.verify import NO_RESOLVED_NAME
+    (geo, geocoded, inside, resolved, checked), _ = _run(monkeypatch, FAR, HAKODATE)
+    assert (geo["lat"], geo["lng"]) == HAKODATE and geo["geocode_source"] == "nominatim_address"
+    assert geocoded and inside and checked and resolved is NO_RESOLVED_NAME
+    assert geo["query"]["address"] == "北海道函館市五稜郭町43-9"
+
+
+def test_a_name_hit_near_the_address_keeps_its_exact_point(monkeypatch):
+    (geo, _, inside, resolved, _), calls = _run(monkeypatch, NEAR, HAKODATE)
+    assert (geo["lat"], geo["lng"]) == NEAR and geo["geocode_source"] == "nominatim" and inside
+    assert resolved == "示意咖啡, 某町" and calls["address"] == 1
+
+
+def test_no_name_hit_takes_the_address_point(monkeypatch):
+    (geo, geocoded, *_), _ = _run(monkeypatch, None, HAKODATE)
+    assert geocoded and geo["geocode_source"] == "nominatim_address"
+
+
+def test_without_an_address_nothing_changes(monkeypatch):
+    (geo, *_), calls = _run(monkeypatch, FAR, HAKODATE, address=None)
+    assert (geo["lat"], geo["lng"]) == FAR and geo["geocode_source"] == "nominatim" and calls["address"] == 0
+    assert "address" not in geo["query"]
+
+
+def test_an_address_point_outside_the_district_is_not_in_region(monkeypatch):
+    (geo, _, inside, _, checked), _ = _run(monkeypatch, None, HAKODATE, centroid=FAR)
+    assert geo["geocode_source"] == "nominatim_address" and checked and not inside
+
+
+def test_neither_falls_back_to_the_district_centroid(monkeypatch):
+    (geo, *_), _ = _run(monkeypatch, None, None)
+    assert geo["geocode_source"] == "cluster_fallback"

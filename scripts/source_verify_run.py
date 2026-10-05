@@ -43,7 +43,8 @@ import time
 
 import yaml
 
-from scripts.geocode import in_region, resolve_place
+from scripts.distance import haversine_km
+from scripts.geocode import address_point, in_region, resolve_place
 from scripts.paths import artifact_path
 from scripts.geocode_cache import load_cache, save_cache
 from scripts.validate_artifact import validate_file
@@ -53,6 +54,10 @@ from scripts.verify import NO_RESOLVED_NAME, is_official_url, verify_poi
 # Gate 2). Only paid when a lookup actually reaches the network — a cache hit
 # never sleeps, so a re-run over an already-resolved trip stays fast.
 NOMINATIM_DELAY_S = 1.0
+# v1.3.0: a name hit farther than this from the venue's sourced address is a namesake.
+# The address point is the 丁目 (a few hundred metres) or the town, so closer than this
+# is the same place.
+ADDRESS_MATCH_KM = 2.0
 
 DEFAULT_REGION_RADIUS_KM = 5.0
 
@@ -123,6 +128,12 @@ def _flag_official(source, extra_suffixes):
     out = dict(source)
     out["official"] = is_official_url(source.get("url"), extra_suffixes=extra_suffixes)
     return out
+
+
+def _rate_limited_address(address, country, cache):
+    """geocode.address_point, paced per request like _rate_limited_resolve."""
+    return address_point(address, country=country, cache=cache,
+                         pace=lambda: time.sleep(NOMINATIM_DELAY_S))
 
 
 def _rate_limited_resolve(name, district, country, cache, name_roman=None, area=False):
@@ -224,6 +235,8 @@ def _lookup_query(cand):
          "district": cand.get("district_query") or cand.get("claimed_district") or ""}
     if cand.get("name_roman"):
         q["name_roman"] = cand["name_roman"]
+    if cand.get("address_local"):                     # v1.3.0: the address checks the name lookup
+        q["address"] = cand["address_local"]
     return q
 
 
@@ -304,6 +317,20 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
 
     result, source = _rate_limited_resolve(name_local, district, country, cache,
                                            name_roman=name_roman)
+    # v1.3.0: the venue's sourced address checks the name lookup. A name hit far from the
+    # address is a namesake (a bare-name tier found the same name elsewhere): dropped. With
+    # no name hit left, the address point (its 丁目 or town) stands in, recorded as
+    # nominatim_address -- approximate, disclosed like a centroid, a coordinate-only hit.
+    if query.get("address"):
+        ref, _variant = _rate_limited_address(query["address"], country, cache)
+        if ref is not None:
+            if result is not None and haversine_km(result.lat, result.lng, ref.lat, ref.lng) > ADDRESS_MATCH_KM:
+                result = None
+            if result is None:
+                geo = {"lat": ref.lat, "lng": ref.lng, "geocode_source": "nominatim_address", "query": query}
+                in_region_flag = (in_region(ref.lat, ref.lng, centroid[0], centroid[1], radius_km)
+                                  if region_checked else True)
+                return geo, True, in_region_flag, NO_RESOLVED_NAME, region_checked
     if result is not None:
         geo = {"lat": result.lat, "lng": result.lng, "geocode_source": source, "query": query}
         in_region_flag = (in_region(result.lat, result.lng, centroid[0], centroid[1], radius_km)
