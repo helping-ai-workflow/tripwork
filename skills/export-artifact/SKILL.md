@@ -5,26 +5,49 @@ description: Use when gate-report status is pass and the itinerary must be expor
 
 # export-artifact
 
-Render the verified itinerary into deliverables at the top of `trips/<slug>/`. Run only when `gate-report.yaml` status is `pass`. The markdown deliverable is `trips/<slug>/<stem>.md`, where `<stem>` is `{dates.start} {short_name} {N天M夜}` (e.g. `2026-05-12 東京 3天2夜`); take every deliverable path from `scripts/paths.py::deliverable_paths(trip_dir, brief)` — md and html share the stem. It is the only markdown copy of the itinerary.
+Render the verified itinerary into deliverables at the top of `trips/<slug>/`. Run only when `gate-report.yaml` status is `pass`. The markdown deliverable is `trips/<slug>/<stem>.md`, where `<stem>` is `{dates.start} {short_name} {N天M夜}` (e.g. `2026-05-12 東京 3天2夜`); every deliverable path comes from `scripts/paths.py::deliverable_paths(trip_dir, brief)` — md and html share the stem. It is the only markdown copy of the itinerary.
 
-## Adapters
+## Export
 
-1. **markdown** — Render the whole file with `scripts/render/markdown.py::render_markdown_page(itin, poi_map, cost, brief=brief)` — the brief's headline and dates line head the page (`itinerary.title` is retired). It is a pure function of its inputs, so re-export overwrites the deliverable unconditionally — never hand-assemble sections around the day tables, and never surgically replace one table inside an existing file. It builds each day's table via `render_day_table` (do NOT hand-author table rows — hand-authoring is how naked `$` and dead-text names leaked before) and appends the 備案 / 出發前檢查清單 / 費用估算 sections exactly when the days' `alternatives` (or a pre-v1.0 `itin["contingency"]`) / `itin["checklist"]` / `cost` carry data — never a template with holes. Output `trips/<slug>/<stem>.md`. The renderer makes the POI name the maps link, appends a primary source link (`官網`), and escapes free text so prices like `\$120` cannot trigger KaTeX. The result is re-validated by `export-gate`.
-2. **gmaps-links** — `scripts/render/gmaps_links.py` builds each link from `name_local` (best for taxi/Maps). Shared by markdown + Notion.
-3. **html** — `scripts/render/html_page.py::render_html_page(itin, poi_map, brief=…, accommodations=…, advisory=…, legs=…, cost=…)` (cost.yaml feeds the home's 旅程與費用 card) -> `trips/<slug>/<stem>.html`. The v1.0 reader: one self-contained, offline page (fonts and photos embedded), usable without any script (Quick Look runs none); on a phone the page holds still and only the day's list card scrolls, on a desktop (≥1024 px) the same page lays out as a big-calendar home and per-day dashboards, stops, map chips and 來源 open by in-page anchors, and one fixed script glides the chosen stop to centre on the desktop — a home with the KUSO headline, the stamp calendar and the 住宿 / 入境規定 / 行前清單 screens, and one page per day with the move chain, one stop open at a time, per-stop alternatives and named sources. Pass the brief, accommodations, advisory and legs: without them the home and sub-screens render empty. Each day has a map card; for real map images first run `python scripts/day_maps.py trips/<slug>` (needs the `[maps]` extra and the network; it writes `trips/<slug>/data/day-maps.yaml`) and pass that document as `maps=` — without it every day draws a schematic. Renders from `itinerary.yaml` like the other adapters; the result is re-validated by `export-gate`.
+    python <plugin>/scripts/tripwork.py export <slug>
+
+One command writes both deliverables — never write the rendering Python yourself. It reads the
+artifacts through `scripts/trip_inputs.py` (the same inputs `publish` renders from and
+`export-gate` judges against): `itinerary.yaml`, the POI pool (verified-pois + each overnight
+stop's chosen lodging, so a `day.lodging` id resolves to the hotel), the photo side-file
+overlaid, and the brief, accommodations, advisory, legs, cost and day maps. It renders both
+pages in memory and writes them only together. It refuses, writing nothing, when the trip is
+still in the pre-v1.0 layout (exit 2: run `tripwork.py migrate <slug>`), when an input is
+missing (exit 2), or when `work/<slug>/gate-report.yaml` is missing, not `pass`, or older than
+an artifact the gate reads (exit 1: run `tripwork.py gate <slug>` first). Re-export overwrites
+both files: they are pure functions of the artifacts, so never edit a rendered deliverable —
+fix the artifact and export again.
+
+What it writes:
+
+1. **markdown** — `trips/<slug>/<stem>.md`: the brief's headline and dates line, every day's
+   table from the renderer's `render_day_table` — never hand-author table rows; that is how
+   naked `$` and dead-text names leaked before — (the POI name is the Google Maps link, built from `name_local`; a primary source
+   link `官網`; free text escaped so prices like `\$120` cannot trigger KaTeX), and the 備案 /
+   出發前檢查清單 / 費用估算 sections exactly when the days' `alternatives` / the checklist /
+   `cost.yaml` carry data.
+2. **html** — `trips/<slug>/<stem>.html`: the v1.0 reader. One self-contained, offline page
+   (fonts and photos embedded), usable without any script (Quick Look runs none); on a phone
+   the page holds still and only the day's list card scrolls, on a desktop (≥1024 px) the same
+   page lays out as a big-calendar home and per-day dashboards — a home with the KUSO
+   headline, the stamp calendar, the 旅程與費用 card and the 住宿 / 入境規定 / 行前清單
+   screens, and one page per day with the move chain, one stop open at a time, per-stop
+   alternatives and named sources. Each day has a map card: for real map images run
+   `python <plugin>/scripts/tripwork.py maps <slug>` first (needs the `[maps]` extra and the
+   network; it writes `trips/<slug>/data/day-maps.yaml`, which `export` then uses) — without it
+   every day draws a schematic.
+
+Both are re-validated by `export-gate`.
+
 **Notion (not a tracked adapter).** To put the itinerary in Notion, paste the **gated**
 `trips/<slug>/<stem>.md` into a Notion page via the consumer's Notion MCP — there is no
 separate Notion adapter, deliverable, or gate. The md is already validated by `export-gate`,
 so the pasted content inherits that hygiene; the plugin core never imports an MCP client.
-
-## POI pool for rendering
-
-Build the `poi_map` the renderers consume as **verified-pois + each overnight stop's chosen
-lodging** — `scripts/gate.py::poi_pool(pois, accommodations)` (verified-pois wins each field
-on a shared id, lodging-only fields such as `booking` are kept) so a
-`day.lodging` id resolves to the hotel's name/link instead of rendering a blank `—`. This is
-the same pool `itinerary-synthesis` and `itinerary-gate` build; never copy hotels into
-canonical `verified-pois.yaml`.
 
 ## Photo enrichment (owned here, opt-in)
 
@@ -33,44 +56,53 @@ This stage OWNS `trips/<slug>/data/verified-pois-media.yaml`; within the plugin
 `photo_source: google` entry ships a permanently non-distributable deliverable, and the adapter's
 `google` backend is BLOCKED for exactly that reason (no display-surface licence). An entry
 already in the side-file (e.g. one the user's own script wrote) is the user's: the adapter keeps
-it as is and fills only the POIs without one — delete an entry to have it fetched again.
+it as is and fills only the POIs without one — delete an entry to have it fetched again. So the
+order is: the user's own photos first, then this command for the rest.
 
 Run it only when the user asked for photos on this trip (`trip-brief.yaml`
-`preferences.photos: true`); otherwise skip — no side-file, deliverable unchanged.
+`preferences.photos: true`); otherwise skip — no side-file, deliverable unchanged. Run it
+before `export`:
 
-    python scripts/photo_adapter.py trips/<slug> --backend wiki
+    python <plugin>/scripts/tripwork.py photos <slug>
 
-It looks up the POI's Wikidata image (the `image` statement of the entity within 1 km of the verified coordinates)
-first, then the geo-filtered Openverse/Commons search, and shrinks each photo to ≤ 640 px.
+It looks up the POI's Wikidata image (the `image` statement of the entity within 1 km of the
+verified coordinates) first, then the geo-filtered Openverse/Commons search, and shrinks each
+photo to ≤ 640 px (landmarks only; restaurants and lodgings are skipped).
 
 Exit 0 written / 1 schema self-check failed (nothing written) / 2 missing input or
 `--backend google`.
 
-Then overlay it onto the poi_map **before any `render_*` call**. `apply_media` is
-**non-mutating — you MUST capture its return**:
-
-    poi_map = apply_media(poi_map, load_media("trips/<slug>/data/verified-pois-media.yaml"))
-
-from `scripts/media_merge.py`.
-
 **Never write media into canonical `verified-pois.yaml`** — `source-verify` wholesale-rewrites
-it every run and would clobber it. The side-file is the only persistence; the overlay is
-render-time only (`export-gate` re-applies it itself when gating, and rejects an
-unattributed photo or an unsafe `<img src>`).
+it every run and would clobber it. The side-file is the only persistence; `export` overlays it
+at render time (and `export-gate` judges the same overlay, rejecting an unattributed photo or
+an unsafe `<img src>`).
 
 ## Publish for family (optional)
 
 Run only when the user asks to share the trip (family, friends). It makes a second reader —
 the same page plus phone gestures, behind a password — and puts it on Cloudflare Pages:
 
-    TRIPWORK_PUBLISH_PASSWORD=<password> python scripts/publish.py build trips/<slug> --share-base https://<project>.pages.dev/
-    python scripts/publish.py deploy trips/<slug> --project <project> --confirm
+    TRIPWORK_PUBLISH_PASSWORD='<password>' python <plugin>/scripts/tripwork.py publish <slug> --share-base https://<project>.pages.dev/
+    python <plugin>/scripts/tripwork.py deploy <slug> --project <project> --confirm
 
-Ask the user for the password (or let `build` prompt); never write it to a file. `build` keeps
-only the locked page (`trips/<slug>/publish/<code>/index.html`) and prints a share link that
-opens without typing the password — show it to the user, never save it. Needs Node 18+.
-The first time, if `deploy` says it is not logged in, ask the user to run `! npx wrangler login`;
-agree on the project name with the user (`<project>.pages.dev`).
+Ask the user for the password in the conversation **each time**, and pass it only as the
+`TRIPWORK_PUBLISH_PASSWORD='…'` prefix of that one command. Never put it in a file, an
+`export`, a shell profile, `.env` or the cloud environment's variables. Say so plainly: the
+prefix keeps it out of every file, but it stays in the conversation and, while the command
+runs, in this computer's process list. If the user would rather not type it into the
+conversation, they can run the same command (without the prefix) in their own terminal, and
+it asks for the password without echoing it. `publish` keeps only the locked page
+(`trips/<slug>/publish/<code>/index.html`) and prints a share link that opens without typing
+the password — show it to the user, never save it. Needs Node 18+.
+
+Logging in to Cloudflare, the first time `deploy` says it is not logged in:
+
+- on the user's own computer — ask them to run `! npx wrangler login` (it opens a browser);
+- in a Claude Code cloud environment there is no browser — the user adds `CLOUDFLARE_API_TOKEN`
+  (a token limited to *Cloudflare Pages: Edit*) to the environment's variables; anyone who uses
+  that environment can read it, and it is not the page password.
+
+Agree on the project name with the user (`<project>.pages.dev`).
 
 Before `deploy`, stop and ask the user: show the project name, the URL and that the page goes on the internet behind a password. Deploy only after an explicit yes.
 
@@ -80,7 +112,7 @@ Return to `tripwork:orchestrator`.
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/data/itinerary.yaml` (canonical) + `verified-pois.yaml` + optional `verified-pois-media.yaml` (photo side-file) + `gate-report.yaml` (status pass). All adapters render from `itinerary.yaml`; the photo side-file, when present, is overlaid onto the poi_map via `scripts/media_merge.py` before render; Notion runs only after `export-gate` passes. |
+| Input | `trips/<slug>/data/itinerary.yaml` (canonical) + `verified-pois.yaml` + optional `verified-pois-media.yaml` (photo side-file) + `day-maps.yaml` + `gate-report.yaml` (status pass, fresh). `tripwork.py export` reads them all through `scripts/trip_inputs.py`; Notion runs only after `export-gate` passes. |
 | Output | `trips/<slug>/<stem>.md` (+ `<stem>.html`) + optional `verified-pois-media.yaml` (photo side-file, written by `scripts/photo_adapter.py`) + optional `trips/<slug>/publish/` (the locked publish page, `scripts/publish.py`). |
-| Stop condition | `gate-report` status != pass → do not export; return upstream. Before `publish.py deploy` → stop for the user's explicit yes (it publishes to the internet). |
+| Stop condition | `gate-report` status != pass → do not export; return upstream. Before `tripwork.py deploy` → stop for the user's explicit yes (it publishes to the internet). |
 | Next stage | `tripwork:orchestrator` (which routes to `export-gate`). |

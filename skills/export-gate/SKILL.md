@@ -52,8 +52,8 @@ plain OpenStreetMap credit as text; a link is not required).
 
 ## Output
 
-Run `python scripts/export_gate.py trips/<slug>` — the CLI assembles the
-MERGED pois itself (verified-pois + chosen lodgings + `apply_media` overlay),
+Run `python <plugin>/scripts/tripwork.py export-gate <slug>` — the CLI reads the same inputs
+`export` renders from (`scripts/trip_inputs.py`: verified-pois + chosen lodgings + the photo overlay),
 gates both the md and html deliverables, and writes
 `work/<slug>/export-gate-report.yaml` (schema: `schemas/gate-report.schema.json`
 — reused; same status/checks/failures shape, plus the optional `distributable` + `retryable`

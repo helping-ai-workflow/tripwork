@@ -59,7 +59,7 @@ record `fx_rate` + `source_currency` on the converted line item. If
 
 Write `trips/<slug>/data/cost.yaml` with `as_of` + `estimate_note`. A trip with no numeric costs still writes
 a best-effort (possibly empty) `cost.yaml`. Then validate it:
-`python scripts/validate_artifact.py trips/<slug>/data/cost.yaml`
+`python <plugin>/scripts/tripwork.py validate <slug> cost`
 (exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract

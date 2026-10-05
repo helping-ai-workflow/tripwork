@@ -5,7 +5,7 @@
 
 VERSION="$(jq -r '.version' "$(dirname "$0")/../.claude-plugin/plugin.json" 2>/dev/null || echo unknown)"
 
-# Where tripwork.py is, for the agent (v2.0.0). The host's native path first: Git Bash on
+# Where tripwork.py is, for the agent. The host's native path first: Git Bash on
 # Windows turns `cd … && pwd` into /c/Users/…, which a native Windows python cannot open.
 ROOT="${CLAUDE_PLUGIN_ROOT:-${CURSOR_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}}"
 ROOT_JSON="$(printf '%s' "$ROOT" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"

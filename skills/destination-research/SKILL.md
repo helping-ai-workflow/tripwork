@@ -34,7 +34,7 @@ Write raw search results under `work/<slug>/research-cache/` to avoid repeat que
 ## Output
 
 Write `trips/<slug>/data/candidates.yaml`, then validate it:
-`python scripts/validate_artifact.py trips/<slug>/data/candidates.yaml`
+`python <plugin>/scripts/tripwork.py validate <slug> candidates`
 (exit 0 required before returning). Return to `tripwork:orchestrator`. Do NOT assign `verify_status` here — that is `source-verify`'s job.
 
 ## Stage Contract
@@ -53,3 +53,4 @@ Write `trips/<slug>/data/candidates.yaml`, then validate it:
 | Skipping local-language queries | A local source is required to pass verification; always search in the destination language. |
 | Assigning `verify_status` here | This stage only gathers; verification is `source-verify`. |
 | Recording a `claimed_district` as fact | It is a claim; geocode confirms it later. |
+| Asking the user to pick a restaurant or sight from what you just found | never ask the user to choose between places from candidates.yaml: a candidate may have closed for good. Finish gathering, let `source-verify` run, and offer only `verified` POIs; say how many were left out because their operating status could not be found. |

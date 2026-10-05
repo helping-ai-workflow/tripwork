@@ -16,12 +16,12 @@ Cluster verified POIs by district and assess movement feasibility. Produces `tri
 
 ## Stop-on-Confirmation
 
-Any hop flagged `far` -> stop and ask the user whether to keep or replace the POI. Do not silently reorder around it. A hop flagged `implausible` -> record the flag and stop and ask the user for a real source (a routing-engine lookup or a published timetable) before writing a corrected `mins`; never re-estimate past the floor on your own authority.
+Any hop flagged `far` -> stop and ask the user whether to keep or replace the POI; replacement options must be verified POIs from `verified-pois.yaml` (never unverified candidates). Do not silently reorder around it. A hop flagged `implausible` -> record the flag and stop and ask the user for a real source (a routing-engine lookup or a published timetable) before writing a corrected `mins`; never re-estimate past the floor on your own authority.
 
 ## Output
 
 Write `trips/<slug>/data/routing.yaml`, then validate it:
-`python scripts/validate_artifact.py trips/<slug>/data/routing.yaml`
+`python <plugin>/scripts/tripwork.py validate <slug> routing`
 (exit 0 required before returning). Return to `tripwork:orchestrator`.
 
 ## Stage Contract

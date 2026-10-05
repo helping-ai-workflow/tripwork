@@ -54,11 +54,11 @@
 
 ## 挑選（`day_title_pick`）
 
-1. 跑 `python scripts/title_picker.py trips/<slug>`：寫出 `work/<slug>/挑標題.html`（離線網頁，最上面還能換大標題），
+1. 跑 `python <plugin>/scripts/tripwork.py picker <slug>`：寫出 `work/<slug>/挑標題.html`（離線網頁，最上面還能換大標題），
    並印出同內容的純文字清單。把網頁路徑**和**純文字清單都給使用者。
 2. 使用者在網頁挑完按「複製選擇」，或直接打字回覆，格式一行：
    `tripwork 標題 H=2 D1=3 D2="自己寫的" D5=+`（H 只在換大標題時出現；`+` = 再給我 3 個）。
-3. 跑 `python scripts/title_picks.py trips/<slug> '<那一行>'`，它把選擇寫回 `itinerary.yaml` 的 `theme`
+3. 跑 `python <plugin>/scripts/tripwork.py picker <slug> '<那一行>'`，它把選擇寫回 `itinerary.yaml` 的 `theme`
    （自己寫的標 `theme_user_written: true`）與 `trip-brief.yaml` 的 `headline`。輸出有 `more:` 的那幾天
    （或 `H`），在該天的 `theme_candidates` 尾端**追加** 3 句（同樣守上面的規則，不和既有的重複；大標題則追加到
    `headline_candidates`），重跑步驟 1 再問一次。前面 6 句的編號不會變。

@@ -27,7 +27,7 @@ Reports and orchestrator state under `work/<slug>/`: `gate-report.yaml`,
   `scripts/orchestration.py::candidates_stale`.
 - **input fingerprint** (rule 11): a content hash of an upstream artifact's projected
   fields — `scripts/orchestration.py::input_fingerprint` (CLI:
-  `python scripts/input_fingerprint.py <trip-brief.yaml> <projection>`). The producing
+  `python <plugin>/scripts/tripwork.py fingerprint <slug> <projection>`). The producing
   stage records it as `input_fingerprints["<upstream>.yaml"]` on the derived artifact,
   so staleness reflects real content changes, not incidental file edits/mtimes.
 - **report staleness** (rules 13 & 15): unlike rule 11, `gate-report.yaml` /
@@ -46,7 +46,7 @@ Reports and orchestrator state under `work/<slug>/`: `gate-report.yaml`,
 ## Stage Selection
 
 **Run the oracle first.** Execute
-`python scripts/next_stage.py trips/<slug> --work-dir work/<slug>` and follow
+`python <plugin>/scripts/tripwork.py next <slug>` and follow
 its `next`/`reason` output; the numbered rules below are the SPECIFICATION that
 script implements (tests: `tests/test_next_stage.py`). The script does NOT
 handle slug binding (rule 0.5) or stop-on-confirmation — those stay with you.
@@ -62,7 +62,7 @@ Do not delete `gate-report.yaml` by hand.
    existing `trips/<slug>/`. Never apply rules 1-16 across different `trips/<slug>/` dirs.
 0.7. **Pre-v1.0 layout -> migrate first.** A trip whose artifacts sit at the top of
    `trips/<slug>/` (no `data/`) stops here (`stop-and-ask`): run
-   `python scripts/migrate_v1.py trips` (dry run), then `--apply`, and resume.
+   `python <plugin>/scripts/tripwork.py migrate <slug>` (dry run), then with `--apply`, and resume.
 1. No trip-brief.yaml -> run `tripwork:trip-brief`.
 1.5. **(rule 1.5)** trip-brief ready, no advisory.yaml -> run `tripwork:travel-advisory`.
    A `banned` regulation (e.g. an entry restriction) must surface BEFORE any
