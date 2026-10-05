@@ -99,9 +99,10 @@ def test_changing_the_headline_adds_h_and_changing_back_removes_it(open_page, pi
 
 
 @VPS
-def test_without_scripts_it_is_a_numbered_list_with_the_reply_format(open_page, picker_url, vp):
+def test_without_scripts_it_is_a_numbered_list_with_the_reply_line(open_page, picker_url, vp):
     pg = open_page(vp, js=False, url=picker_url)
-    assert pg.locator(".ns").is_visible() and "D1=3" in pg.locator(".ns").text_content()
+    assert pg.locator("#line").is_visible() and _shown(pg, "#line").startswith("tripwork 標題 D1=")
+    assert pg.locator(".nsb").is_visible() and not pg.locator(".ns").count()
     assert pg.locator('.col[data-i="1"] .opt i').first.text_content() == "1"
 
 
@@ -179,3 +180,113 @@ def test_no_line_is_cut(open_page, tmp_path, vp):
     cut = pg.evaluate("""[...document.querySelectorAll('.card')].flatMap(c=>{const r=c.getBoundingClientRect().right;
         return [...c.querySelectorAll('.opt span')].filter(s=>s.getBoundingClientRect().right>r-1||s.scrollWidth>s.clientWidth+1).map(s=>s.textContent)})""")
     assert cut == [], cut
+
+
+# --- v1.2.1: a preview that runs no script (the Claude Code app's HTML preview, LINE,
+# iPhone Files) showed every day picked while the button stayed at 還差 N 天: the picks
+# are CSS, the button and the line were script. The line now follows the picks in CSS.
+
+def _shown(pg, sel):
+    return pg.locator(sel).inner_text().strip()
+
+
+@VPS
+def test_without_scripts_the_line_follows_the_picks_and_copies_by_hand(open_page, picker_url, vp):
+    pg = open_page(vp, js=False, url=picker_url)
+    days = pg.locator(".col").count()
+    for i in range(1, days + 1):
+        _pick(pg, i, 2)
+    want = "tripwork 標題 " + " ".join(f"D{i}=2" for i in range(1, days + 1))
+    assert _shown(pg, "#line") == want
+    # selecting the line and copying gives exactly that line (hidden pieces stay out)
+    got = pg.evaluate("(()=>{const s=getSelection();s.selectAllChildren(document.getElementById('line'));return s.toString().trim()})()")
+    assert got == want
+    assert not pg.locator("#copy").is_visible()              # a button that can never work is not shown
+    for i in range(1, days + 1):
+        title = pg.locator(f'.col[data-i="{i}"] input[type=radio][value="2"]').get_attribute("data-t")
+        assert _shown(pg, f'.mini[data-i="{i}"]').endswith(title)
+
+
+@VPS
+def test_without_scripts_the_line_carries_more_own_words_and_the_headline(open_page, picker_url, vp):
+    pg = open_page(vp, js=False, url=picker_url)
+    days = pg.locator(".col").count()
+    for i in range(1, days + 1):
+        if i != 2:
+            _pick(pg, i, 1)
+    pg.locator('.col[data-i="1"] .mb').click()                # 再給我 3 個
+    # own words (typed in the reply). Without a script a tap cannot empty the box, so a
+    # line tapped on the same day would win over editing the words the page started with
+    pg.locator('.col[data-i="2"] .own').fill("海邊的風")
+    pg.locator('input[name=h][value="2"]').locator("..").click()
+    line = _shown(pg, "#line")
+    assert line.startswith("tripwork 標題 H=2 D1=+ D2=\""), line
+    assert " D2=1" not in line
+
+
+def test_with_scripts_the_line_shows_while_days_are_missing(open_page, picker_url):
+    pg = open_page(DESKTOP, url=picker_url)
+    days = pg.locator(".col").count()
+    for i in range(1, days + 1):
+        pg.evaluate(f"setDay({i},null)")
+    _pick(pg, 1, 2)
+    assert _shown(pg, "#line") == "tripwork 標題 D1=2 " + " ".join(f"D{i}=?" for i in range(2, days + 1))
+
+
+def test_without_scripts_a_day_not_picked_reads_as_a_question_mark(open_page, tmp_path):
+    from scripts.title_picker import page
+    itin, brief = R.itinerary(), dict(R.brief(), **brief_name_fields())
+    for d in itin["days"]:
+        d.pop("theme", None)
+        d.pop("theme_user_written", None)
+    f = tmp_path / "fresh.html"
+    f.write_text(page(itin, brief, R.reader_kwargs()["accommodations"]), encoding="utf-8")
+    pg = open_page(DESKTOP, js=False, url=f.as_uri())
+    days = pg.locator(".col").count()
+    assert _shown(pg, "#line") == "tripwork 標題 " + " ".join(f"D{i}=?" for i in range(1, days + 1))
+    assert _shown(pg, '.mini[data-i="1"]').endswith("還沒選")
+    _pick(pg, 1, 3)
+    assert _shown(pg, "#line").startswith("tripwork 標題 D1=3 D2=?")
+    assert not _shown(pg, '.mini[data-i="1"]').endswith("還沒選")
+
+
+# --- v1.2.1 (the user): the bar's stamps were cut at the edges and had no place name,
+# unlike the real stamp. They are the reader's day-page mini stamp now.
+
+STAMP = """e => { const s = getComputedStyle(e), b = getComputedStyle(e.querySelector('b')), sm = e.querySelector('small');
+  return {w: e.offsetWidth, border: s.borderTopWidth + ' ' + s.borderTopStyle, outline: s.outlineWidth + ' ' + s.outlineStyle,
+          offset: s.outlineOffset, bg: s.backgroundColor, color: s.color, transform: s.transform, date: b.fontSize,
+          area: sm ? getComputedStyle(sm).fontSize : null, text: sm ? sm.textContent : null} }"""
+
+
+@VPS
+def test_the_bars_stamps_are_the_readers_mini_stamps(browser, picker_url, hakodate_url, vp):
+    reader = browser.new_page(viewport=PHONE)
+    reader.goto(hakodate_url)
+    reader.evaluate("document.getElementById('pg-d1').checked=true")
+    reader.wait_for_timeout(300)
+    picker = browser.new_page(viewport=vp)
+    picker.goto(picker_url)
+    days = picker.locator(".mini").count()
+    for i in range(1, days + 1):
+        # day 1's page draws day i's stamp; the current day is filled, so compare the others
+        page = "d2" if i == 1 else "d1"
+        reader.evaluate(f"document.getElementById('pg-{page}').checked=true")
+        reader.wait_for_timeout(300)
+        want = reader.evaluate(STAMP, reader.locator(f"section[data-pg={page}] .pcal .mini .stamp[for=pg-d{i}]").element_handle())
+        got = picker.evaluate(STAMP, picker.locator(f'.mini[data-i="{i}"] i').element_handle())
+        assert got == want, (i, got, want)
+    reader.close()
+    picker.close()
+
+
+@VPS
+def test_no_stamp_in_the_bar_is_cut(open_page, picker_url, vp):
+    pg = open_page(vp, url=picker_url)
+    cut = pg.evaluate("""(() => { const st = document.querySelector('.strip'), r = st.getBoundingClientRect();
+      return [...document.querySelectorAll('.mini i')].map(i => { const b = i.getBoundingClientRect(), s = getComputedStyle(i),
+        ring = parseFloat(s.outlineOffset) + parseFloat(s.outlineWidth), cx = (b.left + b.right) / 2, cy = (b.top + b.bottom) / 2,
+        rad = i.offsetWidth / 2 + ring;
+        return {top: cy - rad - r.top, bottom: r.bottom - (cy + rad), left: cx - rad - r.left} })
+        .filter(x => x.top < -0.01 || x.bottom < -0.01 || x.left < -0.01) })()""")
+    assert not cut, cut

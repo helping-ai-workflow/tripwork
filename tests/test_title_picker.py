@@ -55,7 +55,10 @@ def test_the_page_is_offline_and_says_what_to_do_without_scripts():
     html = tpk.page(*_inputs())
     assert not re.search(r"(src|href)=\"https?://", html)
     soup = BeautifulSoup(html, "html.parser")
-    assert "D1=3" in soup.select_one("noscript").get_text()
+    # v1.2.1: no banner about scripts (the user: 「user 不用知道」) -- the one thing said
+    # without a script is how to take the line, on the phone that runs none
+    assert [n.get_text() for n in soup.select("noscript")] == ["長按這行選取整行，複製後貼回對話"]
+    assert soup.select_one("#line").get_text().startswith("tripwork 標題")
 
 
 def test_the_cli_writes_the_page_into_work_and_prints_the_list(tmp_path, capsys):
