@@ -111,11 +111,12 @@ document.addEventListener('change',e=>{const r=e.target;if(!r.classList||!r.clas
 const init=days.findIndex(d=>radio(d).checked);if(init>=0)show(init);
 // the swipe: sideways only within 30 deg of horizontal; anything steeper is the day's own scroll
 const ANG=Math.tan(30*Math.PI/180);let s=null;
-// Z1: a zoomed map / photo follows a downward drag, its backdrop fades, past half (or a flick) it closes
+// Z1: a zoomed map follows a downward drag, its backdrop fades, past half (or a flick) it closes
+// (a photo has its own layer since v2.2, below)
 // -- only from the top: a split day's zoomed view scrolls, and scrolled down a downward drag scrolls it back
 let z=null;
-document.addEventListener('touchstart',e=>{z=null;const box=document.querySelector('.zck:checked,.pz:checked');if(!box||e.touches.length!==1||e.target.closest('.zbar a'))return;
-  const layer=box.closest('.mv,.bp'),q=e.touches[0];if(!layer||layer.scrollTop>0)return;z={box,layer,bg:layer.querySelector('.zbg'),y:q.clientY,x:q.clientX,mode:null,v:[],dy:0}},{passive:true});
+document.addEventListener('touchstart',e=>{z=null;const box=document.querySelector('.zck:checked');if(!box||e.touches.length!==1||e.target.closest('.zbar a'))return;
+  const layer=box.closest('.mv'),q=e.touches[0];if(!layer||layer.scrollTop>0)return;z={box,layer,bg:layer.querySelector('.zbg'),y:q.clientY,x:q.clientX,mode:null,v:[],dy:0}},{passive:true});
 document.addEventListener('touchmove',e=>{if(!z||z.mode==='n')return;if(e.touches.length!==1){if(z.mode==='y')zEnd();else z=null;return}
   const q=e.touches[0],dy=q.clientY-z.y,dx=q.clientX-z.x;
   if(!z.mode){if(Math.abs(dx)<4&&Math.abs(dy)<4)return;z.mode=(dy>0&&Math.abs(dx)<=Math.abs(dy)*ANG)?'y':'n';if(z.mode==='n')return}
@@ -126,7 +127,7 @@ function zEnd(){if(!z||z.mode!=='y'){z=null;return}const s=z,H=innerHeight,v=s.v
   const a=s.layer.animate([{translate:'0 '+s.dy+'px'},{translate:'0 '+(go?H:0)+'px'}],o);if(s.bg)s.bg.animate([{opacity:Math.max(0,1-s.dy/H)},{opacity:go?0:1}],o);
   a.onfinish=()=>{if(go)s.box.checked=false;s.layer.getAnimations().forEach(x=>x.cancel());if(s.bg)s.bg.getAnimations().forEach(x=>x.cancel());s.layer.style.translate='';if(s.bg)s.bg.style.opacity=''}}
 document.addEventListener('touchend',zEnd,{passive:true});document.addEventListener('touchcancel',zEnd,{passive:true});
-const blocked=t=>t.closest('.chips')||document.querySelector('.zck:checked,.pz:checked,.drv:target');
+const blocked=t=>t.closest('.chips')||document.querySelector('.zck:checked,.pzx,.drv:target');
 // a touch that starts at the screen edge is the phone's own back gesture (iOS: the left edge; Android
 // gesture navigation: either edge): the page's swipes leave it alone, or both run and the pages stack
 const edge=p=>p.clientX<24||p.clientX>innerWidth-24;
@@ -166,8 +167,14 @@ if(th){try{if(localStorage.getItem('tripwork-theme')==='dark')th.checked=true}ca
   th.addEventListener('change',()=>{try{localStorage.setItem('tripwork-theme',th.checked?'dark':'light')}catch(e){}})}
 const cur=()=>{const r=document.querySelector('input[name=pg]:checked');return r?r.id.slice(3).replace(/f$/,''):'home'};
 const open=id=>{const r=document.getElementById('pg-'+id);if(r&&!r.checked){r.checked=true;r.dispatchEvent(new Event('change',{bubbles:true}))}};
-if(!location.hash){const n=new Date(),t=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
-  const s=document.querySelector('section.page.day[data-date="'+t+'"]');if(s)open(s.dataset.pg)}
+// a link into the page wins; a fragment that names no place in it (the share link's
+// #staticrypt_pwd=..., which staticrypt leaves in the address bar after the unlock) does not
+const at=(()=>{try{const h=decodeURIComponent(location.hash.slice(1));return !!h&&!!document.getElementById(h)}catch(e){return false}})();
+{const n=new Date(),t=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0')+'-'+String(n.getDate()).padStart(2,'0');
+  const s=document.querySelector('section.page.day[data-date="'+t+'"]');
+  // v2.2: today's home stamp wears its tape (tapes.py), whichever page the link opens
+  if(s)document.querySelectorAll('.page.home label.stamp[for="pg-'+s.dataset.pg+'"]').forEach(e=>e.classList.add('today'));
+  if(s&&!at)open(s.dataset.pg)}
 // history (B1): 返回 always lands on the overview. The overview is the entry beneath every page.
 let last=cur(),popping=false;history.replaceState({pg:'home'},'');
 if(last!=='home')history.pushState({pg:last},'');
@@ -183,4 +190,77 @@ document.addEventListener('change',e=>{const r=e.target;if(!r.classList||!r.clas
   else history.replaceState({pg:id},'')});
 // a fragment jump (a script setting location.hash) also fires popstate, with no state of ours: leave it be
 addEventListener('popstate',e=>{if(!e.state)return;popping=true;open('home');last='home';popping=false});})();
+// v2.2 every width: a photo grows out of its thumbnail and goes back into it (picks B + O2). The
+// layer is the page's own (.pzx, theme.py): the figure keeps its place, so nothing underneath
+// moves -- the checkbox's full-screen figure (no script) left a hole in its card. A tap on the
+// photo, ✕ or the dark layer, Esc, or a downward drag (touch) all close it the same way.
+// it plays with reduced motion on too (the user's pick M1: short, and only where a finger asked for it)
+(()=>{const ANG=Math.tan(30*Math.PI/180);
+const EASE='cubic-bezier(.2,.85,.25,1)',FULL='inset(0px 0px 0px 0px)';let ov=null,g=null;
+const tf=(x,y,k)=>`translate(${x}px,${y}px) scale(${k})`;
+// the open photo: contained in 92 % of the height above the bar (10 + 38), the whole centred
+const box=()=>{const W=innerWidth,H=innerHeight,h=H*.92;return {w:W,h,y:(H-h-48)/2}};
+// the part of the thumbnail that shows: under the map row or the list's cap it is covered, not
+// clipped, so ask what is on top along its middle (the figure shown, our layer let through, for the probe)
+function shown(r){const f=ov.fig,v=f.style.visibility;f.style.visibility='';ov.root.style.pointerEvents='none';
+  const x=r.left+r.width/2,own=y=>{const e=document.elementFromPoint(x,y);return !!e&&f.contains(e)};
+  let t=Math.max(0,Math.ceil(r.top)),b=Math.min(innerHeight,Math.floor(r.bottom));
+  while(t<b&&!own(t+.5))t++;while(b>t&&!own(b-.5))b--;f.style.visibility=v;ov.root.style.pointerEvents='';return [t,b]}
+// the thumbnail as a transform of the open photo, the crop that makes it cover, the window it shows through
+function slot(){const r=ov.fig.querySelector('.bpz').getBoundingClientRect(),C=ov.C,sc=Math.max(r.width/ov.iw,r.height/ov.ih),
+  cw=ov.iw*sc,ch=ov.ih*sc,k=cw/C.w,[t,b]=shown(r);
+  return {x:r.left+(r.width-cw)/2,y:r.top+(r.height-ch)/2,k,clip:`inset(${(ch-r.height)/2/k}px ${(cw-r.width)/2/k}px)`,
+    win:`inset(${t}px 0px ${innerHeight-b}px 0px)`,f:ov.filter}}
+function open(fig){const cs=getComputedStyle(fig.querySelector('.bpi')),im=new Image();
+  im.onload=()=>{if(ov)return;const iw=im.naturalWidth||1,ih=im.naturalHeight||1,B=box(),k=Math.min(B.w/iw,B.h/ih);
+    const C={w:iw*k,h:ih*k};C.x=(B.w-C.w)/2;C.y=B.y+(B.h-C.h)/2;
+    const root=document.createElement('div');root.className='pzx';
+    root.innerHTML='<div class="pzb"></div><div class="pzw"><div class="pzi"></div></div><div class="zbar"><span class="zc"></span><label class="zx">✕ 關閉</label></div>';
+    const bg=root.children[0],win=root.children[1],hero=win.firstChild,bar=root.children[2],zc=fig.querySelector('.zbar .zc');
+    if(zc)bar.firstChild.innerHTML=zc.innerHTML;
+    hero.style.cssText=`width:${C.w}px;height:${C.h}px;background-image:${cs.backgroundImage};transform:${tf(C.x,C.y,1)}`;
+    bar.style.top=(B.y+B.h+10)+'px';document.body.append(root);
+    ov={fig,root,bg,win,hero,bar,C,iw,ih,filter:cs.filter==='none'?'none':cs.filter,busy:true};
+    const t=slot(),o={duration:300,easing:EASE};fig.style.visibility='hidden';
+    hero.animate([{transform:tf(t.x,t.y,t.k),clipPath:t.clip,filter:t.f},{transform:tf(C.x,C.y,1),clipPath:'inset(0px 0px)',filter:'none'}],o);
+    win.animate([{clipPath:t.win},{clipPath:FULL,offset:.55},{clipPath:FULL}],o);
+    bg.animate([{opacity:0},{opacity:1}],o);
+    bar.animate([{opacity:0},{opacity:0,offset:.5},{opacity:1}],o).onfinish=()=>{if(ov&&ov.root===root)ov.busy=false}};
+  im.src=cs.backgroundImage.replace(/^url\(["']?|["']?\)$/g,'')}
+// back into the thumbnail from where the photo is now (c); the window closes onto the shown part by
+// 45 % of the way, so a thumbnail half under the cap is not drawn over the cap
+function close(c){if(!ov||ov.busy)return;const s=ov;s.busy=true;g=null;
+  const t=slot(),o={duration:340,easing:EASE,fill:'forwards'},bo=+getComputedStyle(s.bg).opacity;s.bar.style.opacity='0';
+  const a=s.hero.animate([{transform:tf(c.x,c.y,c.k),clipPath:'inset(0px 0px)',filter:'none'},{transform:tf(t.x,t.y,t.k),clipPath:t.clip,filter:t.f}],o);
+  s.win.animate([{clipPath:FULL},{clipPath:t.win,offset:.45},{clipPath:t.win}],o);s.bg.animate([{opacity:bo},{opacity:0}],o);
+  // landed: the thumbnail comes back under it (with the card's outline, edge fade and credit drawn
+  // over it) and the flying copy fades off, so nothing pops at the hand-over
+  a.onfinish=()=>{s.fig.style.visibility='';s.hero.animate([{opacity:1},{opacity:0}],{duration:120,fill:'forwards'})
+    .onfinish=()=>{s.root.remove();if(ov===s)ov=null}}}
+const still=()=>({x:ov.C.x,y:ov.C.y,k:1});
+addEventListener('click',e=>{const t=e.target;
+  if(ov){if(!ov.root.contains(t))return;e.stopPropagation();if(t.closest('.zc a'))return;e.preventDefault();close(still());return}
+  const l=t.closest&&t.closest('label.bpz');if(!l)return;e.preventDefault();e.stopPropagation();open(l.closest('figure.bp'))},true);
+addEventListener('keydown',e=>{if(ov&&e.key==='Escape')close(still())});
+// the drag (touch): the photo follows the finger and shrinks about it, the dark layer thins; let go
+// moving down (or past 100 px) and it goes back into its thumbnail, else it springs back. Our
+// handlers run first and stop the touch, so the page's own swipes never see it.
+addEventListener('touchstart',e=>{if(!ov)return;e.stopPropagation();g=null;
+  if(ov.busy||e.touches.length!==1||e.target.closest('.zc a'))return;const q=e.touches[0];
+  g={x0:q.clientX,y0:q.clientY,mode:null,v:[[e.timeStamp,q.clientY]],dy:0,cur:null}},{capture:true,passive:true});
+addEventListener('touchmove',e=>{if(!ov)return;e.stopPropagation();e.preventDefault();if(!g||e.touches.length!==1)return;
+  const q=e.touches[0],dx=q.clientX-g.x0,dy=q.clientY-g.y0;
+  if(!g.mode){if(Math.abs(dx)<4&&Math.abs(dy)<4)return;g.mode=dy>0&&Math.abs(dx)<=dy*ANG?'y':'n'}
+  if(g.mode!=='y')return;const H=innerHeight,C=ov.C,k=1-.4*Math.min(1,Math.max(0,dy)/(H*.6));
+  g.cur={x:q.clientX-k*(g.x0-C.x),y:q.clientY-k*(g.y0-C.y),k};g.dy=dy;ov.hero.style.transform=tf(g.cur.x,g.cur.y,k);
+  ov.bg.style.opacity=String(1-Math.min(1,Math.max(0,dy)/(H*.45)));ov.bar.style.opacity='0';
+  g.v.push([e.timeStamp,q.clientY]);if(g.v.length>5)g.v.shift()},{capture:true,passive:false});
+const end=e=>{if(!ov)return;e.stopPropagation();const s=g;g=null;if(!s||s.mode!=='y'||!s.cur)return;
+  const v=s.v,vel=v.length>1?(v[v.length-1][1]-v[0][1])/Math.max(1,v[v.length-1][0]-v[0][0]):0;
+  if((vel>.25&&s.dy>0)||(s.dy>100&&vel>-.1)){close(s.cur);return}
+  const C=ov.C,c=s.cur,o={duration:260,easing:'cubic-bezier(.3,1.2,.4,1)'},bo=+getComputedStyle(ov.bg).opacity;
+  ov.hero.style.transform=tf(C.x,C.y,1);ov.bg.style.opacity='';ov.bar.style.opacity='';
+  ov.hero.animate([{transform:tf(c.x,c.y,c.k)},{transform:tf(C.x,C.y,1)}],o);ov.bg.animate([{opacity:bo},{opacity:1}],o);
+  ov.bar.animate([{opacity:0},{opacity:1}],o)};
+addEventListener('touchend',end,{capture:true,passive:true});addEventListener('touchcancel',end,{capture:true,passive:true});})();
 """

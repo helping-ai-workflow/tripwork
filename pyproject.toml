@@ -1,6 +1,6 @@
 [project]
 name = "tripwork"
-version = "2.1.0"
+version = "2.2.0"
 requires-python = ">=3.11"
 dependencies = ["PyYAML>=6.0", "jsonschema>=4.0", "requests>=2.31", "fonttools>=4.40", "brotli>=1.0"]
 

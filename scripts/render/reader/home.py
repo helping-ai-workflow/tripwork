@@ -5,7 +5,7 @@ from scripts.checklist import KINDS
 from scripts.render.centroid import centroid_items, centroid_note
 from scripts.render.gmaps_links import maps_url
 from scripts.render.heading import dates_line, trip_title
-from scripts.render.reader import month_calendar
+from scripts.render.reader import month_calendar, tapes
 from scripts.render.reader.assets import icon
 from scripts.render.reader.text import esc, md, md_wd
 
@@ -102,13 +102,15 @@ def home(ctx):
     # v1.1 topic 6: the month card is its own panel -- the desktop's big calendar, zoomed
     # x1.9, each day's theme on its stamp ring; the phone keeps its order (theme.py)
     rings = [d.get("theme") or d.get("label") or "" for d in ctx.days]
+    # v2.2: each day's tape for the day it is today (tapes.py)
+    day_tapes = tapes.day_tapes(title, ctx.dates[0], [c for _, c in ctx.areas]) if ctx.dates else None
     tiles_html = "".join(f'<label class="tile" for="{pg}">{icon(ic)}<b>{t}</b><small>{n}</small></label>'
                          for pg, ic, t, n in tiles)
     return (f'<section class="page home" data-pg="home"><div class="hwrap"><div class="hside">'
             f'<div class="ttl"><h1 class="headline">{esc(title)}</h1>'
             f'<p class="dates">{_dates(ctx)}</p></div>'
             f'<div class="tiles">{tiles_html}</div>{trip_card(ctx)}</div>'
-            f'<div class="hcal">{month_calendar.months(ctx.dates, ctx.areas, rings)}</div></div></section>')
+            f'<div class="hcal">{month_calendar.months(ctx.dates, ctx.areas, rings, day_tapes)}</div></div></section>')
 
 
 def _sub(pg, title, body):

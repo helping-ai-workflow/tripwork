@@ -480,14 +480,15 @@ def test_full_screen_layers_cover_the_screen(browser, publish_url, driver_url):
     assert _covers(pg, f"section[data-pg=d2] .mv:has(#{zid})", (vw // 2, vh - 40)) == full
     pg.evaluate(f"document.getElementById('{zid}').click()")
     pg.wait_for_timeout(300)
-    # the zoomed photo (day 2's 五稜郭公園): open its stop, then the photo
+    # the open photo (day 2's 五稜郭公園): open its stop, then tap the photo -- since v2.2 its
+    # layer is the page's own (.pzx), the figure stays in its card
     sid = pg.evaluate("document.querySelector('section[data-pg=d2] .pz').closest('.stop').id")
     pg.evaluate(f"location.hash='#{sid}'")
     pg.wait_for_timeout(500)
-    pid = pg.evaluate("document.querySelector('section[data-pg=d2] .pz').id")
-    pg.evaluate(f"document.getElementById('{pid}').click()")
+    pg.evaluate("document.querySelector('section[data-pg=d2] label.bpz').click()")
+    pg.wait_for_selector(".pzx", state="attached")
     pg.wait_for_timeout(400)
-    assert _covers(pg, f"section[data-pg=d2] .bp:has(#{pid})", (vw // 2, vh // 2)) == full
+    assert _covers(pg, ".pzx", (vw // 2, vh // 2)) == full
     ctx.close()
     # 給司機看
     ctx, pg = _new(browser, PHONE, driver_url)
@@ -747,12 +748,27 @@ def test_opens_today_during_the_trip(browser, publish_url, viewport):
 
 
 def test_a_link_target_beats_today(browser, publish_url):
+    """A link into the page (here Day 1's first stop, a real anchor) is where it lands."""
     from tests import reader_fixture as R
     pg = browser.new_page(viewport=PHONE)
     _fake_today(pg, R.itinerary()["days"][1]["date"])
-    pg.goto(publish_url + "#x")
+    pg.goto(publish_url + "#t-d1-s1")
     pg.wait_for_timeout(500)
     assert _cur(pg) == "pg-home"
+    pg.close()
+
+
+@pytest.mark.parametrize("frag", ["#staticrypt_pwd=0123abcd", "#staticrypt_pwd=0123abcd&remember_me", "#x"])
+def test_a_fragment_that_names_no_place_still_opens_today(browser, publish_url, frag):
+    """The share link (staticrypt keeps its #staticrypt_pwd=... after the unlock) names no
+    place in the page, so it must not stop today from opening (a consumer trip: the share
+    link always landed on the overview)."""
+    from tests import reader_fixture as R
+    pg = browser.new_page(viewport=PHONE)
+    _fake_today(pg, R.itinerary()["days"][1]["date"])
+    pg.goto(publish_url + frag)
+    pg.wait_for_timeout(500)
+    assert _cur(pg) == "pg-d2"
     pg.close()
 
 
@@ -899,37 +915,41 @@ def test_round_trips_do_not_grow_the_history(browser, publish_url, viewport):
 # ---------------------------------------------------------------- Z1: pull down to close a zoom
 
 def _open_zoom(pg, kind):
-    """Day 2 has both a map with tiles and a photo; open the zoom and return its checkbox selector."""
+    """Day 2 has both a map with tiles and a photo; open the zoom and return a test for 'open'."""
     _go(pg, "pg-d2")
     if kind == "map":
         pg.click("section[data-pg=d2] .mapc summary")
         pg.wait_for_timeout(300)
-        box = "section[data-pg=d2] .zck"
-    else:
-        sid = pg.evaluate("document.querySelector('section[data-pg=d2] .pz').closest('.stop').id")
-        pg.evaluate(f"location.hash='#{sid}'")
-        pg.wait_for_timeout(500)
-        box = "section[data-pg=d2] .pz"
-    pg.evaluate(f"document.querySelector('{box}').click()")
+        pg.evaluate("document.querySelector('section[data-pg=d2] .zck').click()")
+        pg.wait_for_timeout(400)
+        return "document.querySelector('section[data-pg=d2] .zck').checked"
+    sid = pg.evaluate("document.querySelector('section[data-pg=d2] .pz').closest('.stop').id")
+    pg.evaluate(f"location.hash='#{sid}'")
+    pg.wait_for_timeout(500)
+    pg.evaluate("document.querySelector('section[data-pg=d2] label.bpz').click()")       # its own layer since v2.2
+    pg.wait_for_selector(".pzx", state="attached")
     pg.wait_for_timeout(400)
-    return box
+    return "!!document.querySelector('.pzx')"
 
 
-@pytest.mark.parametrize("kind", ["map", "photo"])
-def test_pull_down_closes_the_zoom(chromium, publish_url, kind):
+# the map closes past half the screen (or on a flick); the photo, like the iPhone's Photos,
+# goes back into its thumbnail on any downward let-go past 100 px and springs back short of it
+@pytest.mark.parametrize("kind,short,long", [("map", (150, 400), (420, 400)), ("photo", (60, 900), (220, 400))])
+def test_pull_down_closes_the_zoom(chromium, publish_url, kind, short, long):
     errs = []
     ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errs)
     t = _touch(ctx, pg)
-    box = _open_zoom(pg, kind)
+    is_open = _open_zoom(pg, kind)
     day = _cur(pg)
     top = pg.evaluate(f"{_vs('d2')}.scrollTop")
-    _drag(pg, t, 180, 300, 0, 150)               # under half of 780: stays open
-    assert pg.evaluate(f"document.querySelector('{box}').checked")
+    _drag(pg, t, 180, 300, 0, short[0], ms=short[1])          # short of closing: stays open
+    assert pg.evaluate(is_open)
     assert _cur(pg) == day and pg.evaluate(f"{_vs('d2')}.scrollTop") == top   # the list underneath did not scroll
-    _drag(pg, t, 180, 300, 0, 420)               # past half: closes
-    assert not pg.evaluate(f"document.querySelector('{box}').checked")
+    _drag(pg, t, 180, 300, 0, long[0], ms=long[1])            # closes
+    assert not pg.evaluate(is_open)
     assert pg.evaluate("[...document.querySelectorAll('.mv,.bp,.zbg')].every(e=>!e.style.translate&&!e.style.opacity)")
     assert _cur(pg) == day
+    assert pg.evaluate(f"{_vs('d2')}.scrollTop") == top
     assert not errs
     ctx.close()
 
@@ -938,19 +958,19 @@ def test_pull_down_flick_closes_and_sideways_or_link_does_not(chromium, publish_
     errs = []
     ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errs)
     t = _touch(ctx, pg)
-    box = _open_zoom(pg, "map")
+    is_open = _open_zoom(pg, "map")
     day = _cur(pg)
     _drag(pg, t, 180, 300, 200, 40)              # sideways: not a pull, and not a day swipe
-    assert pg.evaluate(f"document.querySelector('{box}').checked") and _cur(pg) == day
+    assert pg.evaluate(is_open) and _cur(pg) == day
     _drag(pg, t, 180, 300, 0, -150)              # upwards: not a pull
-    assert pg.evaluate(f"document.querySelector('{box}').checked")
+    assert pg.evaluate(is_open)
     link = pg.evaluate("(a=>{if(!a)return null;const r=a.getBoundingClientRect();return [r.left+r.width/2,r.top+r.height/2]})"
                        "(document.querySelector('section[data-pg=d2] .mv:has(.zck:checked) .zbar a'))")
     if link:                                      # a touch that starts on the live-map link never pulls
         _drag(pg, t, link[0], link[1], 0, 500)
-        assert pg.evaluate(f"document.querySelector('{box}').checked")
+        assert pg.evaluate(is_open)
     _drag(pg, t, 180, 300, 0, 120, steps=3, ms=0)  # short flick: closes
-    assert not pg.evaluate(f"document.querySelector('{box}').checked")
+    assert not pg.evaluate(is_open)
     assert not errs
     ctx.close()
 

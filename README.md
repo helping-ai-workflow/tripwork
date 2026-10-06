@@ -130,9 +130,15 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
   沒有密碼誰都打不開。第一次要登入 Cloudflare、電腦要裝 Node.js；**每次上傳前它都會先問你**。
 
 - **先輸入密碼**：頁面上不會出現行程名稱、日期或地點；密碼可以用中文，iPhone 照樣能用注音輸入。勾「記得密碼」，下次打開就不用再輸入。
-- **手機上滑著看**：左右滑換天，住宿／入境規定／行前清單往右滑回首頁，放大的地圖或照片往下拉就關掉。
+- **手機上滑著看**：左右滑換天，住宿／入境規定／行前清單往右滑回首頁，放大的地圖往下拉就關掉；點開的照片往下拉，會縮回它在行程裡的位置。
 - **旅行期間打開，直接是今天那一頁**；按手機的「返回」一律回到總覽。
+- **今天那格貼一段紙膠帶**：首頁月曆上的今天會貼上紙膠帶，每天換一款，花樣和顏色都不一樣（不會跟那天印章同色）。
 - 在密碼頁選的深色／淺色，打開行程後照樣沿用。
+
+<p align="center"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/readme/tapes-dark.png">
+  <img src="docs/images/readme/tapes.png" width="560" alt="紙膠帶：條紋、圓點、格紋等 9 種花樣，配紅、藍、綠、芥末、橘、紫 6 種顏色，每天輪到一款">
+</picture></p>
 
 ### 其他也一起交給你
 

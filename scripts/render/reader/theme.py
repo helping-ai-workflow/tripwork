@@ -430,3 +430,13 @@ body:has(#pg-lodging:checked,#pg-advisory:checked,#pg-checklist:checked) .page.h
 @media (min-width:1024px) and (max-width:1359px){.pmap{padding-bottom:60px}}
 """
 CSS += DESKTOP_CSS
+
+# v2.2 every width: the photo layer PUBLISH_JS opens -- the page's own dark layer, the photo
+# (placed and sized by the script), the source + ✕ bar; the figure stays in its card
+PHOTO_CSS = """
+.pzx{position:fixed;inset:0;z-index:40;touch-action:none;cursor:zoom-out}
+.pzx>.pzb{position:absolute;inset:0;background:rgba(10,8,6,.94)}.pzx>.pzw{position:absolute;inset:0}
+.pzx .pzi{position:absolute;left:0;top:0;transform-origin:0 0;background-position:center;background-size:100% 100%;background-repeat:no-repeat;will-change:transform}
+.pzx>.zbar{display:flex;justify-content:space-between;align-items:center;gap:10px;position:absolute;left:0;right:0;margin:0 auto;max-width:min(100%,960px);padding:0 12px;box-sizing:border-box}
+"""
+CSS += PHOTO_CSS
