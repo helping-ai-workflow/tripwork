@@ -25,6 +25,11 @@ days.forEach(d=>{T.appendChild(d);const dash=d.querySelector('.dash'),pcal=d.que
   const vs=document.createElement('div');vs.className='vs plist';const body=document.createElement('div');body.className='vbody';
   const stk=document.createElement('div');stk.className='stk';card.classList.add('pcard');
   dash.prepend(ym);const pw=document.createElement('div');pw.className='pwrap';pw.append(pmap);stk.append(dh,pw,lcap);body.append(stk,card);vs.append(pcal,body);lfoot.before(vs);
+  // a stop opened is an anchor jump: it lands below what covers the list's top -- .stk (the title
+  // row, the map) and, hanging under it, the card's top edge and its fade (.lcap's ::after and
+  // ::before, read from the page) -- kept as the map row opens and closes
+  const reach=()=>{const f=getComputedStyle(lcap,'::before');return (parseFloat(f.top)||0)+(parseFloat(f.height)||0)};
+  const pad=()=>{vs.style.scrollPaddingTop=(stk.offsetHeight+reach())+'px'};pad();if(window.ResizeObserver)new ResizeObserver(pad).observe(stk);
   const n=dh.querySelector('.dn');if(n)n.innerHTML=n.textContent.replace(/(\d+)/,'<span class="dg"><i>$1</i></span>')});
 const st=document.createElement('style');st.textContent=`
 @media (max-width:1023px){

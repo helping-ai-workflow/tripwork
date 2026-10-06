@@ -36,7 +36,17 @@
 - **The share link opens today.** staticrypt leaves `#staticrypt_pwd=…` in the address bar
   after the unlock, and any `#` used to stop today from opening, so the share link always
   landed on the overview. Only a fragment that names a place in the page wins over today now.
-Tests: 2202 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 541 passed (headless Chromium and WebKit).
+- **An opened stop shows its title (shared page, phone).** The day is one scroller whose title
+  row, map row and card top stick; opening a stop (an anchor jump) put it 8 px under the
+  scroller's top, under all of that, its title row and outline hidden. The scroller is now
+  padded by what covers its top -- the sticky rows plus the card's top edge and fade hanging
+  below them, read from the page and kept as the map row opens and closes -- so the stop lands
+  just below. Map chips and 來源 links land the same way.
+- **住宿 / 入境規定: the first card's top line shows.** A card's outline is a 1 px shadow outside
+  it, and the list's scroller had a pixel of room only at its sides, so the first card's top
+  line (and the last one's bottom line) was clipped, phone and desktop. The room is on all four
+  sides now; the cards have not moved.
+Tests: 2202 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 561 passed (headless Chromium and WebKit).
 
 ## 2.1.0 — Chinese sources carry their region, home on the map, a survey list, ratings
 
