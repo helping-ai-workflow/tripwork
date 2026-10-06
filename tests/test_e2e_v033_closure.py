@@ -76,7 +76,7 @@ GATE_CLI = "gate"
 SLUG = "2026-09-e2e-closure"
 COUNTRY = "TW"
 DISTRICT = "嘉義市"
-LOCAL_LANG = "zh"
+LOCAL_LANG = "zh-TW"
 
 # Deliberately NOT the repo and NOT the trip dir: the CLIs must work from a cwd
 # that has no relationship to either.
@@ -141,7 +141,7 @@ def _candidates():
         return {"id": pid, "name_local": name, "name_display": name,
                 "category": category, "claimed_district": DISTRICT,
                 "business_status": status,
-                "sources": [{"url": u, "lang": "zh"} for u in urls]}
+                "sources": [{"url": u, "lang": "zh-TW"} for u in urls]}
 
     return {"candidates": [
         cand("poi-market", "文化路夜市", "food", ok,
@@ -170,18 +170,22 @@ def _geocode_cache():
     def hit(lat, lng, display):
         return {"lat": lat, "lng": lng, "display_name": display, "source": "nominatim"}
 
+    def venue(lat, lng, display):
+        # v2.1.0: a venue entry records the tier that found it, or it is looked up again
+        return {"v": 2, **hit(lat, lng, display), "tier": 2}
+
     return {
         # the district centroid is looked up as a place (v1.2.1: resolve_place(area=True))
         cache_key(DISTRICT, None, COUNTRY, area=True): hit(23.48, 120.44, "嘉義市, 臺灣"),
         cache_key("文化路夜市", DISTRICT, COUNTRY):
-            hit(23.479, 120.443, "文化路夜市, 東區, 嘉義市, 臺灣"),
+            venue(23.479, 120.443, "文化路夜市, 東區, 嘉義市, 臺灣"),
         cache_key("嘉義市立美術館", DISTRICT, COUNTRY):
-            hit(23.477, 120.441, "嘉義市立美術館, 西區, 嘉義市, 臺灣"),
+            venue(23.477, 120.441, "嘉義市立美術館, 西區, 嘉義市, 臺灣"),
         cache_key("檜意森活村", DISTRICT, COUNTRY):
-            hit(23.484, 120.450, "檜意森活村, 東區, 嘉義市, 臺灣"),
-        cache_key("番路山產店", DISTRICT, COUNTRY): None,          # defect 1
+            venue(23.484, 120.450, "檜意森活村, 東區, 嘉義市, 臺灣"),
+        cache_key("番路山產店", DISTRICT, COUNTRY): {"v": 2, "miss": True},   # defect 1
         cache_key("老楊食堂", DISTRICT, COUNTRY):
-            hit(23.481, 120.442, "老楊食堂, 東區, 嘉義市, 臺灣"),
+            venue(23.481, 120.442, "老楊食堂, 東區, 嘉義市, 臺灣"),
     }
 
 
@@ -259,8 +263,8 @@ def _accommodations():
             "name_display": "嘉義小旅館", "facilities": [],
             "geocode": {"lat": 23.48, "lng": 120.44,
                         "geocode_source": "cluster_fallback"},
-            "sources": [{"url": "https://guide.example/hotel", "lang": "zh"},
-                        {"url": "https://blog.example/hotel", "lang": "zh"}],
+            "sources": [{"url": "https://guide.example/hotel", "lang": "zh-TW"},
+                        {"url": "https://blog.example/hotel", "lang": "zh-TW"}],
             "verify_status": "verified",
         }],
     }]}

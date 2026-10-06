@@ -42,7 +42,14 @@ def trip_length_label(brief):
     return f"{n}天{n - 1}夜"
 
 
+def is_survey(brief):
+    """A survey brief (v2.1.0 §10): collect and verify places, no itinerary."""
+    return (brief or {}).get("mode") == "survey"
+
+
 def deliverable_stem(brief):
+    if is_survey(brief):                   # a list has no dates to lead its file name
+        return f"{brief['short_name']} 清單"
     return f"{brief['dates']['start']} {brief['short_name']} {trip_length_label(brief)}"
 
 
@@ -82,7 +89,9 @@ def name_failures(brief):
     try:
         start, end = _dates(brief)
     except (AttributeError, TypeError, ValueError):
-        return [N + "dates are not valid ISO dates"]
+        if not (is_survey(brief) and not brief.get("dates")):
+            return [N + "dates are not valid ISO dates"]
+        start = end = None                 # a survey without dates names its list only
     sn = brief.get("short_name")
     if not (isinstance(sn, str) and sn.strip()):
         out.append(N + "short_name missing")

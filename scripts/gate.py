@@ -17,6 +17,7 @@ from scripts.day_chain import (alternative_failures, chain_failures, legacy_fail
 from scripts.day_titles import pick_notices
 from scripts.facilities import stop_meets_required
 from scripts.trip_calendar import poi_closed_on
+from scripts.verify import official_source_url
 from scripts.rederive import run_rederivation
 from scripts.source_records import area_label_failures, source_record_failures
 from scripts.text_hygiene import (ai_tone_failures, jargon_failures,
@@ -174,6 +175,29 @@ def _home_legs_rendered_failures(itinerary, legs):
     return failures
 
 
+# (artifact, its list of records) whose schema demands an official source (v2.1.0 §5)
+_OFFICIAL_RECORDS = (("advisory", "items"), ("calendar", "holidays"), ("seasonal", "items"), ("legs", "legs"))
+
+
+def official_search_failures(advisory=None, calendar=None, seasonal=None, legs=None):
+    """A record whose only official sources are search engine results pages has no
+    official source (v2.1.0 §5). One failure per record, prefixed by its artifact --
+    `<artifact> official source ` -- which _ROUTES sends to the stage that writes it.
+    The legs message never contains 'legs[' (rederive's own marker)."""
+    docs = {"advisory": advisory, "calendar": calendar, "seasonal": seasonal, "legs": legs}
+    out = []
+    for name, key in _OFFICIAL_RECORDS:
+        for i, rec in enumerate((docs[name] or {}).get(key) or []):
+            if not isinstance(rec, dict):
+                continue
+            flagged = [s["url"] for s in rec.get("sources") or []
+                       if isinstance(s, dict) and s.get("official") and s.get("url")]
+            if flagged and official_source_url(rec) is None:
+                out.append(f"{name} official source is a search results page: {key} #{i} ({flagged[0]}) "
+                           "— record the page it links to")
+    return out
+
+
 def _itinerary_text(itinerary):
     """Every authored free-text field a renderer surfaces: title + checklist + each day
     label + each row text + each move row's from/to endpoints + each contingency
@@ -206,7 +230,7 @@ def _itinerary_text(itinerary):
 
 def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
              calendar=None, advisory=None, must_do=None,
-             legs=None, routing=None, cost=None, trip_brief=None):
+             legs=None, routing=None, cost=None, trip_brief=None, seasonal=None):
     """Return a gate-report dict: {status, checks, failures}.
 
     Args:
@@ -349,6 +373,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     # reached the reader — this is the mechanical form of that render-side gap.
     home_leg_failures = _home_legs_rendered_failures(itinerary, legs)
     failures.extend(home_leg_failures)
+    official_f = official_search_failures(advisory=advisory, calendar=calendar, seasonal=seasonal, legs=legs)
+    failures.extend(official_f)
 
     # Verdict re-derivation (v0.33.0). Every recorded mechanical verdict is
     # recomputed from the inputs the artifact itself carries. Emits its own two
@@ -396,6 +422,7 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         {"name": "day_theme_valid", "passed": not themes},
         {"name": "checklist_structured", "passed": not checklist_f},
         {"name": "sources_complete", "passed": not sources_f},
+        {"name": "official_sources_not_search", "passed": not official_f},
     ]
     checks.extend(rd["checks"])
     if closed_check:
@@ -489,6 +516,7 @@ def main(argv):
         legs = opt("legs.yaml")
         routing = opt("routing.yaml")
         cost = opt("cost.yaml")
+        seasonal = opt("seasonal.yaml")
     except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError,
             _MalformedOptionalArtifact) as exc:
         print(f"missing/invalid required or optional artifact: {exc!r}",
@@ -506,6 +534,7 @@ def main(argv):
         routing=routing,
         cost=cost,
         trip_brief=brief,
+        seasonal=seasonal,
     )
     w.mkdir(parents=True, exist_ok=True)
     report_path(w, "gate-report.yaml").write_text(

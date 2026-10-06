@@ -2,7 +2,7 @@ slug: trip-a
 destination:
   country: Taiwan
   city: 宜蘭
-  local_lang: zh
+  local_lang: zh-TW
 dates:
   start: '2026-06-23'
   end: '2026-06-25'

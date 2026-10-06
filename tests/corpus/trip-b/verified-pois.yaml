@@ -6,13 +6,13 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001114&id=R44
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方景點介紹，全天開放
   - url: https://www.wenwu.org.tw/
-    lang: zh
+    lang: zh-TW
     note: 文武廟官方網站
   - url: https://travel.nantou.gov.tw/attractions/wenwu-temple/
-    lang: zh
+    lang: zh-TW
     note: 南投旅遊網官方介紹
   name_roman: Sun Moon Lake Wenwu Temple
   verify_status: unverified
@@ -24,7 +24,7 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.sunmoonlake.gov.tw/attractions/Attractions?A=20&Id=78
-    lang: zh
+    lang: zh-TW
     note: 日月潭國家風景區管理處官方介紹：清水模建築、中庭大跨距頂板、咖啡館
   - url: https://travel.yam.com/article/119226
     lang: zh
@@ -43,13 +43,13 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.sunmoonlake.gov.tw/zh-tw/attractions/detail/235
-    lang: zh
+    lang: zh-TW
     note: 日月潭觀光旅遊網官方：水社碼頭、遊湖樞紐
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001016&id=A12-00299
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方景點頁
   - url: https://www.sunmoonlake.gov.tw/zh-tw/attractions/detail/379
-    lang: zh
+    lang: zh-TW
     note: 水社商圈官方介紹：陸上/水上轉運、商店餐廳
   name_roman: Shuishe Pier
   verify_status: verified
@@ -65,13 +65,13 @@ pois:
   district: 日月潭
   sources:
   - url: https://travel.nantou.gov.tw/attractions/sun-moon-lake-ita-shao/
-    lang: zh
+    lang: zh-TW
     note: 南投旅遊網官方：伊達邵碼頭商圈
   - url: https://www.travelking.com.tw/tourguide/scenery105331.html
-    lang: zh
+    lang: zh-TW
     note: 伊達邵碼頭旅遊資訊：三大碼頭之一、邵族文化
   - url: https://www.sunmoonlake.gov.tw/
-    lang: zh
+    lang: zh-TW
     note: 日月潭國家風景區管理處官方觀光旅遊網（伊達邵/德化社碼頭官方資訊）
   - url: https://www.welcometw.com/%E6%97%A5%E6%9C%88%E6%BD%AD%E9%81%8A%E6%B9%96-%E4%B9%98%E8%88%B9%E8%B7%AF%E7%B7%9A%E7%A5%A8%E5%83%B9%E8%B3%87%E8%A8%8A/
     lang: zh
@@ -90,16 +90,16 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.sunmoonlake.gov.tw/zh-tw/attractions/detail/14
-    lang: zh
+    lang: zh-TW
     note: 日月潭觀光旅遊網官方：玄光寺、碼頭、搭船可達
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001114&id=2506
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方介紹
   - url: https://nttraveler.com/yuchihtrip/xuanguang/
     lang: zh
     note: 南投旅行誌：玄光寺為日月潭必訪、四大碼頭之一，下船短程步行可達
   - url: https://www.bigfang.tw/blog/post/smlake-boat
-    lang: zh
+    lang: zh-TW
     note: 日月潭遊湖搭船攻略：水社/玄光寺/伊達邵碼頭、一日券、開船時間表、遊湖地標
   name_roman: Xuanguang Temple
   verify_status: verified
@@ -115,10 +115,10 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001114&id=2505
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方：慈恩塔、海拔954m、塔高46m
   - url: https://zh.wikipedia.org/zh-tw/%E6%85%88%E6%81%A9%E5%A1%94
-    lang: zh
+    lang: zh-TW
     note: 維基百科：慈恩塔基本資料
   - url: https://hiking.biji.co/index.php?act=info&q=review&review_id=8826
     lang: zh
@@ -136,19 +136,19 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.ropeway.com.tw/
-    lang: zh
+    lang: zh-TW
     note: 日月潭纜車官方網站
   - url: https://www.ropeway.com.tw/page/about/index.aspx?kind=34
-    lang: zh
+    lang: zh-TW
     note: 官方票價表頁面
   - url: https://www.sunmoonlake.gov.tw/zh-tw/attractions/detail/60
-    lang: zh
+    lang: zh-TW
     note: 日月潭觀光旅遊網官方纜車站介紹（伊達邵—九族、1877公尺、米其林三星湖景）
   - url: https://www.welcometw.com/%E6%97%A5%E6%9C%88%E6%BD%AD%E7%BA%9C%E8%BB%8A-%E4%BA%A4%E9%80%9A%E8%B7%AF%E7%B7%9A%E7%A5%A8%E5%83%B9/
     lang: zh
     note: 2026 票價公告：自 2026/6/1 起全票 420 元、優待票 330 元；平日 10:30-16:00、假日 10:00-16:30
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001016&id=A12-00301
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方；日月潭纜車景點頁
   - url: https://gofunit.com/%E4%B9%9D%E6%97%8F%E6%96%87%E5%8C%96%E6%9D%91%E6%94%BB%E7%95%A5/
     lang: zh
@@ -167,13 +167,13 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.sunmoonlake.gov.tw/
-    lang: zh
+    lang: zh-TW
     note: 日月潭國家風景區管理處官方觀光旅遊網（遊湖/碼頭官方資訊）
   - url: https://www.boat.com.tw/time_price_list.php
-    lang: zh
+    lang: zh-TW
     note: 日月潭水社海觀光遊艇公司官方船班時間與票價表（一日券、逆時針航線）
   - url: https://shopee.tw/blog/sun-moon-lake-boat-cruise/
-    lang: zh
+    lang: zh-TW
     note: 2026 遊湖船票票價/船班時間整理：營運 9:00-17:00、一日券標準價 NT$300、含人身保險
   name_roman: Sun Moon Lake Boat Cruise
   verify_status: unverified
@@ -185,13 +185,13 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.skyboat.com.tw/
-    lang: zh
+    lang: zh-TW
     note: 藍天觀光遊艇官方網站（專業包船/搭船/乘船服務）
   - url: https://buy.sunmoon-boat.com.tw/buy/sunmoonboat_01
-    lang: zh
+    lang: zh-TW
     note: 綠湖遊艇官方包船訂購：2 人即可包船、最低 5000 元起、淡旺季不同
   - url: https://yacht.okgo.tw/multimedia1.html
-    lang: zh
+    lang: zh-TW
     note: 水社海觀光遊艇遊湖時間價目表：包船 1.5 小時為基礎、可停伊達邵/玄光寺
   name_roman: Sun Moon Lake Private Boat Charter
   verify_status: unverified
@@ -203,16 +203,16 @@ pois:
   district: 魚池
   sources:
   - url: https://www.sunmoonlake.gov.tw/zh-tw/consume/detail/586
-    lang: zh
+    lang: zh-TW
     note: 日月潭國家風景區管理處觀光旅遊網官方頁，地址南投縣魚池鄉魚池街443-36號
   - url: https://www.taiwanfarm.org.tw/zh-TW/Front/Farm/Detail/100
-    lang: zh
+    lang: zh-TW
     note: 台灣休閒農業發展協會在地介紹
   - url: https://www.welcometw.com/%E5%8D%97%E6%8A%95%E9%AD%9A%E6%B1%A0%E9%84%89%EF%BD%9Chohocha%E5%96%9D%E5%96%9D%E8%8C%B6%EF%BD%9C%E5%85%8D%E8%B2%BB%E5%96%9D%E7%B4%85%E8%8C%B6%E5%90%83%E8%8C%B6%E8%91%89%E8%9B%8B/
     lang: zh
     note: 奉茶奉蛋、紅茶披薩DIY、製茶體驗、三層樓樓層介紹
   - url: https://bunnyann.tw/bunnyann323202504/
-    lang: zh
+    lang: zh-TW
     note: 門票80元參觀紅茶觀光工廠、室內動線
   name_roman: Hohocha Sun Moon Lake Black Tea Factory
   verify_status: verified
@@ -228,10 +228,10 @@ pois:
   district: 魚池
   sources:
   - url: https://www.sunmoonlake.gov.tw/zh-tw/consume/detail/585
-    lang: zh
+    lang: zh-TW
     note: 日月潭觀光旅遊網官方頁，地址南投縣魚池鄉新城村通文巷6之31號（台21線56公里）
   - url: https://www.sunmoonlake.gov.tw/Shop/Stores?a=45&id=214
-    lang: zh
+    lang: zh-TW
     note: 日月潭風管處商店官方頁
   name_roman: Liao Township Chief Black Tea Story House
   verify_status: unverified
@@ -247,10 +247,10 @@ pois:
   district: 魚池
   sources:
   - url: https://ezgo.ardswc.gov.tw/zh-tw/tour/745/
-    lang: zh
+    lang: zh-TW
     note: 農業易遊網官方介紹（品茗玩茶DIY），地址魚池鄉新城村香茶巷5號
   - url: https://nanai.tw/hugosum-nantou/
-    lang: zh
+    lang: zh-TW
     note: 在地遊記：紅茶DIY、客製茶包體驗
   name_roman: Hugosum Black Tea Estate
   verify_status: verified
@@ -265,10 +265,10 @@ pois:
   district: 魚池
   sources:
   - url: https://www.sunmoonlake.gov.tw/Attractions/Attractions?a=20&id=96
-    lang: zh
+    lang: zh-TW
     note: 日月潭國家風景區管理處觀光旅遊網官方景點頁
   - url: https://tenjo.tw/assamteafarm/
-    lang: zh
+    lang: zh-TW
     note: 在地遊記：免門票免費參觀、近日月潭車程5分鐘
   name_roman: Antique Assam Tea Farm
   verify_status: verified
@@ -283,19 +283,19 @@ pois:
   district: 日月潭
   sources:
   - url: https://www.nine.com.tw/page/about/index.aspx?kind=64&lang=TW
-    lang: zh
+    lang: zh-TW
     note: 九族文化村官方網站 About 頁；園區三大區（歡樂世界/原住民部落/水沙連歐洲花園）、文化博物館
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001114&id=2099
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方景點頁；園區概況、海拔900m制高點觀山樓
   - url: https://zh.wikipedia.org/zh-tw/%E4%B9%9D%E6%97%8F%E6%96%87%E5%8C%96%E6%9D%91
-    lang: zh
+    lang: zh-TW
     note: 維基百科；62公頃、最高海拔900公尺、三大園區與設施總覽
   - url: https://gofunit.com/%E4%B9%9D%E6%97%8F%E6%96%87%E5%8C%96%E6%9D%91%E6%94%BB%E7%95%A5/
     lang: zh
     note: 2026 攻略；平日09:30-17:00 假日09:30-17:30、九族纜車平日10:15-16:00 假日10:00-16:30、購票贈日月潭纜車
   - url: https://www.klook.com/zh-TW/blog/formosan-aboriginal-culture-village-nantou-taiwan/
-    lang: zh
+    lang: zh-TW
     note: 2026 全攻略；阿拉丁廣場為全台最大室內親子遊樂園、全室內、冷氣環境
   - url: https://www.hs-car.com/paradise.php?pid=67
     lang: zh
@@ -313,10 +313,10 @@ pois:
   district: 伊達邵
   sources:
   - url: https://www.bigfang.tw/blog/post/lusihan-smlake
-    lang: zh
+    lang: zh-TW
     note: 伊達邵碼頭高評價餐廳，午晚餐推薦、建議預約
   - url: https://lusihan.com.tw/
-    lang: zh
+    lang: zh-TW
     note: 官方網站：日月潭餐廳、伊達邵邵族風味餐、創意邵族料理
   - url: https://suns0912.pixnet.net/blog/post/219665083
     lang: zh
@@ -328,7 +328,7 @@ pois:
     lang: zh
     note: 伊達邵老街精選在地美食、原住民特餐
   - url: https://tw.trip.com/blog/sunmoonlake-food/
-    lang: zh
+    lang: zh-TW
     note: 2026 日月潭美食推薦：伊達邵/水社碼頭必吃餐廳整理
   name_roman: Lusihan
   verify_status: unverified
@@ -340,13 +340,13 @@ pois:
   district: 魚池
   sources:
   - url: https://tenjo.tw/hsinshanwei/
-    lang: zh
+    lang: zh-TW
     note: 特級廚師認證、菜單料理、近水社碼頭
   - url: https://decing.tw/nantou-shaofood/
-    lang: zh
+    lang: zh-TW
     note: 山裡原住民特色料理，兩人也能點，在地人推薦
   - url: https://annieko.tw/hsinshanwei/
-    lang: zh
+    lang: zh-TW
     note: 鄰近水社碼頭、無雷邵族創意料理、用餐環境
   name_roman: Hsinshanwei
   verify_status: verified
@@ -365,10 +365,10 @@ pois:
     lang: zh
     note: 水社碼頭人氣台菜餐廳，容納70~100人室內
   - url: https://lyes.tw/27866688-2/
-    lang: zh
+    lang: zh-TW
     note: 日月潭合菜餐廳，擺盤用心，新址中山路211-1號
   - url: https://gototravel.tw/sun-moon-lake-shuishe-pier-food/
-    lang: zh
+    lang: zh-TW
     note: 水社碼頭逛街吃美食、交通與停車場資訊
   name_roman: Riyue Restaurant
   verify_status: verified
@@ -384,10 +384,10 @@ pois:
   district: 魚池
   sources:
   - url: https://sunmoon.okgo.tw/shop/11030.html
-    lang: zh
+    lang: zh-TW
     note: 日月潭餐廳．邵族頭目．袁家美食 基本資訊
   - url: https://supertaste.tvbs.com.tw/review/339329
-    lang: zh
+    lang: zh-TW
     note: 食尚玩家：伊達邵碼頭周邊必吃美食懶人包
   - url: https://travel.yam.com/article/128660
     lang: zh
@@ -405,10 +405,10 @@ pois:
     lang: zh
     note: 伊達邵老街精選10家在地美食，邵族特餐
   - url: https://www.sunmoonlake.gov.tw/Attractions/Attractions?a=20&id=166
-    lang: zh
+    lang: zh-TW
     note: 日月潭國家風景區管理處官方：伊達邵商圈介紹
   - url: https://tw.trip.com/blog/sunmoonlake-food/
-    lang: zh
+    lang: zh-TW
     note: 2026日月潭美食推薦：伊達邵美食一次看
   name_roman: Chi La Xiao Guan
   verify_status: unverified
@@ -423,7 +423,7 @@ pois:
     lang: zh
     note: 好好玩FUNIT：潭鮮美食料理、必吃總統魚、邵族料理
   - url: https://tw.trip.com/blog/sunmoonlake-food/
-    lang: zh
+    lang: zh-TW
     note: 2026日月潭美食推薦：伊達邵餐廳列表含潭鮮
   name_roman: Tanxian Cuisine
   verify_status: verified
@@ -453,7 +453,7 @@ pois:
   district: 日月潭
   sources:
   - url: https://ipapago.tw/blog/post/thelalu_afternoon-tea
-    lang: zh
+    lang: zh-TW
     note: 東方餐廳下午茶賞湖景介紹，地址魚池鄉中興路142號7樓、時段14:30-17:00、平假日價格
   - url: https://paulyear.com/thelalu-buffet/
     lang: zh
@@ -471,13 +471,13 @@ pois:
   district: 魚池
   sources:
   - url: https://www.sunmoonlake.gov.tw/zh-tw/consume/detail/82
-    lang: zh
+    lang: zh-TW
     note: 日月潭官方觀光網 向山咖啡館介紹（官方來源）
   - url: https://www.fun-life.com.tw/nantou-huisun/
-    lang: zh
+    lang: zh-TW
     note: 向山咖啡廳玻璃帷幕賞湖景、地址魚池鄉中山路599號、09:00-17:30
   - url: https://yiwutrip.tw/xiang-shan-tourist-center/
-    lang: zh
+    lang: zh-TW
     note: 全台最美遊客中心、喝咖啡眺望湖景、所長茶葉蛋
   name_roman: Xiangshan Cafe (Huisun Coffee)
   verify_status: verified
@@ -492,7 +492,7 @@ pois:
   district: 魚池
   sources:
   - url: https://www.ningl.tw/tiaosunmoonlake/
-    lang: zh
+    lang: zh-TW
     note: 4.7星日月潭湖景餐廳、一覽水社碼頭渡船風景、晚餐選擇
   - url: https://travel.yam.com/article/134873
     lang: zh
@@ -510,13 +510,13 @@ pois:
   district: 日月潭
   sources:
   - url: https://nickhow.tw/blog/post/445585085-%5B%E5%8D%97%E6%8A%95%E9%AD%9A%E6%B1%A0%5D-%E9%9B%B2%E5%93%81%E6%BA%AB%E6%B3%89%E9%85%92%E5%BA%97-%E4%B8%B9%E5%BD%A4%E8%87%AA%E5%8A%A9%E6%99%9A%E9%A4%90-%E4%B8%B9%E5%BD%A4
-    lang: zh
+    lang: zh-TW
     note: 丹彤自助晚餐食記、酒店2樓、時段與價格、地址中正路23號
   - url: https://boniutravel.com/blog/post/denton-buffet
     lang: zh
     note: 丹彤西餐廳生啤酒搭現烤生蠔吃到飽、日月潭最棒 Buffet
   - url: https://wandou.tw/fleurdechinehotel2/
-    lang: zh
+    lang: zh-TW
     note: 雲品五星級飯店餐廳吃到飽、晚餐兩時段
   name_roman: Fleur de Chine - Crimson Buffet
   verify_status: unverified
@@ -543,7 +543,7 @@ pois:
   district: 魚池
   sources:
   - url: https://tw.trip.com/blog/sunmoonlake-food/
-    lang: zh
+    lang: zh-TW
     note: 雲月舫位於雲品酒店頂樓、270度湖景、晚餐兩時段每場限20位、每位約NT$2,980+10%
   name_roman: Yun Yue Fang (Fleur de Chine rooftop)
   verify_status: unverified
@@ -559,10 +559,10 @@ pois:
   district: 國道-湖口
   sources:
   - url: https://www.amot.org.tw/rest_detail/?id=1&rid=128
-    lang: zh
+    lang: zh-TW
     note: 高公局轄區服務區餐廳官方頁（豐味棧，湖口服務區）
   - url: https://www.nanrenhu.com.tw/hiwayshopping/station/hukou/
-    lang: zh
+    lang: zh-TW
     note: 湖口服務區經營業者官方介紹頁
   name_roman: Hukou Service Area
   verify_status: verified
@@ -596,10 +596,10 @@ pois:
   district: 國道-后里
   sources:
   - url: https://zh.wikipedia.org/zh-tw/%E6%B3%B0%E5%AE%89%E6%9C%8D%E5%8B%99%E5%8D%80_(%E8%87%BA%E7%81%A3)
-    lang: zh
+    lang: zh-TW
     note: 維基百科：泰安服務區位於台中市后里區、中山高（國道1號）自基隆起第三個服務區
   - url: https://supertaste.tvbs.com.tw/travel/317254
-    lang: zh
+    lang: zh-TW
     note: 食尚玩家：泰安服務區引進麥當勞、星巴克、37品牌、室內親子用餐區
   name_roman: Tai'an Service Area
   verify_status: verified
@@ -614,7 +614,7 @@ pois:
   district: 國道-清水
   sources:
   - url: https://ajunfun.tw/freeway-qingshui/
-    lang: zh
+    lang: zh-TW
     note: 2026 清水休息站（國道三號）50 品牌＋地圖＋停車攻略
   - url: https://niniandblue.com/blog/post/shimizu-rest-station
     lang: zh
@@ -636,7 +636,7 @@ pois:
     lang: zh
     note: 2025 南投服務區（國道3號北上231.7K）介紹：布農族主題、貓頭鷹拱門、室內外用餐
   - url: https://vialife.tw/3659/
-    lang: zh
+    lang: zh-TW
     note: 南投服務區：全台唯一貓頭鷹休息站、室內設施、百年糕餅老店進駐
   name_roman: Nantou Service Area
   verify_status: verified
@@ -657,7 +657,7 @@ pois:
     lang: zh
     note: 官方票價及園區資訊
   - url: https://travel.nantou.gov.tw/attractions/feeling18/
-    lang: zh
+    lang: zh-TW
     note: 南投旅遊網（在地官方旅遊平台，巧克力觀光工廠類）
   name_roman: Cona's Chocolate Castle
   verify_status: unverified
@@ -669,10 +669,10 @@ pois:
   district: 埔里
   sources:
   - url: https://paperdome.org.tw/
-    lang: zh
+    lang: zh-TW
     note: 紙教堂新故鄉見學園區官方網站
   - url: https://taomi-ecovillage.ego.tw/
-    lang: zh
+    lang: zh-TW
     note: 桃米生態村旅遊服務官方網站
   name_roman: Paper Dome
   verify_status: verified
@@ -687,10 +687,10 @@ pois:
   district: 埔里
   sources:
   - url: https://zh.wikipedia.org/zh-tw/%E4%B8%AD%E5%8F%B0%E4%B8%96%E7%95%8C%E5%8D%9A%E7%89%A9%E9%A4%A8
-    lang: zh
+    lang: zh-TW
     note: 維基百科：三層展廳、文物收藏與啟用沿革
   - url: https://taiwangods.moi.gov.tw/html/landscape/1_0011.aspx?i=51
-    lang: zh
+    lang: zh-TW
     note: 內政部臺灣宗教文化地圖（官方）埔里中台禪寺
   name_roman: Chung Tai World Museum
   verify_status: verified
@@ -708,7 +708,7 @@ pois:
     lang: zh
     note: Feeling18 官方門市介紹
   - url: https://travel.nantou.gov.tw/attractions/feeling18/
-    lang: zh
+    lang: zh-TW
     note: 南投旅遊網（在地官方）18度C巧克力工房
   name_roman: Feeling18 Chocolate
   verify_status: unverified
@@ -720,7 +720,7 @@ pois:
   district: 埔里
   sources:
   - url: https://travel.nantou.gov.tw/attractions/ttl-puli-exhibition/
-    lang: zh
+    lang: zh-TW
     note: 南投旅遊網（在地官方）埔里酒廠
   name_roman: Puli Brewery
   verify_status: unverified
@@ -739,7 +739,7 @@ pois:
     lang: zh
     note: 埔里美食懶人包（蘇媽媽湯圓列名在地必吃）
   - url: https://lyes.tw/32104615-%E5%9F%94%E9%87%8C%E7%BE%8E%E9%A3%9F/
-    lang: zh
+    lang: zh-TW
     note: 埔里美食彙整（人氣在地小吃清單）
   name_roman: Su Mama Tangyuan
   verify_status: verified
@@ -765,7 +765,7 @@ pois:
     note: 官網：地址 南投縣魚池鄉中正路312號、電話 049-2850085、入住15:00/退房11:00、每間客房附私人美人湯泉池、SUI 水療、泳池、健身房、三間餐廳；客房約197間
   - url: https://tw.trip.com/hotels/nantou-hotel-detail-111539026/lake-resort/
     official: false
-    lang: zh
+    lang: zh-TW
     note: Trip.com：櫃台24小時、公共停車位免費＋2個充電車位、室外泳池、溫泉浴池、免費WiFi、自助早餐(07:00-12:00)、無障礙客房、入住15:00/退房11:00；標準雙人房參考價起 TWD 7,611
   - url: https://rwd.ezhotel.cloud/lakeresort/1/promotion/list
     official: true
@@ -773,7 +773,7 @@ pois:
     note: 官方線上訂房：2026/3/12-6/30 行政景緻/山景雙人房優惠 NT$9,999 起(含早餐+行政酒廊)，假日(週六及國定假日)加 NT$2,000
   - url: https://hotel.eztravel.com.tw/detail-nantou-7524-111539026/lake-resort/
     official: false
-    lang: zh
+    lang: zh-TW
     note: 易遊網訂房頁：南投/日月潭伊達邵，溫泉客房、湖景、訂房優惠與評論
   name_roman: Shili Garden Hotels - Sample Lake Resort
   gmaps_place_id: ChIJIY81VMPVaDQRWj4rWGeXUq8
@@ -789,27 +789,27 @@ pois:
     geocode_source: cluster_fallback
   sources:
   - url: https://www.dellago.com.tw/
-    lang: zh
+    lang: zh-TW
     official: true
     note: 官網：地址中山路101號、距客運站步行3分鐘、飯店車位有限另有配合付費停車場、多款湖景房
   - url: https://www.sunmoonlake.gov.tw/Shop/Hotels?a=46&id=149
-    lang: zh
+    lang: zh-TW
     official: false
     note: 日月潭國家風景區管理處觀光旅遊網：飯店附停車場、提供免費電梯、緊鄰水社碼頭、免費租借自行車
   - url: https://sansalife.tw/dellago/
-    lang: zh
+    lang: zh-TW
     official: false
     note: 實住評論：中西式自助早餐(熱食/沙拉/水果/飲品)、住客免費停車、湖景第一排180度、走路即到碼頭
   - url: https://goplaytravel.com.tw/dellago/
-    lang: zh
+    lang: zh-TW
     official: false
     note: 評論：飯店專屬停車場、位於水社碼頭路口、湖景房各房型專屬陽台
   - url: https://tw.trip.com/hotels/nantou-hotel-detail-801257/hotel-del-lago/
-    lang: zh
+    lang: zh-TW
     official: false
     note: Trip.com 訂房頁
   - url: https://www.sunmoonlake.gov.tw/zh-tw/accommodation/nearby-shopping/219
-    lang: zh
+    lang: zh-TW
     official: false
     note: 日月潭觀光官方網（位置：中山路與名勝街口、水社碼頭旁）
   name_roman: Hotel Del Lago
@@ -838,10 +838,10 @@ pois:
     official: true
     note: 官網：地址南投縣埔里鎮桃米路32號、平假日10:00-17:30、每週三公休、室內展售+DIY+冰淇淋+咖啡
   - url: https://fullfenblog.tw/nantou-nina-chocolate/
-    lang: zh
+    lang: zh-TW
     note: 2026門票/玩樂攻略：世界金牌巧克力主題館、室內、免費宮廷服
   - url: https://bobbytravel.tw/conas-choc/
-    lang: zh
+    lang: zh-TW
     note: 門票菜單DIY彙整、室內外園區
   gmaps_place_id: ChIJHRsWmszZaDQR1yhoiOKZpwc
 - id: puli-jindu
@@ -862,15 +862,15 @@ pois:
     as_of: '2026-06-21'
   sources:
   - url: https://travel.nantou.gov.tw/attractions/jindu-restauran/
-    lang: zh
+    lang: zh-TW
     official: true
     note: 南投旅遊網官方：埔里信義路236號、在地創意國宴料理、合菜2-10人
   - url: https://www.sunmoonlake.gov.tw/zh-tw/consume/detail/85
-    lang: zh
+    lang: zh-TW
     official: true
     note: 日月潭觀光官方：金都餐廳
   - url: https://ifoodie.tw/restaurant/5594e403c03a100f375ba330-%E9%87%91%E9%83%BD%E9%A4%90%E5%BB%B3
-    lang: zh
+    lang: zh-TW
     note: 愛食記：11:00-14:30/17:00-21:00、冷氣挑高大廳、附停車場、包廂
   gmaps_place_id: ChIJayc88HbZaDQRfa1PsNdKKWU
 - id: puli-tujiaocuo
@@ -921,10 +921,10 @@ pois:
     lang: zh
     note: 南村路6-8號、超大免費停車場(遊覽車可停)、中式合菜、甕仔雞德國豬腳、有冷氣
   - url: https://www.walkerland.com.tw/article/view/413301
-    lang: zh
+    lang: zh-TW
     note: 880元4菜1湯起、免費停車免服務費、冷氣舒適
   - url: http://0492912765.emmm.tw/
-    lang: zh
+    lang: zh-TW
     official: true
     note: 餐廳官方頁
   gmaps_place_id: ChIJiySPQrLZaDQR1XLNdcp4J5g
@@ -947,11 +947,11 @@ pois:
     as_of: '2026-06-21'
   sources:
   - url: https://huisun.tw/store/
-    lang: zh
+    lang: zh-TW
     official: true
     note: 官方門市：埔里鎮中山路四段395號、9:00-18:00、近國6愛蘭交流道
   - url: https://fullfen.tw/hui-sun-coffee/
-    lang: zh
+    lang: zh-TW
     note: 埔里森林系景觀餐廳、必吃牛肉麵、遠眺群山、免費停車
   - url: https://as660707.com/%E5%8F%B0%E7%81%A3%E6%83%A0%E8%93%80%E5%92%96%E5%95%A1%E5%93%81%E7%89%8C%E9%A4%A82025/
     lang: zh

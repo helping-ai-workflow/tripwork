@@ -103,7 +103,7 @@ def test_trip_brief_accepts_home_origin_and_home_return(tmp_path):
         "destination:\n"
         "  country: TW\n"
         "  city: 嘉義市\n"
-        "  local_lang: zh\n"
+        "  local_lang: zh-TW\n"
         "dates:\n"
         "  start: '2026-08-29'\n"
         "  end: '2026-08-31'\n"

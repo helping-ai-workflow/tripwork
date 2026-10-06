@@ -619,8 +619,8 @@ def test_an_accommodations_candidate_cannot_legally_carry_hours():
     from scripts.validate_artifact import SCHEMAS, validate_file
 
     cand = {"id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
-            "facilities": [], "sources": [{"url": "https://a.example/x", "lang": "zh"},
-                                          {"url": "https://b.example/x", "lang": "zh"}],
+            "facilities": [], "sources": [{"url": "https://a.example/x", "lang": "zh-TW"},
+                                          {"url": "https://b.example/x", "lang": "zh-TW"}],
             "geocode": {"lat": 23.86, "lng": 120.91},
             "verify_status": "verified",
             "hours": {"close": "23:30"}}
@@ -658,8 +658,8 @@ def _lodging_cand(**over):
     gates (1 / 2b) must pass a sourced business_status explicitly, e.g. via
     _sourced_business_status()."""
     c = {"id": "d2-6", "name_local": "日月潭旅店", "name_display": "日月潭旅店",
-         "sources": [{"url": "https://a.example/d2-6", "lang": "zh"},
-                     {"url": "https://b.example/d2-6", "lang": "zh"}],
+         "sources": [{"url": "https://a.example/d2-6", "lang": "zh-TW"},
+                     {"url": "https://b.example/d2-6", "lang": "zh-TW"}],
          "geocode": {"lat": 23.86, "lng": 120.91, "geocode_source": "cluster_fallback"},
          "verify_status": "verified"}
     c.update(over)
@@ -708,8 +708,8 @@ def test_a_lodging_candidate_with_an_official_source_still_passes():
     so it is merely harmless. The sourced business_status alone is sufficient;
     see test_a_cluster_fallback_lodging_candidate_with_a_sourced_business_
     status_verifies for the identical claim with no official source at all."""
-    cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh", "official": True},
-                                  {"url": "https://b.example/d2-6", "lang": "zh"}],
+    cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh-TW", "official": True},
+                                  {"url": "https://b.example/d2-6", "lang": "zh-TW"}],
                          business_status=_sourced_business_status())
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
@@ -742,8 +742,8 @@ def test_lodging_with_no_geocode_source_is_not_rederivable():
 
 
 def test_lodging_with_no_resolved_name_is_not_rederivable():
-    cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh", "official": True},
-                                  {"url": "https://b.example/d2-6", "lang": "zh"}],
+    cand = _lodging_cand(sources=[{"url": "https://a.example/d2-6", "lang": "zh-TW", "official": True},
+                                  {"url": "https://b.example/d2-6", "lang": "zh-TW"}],
                          business_status=_sourced_business_status())
     res = run_rederivation(ITIN, {}, legs={"legs": []}, routing={"clusters": [], "hops": []},
                            cost={"currency": "TWD", "line_items": [], "total": 0},
@@ -761,7 +761,7 @@ def test_a_bare_string_lodging_business_status_is_superseded():
     from scripts.rederive import rederive_lodging
     cand = _lodging_cand(geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
                          resolved_name="日月潭旅店", business_status="OPERATIONAL")
-    out = rederive_lodging(_accom(cand), local_lang="zh")
+    out = rederive_lodging(_accom(cand), local_lang="zh-TW")
     assert len(out.superseded) == 1 and "d2-6" in out.superseded[0]
 
 
@@ -773,7 +773,7 @@ def test_a_sourced_lodging_business_status_is_not_superseded():
     cand = _lodging_cand(
         geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
         resolved_name="日月潭旅店", business_status=_sourced_business_status())
-    out = rederive_lodging(_accom(cand), local_lang="zh")
+    out = rederive_lodging(_accom(cand), local_lang="zh-TW")
     assert out.superseded == []
 
 
@@ -787,7 +787,7 @@ def test_a_closed_lodging_candidate_is_rejected_not_silently_operating():
         geocode={"lat": 23.86, "lng": 120.91, "geocode_source": "nominatim"},
         resolved_name="日月潭旅店",
         business_status=_sourced_business_status(status="CLOSED_PERMANENTLY"))
-    out = rederive_lodging(_accom(cand), local_lang="zh")
+    out = rederive_lodging(_accom(cand), local_lang="zh-TW")
     assert out.superseded == []
     assert len(out.mismatches) == 1 and "rejected" in out.mismatches[0]
 
@@ -833,7 +833,7 @@ def test_lodging_gate_0_anchors_to_the_records_own_era_not_wall_clock():
         resolved_name="日月潭旅店", verify_status="verified",
         business_status=_sourced_business_status(
             status="CLOSED_PERMANENTLY", as_of="2020-01-01"))
-    out = rederive_lodging(_accom(cand), local_lang="zh")
+    out = rederive_lodging(_accom(cand), local_lang="zh-TW")
     assert out.superseded == [], out.superseded
     assert out.missing == []
     assert len(out.mismatches) == 1 and "d2-6" in out.mismatches[0]
@@ -1008,7 +1008,7 @@ def _poi_rec(**over):
                              "as_of": "2026-08-05"},
          "geocode": {"lat": 23.48, "lng": 120.44, "geocode_source": "nominatim"},
          "resolved_name": "花磚博物館",
-         "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+         "sources": [{"url": "https://a.example.tw/p", "lang": "zh-TW"},
                      {"url": "https://b.example.com/q", "lang": "en"}]}
     p.update(over)
     return p

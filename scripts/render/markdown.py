@@ -9,6 +9,16 @@ from scripts.render.gmaps_links import link_markdown, dir_url
 from scripts.render.centroid import centroid_items, centroid_note
 from scripts.checklist import checklist_line
 from scripts.day_chain import alternative_line
+from scripts.render.reader.assets import MODE_ICON
+from scripts.verify import official_source_url, site_key
+
+# The emoji standing for each icon the reader draws for a mode (MODE_ICON): Markdown
+# cannot carry the reader's SVG icons, so one emoji per icon, and the same mode gets the
+# same picture in both (taxi and drive share the reader's car). A literal because an
+# icon's look has no shipped emoji to call; test_markdown_labels pins every icon covered.
+ICON_EMOJI = {"footprints": "🚶", "train-front": "🚆", "bus": "🚌", "car": "🚗", "ship": "⛴️",
+              "plane": "✈️", "cable-car": "🚡"}
+MODE_MARK = {mode: ICON_EMOJI[icon] for mode, icon in MODE_ICON.items()}
 
 # Chars with markdown / KaTeX meaning in free text. `|` would also break a table
 # cell. Backslash is escaped first so the escapes we add are not re-escaped.
@@ -22,22 +32,36 @@ def md_escape(text):
     return out
 
 def _primary_source_url(poi):
-    """Official source url if any source is flagged official, else the first url, else None."""
+    """verify.official_source_url (never a search results page), else the first url, else None."""
+    official = official_source_url(poi)
+    if official:
+        return official
     sources = poi.get("sources") or []
-    for s in sources:
-        if s.get("official"):
-            return s.get("url")
     return sources[0].get("url") if sources else None
 
 def _safe_url(url):
     """Percent-encode the two chars that would break a markdown link target. (TW-022)"""
     return url.replace(")", "%29").replace(" ", "%20")
 
+def _source_link(poi):
+    """'· [官網](url)' for an official source; else the first source under its site's name
+    -- as the reader names it -- or its domain (v2.1.0 D7, the user's pick S1)."""
+    url = _primary_source_url(poi)
+    if not url:
+        return None
+    if official_source_url(poi) == url:
+        label = "官網"
+    else:
+        src = next((s for s in poi.get("sources") or [] if s.get("url") == url), {})
+        label = src.get("site") or site_key(url) or "來源"
+    return f"· [{md_escape(label)}]({_safe_url(url)})"
+
+
 def _poi_cell(poi, text):
     parts = [link_markdown(poi)]
-    url = _primary_source_url(poi)
-    if url:
-        parts.append(f"· [官網]({_safe_url(url)})")
+    link = _source_link(poi)
+    if link:
+        parts.append(link)
     if poi.get("address_local"):                     # v1.1 TW-096: for the taxi driver
         # closed by '·' so a building name at its end does not run into the text
         parts.append(f"· 地址 {md_escape(poi['address_local'])} ·")
@@ -46,24 +70,25 @@ def _poi_cell(poi, text):
         parts.append(escaped)
     return " ".join(parts)
 
-def _move_cell(frm, to, text, poi=None):
+def _move_cell(frm, to, text, poi=None, mode=None):
     """Move row with endpoints: a directions link LEADS the cell (mirrors _poi_cell's
     link-first ordering). When the row ALSO resolves a poi, the poi maps link + official
     source follow — so a bookable poi scheduled on a move row still surfaces its name and
     official link for the export gate's bookable check (no silent evasion). Then the text.
     Labels are escaped free text; generated link targets (dir_url / maps_url) are not. (G2)"""
-    parts = [f"[🚆 {md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
+    mark = MODE_MARK.get(mode)
+    parts = [f"[{mark + ' ' if mark else ''}{md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
     if poi:
         parts.append(link_markdown(poi))
-        url = _primary_source_url(poi)
-        if url:
-            parts.append(f"· [官網]({_safe_url(url)})")
+        link = _source_link(poi)
+        if link:
+            parts.append(link)
     escaped = md_escape(text)
     if escaped:
         parts.append(escaped)
     return " ".join(parts)
 
-def render_day_table(day, poi_map):
+def render_day_table(day, poi_map, legs=None):
     """Render one canonical itinerary.yaml day -> markdown table.
 
     Args:
@@ -77,14 +102,26 @@ def render_day_table(day, poi_map):
         pid = row.get("poi_id")
         poi = poi_map.get(pid) if pid else None
         frm, to = row.get("from"), row.get("to")
+        leg = _leg(row, legs)
+        if row.get("slot") == "move" and leg is not None:            # a leg row: its ends and mode
+            frm, to = frm or leg.get("from"), to or leg.get("to")
+        mode = (leg or {}).get("mode") if leg is not None else row.get("mode")
         if row.get("slot") == "move" and frm and to:
-            cell = _move_cell(frm, to, text, poi)   # G2: directions link at cell start
+            cell = _move_cell(frm, to, text, poi, mode)   # G2: directions link at cell start
         elif poi:
             cell = _poi_cell(poi, text)
         else:
             cell = md_escape(text)
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"
+
+
+def _leg(row, legs):
+    li = row.get("leg_index")
+    items = (legs or {}).get("legs") or []
+    if isinstance(li, int) and not isinstance(li, bool) and 0 <= li < len(items) and isinstance(items[li], dict):
+        return items[li]
+    return None
 
 
 def _amount(n):
@@ -95,7 +132,7 @@ def _amount(n):
     return f"{n:,}"
 
 
-def render_markdown_page(itin, poi_map, cost=None, brief=None):
+def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None):
     """Canonical itinerary.yaml -> the full markdown deliverable page.
 
     HTML has render_html_page; until now markdown's
@@ -140,7 +177,7 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None):
         lines += [md_escape(sub), ""]
 
     for day in itin.get("days", []):
-        lines.append(render_day_table(day, poi_map).rstrip())
+        lines.append(render_day_table(day, poi_map, legs).rstrip())
         lines.append("")
         poi = poi_map.get(day.get("lodging"))
         if poi:

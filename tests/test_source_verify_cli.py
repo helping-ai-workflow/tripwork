@@ -28,14 +28,14 @@ def _stub_resolve_place(table):
     single issued request, which is what a canned table lookup stands in for.
     """
     def fake(name, district=None, country=None, timeout=10, cache=None,
-             name_roman=None, pace=None, area=False):
+             name_roman=None, pace=None, area=False, region=None):
         if pace is not None:
             pace()
         return table.get(name, (None, None))
     return fake
 
 
-def _brief(local_lang="zh"):
+def _brief(local_lang="zh-TW"):
     return {"destination": {"country": "TW", "city": "嘉義市", "local_lang": local_lang}}
 
 
@@ -45,7 +45,7 @@ def _candidate(id_, name, claimed_district=None, sources=None):
         "business_status": {"status": "OPERATIONAL",
                             "source_url": "https://a.example/p",
                             "as_of": datetime.date.today().isoformat()},
-        "sources": sources or [{"url": "https://a.example/p", "lang": "zh"},
+        "sources": sources or [{"url": "https://a.example/p", "lang": "zh-TW"},
                                {"url": "https://b.example/q", "lang": "en"}],
     }
     if claimed_district is not None:
@@ -70,13 +70,13 @@ def test_the_cli_cannot_be_the_only_thing_forwarding_resolved_name():
                                "source_url": "https://e.example/x",
                                "as_of": "2026-08-01"},
            "geocode": {"lat": 23.4, "lng": 120.4, "geocode_source": "nominatim"},
-           "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+           "sources": [{"url": "https://a.example.tw/p", "lang": "zh-TW"},
                        {"url": "https://b.example/q", "lang": "en"}]}
     today = datetime.date(2026, 8, 8)
     _, with_name, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="星月驛站", today=today)
+                                 local_lang="zh-TW", resolved_name="星月驛站", today=today)
     _, without, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                  local_lang="zh", today=today)
+                                  local_lang="zh-TW", today=today)
     assert with_name == "conflicting"
     assert without == "unverified"
     assert "resolved_name" in note
@@ -98,7 +98,7 @@ def test_cli_writes_a_schema_valid_artifact_and_forwards_both_gate_arguments(tmp
     trip.mkdir(); work.mkdir(); (trip / "data").mkdir()
     (artifact_path(trip, "trip-brief.yaml")).write_text(yaml.safe_dump(
         {"slug": "t", "destination": {"country": "TW", "city": "嘉義市",
-                                      "local_lang": "zh"},
+                                      "local_lang": "zh-TW"},
          "dates": {"start": "2026-08-29", "end": "2026-08-31"}},
         allow_unicode=True), encoding="utf-8")
     # business_status is a sourced object dated "today" (Gate 0, already-shipped
@@ -286,7 +286,7 @@ def test_the_driver_hands_resolve_place_a_pacing_callback(monkeypatch, tmp_path)
     monkeypatch.setattr(svr.time, "sleep", lambda s: slept.append(s))
 
     def spy(name, district=None, country=None, timeout=10, cache=None,
-            name_roman=None, pace=None, area=False):
+            name_roman=None, pace=None, area=False, region=None):
         seen["pace"] = pace
         if pace is not None:
             pace()

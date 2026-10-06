@@ -110,6 +110,10 @@
                 "gmaps": {
                   "type": "string"
                 },
+                "gmaps_place_id": {
+                  "type": "string",
+                  "description": "Google Maps place_id, recorded by accommodation-research when a Places API lookup confirms the lodging is open; maps_url appends &query_place_id so the link opens the exact place (D9)."
+                },
                 "reception": {
                   "type": "object",
                   "properties": {
@@ -144,6 +148,8 @@
                         "nominatim",
                         "nominatim_structured",
                         "nominatim_address",
+                        "nominatim_road",
+                        "village_centroid",
                         "cluster_fallback"
                       ]
                     }

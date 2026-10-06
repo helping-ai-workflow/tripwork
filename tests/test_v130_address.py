@@ -151,7 +151,7 @@ def _run(monkeypatch, name_hit, address_hit, address="北海道函館市五稜�
     from scripts import source_verify_run as svr
     calls = {"address": 0}
 
-    def resolve(name, district, country, cache, name_roman=None, area=False):
+    def resolve(name, district, country, cache, name_roman=None, area=False, region=None):
         return (G.GeocodeResult(*name_hit, "示意咖啡, 某町"), "nominatim") if name_hit else (None, None)
 
     def addr(a, country, cache):
@@ -410,7 +410,7 @@ def test_the_run_saves_its_progress_before_a_network_failure(tmp_path, monkeypat
     from scripts.paths import artifact_path
     monkeypatch.setattr(svr.time, "sleep", lambda *_: None)
 
-    def resolve(name, district=None, country=None, timeout=10, cache=None, name_roman=None, pace=None, area=False):
+    def resolve(name, district=None, country=None, timeout=10, cache=None, name_roman=None, pace=None, area=False, region=None):
         if name == "二號店":
             raise _requests.exceptions.ReadTimeout("slow")
         cache[f"{name}|seen"] = {"lat": 1, "lng": 2, "source": "nominatim", "display_name": name}
@@ -420,8 +420,8 @@ def test_the_run_saves_its_progress_before_a_network_failure(tmp_path, monkeypat
     (trip / "data").mkdir(parents=True)
     work.mkdir(parents=True)
     cands = [{"id": f"c{i}", "name_local": n, "category": "food",
-              "sources": [{"url": f"https://{i}.example/", "lang": "zh"}]} for i, n in enumerate(("一號店", "二號店"))]
-    for name, doc in (("trip-brief.yaml", {"destination": {"country": "TW", "local_lang": "zh"}}),
+              "sources": [{"url": f"https://{i}.example/", "lang": "zh-TW"}]} for i, n in enumerate(("一號店", "二號店"))]
+    for name, doc in (("trip-brief.yaml", {"destination": {"country": "TW", "local_lang": "zh-TW"}}),
                       ("candidates.yaml", {"candidates": cands})):
         artifact_path(trip, name).write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
     assert svr.main([str(trip), "--work-dir", str(work)]) == 1

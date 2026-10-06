@@ -41,7 +41,7 @@ def test_in_region_radius_is_configurable():
 def test_resolve_place_uses_structured_first(mocker):
     from scripts.geocode import resolve_place
     mocker.patch("scripts.geocode.requests.get",
-                 return_value=_FakeResp([{"lat": "1.0", "lon": "2.0", "display_name": "X"}]))
+                 return_value=_FakeResp([{"lat": "1.0", "lon": "2.0", "display_name": "The Godley Hotel, Tekapo"}]))
     r, source = resolve_place("The Godley Hotel", district="Tekapo", country="New Zealand")
     assert r.lat == pytest.approx(1.0)
     assert source == "nominatim_structured"
@@ -53,7 +53,7 @@ def test_resolve_place_falls_back_to_freetext(mocker):
                               # v1.2.1: the free-text tiers first look up the country's code
                               _FakeResp([{"lat": "-41", "lon": "174", "display_name": "New Zealand",
                                           "address": {"country_code": "nz"}}]),
-                              _FakeResp([{"lat": "3.0", "lon": "4.0", "display_name": "Y"}])])
+                              _FakeResp([{"lat": "3.0", "lon": "4.0", "display_name": "Arran Motel, Tekapo"}])])
     r, source = resolve_place("Arran Motel", district="Tekapo", country="New Zealand")
     assert r.lng == pytest.approx(4.0)
     assert source == "nominatim"
@@ -76,7 +76,8 @@ def test_resolve_place_cache_hit_skips_network(mocker):
     from scripts.geocode_cache import cache_key
     m = mocker.patch("scripts.geocode.requests.get")  # must NOT be called
     key = cache_key("The Godley Hotel", "Tekapo", "New Zealand")
-    cache = {key: {"lat": -44.0, "lng": 170.5, "display_name": "Godley", "source": "nominatim"}}
+    cache = {key: {"v": 2, "lat": -44.0, "lng": 170.5, "display_name": "The Godley Hotel, Tekapo",
+                   "source": "nominatim", "tier": 2}}       # v2.1.0: an entry records its tier
     r, source = resolve_place("The Godley Hotel", district="Tekapo", country="New Zealand", cache=cache)
     assert r.lat == pytest.approx(-44.0) and source == "nominatim"
     assert m.call_count == 0
@@ -86,7 +87,7 @@ def test_resolve_place_cached_miss_skips_network(mocker):
     from scripts.geocode_cache import cache_key
     m = mocker.patch("scripts.geocode.requests.get")  # must NOT be called
     key = cache_key("Nowhere Motel", "Tekapo", "New Zealand")
-    cache = {key: None}                                # cached miss
+    cache = {key: {"v": 2, "miss": True}}              # cached miss (v2.1.0 shape)
     r, source = resolve_place("Nowhere Motel", district="Tekapo", country="New Zealand", cache=cache)
     assert r is None and source is None
     assert m.call_count == 0
@@ -95,12 +96,13 @@ def test_resolve_place_populates_cache_on_hit(mocker):
     from scripts.geocode import resolve_place
     from scripts.geocode_cache import cache_key
     mocker.patch("scripts.geocode.requests.get",
-                 return_value=_FakeResp([{"lat": "1.0", "lon": "2.0", "display_name": "X"}]))
+                 return_value=_FakeResp([{"lat": "1.0", "lon": "2.0", "display_name": "Somewhere, D"}]))
     cache = {}
     r, source = resolve_place("Somewhere", district="D", country="C", cache=cache)
     assert source == "nominatim_structured"
     key = cache_key("Somewhere", "D", "C")
     assert cache[key]["lat"] == 1.0 and cache[key]["source"] == "nominatim_structured"
+    assert cache[key]["tier"] == 1 and cache[key]["v"] == 2
 
 def test_resolve_place_populates_cache_on_miss(mocker):
     from scripts.geocode import resolve_place
@@ -110,7 +112,7 @@ def test_resolve_place_populates_cache_on_miss(mocker):
     cache = {}
     r, source = resolve_place("Ghost Inn", district="D", country="C", cache=cache)
     assert r is None and source is None
-    assert cache[cache_key("Ghost Inn", "D", "C")] is None    # negative cached
+    assert cache[cache_key("Ghost Inn", "D", "C")] == {"v": 2, "miss": True}    # negative cached
 
 
 def test_resolve_place_rejects_empty_name():   # TW-045
@@ -189,22 +191,22 @@ def test_resolve_place_paces_every_request_not_just_the_call(monkeypatch):
 
     def fake_structured(*a, **kw):
         calls["structured"] += 1
-        return None
+        return []
 
     def fake_geocode(*a, **kw):
         calls["free"] += 1
-        return None
+        return []
 
     def fake_country(*a, **kw):
         calls["country"] += 1
-        return "tw"
+        return "jp"
 
-    monkeypatch.setattr(geocode, "geocode_structured", fake_structured)
-    monkeypatch.setattr(geocode, "geocode", fake_geocode)
+    monkeypatch.setattr(geocode, "geocode_structured_many", fake_structured)   # v2.1.0: the tiers ask for 5
+    monkeypatch.setattr(geocode, "geocode_many", fake_geocode)
     monkeypatch.setattr(geocode, "geocode_country", fake_country)
 
     result, source = geocode.resolve_place(
-        "難解的店", district="嘉義市西區", country="Taiwan", name_roman="Hard Shop",
+        "難解的店", district="函館市", country="日本", name_roman="Hard Shop",   # not Taiwan: its names need no lookup (v2.1.0)
         pace=lambda: calls.__setitem__("pace", calls["pace"] + 1))
 
     assert (result, source) == (None, None)
@@ -224,13 +226,13 @@ def test_resolve_place_never_paces_a_cache_hit(monkeypatch):
     def boom(*a, **kw):                     # pragma: no cover - must not run
         raise AssertionError("a cache hit must not touch the network")
 
-    monkeypatch.setattr(geocode, "geocode_structured", boom)
-    monkeypatch.setattr(geocode, "geocode", boom)
+    monkeypatch.setattr(geocode, "geocode_structured_many", boom)
+    monkeypatch.setattr(geocode, "geocode_many", boom)
 
     paced = []
     key = geocode.cache_key("五稜郭", "函館市", "Japan")
-    cache = {key: {"lat": 41.7, "lng": 140.7, "display_name": "五稜郭",
-                   "source": "nominatim"}}
+    cache = {key: {"v": 2, "lat": 41.7, "lng": 140.7, "display_name": "五稜郭",
+                   "source": "nominatim", "tier": 2}}
     result, source = geocode.resolve_place("五稜郭", district="函館市",
                                            country="Japan", cache=cache,
                                            pace=lambda: paced.append(1))

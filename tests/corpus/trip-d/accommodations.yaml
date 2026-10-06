@@ -41,7 +41,7 @@ stops:
       official: true
       note: 海洋溫泉：氯化物氫鹽泉、日本溫泉協會認證＋新北市溫泉標章；室內百坪大浴場（大眾裸湯）＋SPA 水療；每週二 08:00-18:00 清潔暫停
     - url: https://hotel.gobooking.com.tw/zh-TW/HOTEL-D1
-      lang: zh
+      lang: zh-TW
       official: true
       note: 官方 Gobooking 訂房：全房型（海景和洋／海景溫泉／溫泉套房／風呂別墅）、精緻和洋一泊一食雙人 6,888、升等海景 +1,200
     - url: https://misslitravel.com/hotel-d1/
@@ -80,7 +80,7 @@ stops:
       geocode_source: nominatim
     sources:
     - url: https://www.theeasyspace.com.tw/
-      lang: zh
+      lang: zh-TW
       official: true
       note: 官網；海景天空套房／漁村海灣套房／山海景觀房／山頂雲彩房（皆2人）＋包棟(4-14人)
     - url: https://dearbnb.com/zh/bnb/the-easy-space/
@@ -88,11 +88,11 @@ stops:
       official: false
       note: 貢寮區福連街38號；海景天空套房 平日5,000/假日最高8,800；山頂雲彩房 平日3,000/假日4,800；室外停車位
     - url: https://tw.trip.com/hotels/new-taipei-city-hotel-detail-3364854/the-easy-space/
-      lang: zh
+      lang: zh-TW
       official: false
       note: 福連街38號；免費公共停車場無須預約；旅客評分 9.8
     - url: https://www.booking.com/hotel/tw/yi-xian-ju-the-easy-space-fu-lung.zh-tw.html
-      lang: zh
+      lang: zh-TW
       official: false
       note: Booking.com 訂房頁（可帶日期查連假即時房價）
     verify_status: verified

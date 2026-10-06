@@ -37,8 +37,8 @@ import time
 import requests
 import yaml
 
-from scripts.geocode import (address_is_fine, address_point, country_code, in_region, pick_point,
-                             place_point, resolve_place)
+from scripts.geocode import (address_is_fine, address_point, country_code, county_district, in_region,
+                             pick_point, place_point, resolve_place, village_of, village_point)
 from scripts.paths import artifact_path
 from scripts.geocode_cache import load_cache, save_cache
 from scripts.validate_artifact import validate_file
@@ -57,6 +57,11 @@ DEFAULT_REGION_RADIUS_KM = 5.0
 # keeps it (TW-090) -- see _carried_keys().
 DRIVER_COMPUTED = ("district", "geocode", "resolved_name", "status_reason", "conflict_note",
                    "verify_status")
+
+
+class CountryUnknown(Exception):
+    """The brief's country names no country a lookup knows (v2.1.0 D4): verify stops
+    rather than search every lookup worldwide."""
 
 
 def _carried_keys():
@@ -129,7 +134,7 @@ def _rate_limited_address(address, country, cache):
     return ref, fine
 
 
-def _rate_limited_resolve(name, district, country, cache, name_roman=None, area=False):
+def _rate_limited_resolve(name, district, country, cache, name_roman=None, area=False, region=None):
     """resolve_place wrapper that sleeps NOMINATIM_DELAY_S after every request
     that actually reached the network — never after a cache hit.
 
@@ -142,7 +147,7 @@ def _rate_limited_resolve(name, district, country, cache, name_roman=None, area=
     really issued, and drops the duplicate cache_get that pre-check needed.
     """
     return resolve_place(name, district=district, country=country, cache=cache,
-                         name_roman=name_roman, area=area,
+                         name_roman=name_roman, area=area, region=region,
                          pace=lambda: time.sleep(NOMINATIM_DELAY_S))
 
 
@@ -285,7 +290,8 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     passing on data that was never checked.
 
     geocode_dict, when present, always carries geocode_source
-    ('nominatim_structured' / 'nominatim' / 'nominatim_address' / 'cluster_fallback') — Task 0 made an
+    ('nominatim_structured' / 'nominatim' / 'nominatim_address' /
+    'nominatim_road' / 'village_centroid' / 'cluster_fallback') — Task 0 made an
     absent value a refusal (the GEOCODE_SOURCE_MISSING sentinel,
     scripts/verify.py::classify_candidate's Gate 2), so a POI this function
     actually geocoded must never come back without it.
@@ -328,8 +334,9 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     centroid = _district_centroid(district, country, cache, offline, district_centroids)
     region_checked = centroid is not None
 
-    result, source = _rate_limited_resolve(name_local, district, country, cache,
-                                           name_roman=name_roman)
+    # v2.1.0 D6: a bare-name hit counts only inside the claimed district
+    result, source = _rate_limited_resolve(name_local, district, country, cache, name_roman=name_roman,
+                                           region=(centroid[0], centroid[1], radius_km) if region_checked else None)
     # v1.3.0: the venue's sourced address checks the name lookup. A name hit far from the
     # address is a namesake (a bare-name tier found the same name elsewhere): dropped. With
     # no name hit left, the address point (its 丁目 or town) stands in, recorded as
@@ -337,8 +344,10 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     # An address point only counts when it is fine (the address or its 丁目, not the town)
     # and lies in the claimed district: a full-text address can match far away (e2e
     # 2026-10-05: 1285 km and 58 km off), and without a district centre nothing confirms it.
+    road = None
     if query.get("address"):
         ref, fine = _rate_limited_address(query["address"], country, cache)
+        road = ref if ref is not None and not fine else None
         if ref is not None and not (region_checked and fine
                                     and in_region(ref.lat, ref.lng, centroid[0], centroid[1], radius_km)):
             ref = None
@@ -349,6 +358,17 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
                               if region_checked else True)
             return geo, True, in_region_flag, NO_RESOLVED_NAME, region_checked
         result = point
+    # v2.1.0 D5: in Taiwan an address resolves to its road at best. With no name lookup
+    # accepted, the road point stands in when it lies in the claimed district, else the
+    # centre of the 村里 the road result names -- approximate, disclosed, never a veto on a
+    # name hit (a road is kilometres long). Without a district centre neither is trusted.
+    if result is None and road is not None and region_checked \
+            and country_code(country, cache=cache, offline=True) == "tw":   # the table or the code: no lookup
+        stand_in = _tw_stand_in(road, query["address"], country, cache, centroid, radius_km)
+        if stand_in is not None:
+            point, kind = stand_in
+            geo = {"lat": point.lat, "lng": point.lng, "geocode_source": kind, "query": query}
+            return geo, True, True, NO_RESOLVED_NAME, True
     if result is not None:
         geo = {"lat": result.lat, "lng": result.lng, "geocode_source": source, "query": query}
         in_region_flag = (in_region(result.lat, result.lng, centroid[0], centroid[1], radius_km)
@@ -377,6 +397,19 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     return None, False, False, NO_RESOLVED_NAME, False
 
 
+def _tw_stand_in(road, address, country, cache, centroid, radius_km):
+    """(point, geocode_source) for a Taiwanese venue only its road resolves: the road point
+    inside the district, else its 村里's centre inside the district; None otherwise."""
+    if in_region(road.lat, road.lng, centroid[0], centroid[1], radius_km):
+        return road, "nominatim_road"
+    village, cd = village_of(road.address), county_district(address)
+    if village and cd:
+        v = village_point(cd, village, country=country, cache=cache, pace=lambda: time.sleep(NOMINATIM_DELAY_S))
+        if v is not None and in_region(v.lat, v.lng, centroid[0], centroid[1], radius_km):
+            return v, "village_centroid"
+    return None
+
+
 def _build_poi(cand, official_domains, resolved_name):
     poi = {
         "id": cand.get("id"),
@@ -390,6 +423,8 @@ def _build_poi(cand, official_domains, resolved_name):
         poi["name_roman"] = cand["name_roman"]
     if cand.get("business_status") is not None:
         poi["business_status"] = cand["business_status"]
+    if cand.get("rating") is not None:           # v2.1.0 §11: research records it, like business_status
+        poi["rating"] = cand["rating"]
     # v1.0 P2: carried through so a re-verify does not wipe them (research
     # records them on the candidate; this driver rebuilds verified-pois from
     # candidates on every run).
@@ -422,6 +457,11 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False)
     work_dir.mkdir(parents=True, exist_ok=True)
     cache_path = work_dir / "geocode-cache" / "geocode.json"
     cache = load_cache(str(cache_path))
+    if not offline and country:
+        code = country_code(country, cache=cache, pace=lambda: time.sleep(NOMINATIM_DELAY_S))
+        save_cache(str(cache_path), cache)
+        if code is None:
+            raise CountryUnknown(country)
 
     district_centroids = {}
     today = datetime.date.today()
@@ -503,6 +543,10 @@ def main(argv):
         code, msgs, out_path, pois = run(
             args.trip_dir, args.work_dir, offline=args.offline,
             official_domains=args.official_domains, regeocode=args.regeocode)
+    except CountryUnknown as exc:
+        print(f"國家名稱查不到國碼（{exc}），請在 trip-brief 把 destination.country 寫成兩碼國碼，例如 JP",
+              file=sys.stderr)
+        return 2
     except requests.exceptions.RequestException as exc:
         # before OSError: requests' errors are OSErrors, and a network failure is not a
         # missing input (v1.3.0). The geocode cache already holds what was looked up.

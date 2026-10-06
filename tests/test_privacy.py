@@ -151,6 +151,13 @@ def workspace_terms(trips_dir, today=None):
         for k in ("origin", "home_origin", "home_return", "home"):
             v = brief.get(k) or (brief.get("preferences") or {}).get(k)
             add(v.get("name") if isinstance(v, dict) else v, f"home {trip.name}")
+        for k in ("home_origin_point", "home_return_point"):          # v2.1.0: the map's home points
+            v = brief.get(k)
+            if isinstance(v, dict):
+                add(v.get("name"), f"home {trip.name}")
+                for c in ("lat", "lng"):
+                    if isinstance(v.get(c), (int, float)):
+                        add(f"{v[c]:.3f}", f"home coordinate {trip.name}")
         acc = _artifact(trip, "accommodations.yaml")
         for st in acc.get("stops") or []:
             for c in st.get("candidates") or []:
@@ -189,7 +196,9 @@ def test_the_check_finds_a_planted_leak(tmp_path):
     (t / "trip-brief.yaml").write_text(yaml.safe_dump(
         {"slug": t.name, "dates": {"start": "2027-01-10", "end": "2027-01-11"},
          "members": [{"name": "成員1"}, {"name": "某甲（駕駛）"}], "base": {"name": "某某溫泉旅館"},
-         "preferences": {"origin": "某市某區某路1號"}}, allow_unicode=True), encoding="utf-8")
+         "preferences": {"origin": "某市某區某路1號"},
+         "home_origin_point": {"name": "某某超商", "lat": 23.45678, "lng": 120.78912, "geocode_source": "nominatim"}},
+        allow_unicode=True), encoding="utf-8")
     (t / "accommodations.yaml").write_text(yaml.safe_dump(
         {"stops": [{"chosen": "h1", "candidates": [{"id": "h1", "name_local": "某某溫泉旅館"},
                                                    {"id": "h2", "name_local": "沒住的旅館"}]}]}, allow_unicode=True), encoding="utf-8")
@@ -201,9 +210,11 @@ def test_the_check_finds_a_planted_leak(tmp_path):
     (old / "trip-brief.yaml").write_text(yaml.safe_dump({"slug": old.name, "dates": {"start": "2020-01-05", "end": "2020-01-06"}}), encoding="utf-8")
     terms = workspace_terms(tmp_path / "trips", today=datetime.date(2026, 10, 3))
     files = [("a.md", "trip 2027-01-somewhere stays at 某某溫泉旅館 from 某市某區某路1號 on 2027-01-11"),
+             ("c.py", "geocode = {'lat': 23.457, 'lng': 120.789}  # 某某超商"),
              ("b.md", "沒住的旅館 2020-01-05 成員1")]
     found = {t for _f, t, _w in leaks(terms, files)}
-    assert {"2027-01-somewhere", "某某溫泉旅館", "某市某區某路1號", "2027-01-11"} <= found
+    assert {"2027-01-somewhere", "某某溫泉旅館", "某市某區某路1號", "2027-01-11",
+            "某某超商", "23.457", "120.789"} <= found
     assert "某甲（駕駛）" in terms                                   # a member's own name is a term too
     assert not {"沒住的旅館", "2020-01-05", "成員1"} & found       # unchosen hotels, past dates, placeholders
     assert "札幌市中央区" not in terms                               # a ward is not a home

@@ -41,12 +41,12 @@ def test_day_table_appends_official_source_link():
     assert "[Fergburger](https://www.google.com/maps/search/?api=1&query=Fergburger)" in md
     assert "· [官網](https://fergburger.com)" in md  # official, not the review url
 
-def test_day_table_falls_back_to_first_source_when_no_official():
+def test_day_table_falls_back_to_first_source_when_no_official():   # v2.1.0 D7: named by its site
     day = {"label": "Day 1", "rows": [{"time": "13:00", "slot": "meal", "poi_id": "x", "text": "漢堡"}]}
     poi_map = {"x": {"name_local": "X", "name_display": "X",
                      "sources": [{"url": "https://only.example", "lang": "en"}]}}
     md = render_day_table(day, poi_map)
-    assert "· [官網](https://only.example)" in md
+    assert "· [only.example](https://only.example)" in md and "官網" not in md
 
 def test_day_table_no_source_link_when_poi_has_no_sources():
     day = {"label": "Day 1", "rows": [{"time": "13:00", "slot": "activity", "poi_id": "y", "text": "夜景"}]}
@@ -63,7 +63,7 @@ def test_day_table_unresolvable_poi_id_renders_text_only():
 
 def test_markdown_move_row_directions_link():   # G2
     day = {"label": "D1", "rows": [
-        {"slot": "move", "text": "午後抵達", "from": "函館空港", "to": "函館駅"},
+        {"slot": "move", "text": "午後抵達", "from": "函館空港", "to": "函館駅", "mode": "rail"},
     ]}
     md = render_day_table(day, {})
     assert "[🚆 函館空港→函館駅](https://www.google.com/maps/dir/?api=1&origin=" in md
@@ -86,7 +86,7 @@ def test_markdown_move_row_with_poi_shows_poi_link_and_official():   # review fi
     # a move row with from/to AND a poi_id must STILL surface the poi name + official
     # source, so the export-gate bookable check can locate the row (no silent evasion).
     day = {"label": "D1", "rows": [
-        {"slot": "move", "poi_id": "stn", "text": "搭特急", "from": "札幌", "to": "函館"}]}
+        {"slot": "move", "poi_id": "stn", "text": "搭特急", "from": "札幌", "to": "函館", "mode": "rail"}]}
     poi = {"name_local": "JR函館駅", "name_display": "JR函館駅",
            "sources": [{"url": "https://jrhokkaido.co.jp", "official": True}]}
     md = render_day_table(day, {"stn": poi})
@@ -239,6 +239,6 @@ def test_home_leg_move_row_carries_its_own_endpoints():
         {"slot": "move", "from": home_leg["from"], "to": home_leg["to"],
          "text": "自駕南下", "leg_index": 0},
     ]}
-    md = render_day_table(day1, {})
-    assert f"[🚆 {home_leg['from']}→{home_leg['to']}]" in md
+    md = render_day_table(day1, {}, {"legs": [home_leg]})                # v2.1.0: the leg's mode
+    assert f"[🚗 {home_leg['from']}→{home_leg['to']}]" in md
     assert "自駕南下" in md

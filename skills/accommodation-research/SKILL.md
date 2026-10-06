@@ -36,7 +36,9 @@ routes back here.
   `CLOSED_PERMANENTLY`) — the identical shape and identical routes
   `source-verify`'s own Gate 0 documents (Places API `businessStatus`; the
   hotel's own recent dated post or official page; or a phone confirmation
-  recorded as `source_url: tel:<number>`). A bare hand-typed string is
+  recorded as `source_url: tel:<number>`). When the Places API route is used, record the
+  response's `place_id` as the candidate's `gmaps_place_id` too — the hotel's map link then
+  opens the exact place. A bare hand-typed string is
   **self-attested and is not a signal** — `rederive_lodging` treats it exactly
   like an absent field, and `itinerary-gate` routes back here asking for the
   sourced form. A **sourced but CLOSED** value demotes the candidate to
@@ -54,7 +56,10 @@ routes back here.
   hotel has a sourced `address_local`, also take `scripts/geocode.py::address_point(address_local,
   country, cache=cache)` and keep what `scripts/geocode.py::pick_point(name_hit, name_source,
   address_hit)` returns: the name hit when it is near the address, else the address point
-  (`geocode_source: nominatim_address` — approximate, disclosed like a centroid). Only when both
+  (`geocode_source: nominatim_address` — approximate, disclosed like a centroid). In Taiwan,
+  where an address resolves to its road at best, the road point inside the district
+  (`nominatim_road`) or its 村里's centre (`village_centroid`) stands in when no name lookup is
+  accepted — approximate and disclosed the same way. Only when all of these
   miss, fall back to the stop's cluster `centroid` from `routing.yaml`
   (`geocode.geocode_source: cluster_fallback`). **The centroid fallback needs no
   existence proof beyond Gate 0 above (subsumed by it — see `source-verify`'s

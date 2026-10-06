@@ -7,7 +7,7 @@ from scripts.render.gmaps_links import maps_url
 from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import MODE_ICON, SLOT_ICON, icon
 from scripts.render.reader.home import _name, navb
-from scripts.render.reader.maps import DATA_IMAGE, image_class, map_card, target
+from scripts.render.reader.maps import DATA_IMAGE, day_points, image_class, map_card, target
 from scripts.render.reader.text import dur, esc, hhmm, lang_label, minutes, move_summary, number
 
 MODE_LABEL = {"walk": "步行", "rail": "電車", "bus": "巴士", "taxi": "計程車", "drive": "開車",
@@ -111,28 +111,39 @@ def stop(ctx, i, j, row, p, local_lang):
         rows.append((lang_label(local_lang), f'<span lang="{lang}">{esc(p["name_local"])}</span>'))
     sheet = ""
     if p and p.get("address_local"):
-        # TW-096 (the user's pick A2): the address, and a big-print sheet to hand a taxi
-        # driver -- an in-page target, so it opens with no script; closing returns to the
-        # stop, which stays open
-        rows.append(("地址", f'<span lang="{lang}">{esc(p["address_local"])}</span>'
-                             f'<a class="drvbtn" href="#{tid}-drv">給司機看</a>'))
-        # user check: a tap anywhere on the sheet closes it (a back-link under the text)
-        sheet = (f'<div class="drv" id="{tid}-drv"><a class="drvbg" href="#{tid}" aria-label="關閉"></a>'
-                 f'<a class="drvx" href="#{tid}">✕ 關閉</a>'
-                 f'<p class="drvn" lang="{lang}">{esc(p.get("name_local") or _name(p))}</p>'
-                 f'<p class="drva" lang="{lang}">{esc(p["address_local"])}</p>'
-                 f'<p class="drvh">把手機轉給司機看</p></div>')
+        dd, sheet = address(tid, p, lang)
+        rows.append(("地址", dd))
     if row.get("text"):
         rows.append(("安排", esc(row["text"])))
     src = sources(p, tid)
     if src:
         rows.append(("來源", src))
+    return card(ctx, tid, slot, row.get("poi_id"), head, rows, sheet, p)
+
+
+def address(tid, p, lang):
+    """(dd, sheet): a place's address, and a big-print sheet to hand a taxi driver --
+    TW-096 (the user's pick A2): an in-page target, so it opens with no script; closing
+    returns to the stop, which stays open. A tap anywhere on the sheet closes it."""
+    dd = (f'<span lang="{lang}">{esc(p["address_local"])}</span>'
+          f'<a class="drvbtn" href="#{tid}-drv">給司機看</a>')
+    sheet = (f'<div class="drv" id="{tid}-drv"><a class="drvbg" href="#{tid}" aria-label="關閉"></a>'
+             f'<a class="drvx" href="#{tid}">✕ 關閉</a>'
+             f'<p class="drvn" lang="{lang}">{esc(p.get("name_local") or _name(p))}</p>'
+             f'<p class="drva" lang="{lang}">{esc(p["address_local"])}</p>'
+             f'<p class="drvh">把手機轉給司機看</p></div>')
+    return dd, sheet
+
+
+def card(ctx, tid, slot, poi_id, head, rows, sheet, p):
+    """The stop card: a head that opens it, the details (rows of (label, html)), the
+    place's 導航 button. Shared by a day's stops and a survey's list (v2.1.0)."""
     dl = "".join(f"<dt>{k}</dt><dd>{v}</dd>" for k, v in rows)
     nav = (f'<a class="navb" href="{esc(maps_url(p))}" target="_blank" rel="noopener">'
            f'{icon(SLOT_ICON.get(slot, "map-pin"))}導航</a>') if p else ""
     # the stop is the anchor target; "-x" is a 1 px target inside it that means "closed,
     # but stay here" (spec v1.1 §8.1: one :target at a time = one stop open at a time)
-    return (f'<div class="stop s-{esc(slot)}" id="{tid}" data-poi="{esc(row.get("poi_id") or "")}">'
+    return (f'<div class="stop s-{esc(slot)}" id="{tid}" data-poi="{esc(poi_id or "")}">'
             f'<span class="tx" id="{tid}-x"></span>'
             f'<div class="c3"><a class="hd hd-open" href="#{tid}">{head}</a>'
             f'<a class="hd hd-close" href="#{tid}-x">{head}</a>'
@@ -216,7 +227,12 @@ def chain(ctx, i, day):
         if isinstance(a, dict) and isinstance(a.get("applies_to"), str):
             alts.setdefault(a["applies_to"], []).append(a)
     head, tail = _ends(ctx, i, day)
-    out = [f'<span class="tx" id="{target(i, "all")}"></span>', _anchor(head, target(i, "start"))]
+    # the map's home points land on the list's ends (v2.1.0 D10): with no hotel at that
+    # end, the end row is the trip leaving or reaching home; a last day that ends at a
+    # hotel gets home's own row after it
+    ends = {p["key"]: p for _, p in day_points(ctx, i, day)}
+    head_id = target(i, "home-start" if "home-start" in ends and "start" not in ends else "start")
+    out = [f'<span class="tx" id="{target(i, "all")}"></span>', _anchor(head, head_id)]
     prev_leave, travel, placed = None, 0, set()
     for j, r in enumerate(rows):
         if _is_move(r):
@@ -240,7 +256,13 @@ def chain(ctx, i, day):
         # no stay time -> no departure time -> no gap claim for the next stop
         prev_leave = start + stay if start is not None and stay else None
         travel = 0
-    out.append(_anchor(tail, target(i, "end")))
+    if "home-end" in ends and "end" not in ends:
+        out.append(_anchor(tail, target(i, "home-end")))
+    else:
+        out.append(_anchor(tail, target(i, "end")))
+        if "home-end" in ends:
+            home = ends["home-end"]["poi"]
+            out.append(_anchor((f"回到 {_name(home)}", home, "map-pin"), target(i, "home-end")))
     return f'<div class="list">{"".join(out)}</div>'
 
 

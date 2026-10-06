@@ -13,7 +13,9 @@
     "compared": 132,
     "examined_rule_current": 153,
     "found": 251,
-    "match_failed": [],
+    "match_failed": [
+      "trip-c"
+    ],
     "super_lodging": 13,
     "super_poi": 60
   },
@@ -36,6 +38,7 @@
         "no_ai_tone": true,
         "no_closed_day_violation": true,
         "no_internal_jargon": true,
+        "official_sources_not_search": true,
         "overnight_days_have_lodging": true,
         "overnight_stops_have_lodging": true,
         "referenced_pois_geocoded": true,
@@ -90,6 +93,7 @@
         "no_ai_tone": true,
         "no_closed_day_violation": true,
         "no_internal_jargon": true,
+        "official_sources_not_search": true,
         "overnight_days_have_lodging": true,
         "overnight_stops_have_lodging": true,
         "referenced_pois_geocoded": true,
@@ -143,6 +147,7 @@
         "no_ai_tone": true,
         "no_closed_day_violation": true,
         "no_internal_jargon": true,
+        "official_sources_not_search": true,
         "overnight_days_have_lodging": true,
         "overnight_stops_have_lodging": true,
         "referenced_pois_geocoded": true,
@@ -150,7 +155,7 @@
         "referenced_pois_verified": true,
         "required_facilities_met": true,
         "sources_complete": false,
-        "verdicts_match": true,
+        "verdicts_match": false,
         "verdicts_rederivable": true,
         "verdicts_rule_current": true
       },
@@ -164,14 +169,15 @@
         "lodging_source_incomplete": 3,
         "move_incomplete": 9,
         "poi_source_incomplete": 27,
+        "poi_verify_status_mismatch": 2,
         "theme_invalid": 6
       },
       "drain_rounds": 5,
       "drain_terminated": true,
       "lodging_axis_findings": 0,
-      "poi_axis_findings": 0,
+      "poi_axis_findings": 2,
       "status": "fail",
-      "total": 73
+      "total": 75
     },
     "trip-d": {
       "checks_passed": {
@@ -191,6 +197,7 @@
         "no_ai_tone": true,
         "no_closed_day_violation": true,
         "no_internal_jargon": true,
+        "official_sources_not_search": true,
         "overnight_days_have_lodging": true,
         "overnight_stops_have_lodging": true,
         "referenced_pois_geocoded": true,
@@ -297,7 +304,8 @@
       },
       "pois": 34,
       "source_lang": {
-        "zh": 68
+        "zh": 13,
+        "zh-TW": 55
       },
       "with_address": 0
     },
@@ -309,7 +317,8 @@
       },
       "pois": 45,
       "source_lang": {
-        "zh": 131
+        "zh": 41,
+        "zh-TW": 90
       },
       "with_address": 0
     },
@@ -321,7 +330,8 @@
       },
       "pois": 20,
       "source_lang": {
-        "zh": 49
+        "zh": 19,
+        "zh-TW": 30
       },
       "with_address": 0
     },
@@ -332,7 +342,8 @@
       },
       "pois": 36,
       "source_lang": {
-        "zh": 121
+        "zh": 43,
+        "zh-TW": 78
       },
       "with_address": 0
     }

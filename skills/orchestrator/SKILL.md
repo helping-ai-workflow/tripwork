@@ -50,7 +50,8 @@ Reports and orchestrator state under `work/<slug>/`: `gate-report.yaml`,
 its `next`/`reason` output; the numbered rules below are the SPECIFICATION that
 script implements (tests: `tests/test_next_stage.py`). The script does NOT
 handle slug binding (rule 0.5) or stop-on-confirmation — those stay with you.
-A `next: stop-and-ask` output is rule 15's non-retryable branch: halt and ask.
+A `next: stop-and-ask` output (rule 0.7's pre-v1.0 layout, or rule 15's non-retryable
+branch): halt and ask.
 After fixing DATA for a rule-13.5 accommodation-class failure (lodging/facility),
 just re-run the oracle — the fixing stage rewrites its own artifact with a newer
 mtime than `gate-report.yaml`, and rule 13 (see below) notices that on its own.
@@ -64,10 +65,17 @@ Do not delete `gate-report.yaml` by hand.
    `trips/<slug>/` (no `data/`) stops here (`stop-and-ask`): run
    `python <plugin>/scripts/tripwork.py migrate <slug>` (dry run), then with `--apply`, and resume.
 1. No trip-brief.yaml -> run `tripwork:trip-brief`.
-1.5. **(rule 1.5)** trip-brief ready, no advisory.yaml -> run `tripwork:travel-advisory`.
+1.5. **(rule 1.5)** trip-brief ready, no advisory.yaml -> run `tripwork:travel-advisory`
+   (skipped for a survey brief, `mode: survey`: it has no airline or dates).
    A `banned` regulation (e.g. an entry restriction) must surface BEFORE any
    research stage spends work on the destination.
-2. No candidates.yaml -> run `tripwork:destination-research`.
+2. No candidates.yaml -> run `tripwork:destination-research`. Also when the brief's `must_do`
+   has a topic missing from candidates.yaml's `must_do_searched` (a survey upgraded to a trip):
+   research adds candidates for it, and source-verify checks only what is new.
+3s. **Survey** (`mode: survey`): once verified-pois is ready, the list page decides — absent or
+   older than verified-pois -> run `tripwork:export-artifact` (its survey branch); newer ->
+   complete. Report the list page's path, `python <plugin>/scripts/tripwork.py table <slug>`
+   with its presets (吃的 / 景點), and that saying "排成行程" upgrades the same folder.
 3. candidates exist but verified-pois.yaml **stale** (see Definitions) or missing -> run `tripwork:source-verify`.
 4. verified-pois **ready**, no routing.yaml -> run `tripwork:routing-audit`.
 5. routing ready, no accommodations.yaml -> run `tripwork:accommodation-research`.
@@ -105,15 +113,18 @@ Do not delete `gate-report.yaml` by hand.
     | # | Failure class | Route to |
     |---|---|---|
     | 1 | chosen / required-facility lodging failures, and `rederive_lodging`'s `accommodations stop …` / `accommodations.yaml absent`; `lodging area label missing:` / `lodging source record incomplete:` | `tripwork:accommodation-research` |
-    | 2 | `legs[…]` re-derivation failures, `legs.yaml absent` | `tripwork:inter-stop-legs` |
+    | 2 | `legs[…]` re-derivation failures, `legs.yaml absent`, `legs official source …` | `tripwork:inter-stop-legs` |
     | 3 | `routing hop …` re-derivation failures, `routing.yaml absent` | `tripwork:routing-audit` |
     | 4 | `cost.total` / `cost.by_category` mismatches, `cost.yaml absent` | `tripwork:cost-rollup` |
-    | 5 | a scheduled POI `carries neither hours.close nor hours.no_fixed_close`; `POI source record incomplete:` | `tripwork:source-verify` |
-    | 6 | `trip-brief name invalid:` / `trip-brief headline invalid:` | `tripwork:trip-brief` |
-    | 7 | AI-tone hits; the v1.0 reader-data classes synthesis writes (`day chain broken:`, `chain node without poi:`, `move record incomplete:`, `move rederive …`, `legacy …`, `alternative invalid:`, `day theme invalid:`, `checklist item invalid:`, `booking not in checklist:`) | `tripwork:itinerary-synthesis` |
+    | 5 | `advisory official source …` (an official source that is a search results page) | `tripwork:travel-advisory` |
+    | 6 | `calendar official source …` | `tripwork:calendar-check` |
+    | 7 | `seasonal official source …` | `tripwork:seasonal-advisory` |
+    | 8 | a scheduled POI `carries neither hours.close nor hours.no_fixed_close`; `POI source record incomplete:` | `tripwork:source-verify` |
+    | 9 | `trip-brief name invalid:` / `trip-brief headline invalid:` | `tripwork:trip-brief` |
+    | 10 | AI-tone hits; the v1.0 reader-data classes synthesis writes (`day chain broken:`, `chain node without poi:`, `move record incomplete:`, `move rederive …`, `legacy …`, `alternative invalid:`, `day theme invalid:`, `checklist item invalid:`, `booking not in checklist:`) | `tripwork:itinerary-synthesis` |
     | — | everything else (no-meal / unknown-POI / non-verified / geocode / closed-day / must_do / advisory-surface / no-resolved-lodging / unrendered home leg / missing `closing_status`) | `tripwork:itinerary-synthesis` |
 
-    Row 5 is **not** a synthesis defect even though the gate reads it off an itinerary row:
+    Row 8 is **not** a synthesis defect even though the gate reads it off an itinerary row:
     `hours` lives in `verified-pois.yaml` and only source-verify writes that file. Routing it
     to synthesis made the loop non-terminating — synthesis rewrites the itinerary, the same
     rows re-fail, forever. It sits LAST among the producing-stage rows because

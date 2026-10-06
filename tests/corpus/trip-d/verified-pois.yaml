@@ -6,14 +6,14 @@ pois:
   district: 新北市瑞芳區
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=183&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角及宜蘭海岸國家風景區官方：新北市瑞芳區鼻頭路臺2線約84K處鼻頭漁港旁；全年開放；全長約3.5公里木棧步道；360度視野；濱海線僅供學術公務申請進入。
     official: true
   - url: https://myjourney.tw/bee-toe-cape-trail/
-    lang: zh
+    lang: zh-TW
     note: 在地部落格：燈塔線封閉須改走稜谷步道；攻頂見如萬里長城的稜線弧線；聽濤營區可喝咖啡（未列營業時間）。
   - url: https://fullfenblog.tw/ntp-nose-angle-rail/
-    lang: zh
+    lang: zh-TW
     note: 在地部落格：鼻頭角步道＆鼻頭國小，台版萬里長城、登長階望海景；鼻頭國小開放時段平日16:00–17:30、假日08:00–17:30。
   - url: https://bobowin.blog/p1644/
     lang: zh
@@ -39,11 +39,11 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=262&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角暨宜蘭海岸國家風景區官方觀光資訊網：行政區新北市貢寮區、地址台2線110.4公里處、海蝕平台/魔鬼洗衣板/火龍岩/海蝕溝、遠眺龜山島、全年開放免費、台灣好行856或綠19交通。
     official: true
   - url: https://newtaipei.travel/zh-tw/attractions/detail/402785
-    lang: zh
+    lang: zh-TW
     note: 新北市觀光旅遊網官方：新北市貢寮區馬崗街沿岸、雪山山脈延伸帶砂岩頁岩互層、綿延數百公尺海蝕平台（魔鬼洗衣板）、全台最大火龍岩、遠眺龜山島、位舊草嶺環狀自行車道、24小時開放、電話886-2-24941601。
     official: true
   - url: https://apextraveller.com/xuite-341835775/
@@ -75,10 +75,10 @@ pois:
     note: 示容大飯店福隆官網「福隆海洋溫泉」頁：泉質『氯化物氫鹽泉』、日本溫泉協會認證＋新北市政府溫泉標章、裸湯男女分池、非住客遊客體驗平日600/假日800僅限當日一次、開放時段與每週二清潔停業、地址228新北市貢寮區福隆里福隆街41號。
     official: true
   - url: https://www.jumpman.tw/hoteld1.html
-    lang: zh
+    lang: zh-TW
     note: 在地部落格『跳躍的宅男』：本島唯一海洋溫泉，採自枋腳斷層地底1,500公尺、氯化物碳酸氫鹽泉含海水；室內三溫暖大眾裸湯池＋舒壓冷熱池/烤箱/氣泡池；海景客房可私人泡湯；地址新北市貢寮區福隆街41號。
   - url: https://anise.tw/264640
-    lang: zh
+    lang: zh-TW
     note: 在地部落格『愛吃鬼芸芸』：海洋溫泉＋福粵樓美食，長輩取向；佐證海洋溫泉泉質與海景飯店定位。
   business_status:
     status: OPERATIONAL
@@ -101,19 +101,19 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://www.motcmpb.gov.tw/Lighthouse/Detail/358b3a83-0aad-4b41-8258-394ac1fab10e?SiteId=1&NodeId=50091
-    lang: zh
+    lang: zh-TW
     note: 交通部航港局官方燈塔資訊：本島最東邊燈塔，1935/5/1 點燈，夏令09:00-18:00、冬令09:00-17:00、每週一內部整理不開放（搜尋摘要）
     official: true
   - url: https://newtaipei.travel/zh-tw/attractions/detail/110112
-    lang: zh
+    lang: zh-TW
     note: 新北市觀光旅遊網（官方）：地址 新北市貢寮區福連里馬崗街38號；週一公休；展示館、地中海風情涼亭、天氣好可遠眺龜山島
     official: true
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=261&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角及宜蘭海岸國家風景區觀光資訊網（官方）：位於台灣極東之處、本島第一道日出曙光、秘境觀景台海天一線；地址同上
     official: true
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001091&id=A12-00202
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署 taiwan.net.tw：三貂角燈塔 新北市景點頁
     official: true
   business_status:
@@ -141,7 +141,7 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=193&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角及宜蘭海岸國家風景區官網（官方）：地址『新北市貢寮區福隆里福隆街40號』、行政區新北市貢寮區、『雙溪河在此入海…內河外海獨一無二雙重景觀』；開放/門票『依福隆海水浴場官網公布為準』
     official: true
   - url: https://hotel-d.example/fl/tw/fac-detail/samplebeach/
@@ -149,10 +149,10 @@ pois:
     note: 示容大飯店福隆（海水浴場營運方）官網：開放時段（海泳區 5/1–10/20、沙灘區全年）、平日/假日時間與售票、票價全票220/優待145/敬老110/團體190/免費規定
     official: true
   - url: https://zh.wikipedia.org/zh-tw/%E7%A6%8F%E9%9A%86%E6%B5%B7%E6%B0%B4%E6%B5%B4%E5%A0%B4
-    lang: zh
+    lang: zh-TW
     note: 維基百科：位於新北市貢寮區雙溪河口；外海浴場寬約60公尺長約3000公尺；內灘/外灘活動；日治時期開闢、原名福隆海濱浴場、1959/7/3 營運；夏季沙雕節與海洋音樂祭
   - url: https://newtaipei.travel/zh-tw/attractions/detail/109679
-    lang: zh
+    lang: zh-TW
     note: 新北市觀光旅遊網：景點基本資料與雙溪河口/內河外海景觀描述，佐證行政區為貢寮區
     official: true
   business_status:
@@ -179,7 +179,7 @@ pois:
   district: 新北市貢寮區（福連里）
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=259&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角及宜蘭海岸國家風景區官方觀光網——確認行政區為新北市貢寮區、地址臺2線10835K處馬崗漁村旁
     official: true
   - url: https://udn.com/news/story/7205/8038820
@@ -210,7 +210,7 @@ pois:
   district: 新北市貢寮區（福連里）
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=259&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角國家風景區官方頁：馬崗潮間帶——海蝕平台、綠藻最多、全年開放免費、地址臺2線10835K處
     official: true
   - url: https://natsuphil.com/new-taipei/magang-sea/
@@ -238,21 +238,21 @@ pois:
   district: 新北市貢寮區（遠望坑起）—宜蘭縣頭城鎮（大里終），跨區古道
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=268&l=1
-    lang: zh
+    lang: zh-TW
     note: 官方——東北角暨宜蘭海岸國家風景區管理處觀光資訊網：起點新北市貢寮區遠望坑、終點宜蘭縣頭城鎮大里，全長 8.5 公里，埡口眺龜山島、秋日芒花海，虎字碑/雄鎮蠻煙古蹟、芒花季每年 11 月。
     official: true
   - url: https://newtaipei.travel/zh-tw/attractions/detail/302764
-    lang: zh
+    lang: zh-TW
     note: 官方——新北市觀光旅遊網草嶺古道頁。
     official: true
   - url: https://viviantrip.tw/caoling-historic-trail/
-    lang: zh
+    lang: zh-TW
     note: 在地部落格——路線時間拆解：福隆站經遠望坑親水公園、跌死馬橋、雄鎮蠻煙、虎字碑、埡口觀景亭至大里天公廟，單程約 4 小時。
   - url: http://egoldenyears.com/49072/
     lang: zh
     note: 在地部落格——草嶺古道芒花季 11/1–11/30、最佳賞芒點在埡口、埡口涼亭遠眺龜山島海景。
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001091&id=R114
-    lang: zh
+    lang: zh-TW
     note: 官方——交通部觀光署 taiwan.net.tw 草嶺古道頁（新北市）。
     official: true
   business_status:
@@ -274,13 +274,13 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://tenjo.tw/fulong-bento/
-    lang: zh
+    lang: zh-TW
     note: 周花花部落格：鄉野 vs 宜隆福隆便當 PK，列地址福隆街5號、電話、營業時間、招牌價格
   - url: https://blog.andrewplus.com/fulong-lunchbox/
     lang: zh
     note: 福隆火車站前 鄉野/宜隆/福新/尤記 評比食記，記宜隆福隆街5號、02-24991627、09:00–18:00 週一公休
   - url: https://mecotravel.tw/yilongfulongbento/
-    lang: zh
+    lang: zh-TW
     note: 陳小可：在地超過60年老店、台灣第一間福隆便當、換招牌
   business_status:
     status: OPERATIONAL
@@ -301,7 +301,7 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://tenjo.tw/fulong-bento/
-    lang: zh
+    lang: zh-TW
     note: 記鄉野福隆街1號、02-24991417、週一–週日09:00–18:00、招牌便當60元/雞腿便當100元、民國47年創立
   - url: https://blog.andrewplus.com/fulong-lunchbox/
     lang: zh
@@ -323,13 +323,13 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://pekoblog.tw/youshangyi/
-    lang: zh
+    lang: zh-TW
     note: 尤記商義福隆月台便當：地址福隆街2巷19號、只賣週末兩天、老字號
   - url: https://travel.ettoday.net/article/2885764.htm
     lang: zh
     note: ETtoday：周末隱藏版福隆月台便當，民國46年創立、9種配料
   - url: https://marsfood.tw/you-ji-fulong/
-    lang: zh
+    lang: zh-TW
     note: 尤記商義福隆月台便當，假日限定隱藏版鐵路便當推薦
   - url: https://blog.andrewplus.com/fulong-lunchbox/
     lang: zh
@@ -348,7 +348,7 @@ pois:
   district: 新北市貢寮區（與宜蘭縣頭城鎮交界）
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=269&l=1
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署東北角暨宜蘭海岸國家風景區管理處官方頁：桃源谷步道，行政區為新北市貢寮區與宜蘭縣頭城鎮交界，三條路線（內寮/草嶺/大溪）、全年開放免費、360度視野東望太平洋北眺龜山島。
     official: true
   - url: https://hiking.biji.co/index.php?q=trail&act=detail&id=170
@@ -358,7 +358,7 @@ pois:
     lang: zh
     note: 健行筆記 桃源谷步道(大溪線)：最陡路線、近3000石階，從大溪端上蕃薯寮山接稜線至桃源谷。
   - url: https://tenjo.tw/taoyuan-valley/
-    lang: zh
+    lang: zh-TW
     note: 在地部落格（周花花）：新北貢寮桃源谷步道內寮線，30分鐘登頂大草原，交通/停車/登山入口說明。
   - url: https://yulifestory.com/taoyuan-valley/
     lang: zh
@@ -382,11 +382,11 @@ pois:
   district: 新北市貢寮區（福隆端／北口入口：福隆里外隆林街；隧道南口跨接宜蘭縣頭城鎮石城）
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=197&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角及宜蘭海岸國家風景區觀光資訊網（官方）：隧道全長 2,167 公尺、福隆端北口入口為新北市貢寮區福隆里外隆林街、夏季 6/1-9/30 08:30-17:30、冬季 10/1-5/31 08:30-17:00、例假日及國定假日僅限自行車進入禁止行人。
     official: true
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001016&id=A12-00050
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署觀光景點頁（官方）：6-9月 08:30-17:30（17:00清場）、10-5月 08:30-17:00（16:30清場）、假日隧道內禁止步行、全長 2,167 公尺。
     official: true
   - url: https://andyventure.com/taiwan-fulong-old-caoling-tunnel/
@@ -422,20 +422,20 @@ pois:
     lang: zh
     note: 寶寶溫旅行親子生活：店名『灆咖啡石城店 Seaview Coffee Shicheng』、地址 宜蘭縣頭城鎮濱海路七段350號、電話 03-978-1806、環型玻璃屋正對龜山島、舊草嶺隧道南口石城服務區、免費停車、台灣好行停靠、10:00–18:00 雙週二公休、旺季 9:00–18:30 末單 17:30、低消飲料一杯
   - url: https://mrbug.tw/lancafe-shicheng/
-    lang: zh
+    lang: zh-TW
     note: 跟著小虫吃喝玩樂：宜蘭最靠北咖啡店『灆咖啡石城店』、地址 濱海路七段350號、電話 03-9781806、10:00–18:00 週二公休、大玻璃窗眺望無敵海景與龜山島、一旁即舊草嶺隧道可騎單車到福隆車站、免費停車與台灣好行公車站
   - url: https://ifoodie.tw/restaurant/5fad45242756dd10fe48e6ef-%E7%81%86%E5%92%96%E5%95%A1-%E7%9F%B3%E5%9F%8E%E5%BA%97
-    lang: zh
+    lang: zh-TW
     note: 愛食記商家頁『灆咖啡石城店-龜山島海景玻璃屋咖啡廳-頭城鎮』：地址 濱海路七段350號、電話 039781806、低消每人一杯飲品、均消約 NT$150、旺季 4/1–9/30 延長 9:00–18:30 末單 17:30；listing 現存＝營業中
   - url: https://rocky.tw/seaviewcoffee-shicheng/
-    lang: zh
+    lang: zh-TW
     note: 洛基小聿媽：『灆咖啡石城店 Seaview Coffee』寵物友善、宜蘭海景咖啡、盡賞龜山島、石城服務區、頭城五漁村
   - url: https://www.facebook.com/seaviewcoffeeshicheng/?locale=zh_TW
     lang: zh
     note: 官方粉專『灆咖啡Seaview Coffee | Toucheng』——確認官方店名用字為『灆』（非蘭/蘫）
     official: true
   - url: https://fullfenblog.tw/jiucaoling-tunnel/
-    lang: zh
+    lang: zh-TW
     note: 滿分的旅遊札記 舊草嶺隧道攻略：福隆火車站到石城觀景區約 4.5 公里、北口到南口(石城休憩區)約 2.2 公里，佐證石城—福隆車程/騎程距離
   business_status:
     status: OPERATIONAL
@@ -463,18 +463,18 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=184&l=1
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署東北角及宜蘭海岸國家風景區官方網站：所在新北市貢寮區、地址『新北市貢寮區龍洞街63-8號』、東北季風期(10~3月)長浪不宜、海洋戲水區/兒童水世界、清澈海灣近百種魚類、海蝕地質與潮間帶。
     official: true
   - url: https://newtaipei.travel/zh-tw/attractions/detail/109637
-    lang: zh
+    lang: zh-TW
     note: 新北市觀光旅遊網（官方）：新北市貢寮區、龍洞街63-8號；台灣第一座天然游泳池、知名潛水聖地、難度較低浮潛。
     official: true
   - url: https://bobowin.blog/longdong-ocean-park/
     lang: zh
     note: 寶寶溫旅行 2026：2026/5/30 開放水域=持續營運；營業 08:00–18:00、水域 08:00–17:00；門票 200/150/60。
   - url: https://fullfenblog.tw/longdong-ocean-park/
-    lang: zh
+    lang: zh-TW
     note: 翻滾吧！廚房 2026：水域開放約 5 月中至 9 月底，2026 開放玩水 5/30；戲水季約 5 月底~9 月底、視東北季風。
   business_status:
     status: OPERATIONAL
@@ -500,7 +500,7 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://fullfenblog.tw/kivano/
-    lang: zh
+    lang: zh-TW
     note: 翻滾吧！廚房：完整地址『新北市貢寮區和美里和美街48號』、每日 09:00–17:30（週一清潔保養）、2026 龍洞四季灣 5/23 海域開放玩水、可游泳/戲水/浮潛/潛水、180 度蔚藍海景與奇岩群山。
   - url: https://dramastory2019.com/twtourkivano/
     lang: zh
@@ -533,11 +533,11 @@ pois:
   district: 新北市貢寮區福連里
   sources:
   - url: https://newtaipei.travel/zh-tw/attractions/detail/110917
-    lang: zh
+    lang: zh-TW
     note: 新北市觀光旅遊網官方頁：行政區=新北市貢寮區福連里(濱海公路旁近三貂角)、全年開放、百餘年居民靠養殖九孔或捕魚維生、石頭古厝就地取材(砂岩/竹材/茅草)、平行砌 vs 亂砌石牆。
     official: true
   - url: https://wanderlustannie.com.tw/fareast-fishery/
-    lang: zh
+    lang: zh-TW
     note: 在地遊記：福連里、極東點望三貂角燈塔、海女於海蝕平台及潮間帶採石花菜、石花菜七曝七曬製石花凍、九孔鮑/紫海膽/龍蝦、小卷米粉。
   - url: https://dailychieh.com/magang-maoao/
     lang: zh
@@ -564,7 +564,7 @@ pois:
   district: 新北市貢寮區福連里
   sources:
   - url: https://wanderlustannie.com.tw/fareast-fishery/
-    lang: zh
+    lang: zh-TW
     note: 在地遊記：吳家石頭古厝160年二層樓、罕見豪華石頭屋、砌法分類。
   - url: https://dailychieh.com/magang-maoao/
     lang: zh
@@ -583,7 +583,7 @@ pois:
   district: 新北市貢寮區福連里
   sources:
   - url: https://zh.wikipedia.org/zh-tw/%E5%88%A9%E6%B4%8B%E5%AE%AE
-    lang: zh
+    lang: zh-TW
     note: 維基百科：新北市貢寮區卯澳漁港、福連里福興街8巷25號、全台唯一提籃觀音、1832年道光年間建廟。
   - url: https://travel.ettoday.net/article/520209.htm
     lang: zh
@@ -607,7 +607,7 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://carp0729.tw/2025/06/eathard.html
-    lang: zh
+    lang: zh-TW
     note: 魚樂分享誌：卯起來吃-卯澳海鮮食堂，地址福興街2號、電話0955188359、10:00–18:00 週二公休、前身海洋驛站已搬遷。
   - url: https://travelearth195.com/hanghang/
     lang: zh
@@ -626,11 +626,11 @@ pois:
   district: 新北市瑞芳區
   sources:
   - url: https://www.gep.ntpc.gov.tw/xmdoc/cont?xsmsid=0G246368552167800609
-    lang: zh
+    lang: zh-TW
     note: 官方（新北市立黃金博物館）票價與開放時間頁：地址、平日/假日時間、公休、門票、電話原文
     official: true
   - url: https://momoblog.tw/gold-museum/
-    lang: zh
+    lang: zh-TW
     note: 在地部落格：金瓜石黃金博物館交通停車、門票、淘金體驗攻略（breadth 佐證）
   business_status:
     status: OPERATIONAL
@@ -658,11 +658,11 @@ pois:
   district: 新北市瑞芳區
   sources:
   - url: https://newtaipei.travel/zh-tw/attractions/detail/402695
-    lang: zh
+    lang: zh-TW
     note: 官方（新北市觀光旅遊網）報時山登山步道：行政區(瑞芳區金瓜石銅山里祈堂路)、24h開放、360度海景視野原文
     official: true
   - url: https://momoblog.tw/baoshi-mt/
-    lang: zh
+    lang: zh-TW
     note: 在地部落格：報時山步道觀景台免門票、山海美景、最短海景步道（breadth 佐證）
   business_status:
     status: OPERATIONAL
@@ -683,13 +683,13 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://tenjo.tw/maoao-seafood/
-    lang: zh
+    lang: zh-TW
     note: 周花花在地食記：地址 新北市貢寮區福連街37號、電話 02-2499-1617、10:00–19:00 週一休、招牌小卷蝦米粉/海鮮粥、有大型停車場
   - url: https://travel.yam.com/article/128850
     lang: zh
     note: 輕旅行：東北角超人氣海鮮，必吃小卷蝦米粉與海鮮粥
   - url: https://anise.tw/266330
-    lang: zh
+    lang: zh-TW
     note: 愛吃鬼芸芸食記：小卷蝦米粉、海鮮粥豐盛，東北角貢寮美食
   business_status:
     status: OPERATIONAL
@@ -729,10 +729,10 @@ pois:
   district: 新北市貢寮區
   sources:
   - url: https://margaret.tw/magang-coffee-no27/
-    lang: zh
+    lang: zh-TW
     note: 瑪格圖寫生活：地址 新北市貢寮區馬崗街27號、10:30–18:00 週三週四休、台灣最東咖啡館、石頭屋、店貓、招牌起司蛋糕
   - url: https://smiletaiwan.cw.com.tw/article/6219
-    lang: zh
+    lang: zh-TW
     note: 微笑台灣/安妮的天空：台灣最東邊咖啡館，極東手沖、鹹海風與漁村靜謐
   - url: https://www.fonfood.com/store/2832176
     lang: zh
@@ -751,17 +751,17 @@ pois:
   district: 新北市瑞芳區
   sources:
   - url: https://newtaipei.travel/zh-tw/attractions/detail/109990
-    lang: zh
+    lang: zh-TW
     note: 新北市觀光旅遊網（官方）九份老街頁：行政區=新北市瑞芳區、地址=瑞芳區基山街、開放時間（週日五六 08:00-22:00 / 週一至四 08:00-19:00）、正常營業、免費入場、悲情城市取景地、昇平戲院。
     official: true
   - url: https://www.travelking.com.tw/tourguide/scenery979.html
-    lang: zh
+    lang: zh-TW
     note: TravelKing 旅遊王：九份為昔日採金山城，主要景觀聚集基山街，兩次沒落兩次繁華的山城小鎮。
   - url: https://sekainomys.com/jiufen/
     lang: zh
     note: Mys 旅人誌 2026 瑞芳九份老街攻略：交通、停車、必吃芋圓、夜景、基山街/豎崎路/輕便路範圍。
   - url: https://tw.news.yahoo.com/%E7%8D%A8-%E4%B9%9D%E4%BB%BD%E5%81%87%E6%97%A5%E6%93%A0%E7%88%86-%E8%80%81%E8%A1%97%E5%8F%A3%E5%81%9C%E8%BB%8A-2hr300%E5%85%83-%E6%B0%91%E7%9C%BE%E6%80%A8%E5%A4%AA%E8%B2%B4-054800989.html
-    lang: zh
+    lang: zh-TW
     note: Yahoo 新聞：九份假日擠爆、老街口停車 2 小時 300 元民眾怨貴——佐證假日人潮/停車昂貴。
   - url: https://dorarichlife.com/besttimetogojiufen/
     lang: zh
@@ -788,7 +788,7 @@ pois:
   district: 宜蘭縣頭城鎮
   sources:
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001106&id=604
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方景點頁：地址宜蘭縣頭城鎮石城里濱海路七段33號、面太平洋遠眺龜山島、蘭陽八景大里觀潮
     official: true
   - url: https://egoldenyears.com/75189/
@@ -816,11 +816,11 @@ pois:
   district: 宜蘭縣頭城鎮
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=274&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角風管處官方頁：地址、開放08:00-18:00、觀海亭遠眺蘭陽平原與龜嶼佳景
     official: true
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001106&id=606
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方景點頁：觀海亭眺望龜山島、外澳與北關全景，蘭陽八景北關海潮
     official: true
   business_status:
@@ -842,11 +842,11 @@ pois:
   district: 宜蘭縣頭城鎮
   sources:
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001106&id=A12-00560
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署官方景點頁：地址、餐飲週二公休、白天遠眺龜山島、黃昏龜山落日、夜間漁火
     official: true
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=265&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角風管處官方頁：石城服務區為中繼休息站，二樓觀景平台賞太平洋海景與夕陽
     official: true
   business_status:
@@ -867,18 +867,18 @@ pois:
   district: 宜蘭縣頭城鎮
   sources:
   - url: https://www.necoast-nsa.gov.tw/Attraction-Content.aspx?a=271&l=1
-    lang: zh
+    lang: zh-TW
     note: 東北角暨宜蘭海岸國家風景區官方景點頁：地址 宜蘭縣頭城鎮大溪里外大溪路375號、下午2-3點漁船進港拍賣、鄰龜山島漁場、三樓清水模建築。
     official: true
   - url: https://taiwan.net.tw/m1.aspx?id=A12-00564&sNo=0001016
-    lang: zh
+    lang: zh-TW
     note: 交通部觀光署觀光景點資料庫『大溪漁港』官方條目（頭城鎮、鄰龜山島漁場觀光漁港）。
     official: true
   - url: https://supertaste.tvbs.com.tw/food/355817
-    lang: zh
+    lang: zh-TW
     note: 食尚玩家：頭城大溪漁港一日遊攻略——漁夫市集中午後擺攤、下午2-3點拍賣、海鮮市集/美食廣場。
   - url: https://www.unileverfoodsolutions.tw/chef-inspiration/discover-ingredients/CulinART-Chef-leads-daxi-fishing-port-1.html
-    lang: zh
+    lang: zh-TW
     note: 觀光魚貨直銷賣場營業時間 9:00-20:00、每月第二/四週週二公休；主廚採買與挑選技巧。
   business_status:
     status: OPERATIONAL
@@ -902,14 +902,14 @@ pois:
     geocode_source: nominatim
   sources:
   - url: https://www.klzz.klcg.gov.tw/tw/klzz/973-95929.html
-    lang: zh
+    lang: zh-TW
     official: true
     note: 基隆市中正區公所（官方）：正濱漁港彩色屋景點，正濱路72號一帶
   - url: https://fullfenblog.tw/kl-zhengbin-fishing-port/
-    lang: zh
+    lang: zh-TW
     note: 彩色屋＋阿根納造船廠遺構＋周邊美食攻略
   - url: https://twpang.com.tw/blog/post/zhengbin_parking
-    lang: zh
+    lang: zh-TW
     note: 停車攻略：正濱漁港(漁市)停車場 中正路393巷2號、舊漁會大樓旁停車場計次30、6:00-23:30
   verify_status: verified
   hours:
@@ -927,13 +927,13 @@ pois:
     as_of: '2026-09-23'
   sources:
   - url: https://beri.tw/wanchucoffee/
-    lang: zh
+    lang: zh-TW
     note: 海港城市風格咖啡、佇立造船廠歷史區；中正路560號、11:00-19:00、週二三公休
   - url: https://yukigo.tw/wanchucoffee/
-    lang: zh
+    lang: zh-TW
     note: 基隆老屋咖啡近正濱漁港、附菜單
   - url: https://mymarcy.tw/wanchu-coffee/
-    lang: zh
+    lang: zh-TW
     note: 正濱漁港咖啡廳評論＆菜單
   verify_status: unverified
   name_roman: Wanchu Coffee
@@ -953,18 +953,18 @@ pois:
     geocode_source: nominatim_structured
   sources:
   - url: https://www.juming.org.tw/
-    lang: zh
+    lang: zh-TW
     official: true
     note: 官網：恆形特展 2026/5/9-12/20（拓樸學視野雕塑），第一展覽室/本館/戶外
   - url: https://www.juming.org.tw/mainssl/wdb2/go.php?xmlid=89789&urlxmlid=45651
-    lang: zh
+    lang: zh-TW
     official: true
     note: 開館10:00-17:00(16:00停售)、週一休逢國定假日開、全票350
   - url: https://tw.trip.com/guide/attraction/%E6%9C%B1%E9%8A%98%E7%BE%8E%E8%A1%93%E9%A4%A8%E9%96%80%E7%A5%A8.html
-    lang: zh
+    lang: zh-TW
     note: 全台最大戶外美術館、營業時間交通整理
   - url: https://www.juming.org.tw/main/modules/MySpace/index.php?sn=ec&pg=ZC343652
-    lang: zh
+    lang: zh-TW
     official: true
     note: 館內餐飲：美術館咖啡坊（現烤PIZZA/咖啡/冰淇淋，1樓服務中心旁）、綠方塊茶屋（太極廣場旁11:00-16:30）；瑪克的院子已於2025/10/13歇業
   verify_status: verified
@@ -995,7 +995,7 @@ pois:
     geocode_source: nominatim_structured
   sources:
   - url: https://www.walkerland.com.tw/article/view/99412
-    lang: zh
+    lang: zh-TW
     note: 亞尼克菓子工房萬里創始店 食記；瑪鋉路127-5號
   - url: https://bobowin.blog/yannick-wanli/
     lang: zh
@@ -1026,15 +1026,15 @@ pois:
     geocode_source: nominatim
   sources:
   - url: https://www.taiwan.net.tw/m1.aspx?sNo=0001016&id=A12-00273
-    lang: zh
+    lang: zh-TW
     official: true
     note: 交通部觀光署：金山老街(金包里老街)景點
   - url: https://newtaipei.travel/zh-tw/attractions/detail/109769
-    lang: zh
+    lang: zh-TW
     official: true
     note: 新北市觀光旅遊網：金包里街、300年商業老街、鴨肉/芋圓/卜肉
   - url: https://www.northguan-nsa.gov.tw/user/article.aspx?Lang=1&SNo=04002746
-    lang: zh
+    lang: zh-TW
     official: true
     note: 北觀處：金包里老街導覽
   verify_status: verified
@@ -1057,13 +1057,13 @@ pois:
     geocode_source: nominatim_structured
   sources:
   - url: https://www.walkerland.com.tw/article/view/322342
-    lang: zh
+    lang: zh-TW
     note: 金山中山路111號、北海岸第一家手工披薩、招牌炸雞；電02-24985858
   - url: https://leafyeh.com/lepetitmarkpizza/
     lang: zh
     note: 金山披薩隱藏王者、手工披薩/炸雞；11:00-20:30 一說週一休
   - url: https://www.jinshan-exploring.com.tw/tourism_view.php?id=39
-    lang: zh
+    lang: zh-TW
     official: true
     note: 金山探索(官方觀光)：小瑪克手工披薩專賣店 Le Petit Mark 介紹
   verify_status: verified

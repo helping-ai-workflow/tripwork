@@ -28,7 +28,8 @@ What it writes:
 1. **markdown** — `trips/<slug>/<stem>.md`: the brief's headline and dates line, every day's
    table from the renderer's `render_day_table` — never hand-author table rows; that is how
    naked `$` and dead-text names leaked before — (the POI name is the Google Maps link, built from `name_local`; a primary source
-   link `官網`; free text escaped so prices like `\$120` cannot trigger KaTeX), and the 備案 /
+   link — `官網` for an official source, else the source's site name; a move row's link leads
+   with its mode's emoji; free text escaped so prices like `\$120` cannot trigger KaTeX), and the 備案 /
    出發前檢查清單 / 費用估算 sections exactly when the days' `alternatives` / the checklist /
    `cost.yaml` carry data.
 2. **html** — `trips/<slug>/<stem>.html`: the v1.0 reader. One self-contained, offline page
@@ -48,6 +49,18 @@ Both are re-validated by `export-gate`.
 `trips/<slug>/<stem>.md` into a Notion page via the consumer's Notion MCP — there is no
 separate Notion adapter, deliverable, or gate. The md is already validated by `export-gate`,
 so the pasted content inherits that hygiene; the plugin core never imports an MCP client.
+
+## Survey: the list page
+
+A survey brief (`mode: survey`) has no itinerary and no gate; it ends with its list page:
+
+    python <plugin>/scripts/tripwork.py table <slug> --page
+
+It writes `trips/<slug>/<short_name> 清單.html` from verified-pois and the brief (the same
+stop cards as the reader, grouped 吃的 / 景點 / 住的 / 其他, best rated first) and refuses
+(exit 2) when the brief cannot name it or the page fails the shipped HTML safety check. Then
+tell the user the page's path and that `tripwork.py table <slug> 吃的` (or 景點, or the
+fields they name) prints the same places as a table.
 
 ## Photo enrichment (owned here, opt-in)
 

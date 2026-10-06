@@ -1,5 +1,75 @@
 # Changelog
 
+## 2.1.0 — Chinese sources carry their region, home on the map, a survey list, ratings
+
+### Added
+
+- **Survey: collect and verify, no itinerary.** A brief with `mode: survey` needs only
+  `slug`, `short_name`, `destination` and `categories`; dates are optional. The pipeline
+  skips the travel advisory, verifies, and ends with a phone list page,
+  `trips/<slug>/<short_name> 清單.html` (`tripwork.py table <slug> --page`): the reader's own
+  stop card per place, grouped 吃的 / 景點 / 住的 / 其他, best rated first, no script needed.
+  Removing `mode` upgrades the folder to a trip; verified places carry over, and a new
+  `must_do` topic sends research back for it: research records the topics it searched in
+  candidates.yaml's `must_do_searched`, and the oracle asks a survey for that record.
+- **`tripwork.py table <slug> [fields | 吃的 | 景點] [--out FILE]`** prints verified places as
+  a Markdown table: name, category, area, address, hours, closed days, booking, intro,
+  rating, review count, rating warning, status, map link, sources.
+- **Opening times.** `hours.open` (optional, from the same source as `close`): lists print
+  `11:00–21:00（最後點餐 20:30）`; never used for scheduling.
+- **Ratings (optional).** `rating: {platform, score, count, source_url, as_of, note}` on a
+  candidate rides to verified-pois. Lists sort by it and warn on fewer than 30 reviews or a
+  `note`; a missing rating never stops or demotes a place, and ratings are never a conflict.
+- **Home on the map.** `home_origin_point` / `home_return_point` (a landmark near home, never
+  the address) are drawn first on day one and last on the last day: on the stops' map when the
+  home leg is within `routing.max_hop_mins`, on a small map of their own when longer (only the leg touching home decides; a flight
+  still starts a new map).
+- **Taiwan road and 村里 points.** When no name lookup is accepted, a Taiwanese address that
+  resolves only to its road stands in when the road point lies in the district
+  (`nominatim_road`), else its 村里's centre (`village_centroid`); both are approximate and
+  disclosed (「它地址那條路上的一點」/「它所在村里的中心點」), never a veto on a name hit.
+- **Lodging place ids.** accommodations candidates take `gmaps_place_id`; the hotel's map
+  link opens the exact place.
+
+### Changed
+
+- **Chinese carries its region.** `local_lang` refuses a bare `zh` (rule 1 names zh-TW /
+  zh-HK / zh-CN / zh-SG / zh-MY); a source counts as local only with the same region
+  (`ZH_tw`, `zh-Hant-TW` read as zh-TW). A source tagged only `zh` asks for its region.
+- **A lookup counts only when its name matches.** Each geocode tier takes up to five results
+  and keeps the first whose name matches the venue (local or roman); a bare-name hit must also
+  lie in the claimed district. A namesake elsewhere is no hit; a precise hit outside the
+  district (it may have moved) still stops to ask.
+- **Country codes.** 台灣 / 臺灣 / Taiwan / 中華民國 / ROC map to `tw` without a lookup; a
+  country name no lookup knows stops `verify` (exit 2) instead of searching worldwide.
+- **An official source is never a search results page** — for the bookable link and in a new
+  itinerary-gate check over advisory, calendar, seasonal and legs, each routed to the stage
+  that wrote it. `seasonal.yaml` joins the gate's inputs.
+- **Markdown labels.** A non-official source is named by its site, not 「官網」; a move row
+  leads with its mode's emoji, one per icon the reader draws (🚶🚆🚌🚗⛴️✈️🚡).
+- **Map labels.** The hotel is 「旅館」 at either end; 「出發／回家」 now mean home.
+
+### Fixed
+
+- The title list prints even without the font package; the page then stops in one line
+  (`pip install fonttools brotli`, exit 2), no traceback.
+- `SystemExit("text")` from a script prints its text (exit 1) through `tripwork.py`.
+- Gate 1a: 「所有來源都在 X」 for three or more sources on one site; a URL with no host is
+  not counted.
+
+### Migration
+
+- Run `python <plugin>/scripts/tripwork.py migrate <slug> --apply` once per trip (a dry run
+  first lists the counts): Chinese sources get their region where the URL proves it (a
+  .tw/.cn/.hk/.sg/.my domain, a zh-tw style path, a tw. subdomain); the rest stay `zh` and
+  ask for a region at the next verify. A brief's `zh` becomes zh-TW for a Taiwan trip;
+  another country is listed for you to set by hand.
+- Geocode caches written before 2.1.0 are looked up once more on the next verify.
+- To see home on the map, give trip-brief a landmark near home once; a brief with only the
+  home strings draws none. Re-run `tripwork.py maps <slug>` for tiles.
+
+Tests: 2190 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 485 passed (headless Chromium and WebKit).
+
 ## 2.0.0 — one command for every script, sources counted by site, only open places offered
 
 ### Added

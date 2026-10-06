@@ -62,22 +62,78 @@ def _geo(p):
     return (lat, lng) if lat is not None and lng is not None else None
 
 
+# Map labels of the day's two ends (v2.1.0 D10: home is drawn, so 回家 now means home; the
+# hotel is 旅館 at either end). The user's pick on the design board (H1).
+LABELS = {"home_start": "出發", "home_end": "回家", "home_merged": "出發・回家",
+          "hotel_start": "旅館", "hotel_end": "旅館", "hotel_merged": "旅館"}
+HOME_IDS = ("home-origin", "home-return")
+
+
+def home_poi(brief, which):
+    """The brief's home point as a POI-shaped record the map draws (v2.1.0 D10), or None.
+    `which` is 'origin' or 'return'; ids are HOME_IDS, never a POI's (the schema refuses them)."""
+    pt = (brief or {}).get(f"home_{which}_point")
+    if not isinstance(pt, dict) or number(pt.get("lat")) is None or number(pt.get("lng")) is None:
+        return None
+    return {"id": HOME_IDS[0] if which == "origin" else HOME_IDS[1], "name_display": pt.get("name") or "",
+            "geocode": {"lat": pt["lat"], "lng": pt["lng"], "geocode_source": pt.get("geocode_source")}}
+
+
+def _home_leg_far(ctx, leg):
+    """A home leg longer than routing.max_hop_mins (the same <= as classify_hop), or with no
+    duration, puts home on a map of its own."""
+    from scripts.rederive import MAX_HOP_MINS
+    limit = ((ctx.brief or {}).get("routing") or {}).get("max_hop_mins") or MAX_HOP_MINS
+    mins = number(leg.get("duration_mins"))
+    return mins is None or mins > limit
+
+
+def _home_leg(ctx, r):
+    legs = (ctx.legs or {}).get("legs") or []
+    li = r.get("leg_index")
+    if isinstance(li, int) and not isinstance(li, bool) and 0 <= li < len(legs) \
+            and isinstance(legs[li], dict) and legs[li].get("kind") == "home":
+        return legs[li]
+    return None
+
+
 def day_points(ctx, i, day):
     """[(segment index, point)] in chain order. A point is a dict with key (view name),
     target node (d<N>-<key>), chip text, poi, kind and tag text. Long moves (leg_index) start a new
-    segment; stops with no geocode are not points."""
+    segment; stops with no geocode are not points. The first day starts at home and the
+    last day ends there when the brief records the point (home_origin_point /
+    home_return_point): a home leg within max_hop_mins keeps it on the stops' map, a longer
+    one gives it a map of its own -- the leg touching home decides for a chain of them."""
     rows = [r for r in day.get("rows") or [] if isinstance(r, dict)]
     start = ctx.poi_map.get(ctx.days[i - 2].get("lodging")) if i > 1 and ctx.days[i - 2].get("lodging") else None
     end = ctx.poi_map.get(day.get("lodging")) if day.get("lodging") else None
     hotels = {id(x) for x in (start, end) if x}
+    home_start = home_poi(ctx.brief, "origin") if i == 1 else None
+    home_end = home_poi(ctx.brief, "return") if i == len(ctx.days) else None
+    if home_start and home_end and _geo(home_start) == _geo(home_end):
+        home_end = home_start                                     # a day trip from home: one point
+    home_rows = [r for r in rows if r.get("slot") == "move" and _home_leg(ctx, r)]
+    far_start = _home_leg_far(ctx, _home_leg(ctx, home_rows[0])) if home_rows else False
+    far_end = _home_leg_far(ctx, _home_leg(ctx, home_rows[-1])) if home_rows else False
+    merged = home_start is not None and home_start is home_end
     pts, seg = [], 0
+    if home_start:
+        label = LABELS["home_merged" if merged else "home_start"]
+        pts.append((seg, {"key": "home-start", "radio": f"d{i}-home-start", "chip": label, "poi": home_start,
+                          "kind": "home", "tag": label}))
     if start and _geo(start):
-        pts.append((seg, {"key": "start", "radio": f"d{i}-start", "chip": "出發", "poi": start,
-                          "kind": "lodging", "tag": "出發"}))
+        pts.append((seg, {"key": "start", "radio": f"d{i}-start", "chip": LABELS["hotel_start"], "poi": start,
+                          "kind": "lodging", "tag": LABELS["hotel_start"]}))
     for j, r in enumerate(rows):
         if r.get("slot") == "move":
             if r.get("leg_index") is not None:
-                seg += 1
+                before_stops = len(pts) <= bool(home_start)
+                if home_start and before_stops and r is home_rows[0]:
+                    seg += far_start          # the leg leaving home decides whether home joins
+                elif home_end and not before_stops and r is home_rows[-1]:
+                    seg += far_end            # the leg reaching home decides
+                else:
+                    seg += 1                  # every other long move starts a new map, as before
             continue
         p = ctx.poi_map.get(r.get("poi_id"))
         if not p or id(p) in hotels or not _geo(p):
@@ -85,8 +141,12 @@ def day_points(ctx, i, day):
         pts.append((seg, {"key": f"s{j}", "radio": f"d{i}-s{j}", "chip": r.get("time") or _name(p),
                           "poi": p, "kind": r.get("slot") or "visit", "tag": r.get("time") or _name(p)}))
     if end and _geo(end):
-        pts.append((seg, {"key": "end", "radio": f"d{i}-end", "chip": "回家", "poi": end,
-                          "kind": "lodging", "tag": "回家"}))
+        pts.append((seg, {"key": "end", "radio": f"d{i}-end", "chip": LABELS["hotel_end"], "poi": end,
+                          "kind": "lodging", "tag": LABELS["hotel_end"]}))
+    if home_end:
+        label = LABELS["home_merged" if merged else "home_end"]
+        pts.append((seg, {"key": "home-end", "radio": f"d{i}-home-end", "chip": label, "poi": home_end,
+                          "kind": "home", "tag": label}))
     return pts
 
 
@@ -114,10 +174,13 @@ def view_of_row(ctx, i, day):
 
 
 def _segments(points):
+    """The day's maps: points grouped by segment. A segment of one is dropped (its stop gets
+    a close-up instead), except home's own (v2.1.0 D10: a far home is a small map)."""
     segs = {}
     for s, pt in points:
         segs.setdefault(s, []).append(pt)
-    return [pts for _, pts in sorted(segs.items()) if len(pts) >= 2]
+    return [pts for _, pts in sorted(segs.items())
+            if len(pts) >= 2 or (len(pts) == 1 and pts[0].get("kind") == "home")]
 
 
 def _schematic_bbox(pts):
@@ -169,16 +232,17 @@ def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False):
     that overlaps no other label, no dot, and not the corner credit."""
     s = w / PHONE_W
     marks = []
-    hotel_drawn = False
+    drawn = set()
     for pt in pts:
         lat, lng = _geo(pt["poi"])
         x, y = project(lat, lng, bbox, w, h)
         x, y = round(min(max(x, MARGIN), w - MARGIN), 1), round(min(max(y, MARGIN), h - MARGIN), 1)
         tag = pt["tag"]
-        if pt["kind"] == "lodging" and merged:
-            if hotel_drawn:
+        if pt["kind"] in ("lodging", "home") and merged:
+            if id(pt["poi"]) in drawn:
                 continue
-            hotel_drawn, tag = True, "出發・回家"
+            drawn.add(id(pt["poi"]))
+            tag = LABELS["home_merged" if pt["kind"] == "home" else "hotel_merged"]
         marks.append((pt, x, y, tag))
     r = 7 * s
     taken = [(x - r, y - r, x + r, y + r) for _, x, y, _ in marks]
@@ -289,7 +353,8 @@ def map_card(ctx, i, day):
     date = str(day.get("date"))
     side = [e for e in ((ctx.maps or {}).get("days") or {}).get(date) or [] if isinstance(e, dict)]
     segs = _segments(points)
-    merged = bool(points and points[0][1]["key"] == "start" and points[-1][1]["key"] == "end"
+    merged = bool(points and points[0][1]["key"] in ("start", "home-start")
+                  and points[-1][1]["key"] in ("end", "home-end")
                   and points[0][1]["poi"] is points[-1][1]["poi"])
     used_tiles = False
 
@@ -302,7 +367,7 @@ def map_card(ctx, i, day):
         return (entry["image"], entry["bbox"], entry.get("closeups") or {}) if ok else (None, None, {})
 
     order = [("all", "全圖")] + [(p["key"], p["chip"]) for _, p in points]
-    chips = "".join(f'<a class="chip c-d{i}-{k}{" hotel" if k in ("start", "end") else ""}" href="#{target(i, k)}">'
+    chips = "".join(f'<a class="chip c-d{i}-{k}{" hotel" if k in ("start", "end") else " home" if k.startswith("home") else ""}" href="#{target(i, k)}">'
                     f'{esc(label)}</a>' for k, label in order)
     views = []
     for n, (key, _label) in enumerate(order):

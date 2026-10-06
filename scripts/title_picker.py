@@ -327,9 +327,19 @@ def main(argv):
 
     itin, brief = load("itinerary.yaml"), load("trip-brief.yaml")
     acc = load("accommodations.yaml", required=False)
+    import sys
+
+    from scripts.render.reader.assets import FontPackageMissing
+
+    # v2.1.0 D8: the list needs no font package; print it first, then the page
+    print(text_list(itin, brief, acc))
+    try:
+        html = page(itin, brief, acc)
+    except FontPackageMissing as exc:
+        print(exc, file=sys.stderr)
+        return 2
     work.mkdir(parents=True, exist_ok=True)
     out = work / PAGE_NAME
-    out.write_text(page(itin, brief, acc), encoding="utf-8")
+    out.write_text(html, encoding="utf-8")
     print(f"title picker: {out}")
-    print(text_list(itin, brief, acc))
     return 0

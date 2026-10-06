@@ -2,7 +2,7 @@ slug: trip-b
 destination:
   country: Taiwan
   city: 日月潭（南投縣魚池鄉）
-  local_lang: zh
+  local_lang: zh-TW
 dates:
   start: '2026-07-18'
   end: '2026-07-20'

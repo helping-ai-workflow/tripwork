@@ -16,7 +16,15 @@ Capture the trip into `trips/<slug>/data/trip-brief.yaml` (schema: `schemas/trip
 
 ## Capture
 
-- `destination` (required: `{country, city, local_lang}`) — `local_lang` (ISO-639) drives
+- **Survey** (`mode: survey`): the user wants a verified list, not a trip. Required
+  then: `slug`, `short_name`, `destination` (the area goes in `city`), `categories` (what to
+  look for); `dates` optional (with dates the list marks each day a place is closed). To
+  upgrade, add the trip fields (dates, members, base, must_do, ...) and remove `mode`; verified
+  places carry over. A business status is good for 90 days: a list left longer asks for a
+  fresh check of the stale ones when it is upgraded.
+- `destination` (required: `{country, city, local_lang}`) — `country` may be a two-letter code
+  (JP); a name no lookup knows stops verify. `local_lang` (ISO-639; Chinese with its region:
+  zh-TW / zh-HK / zh-CN / zh-SG / zh-MY, never a bare zh) drives
   source-verify's local-language gate; `country`/`city` anchor geocoding and advisory lookup.
 - `airline` (optional) — needed by travel-advisory for carrier-specific battery/baggage rules.
 - `dates.start` / `dates.end` (ISO `YYYY-MM-DD`)
@@ -25,6 +33,12 @@ Capture the trip into `trips/<slug>/data/trip-brief.yaml` (schema: `schemas/trip
 - `must_do` (named experiences the user requires)
 - `constraints` (budget, mobility, dietary)
 - `preferences` (free-form object)
+- `home_origin` / `home_return` (optional; where the trip leaves from and returns to — the
+  home legs' endpoints). For the map, also ask for **a shop or landmark near home** (never the
+  home address: the point is drawn on the first and last day's map, shared copies included),
+  look it up like any place, and record `home_origin_point` / `home_return_point`
+  (`{name, lat, lng, geocode_source}`). A brief with only the strings draws no home; ask for the
+  landmark the next time the brief is touched.
 - `routing.max_hop_mins` (optional; default 60 applied downstream)
 - `overnight_stops` (optional; ordered list of `{district, nights, lodging?}`). Capture
   for multi-point trips (a self-drive tour sleeps in several towns). A single-base trip

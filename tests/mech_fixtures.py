@@ -47,7 +47,8 @@ def load_trip(trip):
             "accommodations": opt("accommodations.yaml"),
             "calendar": opt("calendar.yaml"), "advisory": opt("advisory.yaml"),
             "legs": opt("legs.yaml"), "routing": opt("routing.yaml"),
-            "cost": opt("cost.yaml"), "brief": opt("trip-brief.yaml") or {}}
+            "cost": opt("cost.yaml"), "seasonal": opt("seasonal.yaml"),
+            "brief": opt("trip-brief.yaml") or {}}
 
 MD_DELIVERABLE = """## 測試行程
 

@@ -29,6 +29,9 @@ USAGE = {
     "publish": ("<slug> [--share-base URL]",
                 "build the locked family page (password: TRIPWORK_PUBLISH_PASSWORD='…' prefix, asked each time)"),
     "deploy": ("<slug> --project NAME --confirm", "upload the locked pages to Cloudflare Pages (after the user's yes)"),
+    "table": ("<slug> [欄位… | 吃的 | 景點] [--out FILE] | --page",
+              "print the verified places as a Markdown table (a survey's list, or any trip's); "
+              "--page writes a survey's list page"),
     "migrate": ("[<slug>] [--apply]", "move pre-v1.0 trips to the v1.0 layout (dry run without --apply)"),
 }
 
@@ -88,6 +91,7 @@ COMMANDS = {
     "fingerprint": lambda slug, rest: [("scripts.input_fingerprint", [f"{_trip(slug)}/data/trip-brief.yaml", *rest])],
     "publish": lambda slug, rest: [("scripts.publish", ["build", _trip(slug), *rest])],
     "deploy": lambda slug, rest: [("scripts.publish", ["deploy", _trip(slug), *rest])],
+    "table": lambda slug, rest: [("scripts.survey_table", [_trip(slug), *rest])],
     "migrate": lambda slug, rest: [("scripts.migrate_v1", [_trip(slug) if slug else "trips", *rest])],
 }
 
@@ -121,7 +125,14 @@ def _call(module, argv, cmd):
     sys.argv[0] = f"tripwork.py {cmd}"                  # argparse names the command, not the file
     try:
         return mod.main(argv)
+    except RuntimeError as exc:
+        if type(exc).__name__ != "FontPackageMissing":  # imported lazily: the stub precedes every import
+            raise
+        print(exc, file=sys.stderr)
+        return 2
     except SystemExit as exc:                           # argparse usage errors
+        if isinstance(exc.code, str):                   # SystemExit("text"): Python prints it, exit 1
+            print(exc.code, file=sys.stderr)
         return exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
     finally:
         sys.argv[0] = saved

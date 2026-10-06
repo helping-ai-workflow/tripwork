@@ -194,6 +194,7 @@ _CLASS_STAGE = {
     "lodging_no_geocode_source": "tripwork:accommodation-research",
     "lodging_verify_status_mismatch": "tripwork:accommodation-research",
     "poi_verdict_superseded": "tripwork:source-verify",
+    "poi_verify_status_mismatch": "tripwork:source-verify",
     "lodging_verdict_superseded": "tripwork:accommodation-research",
     "ai_tone": "tripwork:itinerary-synthesis",
     "day_chain_broken": "tripwork:itinerary-synthesis",
@@ -284,6 +285,18 @@ def _class_fixture_failures(name):
     if name == "poi_verdict_superseded":
         pois = [{"id": "p1", "verify_status": "verified", "business_status": "OPERATIONAL"}]
         return run_rederivation(ITIN, {}, **clean, pois=pois)["failures"]
+    if name == "poi_verify_status_mismatch":
+        # v2.1.0 D3: recorded 'verified' on bare-zh sources; a zh-TW trip re-derives
+        # 'unverified' (Gate 1b) -- the shipped rederive_pois produces the message.
+        pois = [{"id": "p1", "name_local": "示意食堂", "verify_status": "verified",
+                 "resolved_name": "示意食堂",
+                 "sources": [{"url": "https://a.example/p1", "lang": "zh"},
+                             {"url": "https://b.example/p1", "lang": "zh"}],
+                 "geocode": {"lat": 25.0, "lng": 121.5, "geocode_source": "nominatim"},
+                 "business_status": {"status": "OPERATIONAL",
+                                     "source_url": "https://a.example/p1", "as_of": today}}]
+        brief = {"destination": {"country": "台灣", "city": "示意市", "local_lang": "zh-TW"}}
+        return run_rederivation(ITIN, {}, **clean, pois=pois, trip_brief=brief)["failures"]
     if name == "lodging_verdict_superseded":
         accommodations = {"stops": [{"district": "A", "candidates": [{
             "id": "c1", "verify_status": "verified",

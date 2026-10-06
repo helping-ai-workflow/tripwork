@@ -11,6 +11,11 @@ Gather a *candidate pool* into `trips/<slug>/data/candidates.yaml` (schema: `sch
 
 - Gather candidates using the **source ladder** in `tripwork:using-tripwork` (WebSearch, else WebFetch against an official page, else a search HTML endpoint for discovery only). Record the URL you actually fetched on every candidate.
 - For each topic in `must_do` + standard categories (food, sights, shopping), search broadly.
+  A survey brief (`mode: survey`) searches its `categories` instead of the standard ones.
+  Always record the `must_do` topics you searched in candidates.yaml's top-level
+  `must_do_searched` — `[]` when there were none (a survey has none; the oracle asks for it);
+  when an upgraded brief adds a topic, append candidates for it (keep the existing ones) and
+  add it to that list.
 - **Always include local-language queries** (e.g. Korean for Korea) — local sources surface places international sources miss, and a local source is required to pass `source-verify`.
 - **Run two tracks for every topic.** The **local track**: destination-language queries
   (official sites, local review and listing sites). The **Taiwan track**: Traditional-Chinese
@@ -24,7 +29,17 @@ Gather a *candidate pool* into `trips/<slug>/data/candidates.yaml` (schema: `sch
   Chinese — translate a foreign one), `site_local` for a non-Chinese source (the site's own
   name), and `note` (one line: what this page says that matters). The v1.0 reader prints them
   as the source list; `source_verify_run.py` copies them into verified-pois unchanged.
-- Record every source URL with its `lang`. Capture `claimed_district` when a source states a location, but treat it as a claim, not a fact.
+- Record every source URL with its `lang` — Chinese with its region (`zh-TW`, `zh-HK`, `zh-CN`,
+  `zh-SG`, `zh-MY`), never a bare `zh`: a source without a region is not a local-language source.
+  Capture `claimed_district` when a source states a location, but treat it as a claim, not a fact.
+- **Rating (optional):** when a source states one, record `rating: {platform, score, count,
+  source_url, as_of}` on the candidate. With the consumer's Google key, the workspace's own
+  script records Google's (the plugin never calls Google; asking Places for rating /
+  userRatingCount bills that call at the Enterprise tier — about $35 per 1000, first 1000 a
+  month free by third-party pricing; check Google's own price list); without one, another
+  platform's (Tabelog, 愛食記 …); with neither, leave it out. A missing rating never stops or
+  demotes a place. When a high score sits against clear complaints in the write-ups you
+  collected, say so in `rating.note`.
 - When a dated source states the venue is currently operating, record the sourced `business_status` object form (`{status, source_url, as_of}`) — a bare string (`business_status: OPERATIONAL`) is schema-valid but self-attested, and will leave the POI `unverified` at `source-verify`'s Gate 0.
 
 ## Caching

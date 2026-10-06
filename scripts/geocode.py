@@ -36,27 +36,38 @@ class GeocodeResult:
     lat: float
     lng: float
     display_name: str
+    address: dict | None = None      # Nominatim's addressdetails, when asked for (v2.1.0 D5)
 
-def geocode(query, timeout=10, countrycodes=None, feature_type=None):
-    """Resolve a place name to coordinates. Returns GeocodeResult or None.
+
+def _results(params, timeout, details):
+    if details:
+        params["addressdetails"] = 1
+    resp = _get(params, timeout)
+    resp.raise_for_status()
+    return [GeocodeResult(lat=float(d["lat"]), lng=float(d["lon"]), display_name=d.get("display_name", ""),
+                          address=d.get("address") if details else None)
+            for d in resp.json() or []]
+
+
+def geocode_many(query, timeout=10, countrycodes=None, feature_type=None, limit=5, details=False):
+    """Up to `limit` results of one free-text query, best first ([] when none).
 
     `countrycodes` (ISO 3166-1 alpha-2, e.g. 'jp') keeps the search inside one country;
-    `feature_type` is Nominatim's featureType ('settlement' for a district or town).
-    Caller is responsible for rate limiting (Nominatim policy: <= 1 req/s).
+    `feature_type` is Nominatim's featureType ('settlement' for a district or town);
+    `details` asks for each result's address parts. Caller rate-limits (<= 1 req/s).
     """
-    params = {"q": query, "format": "json", "limit": 1}
+    params = {"q": query, "format": "json", "limit": limit}
     if countrycodes:
         params["countrycodes"] = countrycodes
     if feature_type:
         params["featureType"] = feature_type
-    resp = _get(params, timeout)
-    resp.raise_for_status()
-    data = resp.json()
-    if not data:
-        return None
-    top = data[0]
-    return GeocodeResult(lat=float(top["lat"]), lng=float(top["lon"]),
-                         display_name=top.get("display_name", ""))
+    return _results(params, timeout, details)
+
+
+def geocode(query, timeout=10, countrycodes=None, feature_type=None):
+    """The first result of geocode_many (one requested), or None."""
+    out = geocode_many(query, timeout=timeout, countrycodes=countrycodes, feature_type=feature_type, limit=1)
+    return out[0] if out else None
 
 def in_region(lat, lng, region_lat, region_lng, radius_km=5.0):
     """True if (lat,lng) is within radius_km of a region centroid."""
@@ -82,26 +93,40 @@ def name_matches(query_name, display_name):
         return False
     return core in q or q in core
 
-def geocode_structured(name, city=None, country=None, timeout=10):
+def geocode_structured_many(name, city=None, country=None, timeout=10, limit=5, details=False):
     """Nominatim structured query — higher hit-rate for small venues than free text.
-
-    Caller rate-limits (Nominatim policy: <= 1 req/s).
-    """
-    params = {"format": "json", "limit": 1}
+    Up to `limit` results, best first. Caller rate-limits (<= 1 req/s)."""
+    params = {"format": "json", "limit": limit}
     if name:
         params["street"] = name      # venue name in the 'street' slot (Nominatim idiom)
     if city:
         params["city"] = city
     if country:
         params["country"] = country
-    resp = _get(params, timeout)
-    resp.raise_for_status()
-    data = resp.json()
-    if not data:
-        return None
-    top = data[0]
-    return GeocodeResult(lat=float(top["lat"]), lng=float(top["lon"]),
-                         display_name=top.get("display_name", ""))
+    return _results(params, timeout, details)
+
+
+def geocode_structured(name, city=None, country=None, timeout=10):
+    """The first result of geocode_structured_many (one requested), or None."""
+    out = geocode_structured_many(name, city=city, country=country, timeout=timeout, limit=1)
+    return out[0] if out else None
+
+
+BARE_NAME_TIERS = (3, 5)             # resolve_place tiers that query the name alone
+
+
+def accept(result, tier, name_local, name_roman=None, region=None):
+    """Whether one resolve_place result counts (v2.1.0 D6): its name matches the venue's
+    local or roman name, and a bare-name tier's hit lies inside `region` =
+    (lat, lng, radius_km) -- with no region, a bare-name hit never counts. A precise
+    tier's hit outside the region still counts: the venue may have moved, and Gate 3b
+    asks the user."""
+    if not (name_matches(name_local, result.display_name)
+            or (name_roman and name_matches(name_roman, result.display_name))):
+        return False
+    if tier in BARE_NAME_TIERS:
+        return region is not None and in_region(result.lat, result.lng, *region)
+    return True
 
 def geocode_country(country, timeout=10):
     """The ISO 3166-1 alpha-2 code ('jp') Nominatim gives a country name in any language
@@ -114,18 +139,30 @@ def geocode_country(country, timeout=10):
     return code.lower() if re.fullmatch(r"[A-Za-z]{2}", code) else None
 
 
-def country_code(country, timeout=10, cache=None, pace=None):
-    """`country` as an alpha-2 code: kept as is when it already is one, else looked up
-    once (geocode_country) and remembered in the per-trip cache, a miss included."""
+# The ways a trip brief names Taiwan (casefolded). A literal because the user plans
+# domestic trips most, and the map service does not read every variant ('臺灣').
+TW_COUNTRY_NAMES = {"台灣": "tw", "臺灣": "tw", "taiwan": "tw", "中華民國": "tw", "roc": "tw"}
+
+
+def country_code(country, timeout=10, cache=None, pace=None, offline=False):
+    """`country` as an alpha-2 code. Looked up in order (v2.1.0 D4): Taiwan's names
+    (TW_COUNTRY_NAMES), an alpha-2 code kept as is, the per-trip cache, then Nominatim
+    once (geocode_country), remembered in the cache, a miss included. `offline` stops
+    before the network (None). A network error propagates: it is not a miss."""
     if not country or not str(country).strip():
         return None
-    if re.fullmatch(r"[A-Za-z]{2}", str(country).strip()):
-        return str(country).strip().lower()
+    name = str(country).strip()
+    if name.casefold() in TW_COUNTRY_NAMES:
+        return TW_COUNTRY_NAMES[name.casefold()]
+    if re.fullmatch(r"[A-Za-z]{2}", name):
+        return name.lower()
     key = cache_key(country, "@country", None)
     if cache is not None:
         hit, value = cache_get(cache, key)
         if hit:
             return value.get("country_code") if isinstance(value, dict) else None
+    if offline:
+        return None
     code = geocode_country(country, timeout=timeout)
     if pace is not None:
         pace()
@@ -135,7 +172,7 @@ def country_code(country, timeout=10, cache=None, pace=None):
 
 
 def resolve_place(name, district=None, country=None, timeout=10, cache=None,
-                  name_roman=None, pace=None, area=False):
+                  name_roman=None, pace=None, area=False, region=None):
     """Multi-tier resolve (structured query first, then free-text fallbacks) with an
     optional per-trip cache.
 
@@ -152,6 +189,13 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
       3. free-text '<name>' (bare core name)
       4. free-text '<name_roman> <district> <country>' (when name_roman given)
       5. free-text '<name_roman>'                       (when name_roman given)
+    v2.1.0 (D6): each tier asks for up to 5 results, and a result counts only when
+    `accept` says so -- its name matches, and a bare-name tier (3, 5) lands inside
+    `region` = (lat, lng, radius_km). A tier with no accepted result is no hit: the
+    next tier runs. A cached result is re-checked the same way (the cache records its
+    tier); a cache entry written before v2.1.0 (no tier) is looked up once more and
+    rewritten. `area=True` lookups (a district's own centre) take the first result,
+    unchecked, as before.
     Every free-text tier is kept inside `country` (Nominatim `countrycodes`, the code
     looked up once per trip cache): a bare name otherwise matches a namesake abroad.
     `area=True` looks up a district or town, not a venue: no street-slot query, the
@@ -181,40 +225,84 @@ def resolve_place(name, district=None, country=None, timeout=10, cache=None,
     if cache is not None:
         hit, value = cache_get(cache, key)
         if hit:
-            # TW-019: trust a cache hit only if it is well-formed and from a real
-            # geocoder; otherwise treat as a miss and re-query.
-            if value is None:
-                return None, None
-            if (isinstance(value.get("lat"), (int, float))
-                    and isinstance(value.get("lng"), (int, float))
-                    and value.get("source") in ("nominatim", "nominatim_structured")):
-                return (GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")),
-                        value["source"])
+            cached = _cached_place(value, area, name, name_roman, region)
+            if cached is not None:
+                return cached
 
-    result = None if area else _paced(geocode_structured, name, city=district, country=country,
-                                      timeout=timeout)
-    source = "nominatim_structured"
-    if result is None:
+    result, source, tier = None, None, None
+    if area:
         cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
-        attempts = [" ".join(p for p in (name, district, country) if p), name]
-        if name_roman:
-            attempts.append(" ".join(p for p in (name_roman, district, country) if p))
-            attempts.append(name_roman)
-        for q in attempts:
-            if not q or not str(q).strip():
-                continue
-            result = _paced(geocode, q, timeout=timeout, countrycodes=cc,
-                            feature_type="settlement" if area else None)
-            if result is not None:
-                break
-        source = "nominatim" if result is not None else None
+        for q in (" ".join(p for p in (name, district, country) if p), name):
+            if q and str(q).strip():
+                result = _paced(geocode, q, timeout=timeout, countrycodes=cc, feature_type="settlement")
+                if result is not None:
+                    source = "nominatim"
+                    break
+    else:
+        r = _best(_paced(geocode_structured_many, name, city=district, country=country, timeout=timeout),
+                  1, name, name_roman, region)
+        if r is not None:
+            result, source, tier = r, "nominatim_structured", 1
+        if result is None:
+            cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
+            attempts = [(2, " ".join(p for p in (name, district, country) if p)), (3, name)]
+            if name_roman:
+                attempts += [(4, " ".join(p for p in (name_roman, district, country) if p)), (5, name_roman)]
+            for n, q in attempts:
+                if not q or not str(q).strip():
+                    continue
+                r = _best(_paced(geocode_many, q, timeout=timeout, countrycodes=cc), n, name, name_roman, region)
+                if r is not None:
+                    result, source, tier = r, "nominatim", n
+                    break
 
     if cache is not None:
-        cache_put(cache, key, None if result is None else
-                  {"lat": result.lat, "lng": result.lng,
-                   "display_name": result.display_name, "source": source})
+        if area:
+            cache_put(cache, key, None if result is None else
+                      {"lat": result.lat, "lng": result.lng,
+                       "display_name": result.display_name, "source": source})
+        else:
+            cache_put(cache, key, {"v": 2, "miss": True} if result is None else
+                      {"v": 2, "lat": result.lat, "lng": result.lng, "display_name": result.display_name,
+                       "source": source, "tier": tier, "address": result.address})
 
     return (result, source) if result is not None else (None, None)
+
+
+def _best(results, tier, name, name_roman, region):
+    """The result one tier keeps: of those `accept` passes, the first inside `region` --
+    a chain's branch in the claimed district beats an earlier one elsewhere -- else the
+    first accepted (a precise hit elsewhere may have moved; Gate 3b asks). None if none."""
+    ok = [r for r in results if accept(r, tier, name, name_roman, region)]
+    if region is not None:
+        inside = next((r for r in ok if in_region(r.lat, r.lng, *region)), None)
+        if inside is not None:
+            return inside
+    return ok[0] if ok else None
+
+
+def _cached_place(value, area, name, name_roman, region):
+    """A cache hit resolve_place may return, or None to look up again. A district's
+    centre (area) is trusted as before (TW-019: only a well-formed geocoder answer). A
+    venue entry must be v2.1.0's shape and pass `accept` for its recorded tier; an older
+    entry, a miss included, is looked up once more."""
+    if area:
+        if value is None:
+            return None, None
+        if (isinstance(value.get("lat"), (int, float)) and isinstance(value.get("lng"), (int, float))
+                and value.get("source") in ("nominatim", "nominatim_structured")):
+            return GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")), value["source"]
+        return None
+    if not isinstance(value, dict) or value.get("v") != 2:
+        return None
+    if value.get("miss"):
+        return None, None
+    if not (isinstance(value.get("lat"), (int, float)) and isinstance(value.get("lng"), (int, float))
+            and value.get("source") in ("nominatim", "nominatim_structured")):
+        return None
+    r = GeocodeResult(value["lat"], value["lng"], value.get("display_name", ""), value.get("address"))
+    return (r, value["source"]) if accept(r, value.get("tier"), name, name_roman, region) else None
+
 
 _DASH = str.maketrans({c: "-" for c in "－−ー‐–—―"})
 _KANJI_CHOME = re.compile(r"^(.*?)([一二三四五六七八九十]+丁目)")
@@ -265,23 +353,72 @@ def address_point(address, country=None, timeout=10, cache=None, pace=None):
     if not str(address or "").strip():
         return None, None
     cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
+    details = cc == "tw"                  # v2.1.0 D5: a Taiwanese road point names its 村里
     for v in address_variants(address, cc):
         key = cache_key(v, None, country, kind="address") if cache is not None else None
         if cache is not None:
             hit, value = cache_get(cache, key)
-            if hit:
+            if hit and not (details and value and "address" not in value):   # pre-2.1.0: once more
                 if value:
-                    return GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")), v
+                    return GeocodeResult(value["lat"], value["lng"], value.get("display_name", ""),
+                                         value.get("address")), v
                 continue
-        r = geocode(v, timeout=timeout, countrycodes=cc)
+        found = geocode_many(v, timeout=timeout, countrycodes=cc, limit=1, details=details)
+        r = found[0] if found else None
         if pace is not None:
             pace()
         if cache is not None:
             cache_put(cache, key, None if r is None else
-                      {"lat": r.lat, "lng": r.lng, "display_name": r.display_name, "source": "nominatim_address"})
+                      {"lat": r.lat, "lng": r.lng, "display_name": r.display_name, "source": "nominatim_address",
+                       **({"address": r.address} if details else {})})
         if r is not None:
             return r, v
     return None, None
+
+
+_COUNTY_DISTRICT = re.compile(r"^(.+?[縣市])(.+?[區鄉鎮市])")
+
+
+def county_district(address):
+    """'臺南市中西區' from a Taiwanese address, or None: the prefix a 村里 is looked up under
+    (里 names repeat across the island)."""
+    m = _COUNTY_DISTRICT.match(unicodedata.normalize("NFKC", str(address or "")).strip())
+    return m.group(1) + m.group(2) if m else None
+
+
+def village_of(address):
+    """The 村 / 里 a Nominatim result lies in, from its address parts, or None."""
+    for k in ("neighbourhood", "city_district", "suburb", "quarter"):
+        v = (address or {}).get(k)
+        if isinstance(v, str) and v.endswith(("里", "村")):
+            return v
+    return None
+
+
+def village_point(county_dist, village, country=None, timeout=10, cache=None, pace=None):
+    """The centre of `village` under `county_dist` ('臺南市中西區示意里'): the first result
+    that is a boundary or a place -- not a building named after it -- or None. Cached under
+    cache_key(kind="village"); `pace` after an issued request."""
+    q = f"{county_dist}{village}"
+    key = cache_key(q, None, country, kind="village") if cache is not None else None
+    if cache is not None:
+        hit, value = cache_get(cache, key)
+        if hit:
+            return GeocodeResult(value["lat"], value["lng"], value.get("display_name", "")) if value else None
+    cc = country_code(country, timeout=timeout, cache=cache, pace=pace)
+    params = {"q": q, "format": "json", "limit": 5}
+    if cc:
+        params["countrycodes"] = cc
+    resp = _get(params, timeout)
+    if pace is not None:
+        pace()
+    resp.raise_for_status()
+    top = next((d for d in resp.json() or [] if d.get("class") in ("boundary", "place")), None)
+    out = GeocodeResult(float(top["lat"]), float(top["lon"]), top.get("display_name", "")) if top else None
+    if cache is not None:
+        cache_put(cache, key, None if out is None else
+                  {"lat": out.lat, "lng": out.lng, "display_name": out.display_name, "source": "village_centroid"})
+    return out
 
 
 def place_point(query, country=None, timeout=10, cache=None, pace=None):

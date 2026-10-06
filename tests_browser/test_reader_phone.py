@@ -296,7 +296,7 @@ def test_a_label_is_never_wider_than_its_reserved_box(open_page):
     overlap. Measured on the reader's own .tl font in this engine."""
     from scripts.render.reader.maps import _label_w
     pg = open_page(PHONE, js=False)
-    samples = ["Sapporo Beer Museum", "JR Tower", "08:00", "出發・回家", "Mt. Hakodate Ropeway"]
+    samples = ["Sapporo Beer Museum", "JR Tower", "08:00", "出發・回家", "旅館", "Mt. Hakodate Ropeway"]
     widths = pg.evaluate("""(ts)=>{const s=document.createElementNS('http://www.w3.org/2000/svg','svg');
       s.setAttribute('class','pins');document.body.append(s);
       return ts.map(t=>{const e=document.createElementNS('http://www.w3.org/2000/svg','text');e.setAttribute('class','tl');

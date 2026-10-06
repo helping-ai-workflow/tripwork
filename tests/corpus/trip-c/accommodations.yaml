@@ -36,10 +36,10 @@ stops:
       official: true
       note: 官網；西區噴水圓環旁、近火車站、免費停車、雲朗觀光
     - url: https://www.booking.com/hotel/tw/hotel-c1.zh-tw.html
-      lang: zh
+      lang: zh-TW
       note: Booking.com 2026房價；免費停車、2餐廳、距火車站5分鐘
     - url: https://www.klook.com/zh-TW/hotels/detail/443409-hotel-c1-hotel-chiayi/
-      lang: zh
+      lang: zh-TW
       note: Klook 評價超讚、早餐不錯、近市中心
     verify_status: verified
     resolved_name: 示品酒店嘉義
@@ -76,14 +76,14 @@ stops:
       url: https://hotelday.com.tw/hoteldayplusteascapedirect/
     sources:
     - url: https://hotelday.com.tw/hoteldayplusteascapedirect/
-      lang: zh
+      lang: zh-TW
       official: true
       note: 官網；東區新生路661號、茶文化設計、頂樓無邊際泳池、戶外停車(可退費)
     - url: https://www.booking.com/hotel/tw/tao-cheng-cha-yang-zi.zh-tw.html
-      lang: zh
+      lang: zh-TW
       note: Booking.com 2026房價；免費停車、距北門車站步行7分、含早方案
     - url: https://tw.trip.com/hotels/chiayi-city-hotel-detail-1480526/hotelday-plus-teascape/review.html
-      lang: zh
+      lang: zh-TW
       note: Trip.com 9.2分、266則真實評論
     verify_status: verified
     resolved_name: 承億文旅桃城茶樣子
@@ -119,14 +119,14 @@ stops:
       url: https://www.guanzhi-chiayi.com.tw/
     sources:
     - url: https://www.guanzhi-chiayi.com.tw/
-      lang: zh
+      lang: zh-TW
       official: true
       note: 官網；市中心、免費室內地下停車+戶外、多功能休閒旅館
     - url: https://www.booking.com/hotel/tw/jia-yi-guan-zhi-fan-dian-gu-fen-you-xian-gong-si.zh-tw.html
-      lang: zh
+      lang: zh-TW
       note: Booking.com 2026房價；市中心、距火車站5分鐘車程、露台花園
     - url: https://tw.hotels.com/ho540048/jia-yi-guan-zhi-fan-dian-jia-yi-tai-wan/
-      lang: zh
+      lang: zh-TW
       note: Hotels.com；免費早餐、wifi、停車、友善員工
     verify_status: verified
     resolved_name: 嘉義觀止飯店

@@ -7,7 +7,7 @@ import pytest
 from bs4 import BeautifulSoup
 
 from scripts.render.reader import render_reader
-from scripts.render.reader.maps import MARGIN, project
+from scripts.render.reader.maps import LABELS, MARGIN, project
 from tests.reader_fixture import itinerary, poi_map, reader_kwargs
 
 BBOX = {"north": 41.80, "south": 41.75, "east": 140.77, "west": 140.70}
@@ -46,7 +46,8 @@ def test_the_card_is_a_collapsed_map_row():
 def test_chips_jump_to_the_same_targets_as_the_list():
     d = _day(2)
     chips = d.select(".mapc .chips a.chip")
-    assert [c.get_text() for c in chips] == ["全圖", "出發", "08:00", "10:00", "17:00", "回家"]
+    assert [c.get_text() for c in chips] == ["全圖", LABELS["hotel_start"], "08:00", "10:00", "17:00",
+                                             LABELS["hotel_end"]]
     assert [c["href"] for c in chips] == ["#t-d2-top", "#t-d2-start", "#t-d2-s1", "#t-d2-s3", "#t-d2-s5", "#t-d2-end"]
     for c in chips:                                                       # every chip lands somewhere real
         assert d.select_one(c["href"])
@@ -63,7 +64,7 @@ def test_the_overview_pins_every_stop_and_one_hotel_capsule():
     assert allv.select_one(".mimg")
     pins = allv.select("g.pin")
     assert sorted(p["data-poi"] for p in pins) == ["hak-asaichi", "hak-goryokaku", "hak-hotel", "hak-yama"]
-    assert "出發・回家" in _pin(allv, "hak-hotel").get_text()
+    assert LABELS["hotel_merged"] in _pin(allv, "hak-hotel").get_text()
     assert _pin(allv, "hak-asaichi").select_one("text").get_text() == "08:00"
     assert not allv.select("polyline, path.route-line")                  # no visiting-order line
 
@@ -133,7 +134,8 @@ def test_the_legend_lists_every_stop():
     card = _day(2).select_one(".mapc")
     assert not card.select("a.gbtn")
     assert [li.get_text(" ", strip=True) for li in card.select(".lgd li")] == [
-        "出發 函館示意飯店", "08:00 函館朝市", "10:00 五稜郭公園", "17:00 函館山", "回家 函館示意飯店"]
+        f"{LABELS['hotel_start']} 函館示意飯店", "08:00 函館朝市", "10:00 五稜郭公園", "17:00 函館山",
+        f"{LABELS['hotel_end']} 函館示意飯店"]
 
 
 def test_attribution_with_tiles_and_a_schematic_without():
@@ -152,7 +154,7 @@ def test_a_one_stop_day_has_no_empty_closeups():
     views = d1.select(".mapc .mv")
     assert [v["class"][1] for v in views] == ["mv-d1-all", "mv-d1-s1", "mv-d1-end"]
     assert all(v.select("g.pin") for v in views)
-    assert [c.get_text() for c in d1.select(".mapc .chips a.chip")] == ["全圖", "12:00", "回家"]
+    assert [c.get_text() for c in d1.select(".mapc .chips a.chip")] == ["全圖", "12:00", LABELS["hotel_end"]]
 
 
 def test_a_stop_without_geocode_is_left_off_the_map():
