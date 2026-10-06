@@ -11,7 +11,7 @@ zero disclosures in the deliverables).
 
 CENTROID_SOURCE = "cluster_fallback"
 # v1.3.0: a point from the venue's sourced address (its 丁目 or town) is approximate too
-APPROX_SOURCES = (CENTROID_SOURCE, "nominatim_address")
+APPROX_SOURCES = (CENTROID_SOURCE, "nominatim_address", "nominatim_road", "village_centroid")
 
 
 def _label(poi):
@@ -41,7 +41,9 @@ def centroid_items(itin, poi_map):
 
 def centroid_note(poi):
     """Plain text (unescaped) disclosure line for one place located only approximately."""
-    where = ("它地址所在街區的中心點" if (poi.get("geocode") or {}).get("geocode_source") == "nominatim_address"
-             else "所在區域的中心點")
+    # v2.1.0: the two Taiwanese stand-ins say which point they are (the user's pick A1)
+    where = {"nominatim_address": "它地址所在街區的中心點", "nominatim_road": "它地址那條路上的一點",
+             "village_centroid": "它所在村里的中心點"}.get((poi.get("geocode") or {}).get("geocode_source"),
+                                                    "所在區域的中心點")
     return (f"{_label(poi)}：地圖座標是{where}，不是它本身的位置"
             f"——距離與步行時間請出發前自行確認")

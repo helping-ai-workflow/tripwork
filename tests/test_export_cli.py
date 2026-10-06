@@ -41,7 +41,8 @@ def test_export_matches_direct_render(ws):
     assert _export([str(t), "--work-dir", str(w)]) == 0
     itin, poi_map, kw, _ = trip_inputs(t)
     paths = deliverable_paths(t, yaml.safe_load(artifact_path(t, "trip-brief.yaml").read_text(encoding="utf-8")))
-    assert paths["md"].read_text(encoding="utf-8") == render_markdown_page(itin, poi_map, kw["cost"], brief=kw["brief"])
+    assert paths["md"].read_text(encoding="utf-8") == render_markdown_page(itin, poi_map, kw["cost"], brief=kw["brief"],
+                                                                      legs=kw["legs"])
     assert paths["html"].read_text(encoding="utf-8") == render_html_page(itin, poi_map, build="check", **kw)
 
 

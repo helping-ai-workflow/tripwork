@@ -18,6 +18,7 @@ from urllib.parse import unquote
 # the canonical itinerary-gate and these render gates share ONE implementation. These
 # calls are render-layer defense-in-depth; the canonical gate is the primary guard.
 from scripts.text_hygiene import jargon_failures, kana_gloss_failures
+from scripts.verify import official_source_url
 
 # A $ NOT immediately preceded by a backslash (i.e. not already escaped as \$).
 _NAKED_DOLLAR = re.compile(r"(?<!\\)\$")
@@ -172,9 +173,7 @@ def run_export_gate(md_text, pois, min_days=None):
             continue
         if not (p.get("booking") or {}).get("required"):
             continue
-        official = next(
-            (s.get("url") for s in (p.get("sources") or []) if s.get("official")), None
-        )
+        official = official_source_url(p)
         names = [n for n in (p.get("name_display"), p.get("name_local")) if n]
         rows = _find_rows(md_text, names)
         if not rows:
@@ -299,6 +298,50 @@ class _ReaderScan(__import__("html.parser").parser.HTMLParser):
                 self.legs_without_mode += 1
             self._leg_depth = None
 
+def html_safety_failures(html_text):
+    """What makes a page we ship unsafe or not self-contained (v2.1.0: the reader and the
+    survey's list page share it): an href that is neither http(s) nor an in-page anchor
+    that lands, a malformed Maps link, a script that is not one of the reader's own, an
+    image or stylesheet url that is not embedded, the fonts' licence notice missing."""
+    failures = []
+    ids = set(re.findall(r'\sid="([^"]+)"', html_text))
+    for href in _HREF.findall(html_text):
+        if href.startswith("#"):
+            # v1.1 §8.1: an in-page anchor is fine when it lands somewhere
+            if href[1:] not in ids:
+                failures.append(f"non-http href in deliverable: in-page link to a missing target '{href[:60]}'")
+        elif not re.match(r"https?://", href):
+            failures.append(f"non-http href in deliverable: '{href}'")
+    failures.extend(_maps_link_failures(_HREF.findall(html_text)))
+    # v1.0 P6 (spec §6.10): the only scripts allowed are the reader's own shipped
+    # constants (centring, publish), byte for byte -- no attributes, no src, no inline handlers.
+    scan = _ReaderScan()
+    scan.feed(html_text)
+    scripts = _SCRIPT.findall(html_text)
+    if (len(scripts) != html_text.lower().count("<script")
+            or any(attrs.strip() or hashlib.sha256(body.encode()).hexdigest() not in _SCRIPT_SHA256
+                   for attrs, body in scripts)
+            or scan.active):
+        failures.append("script not on the whitelist in deliverable")
+    for src in _IMG_SRC.findall(html_text):
+        if not _SAFE_IMG_SRC.match(src):
+            failures.append(f"non-embedded <img src>: '{src[:80]}'")
+    foot = _NOTICE.match(html_text)
+    missing = [l for l in _LICENCES if not foot or l not in foot.group(1)]
+    if foot and not missing:
+        # the whole notice, as the shipped licence files give it (ISC wants the
+        # copyright and permission notice itself, not the licence's name)
+        from scripts.render.reader.page import licence_notice
+        if " ".join(foot.group(1).split()) != " ".join(licence_notice()[4:-3].split()):
+            missing = ["the notice the shipped licence files give"]
+    if missing:
+        failures.append(f"licence notice missing: {', '.join(missing)}")
+    for url in _CSS_URL.findall(html_text):
+        if not _SAFE_CSS_URL.match(url):
+            failures.append(f"non-embedded url() in stylesheet: '{url[:80]}'")
+    return failures
+
+
 def run_html_gate(html_text, pois, min_days=None, media_count=0):
     """Validate a rendered one-page HTML deliverable. Structure/format only:
     non-empty, >= min_days day-cards, every href is http(s), no <script> but the reader's two shipped constants.
@@ -318,45 +361,13 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
         n_days = len(_DAY_PAGE.findall(html_text))
         if min_days is not None and n_days < min_days:
             failures.append(f"too few day pages: {n_days} < {min_days}")
-        ids = set(re.findall(r'\sid="([^"]+)"', html_text))
-        for href in _HREF.findall(html_text):
-            if href.startswith("#"):
-                # v1.1 §8.1: an in-page anchor is fine when it lands somewhere
-                if href[1:] not in ids:
-                    failures.append(f"non-http href in deliverable: in-page link to a missing target '{href[:60]}'")
-            elif not re.match(r"https?://", href):
-                failures.append(f"non-http href in deliverable: '{href}'")
-        failures.extend(_maps_link_failures(_HREF.findall(html_text)))
-        # v1.0 P6 (spec §6.10): the only scripts allowed are the reader's own shipped
-        # constants (centring, publish), byte for byte -- no attributes, no src, no inline handlers.
+        failures.extend(html_safety_failures(html_text))
         scan = _ReaderScan()
         scan.feed(html_text)
-        scripts = _SCRIPT.findall(html_text)
-        if (len(scripts) != html_text.lower().count("<script")
-                or any(attrs.strip() or hashlib.sha256(body.encode()).hexdigest() not in _SCRIPT_SHA256
-                       for attrs, body in scripts)
-                or scan.active):
-            failures.append("script not on the whitelist in deliverable")
-        for src in _IMG_SRC.findall(html_text):
-            if not _SAFE_IMG_SRC.match(src):
-                failures.append(f"non-embedded <img src>: '{src[:80]}'")
-        foot = _NOTICE.match(html_text)
-        missing = [l for l in _LICENCES if not foot or l not in foot.group(1)]
-        if foot and not missing:
-            # the whole notice, as the shipped licence files give it (ISC wants the
-            # copyright and permission notice itself, not the licence's name)
-            from scripts.render.reader.page import licence_notice
-            if " ".join(foot.group(1).split()) != " ".join(licence_notice()[4:-3].split()):
-                missing = ["the notice the shipped licence files give"]
-        if missing:
-            failures.append(f"licence notice missing: {', '.join(missing)}")
         if scan.cv_outside:
             failures.append(f"{scan.cv_outside} expand marker(s) outside a <details> summary")
         if scan.legs_without_mode:
             failures.append(f"{scan.legs_without_mode} move row(s) without a mode icon")
-        for url in _CSS_URL.findall(html_text):
-            if not _SAFE_CSS_URL.match(url):
-                failures.append(f"non-embedded url() in stylesheet: '{url[:80]}'")
         # v1.1: every frame drawn from tiles carries the credit itself (the phone hides the
         # card-level line); the card-level line must still name OpenStreetMap (v1.0 P5)
         for frame in _MAP_FRAME.findall(html_text):

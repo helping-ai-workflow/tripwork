@@ -8,13 +8,13 @@ def _cand(sources, langs):
     return {"id": "x", "sources": [{"url": _u(u), "lang": l} for u, l in zip(sources, langs)]}
 
 def test_defunct_poi_rejected():   # TW-005
-    c = _cand(["a", "b"], ["ko", "zh"])
+    c = _cand(["a", "b"], ["ko", "zh-TW"])
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True, operating=False)
     assert status == "rejected"
     assert "closed" in note.lower() or "defunct" in note.lower()
 
 def test_operating_defaults_true_keeps_verified():   # TW-005 default path
-    c = _cand(["a", "b"], ["ko", "zh"])
+    c = _cand(["a", "b"], ["ko", "zh-TW"])
     status, _ = classify_candidate(c, geocoded=True, in_claimed_region=True)
     assert status == "verified"
 
@@ -26,25 +26,25 @@ def test_single_source_is_unverified():
 def test_no_geocode_is_unverified():
     # D7: with sources sufficient (Gate 1 passes) but geocode unresolved,
     # degrade to 'unverified' (recorded for manual confirm), not 'rejected'.
-    c = _cand(["a", "b"], ["ko", "zh"])
+    c = _cand(["a", "b"], ["ko", "zh-TW"])
     status, note = classify_candidate(c, geocoded=False, in_claimed_region=False)
     assert status == "unverified"
     assert "geocode" in note.lower()
 
 def test_geocode_outside_region_is_conflicting():
-    c = _cand(["a", "b"], ["ko", "zh"])
+    c = _cand(["a", "b"], ["ko", "zh-TW"])
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=False)
     assert status == "conflicting"
     assert "region" in note.lower()
 
 def test_two_sources_geocoded_in_region_is_verified():
-    c = _cand(["a", "b"], ["ko", "zh"])
+    c = _cand(["a", "b"], ["ko", "zh-TW"])
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
     assert status == "verified"
 
 def test_two_sources_same_lang_still_needs_one_local():
     # both non-local language -> treat as insufficient (unverified)
-    c = _cand(["a", "b"], ["zh", "zh"])
+    c = _cand(["a", "b"], ["zh-TW", "zh-TW"])
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True,
                                       local_lang="ko")
     assert status == "unverified"
@@ -88,7 +88,7 @@ def _sourced_poi(bs, **over):
         "district": "嘉義市東區",
         "business_status": bs,
         "geocode": {"lat": 23.47, "lng": 120.45, "geocode_source": "nominatim"},
-        "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+        "sources": [{"url": "https://a.example.tw/p", "lang": "zh-TW"},
                     {"url": "https://b.example.com/q", "lang": "en"}],
     }
     poi.update(over)
@@ -99,7 +99,7 @@ def test_bare_string_business_status_is_no_longer_a_signal():
     """TW-063: 17/17 dogfood POIs carried a hand-typed OPERATIONAL. The schema
     had nowhere to record that it was hand-typed, so review could not see it."""
     _, status, note = verify_poi(_sourced_poi("OPERATIONAL"), geocoded=True,
-                                 in_claimed_region=True, local_lang="zh",
+                                 in_claimed_region=True, local_lang="zh-TW",
                                  resolved_name="蔡氏鴨庄")
     assert status == "unverified"
     assert "self-attested" in note
@@ -111,7 +111,7 @@ def test_sourced_recent_business_status_verifies():
                         "source_url": "https://places.example/x",
                         "as_of": "2026-07-20"})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 local_lang="zh-TW", resolved_name="蔡氏鴨庄",
                                  today=today)
     assert status == "verified"
     assert note == ""
@@ -123,7 +123,7 @@ def test_business_status_older_than_ninety_days_is_stale():
                         "source_url": "https://places.example/x",
                         "as_of": "2026-01-01"})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 local_lang="zh-TW", resolved_name="蔡氏鴨庄",
                                  today=today)
     assert status == "unverified"
     assert "stale" in note or "as_of" in note
@@ -135,7 +135,7 @@ def test_closed_still_rejects_in_the_object_form():
                         "source_url": "https://places.example/x",
                         "as_of": "2026-08-01"})
     _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                              local_lang="zh", resolved_name="蔡氏鴨庄",
+                              local_lang="zh-TW", resolved_name="蔡氏鴨庄",
                               today=today)
     assert status == "rejected"
 
@@ -144,7 +144,7 @@ def test_object_form_missing_source_url_is_not_a_signal():
     today = datetime.date(2026, 8, 8)
     poi = _sourced_poi({"status": "OPERATIONAL", "as_of": "2026-08-01"})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 local_lang="zh-TW", resolved_name="蔡氏鴨庄",
                                  today=today)
     assert status == "unverified"
     assert "source_url" in note
@@ -159,7 +159,7 @@ def test_tel_source_url_business_status_verifies():
                         "source_url": "tel:+886-5-2593133",
                         "as_of": "2026-08-01"})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 local_lang="zh-TW", resolved_name="蔡氏鴨庄",
                                  today=today)
     assert status == "verified"
     assert note == ""
@@ -174,7 +174,7 @@ def test_business_status_exactly_ninety_days_old_is_still_fresh():
                         "source_url": "https://places.example/x",
                         "as_of": "2026-05-10"})  # exactly 90 days before today
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 local_lang="zh-TW", resolved_name="蔡氏鴨庄",
                                  today=today)
     assert status == "verified"
     assert note == ""
@@ -188,7 +188,7 @@ def test_business_status_ninety_one_days_old_is_stale():
                         "source_url": "https://places.example/x",
                         "as_of": "2026-05-09"})  # exactly 91 days before today
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="蔡氏鴨庄",
+                                 local_lang="zh-TW", resolved_name="蔡氏鴨庄",
                                  today=today)
     assert status == "unverified"
     assert "stale" in note or "as_of" in note
@@ -212,7 +212,7 @@ def test_bare_string_business_status_still_validates_against_the_schema(tmp_path
         "    business_status: OPERATIONAL\n"
         "    sources:\n"
         "      - url: https://a.example.tw/p\n"
-        "        lang: zh\n",
+        "        lang: zh-TW\n",
         encoding="utf-8",
     )
     assert validate_file(str(p))[0] == 0
@@ -240,7 +240,7 @@ def _clean_poi(**over):
         "geocode": {"lat": 23.47999, "lng": 120.44343,
                     "geocode_source": "cluster_fallback"},
         "sources": [
-            {"url": "https://a.example.tw/p", "lang": "zh"},
+            {"url": "https://a.example.tw/p", "lang": "zh-TW"},
             {"url": "https://b.example.com/q", "lang": "en"},
         ],
     }
@@ -306,7 +306,7 @@ def test_cluster_fallback_with_a_bare_string_business_status_is_still_unverified
     explicitly declines to answer (CHANGELOG "What stays out")."""
     poi = _clean_poi(business_status="OPERATIONAL")   # bare string: self-attested
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+                                 local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "unverified"
     assert "self-attested" in note
 
@@ -321,11 +321,11 @@ def test_cluster_fallback_with_an_official_source_stays_verified():
     passes for the identical claim with no official source and no
     gmaps_place_id at all."""
     poi = _clean_poi(sources=[
-        {"url": "https://chunyen.example.tw/", "lang": "zh", "official": True},
+        {"url": "https://chunyen.example.tw/", "lang": "zh-TW", "official": True},
         {"url": "https://b.example.com/q", "lang": "en"},
     ])
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+                                 local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "verified"
     assert note == ""
 
@@ -341,7 +341,7 @@ def test_cluster_fallback_with_a_place_id_stays_verified():
     all."""
     poi = _clean_poi(gmaps_place_id="ChIJ5wJfhyWUbjQRG_DhFBgvW7g")
     _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                              local_lang="zh", resolved_name="春燕飯館")
+                              local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "verified"
 
 
@@ -356,7 +356,7 @@ def test_cluster_fallback_with_no_extra_proof_still_verifies_once_gate_0_passes(
     existence-proof gate left to ask for anything more."""
     poi = _clean_poi()   # sourced business_status; no official source, no place_id
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+                                 local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "verified"
     assert note == ""
 
@@ -372,7 +372,7 @@ def test_nominatim_resolved_geocode_is_unaffected():
     poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
                               "geocode_source": "nominatim"})
     _, status, _ = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                              local_lang="zh", resolved_name="春燕飯館")
+                              local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "verified"
 
 
@@ -388,7 +388,7 @@ def test_omitting_resolved_name_no_longer_silently_skips_gate_2b():
     poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
                               "geocode_source": "nominatim"})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh")
+                                 local_lang="zh-TW")
     assert status == "unverified"
     assert "resolved_name" in note
 
@@ -401,7 +401,7 @@ def test_an_explicit_unresolved_marker_is_how_d7_is_recorded():
     poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
                               "geocode_source": "nominatim"})
     _, status, note = verify_poi(poi, geocoded=False, in_claimed_region=True,
-                                 local_lang="zh", resolved_name=NO_RESOLVED_NAME)
+                                 local_lang="zh-TW", resolved_name=NO_RESOLVED_NAME)
     assert status == "unverified"
     assert "geocode unresolved" in note
 
@@ -425,7 +425,7 @@ def test_no_resolved_name_sentinel_passes_gate_2b_when_geocode_actually_resolved
     poi = _clean_poi(geocode={"lat": 23.4, "lng": 120.4,
                               "geocode_source": "nominatim"})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name=NO_RESOLVED_NAME)
+                                 local_lang="zh-TW", resolved_name=NO_RESOLVED_NAME)
     assert status == "verified", note
 
 
@@ -441,11 +441,11 @@ def test_missing_resolved_name_does_not_preempt_earlier_gates():
     resolved_name, rerun, and only then discover the real blocker.
     """
     poi = _clean_poi(
-        sources=[{"url": "https://a.example.tw/p", "lang": "zh"}],
+        sources=[{"url": "https://a.example.tw/p", "lang": "zh-TW"}],
         geocode={"lat": 23.4, "lng": 120.4, "geocode_source": "nominatim"},
     )
     _, status, note = verify_poi(poi, geocoded=False, in_claimed_region=True,
-                                 local_lang="zh")
+                                 local_lang="zh-TW")
     assert status == "unverified"
     assert "independent sources" in note
     assert "resolved_name" not in note
@@ -470,7 +470,7 @@ def test_geocode_source_missing_refuses_when_not_recorded():
     """
     poi = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343})
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+                                 local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "unverified"
     assert "geocode_source" in note
 
@@ -494,14 +494,14 @@ def test_recording_geocode_source_prevents_the_missing_branch_from_firing():
     fallback = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
                                    "geocode_source": "cluster_fallback"})
     _, status, note = verify_poi(fallback, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+                                 local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "verified"
     assert "geocode_source" not in note
 
     resolved = _clean_poi(geocode={"lat": 23.47999, "lng": 120.44343,
                                    "geocode_source": "nominatim"})
     _, status, note = verify_poi(resolved, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+                                 local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "verified"
     assert note == ""
 
@@ -512,7 +512,7 @@ def test_direct_classify_candidate_callers_that_never_pass_geocode_source_are_un
     never pass the geocode_source keyword at all and must keep their current
     meaning. Same split Part 1 used for name_match (verify.py:253-267).
     """
-    c = _cand(["a", "b"], ["ko", "zh"])
+    c = _cand(["a", "b"], ["ko", "zh-TW"])
     status, note = classify_candidate(c, geocoded=True, in_claimed_region=True)
     assert status == "verified"
 
@@ -529,9 +529,9 @@ def test_cluster_fallback_does_not_preempt_earlier_gates():
     sent to add an official source or gmaps_place_id, rerun, and only then
     discover the real blocker.
     """
-    poi = _clean_poi(sources=[{"url": "https://a.example.tw/p", "lang": "zh"}])
+    poi = _clean_poi(sources=[{"url": "https://a.example.tw/p", "lang": "zh-TW"}])
     _, status, note = verify_poi(poi, geocoded=True, in_claimed_region=True,
-                                 local_lang="zh", resolved_name="春燕飯館")
+                                 local_lang="zh-TW", resolved_name="春燕飯館")
     assert status == "unverified"
     assert "independent sources" in note
     assert "cluster_fallback" not in note
@@ -552,7 +552,7 @@ def test_a_sourced_business_status_is_an_existence_proof():
     about, same fix."""
     import datetime
     from scripts.verify import has_existence_proof
-    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"}],
+    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh-TW"}],
            "business_status": {"status": "OPERATIONAL",
                                "source_url": "https://a.example.tw/p",
                                "as_of": datetime.date.today().isoformat()}}
@@ -573,7 +573,7 @@ def test_has_existence_proof_today_anchors_the_sourced_business_status_proof():
     test above): the point of this test IS the gap between wall-clock and the
     anchored date, not incidental to it."""
     from scripts.verify import has_existence_proof
-    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"}],
+    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh-TW"}],
            "business_status": {"status": "OPERATIONAL",
                                "source_url": "https://a.example.tw/p",
                                "as_of": "2020-01-01"}}
@@ -599,7 +599,7 @@ def test_a_bare_string_business_status_is_not_an_existence_proof():
     """Guard, GREEN at HEAD: the bare form is self-attested — no source_url, no
     as_of, nothing to review. It must not become a back door into Gate 2c."""
     from scripts.verify import has_existence_proof
-    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh"}],
+    poi = {"id": "x", "sources": [{"url": "https://a.example.tw/p", "lang": "zh-TW"}],
            "business_status": "OPERATIONAL"}
     assert has_existence_proof(poi) is False
 
@@ -663,10 +663,10 @@ def test_verify_status_does_not_depend_on_having_an_api_key():
                                 "as_of": datetime.date.today().isoformat()},
             "geocode": {"lat": 23.48, "lng": 120.44,
                         "geocode_source": "cluster_fallback"},
-            "sources": [{"url": "https://a.example.tw/p", "lang": "zh"},
+            "sources": [{"url": "https://a.example.tw/p", "lang": "zh-TW"},
                         {"url": "https://b.example.com/q", "lang": "en"}]}
     keyed = dict(base, gmaps_place_id="ChIJxxxxxxxxxxxxxxx")
     today = datetime.date(2026, 8, 9)
-    kw = dict(geocoded=True, in_claimed_region=True, local_lang="zh",
+    kw = dict(geocoded=True, in_claimed_region=True, local_lang="zh-TW",
               resolved_name="源興御香屋", today=today)
     assert verify_poi(dict(base), **kw)[1] == verify_poi(keyed, **kw)[1]

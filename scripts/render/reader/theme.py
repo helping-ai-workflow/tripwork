@@ -171,7 +171,7 @@ details[open]>summary>.cv{{transform:rotate(-135deg);margin-top:-2px}}
 .mapc>summary{{position:relative;display:flex;align-items:center;gap:8px;padding:10px 36px 10px 12px;font:700 15px var(--f-round);list-style:none;cursor:pointer}}
 .mapc .lu.big{{width:18px;height:18px}}
 .chips{{display:flex;flex-wrap:wrap;gap:6px;padding:0 12px 10px}}
-.chip{{font:700 12px var(--f-round);padding:2px 10px;border:1.5px solid var(--rule);border-radius:999px;cursor:pointer}}.chip.hotel{{border-color:var(--lodging);color:var(--lodging)}}
+.chip{{font:700 12px var(--f-round);padding:2px 10px;border:1.5px solid var(--rule);border-radius:999px;cursor:pointer}}.chip.hotel{{border-color:var(--lodging);color:var(--lodging)}}.chip.home{{border-color:var(--ink)}}
 .views{{padding:0 12px}}.mv{{display:none}}
 .mframe{{position:relative;display:block;width:100%;border-radius:10px;overflow:hidden;cursor:zoom-in;background:var(--bg)}}
 .seg+.seg{{margin-top:8px}}
@@ -180,7 +180,7 @@ details[open]>summary>.cv{{transform:rotate(-135deg);margin-top:-2px}}
 .gbg{{fill:var(--bg)}}.gline{{stroke:var(--rule);stroke-width:1.5;fill:none}}
 .pin .pt{{stroke:#fff;stroke-width:3}}
 .pin.k-meal .pt,.pin.k-meal .tl{{fill:var(--meal)}}.pin.k-visit .pt,.pin.k-visit .tl{{fill:var(--visit)}}
-.pin.k-activity .pt,.pin.k-activity .tl{{fill:var(--activity)}}.pin.k-lodging .pt,.pin.k-lodging .tl{{fill:var(--lodging)}}
+.pin.k-activity .pt,.pin.k-activity .tl{{fill:var(--activity)}}.pin.k-lodging .pt,.pin.k-lodging .tl{{fill:var(--lodging)}}.pin.k-home .pt,.pin.k-home .tl{{fill:var(--ink)}}
 .pin.hl .pt{{stroke-width:6}}.tl{{font:700 14px var(--f-round);text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}}
 .mnav{{display:flex;justify-content:space-between;padding:6px 2px 0;font:700 12px var(--f-round);color:var(--mut)}}.mnav label{{cursor:pointer}}
 .mv:has(.zck:checked){{position:fixed;inset:0;z-index:30;background:rgba(10,8,6,.92);display:flex!important;flex-direction:column;justify-content:safe center;overflow:auto;padding:12px}}

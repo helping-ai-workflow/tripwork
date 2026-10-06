@@ -10,6 +10,7 @@ import functools
 import gzip
 import ipaddress
 import pathlib
+import re
 from urllib.parse import urlsplit
 from scripts.geocode import normalize_geocode_keys, name_matches
 
@@ -121,6 +122,17 @@ def is_search_results_page(url):
     if name == "yandex":
         return path == "/search" or path.startswith("/search/")
     return False
+
+
+def official_source_url(record):
+    """The first source flagged official that is not a search engine's results page
+    (v2.1.0 §5), or None. One answer for every reader of "the official link": the
+    Markdown row, the export gate's bookable check, the itinerary gate."""
+    for s in (record or {}).get("sources") or []:
+        if isinstance(s, dict) and s.get("official") and s.get("url") \
+                and not is_search_results_page(s["url"]):
+            return s["url"]
+    return None
 
 
 def _independence(sources):
@@ -285,6 +297,30 @@ def has_existence_proof(poi, today=None):
     return operating is True
 
 
+def normalize_lang(code):
+    """(language, region) of a language tag: case-insensitive, `_` read as `-`, the
+    script subtag dropped -- 'zh-Hant-TW' and 'ZH_tw' are both ('zh', 'TW'); 'ja' is
+    ('ja', None). An empty or non-string tag is ('', None)."""
+    parts = [p for p in str(code or "").strip().replace("_", "-").split("-") if p]
+    if not parts:
+        return "", None
+    region = parts[-1].upper() if len(parts) > 1 and re.fullmatch(r"[A-Za-z]{2}|[0-9]{3}", parts[-1]) else None
+    return parts[0].lower(), region
+
+
+def lang_matches(local_lang, source_lang):
+    """True when a source in `source_lang` is in the destination's `local_lang` (v2.1.0
+    D3): the same language, and the same region when the destination names one. A
+    Chinese source without a region never matches a Chinese destination -- `zh` is
+    not taken for Taiwan."""
+    (ll, lr), (sl, sr) = normalize_lang(local_lang), normalize_lang(source_lang)
+    if not ll or ll != sl:
+        return False
+    if ll == "zh" and sr is None:
+        return False
+    return lr is None or lr == sr
+
+
 def classify_candidate(candidate, geocoded, in_claimed_region,
                         local_lang=None, conflict_detected=False, operating=True,
                         name_match=True, geocode_source=None):
@@ -308,7 +344,7 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
             more than that sub-check ever did).
     Gate 2b: name_match must be determined and true (else 'unverified' when
              undetermined, 'conflicting' when a real mismatch — see below).
-    Gate 3a: conflict_detected — cross-source disagreement on rating/hours/address
+    Gate 3a: conflict_detected — cross-source disagreement on hours/address
              (else 'conflicting').  Computed by the skill and signalled via this param.
     Gate 3b: geocoded point must fall within the claimed region (else 'conflicting').
 
@@ -316,9 +352,10 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
         candidate:        dict with 'sources' list, each item having 'lang'.
         geocoded:         bool — True if coordinates were successfully resolved.
         in_claimed_region: bool — True if coordinates fall inside the claimed district.
-        local_lang:       optional str, ISO-639 code for the destination's local language.
+        local_lang:       optional str, the destination's language tag; Chinese carries its
+                          region (zh-TW), matched by lang_matches.
         conflict_detected: bool (default False) — True when the skill has detected
-                          cross-source disagreement on rating/hours/address.
+                          cross-source disagreement on hours/address.
         name_match:       True (matches / not disputed), False (a real mismatch ->
                           'conflicting'), or None (undetermined — the caller never
                           supplied a resolved_name to compare against -> 'unverified',
@@ -353,8 +390,8 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     sources = candidate.get("sources", [])
     # Gate 1b reads the language of the sources that count: a search results page or a
     # URL with no host is no source, so it cannot be the local-language one either.
-    langs = {s.get("lang") for s in sources if isinstance(s, dict) and s.get("url")
-             and not is_search_results_page(s["url"]) and site_key(s["url"])}
+    counted = [s for s in sources if isinstance(s, dict) and s.get("url")
+               and not is_search_results_page(s["url"]) and site_key(s["url"])]
 
     # Gate 0: permanently/temporarily closed (defunct) -> rejected.
     if not operating:
@@ -366,15 +403,23 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     sites, searches = _independence(sources)
     if len(sites) < 2:
         note = "needs >=2 independent sources (distinct sites)"
-        if len(sites) == 1 and len([s for s in sources if isinstance(s, dict) and s.get("url")]) - len(searches) >= 2:
+        # sources that name a site: a search results page or a URL with no host is no source
+        on_sites = len([s for s in sources if isinstance(s, dict) and s.get("url")
+                        and site_key(s["url"]) and not is_search_results_page(s["url"])])
+        if len(sites) == 1 and on_sites == 2:
             note += f": both sources are on {next(iter(sites))} — add one from another site"
+        elif len(sites) == 1 and on_sites > 2:
+            note += f": 所有來源都在 {next(iter(sites))}——請加一個其他網站的來源"
         if searches:
             note += (f"; a search results page is not a source ({', '.join(sorted(set(searches)))}): "
                      f"fetch the page it links to")
         return "unverified", note
 
     # Gate 1b: at least one source in destination's local language
-    if local_lang is not None and local_lang not in langs:
+    if local_lang is not None and not any(lang_matches(local_lang, s.get("lang")) for s in counted):
+        bare = [s for s in counted if normalize_lang(s.get("lang")) == ("zh", None)]
+        if normalize_lang(local_lang)[0] == "zh" and bare:
+            return "unverified", f"來源 {bare[0]['url']} 標 zh、沒有地區——請標出地區（例如 {local_lang}）"
         return "unverified", f"needs >=1 source in local language '{local_lang}'"
 
     # Gate 2: geocode must resolve. D7: a real place Nominatim can't pin is recorded
@@ -394,7 +439,8 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
     if geocode_source is GEOCODE_SOURCE_MISSING:
         return ("unverified",
                 "geocode_source not recorded — record geocode.geocode_source: "
-                "nominatim / nominatim_structured / nominatim_address / cluster_fallback")
+                "nominatim / nominatim_structured / nominatim_address / nominatim_road / "
+                "village_centroid / cluster_fallback")
 
     # Gate 2's cluster_fallback sub-check (TW-062) is RETIRED as of v0.34.0
     # Task 6 (user ruling, 2026-08-09), not merely inactive. It required an
@@ -473,7 +519,7 @@ def classify_candidate(candidate, geocoded, in_claimed_region,
 
     # Gate 3: cross-source conflict or region mismatch
     if conflict_detected:
-        return "conflicting", "cross-source disagreement on rating/hours/address"
+        return "conflicting", "cross-source disagreement on hours/address"
 
     if not in_claimed_region:
         return "conflicting", "geocoded coordinates fall outside the claimed region"

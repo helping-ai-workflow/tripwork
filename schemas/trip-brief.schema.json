@@ -3,14 +3,34 @@
   "type": "object",
   "required": [
     "slug",
-    "dates",
-    "members",
-    "base",
-    "must_do",
-    "constraints",
-    "preferences",
     "destination"
   ],
+  "if": {
+    "properties": {
+      "mode": {
+        "const": "survey"
+      }
+    },
+    "required": [
+      "mode"
+    ]
+  },
+  "then": {
+    "required": [
+      "short_name",
+      "categories"
+    ]
+  },
+  "else": {
+    "required": [
+      "dates",
+      "members",
+      "base",
+      "must_do",
+      "constraints",
+      "preferences"
+    ]
+  },
   "properties": {
     "slug": {
       "type": "string"
@@ -116,11 +136,35 @@
     },
     "home_origin": {
       "type": "string",
-      "description": "Where the trip departs from. Separate from home_return because they differ in practice — the 2026-08 chiayi trip left 板橋 and ended in 新竹. (TW-065)"
+      "description": "Where the trip departs from: the home leg's endpoint. Separate from home_return because they can differ -- e.g. leaving from 示意市 and ending at 範例市. (TW-065)"
     },
     "home_return": {
       "type": "string",
       "description": "Where the trip returns to. See home_origin."
+    },
+    "home_origin_point": {
+      "type": "object",
+      "required": ["name", "lat", "lng", "geocode_source"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "lat": {"type": "number"},
+        "lng": {"type": "number"},
+        "geocode_source": {"type": "string"}
+      },
+      "description": "The map's point for home_origin (D10): a shop or landmark near home, never the home address -- it is drawn on the first day's map, shared copies included. Looked up like any place."
+    },
+    "home_return_point": {
+      "type": "object",
+      "required": ["name", "lat", "lng", "geocode_source"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string"},
+        "lat": {"type": "number"},
+        "lng": {"type": "number"},
+        "geocode_source": {"type": "string"}
+      },
+      "description": "The map's point for home_return, drawn at the end of the last day. See home_origin_point."
     },
     "routing": {
       "type": "object",
@@ -237,7 +281,9 @@
           "type": "string"
         },
         "local_lang": {
-          "type": "string"
+          "type": "string",
+          "pattern": "^(?![zZ][hH](?:[-_][A-Za-z]{4})?$)[A-Za-z]{2,3}(?:[-_][A-Za-z]{4})?(?:[-_](?:[A-Za-z]{2}|[0-9]{3}))?$",
+          "description": "The destination's language tag (ja, ko, en ...). Chinese carries its region: zh-TW / zh-HK / zh-CN / zh-SG / zh-MY -- a bare zh is refused, since a source tagged zh says nothing about which Chinese-speaking place it covers (D3)."
         }
       },
       "additionalProperties": false
@@ -307,6 +353,20 @@
     },
     "airline": {
       "type": "string"
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "survey"
+      ],
+      "description": "survey: collect and verify places only, no itinerary (§10). The list page ends it; removing the key upgrades the folder to a trip, and the verified places carry over."
+    },
+    "categories": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "What a survey looks for (e.g. 吃的, 溫泉, 咖啡). Required with mode: survey; still valid after the upgrade."
     }
   },
   "additionalProperties": false

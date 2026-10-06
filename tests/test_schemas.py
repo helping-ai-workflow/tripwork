@@ -335,6 +335,7 @@ def test_verified_pois_geocode_declares_source():
     geo = schema["properties"]["pois"]["items"]["properties"]["geocode"]["properties"]
     assert "geocode_source" in geo
     assert geo["geocode_source"]["enum"] == ["nominatim", "nominatim_structured", "nominatim_address",
+                                             "nominatim_road", "village_centroid",   # v2.1.0: Taiwan
                                              "cluster_fallback"]          # v1.3.0: the address point
 
 def test_trip_brief_declares_overnight_stops_and_facility_needs():

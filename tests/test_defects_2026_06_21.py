@@ -175,22 +175,22 @@ class TestP3GeocodeResilience:
         bare = {n for n, _ in self.LANDMARKS}
         romans = {r for _, r in self.LANDMARKS}
 
-        def fake_structured(name, city=None, country=None, timeout=10):
-            return None  # street-slot misses for non-address POIs
+        def fake_structured(name, city=None, country=None, timeout=10, limit=5, details=False):
+            return []  # street-slot misses for non-address POIs
 
-        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None):
+        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None, limit=5, details=False):
             if query in bare or query in romans:
-                return g.GeocodeResult(23.8, 120.9, f"{query} result")
-            return None  # the combined "<name> <district> <country>" query misses
+                return [g.GeocodeResult(23.8, 120.9, f"{query}, 魚池鄉")]
+            return []  # the combined "<name> <district> <country>" query misses
 
-        monkeypatch.setattr(g, "geocode_structured", fake_structured)
-        monkeypatch.setattr(g, "geocode", fake_geocode)
+        monkeypatch.setattr(g, "geocode_structured_many", fake_structured)
+        monkeypatch.setattr(g, "geocode_many", fake_geocode)
         monkeypatch.setattr(g, "geocode_country", lambda country, timeout=10: "tw")   # v1.2.1
 
         resolved = sum(
             1 for name, roman in self.LANDMARKS
             if resolve_place(name, district="日月潭", country="Taiwan",
-                             name_roman=roman)[0] is not None
+                             name_roman=roman, region=(23.80, 120.90, 5.0))[0] is not None
         )
         assert resolved / len(self.LANDMARKS) >= 0.9
 
@@ -198,18 +198,19 @@ class TestP3GeocodeResilience:
         """Even without name_roman, a plain free-text core-name attempt must be made."""
         import scripts.geocode as g
 
-        def fake_structured(name, city=None, country=None, timeout=10):
-            return None
+        def fake_structured(name, city=None, country=None, timeout=10, limit=5, details=False):
+            return []
 
-        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None):
+        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None, limit=5, details=False):
             if query == "九族文化村":  # only the bare core name resolves
-                return g.GeocodeResult(23.8, 120.9, "九族文化村 result")
-            return None
+                return [g.GeocodeResult(23.8, 120.9, "九族文化村, 魚池鄉")]
+            return []
 
-        monkeypatch.setattr(g, "geocode_structured", fake_structured)
-        monkeypatch.setattr(g, "geocode", fake_geocode)
+        monkeypatch.setattr(g, "geocode_structured_many", fake_structured)
+        monkeypatch.setattr(g, "geocode_many", fake_geocode)
         monkeypatch.setattr(g, "geocode_country", lambda country, timeout=10: "tw")   # v1.2.1
-        res, _ = resolve_place("九族文化村", district="日月潭", country="Taiwan")
+        res, _ = resolve_place("九族文化村", district="日月潭", country="Taiwan",
+                               region=(23.80, 120.90, 5.0))   # v2.1.0: a bare-name hit needs the district
         assert res is not None
 
 

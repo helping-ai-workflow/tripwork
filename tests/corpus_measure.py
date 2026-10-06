@@ -67,6 +67,10 @@ CLASSES = (
     # _classify's assert surfaces it as an unattributed failure instead of
     # silently absorbing it.
     ("poi_verdict_superseded", "re-run source-verify for this POI"),
+    # v2.1.0 D3: a corpus POI recorded 'verified' on a bare `zh` source re-derives
+    # 'unverified' once a Chinese source must carry its region -- rederive_pois's
+    # MISMATCH tail, unique to the POI axis (the lodging one says classify_candidate).
+    ("poi_verify_status_mismatch", "but verify_poi re-derives"),
     ("lodging_verdict_superseded", "re-run accommodation-research for this candidate"),
     # v1.0 P1 reader-data classes. Each marker is the fixed message prefix the
     # producing module writes (scripts/day_chain.py, rederive.py::rederive_moves,
@@ -98,7 +102,7 @@ def gate(a):
                     accommodations=a["accommodations"],
                     facility_needs=b.get("facility_needs"), calendar=a["calendar"],
                     advisory=a["advisory"], must_do=b.get("must_do"), legs=a["legs"],
-                    routing=a["routing"], cost=a["cost"], trip_brief=b)
+                    routing=a["routing"], cost=a["cost"], trip_brief=b, seasonal=a.get("seasonal"))
 
 
 def classify(failures):
@@ -113,6 +117,18 @@ def classify(failures):
 # --------------------------------------------------------------------------
 # rule 13.5 drain: route, grant the routed stage its BEST possible fix, re-gate.
 # --------------------------------------------------------------------------
+
+def _tag_regions(sources, local_lang):
+    """What a source-verify / accommodation-research re-run records since v2.1.0 D3: a
+    Chinese source tagged with the destination's region, not a bare `zh`."""
+    from scripts.verify import normalize_lang
+    lang, region = normalize_lang(local_lang)
+    if lang != "zh" or region is None:
+        return
+    for s in sources or []:
+        if isinstance(s, dict) and normalize_lang(s.get("lang")) == ("zh", None):
+            s["lang"] = f"zh-{region}"
+
 
 def _complete_sources(sources):
     """What source-verify / accommodation-research write in v1.0: a site name, a
@@ -190,6 +206,7 @@ def _fix_source_verify(a):
         # it wrote 'conflicting' where the gate re-derives 'verified', and the
         # drain never terminated -- a second copy of the subject, drifting from it.
         local_lang = ((a.get("brief") or {}).get("destination") or {}).get("local_lang")
+        _tag_regions(p.get("sources"), local_lang)
         recorded = p["resolved_name"]
         resolved = NO_RESOLVED_NAME if recorded == NO_RESULT_SENTINEL else recorded
         status, _note = _verify_status_of(p, local_lang, resolved,
@@ -249,7 +266,8 @@ def _fix_accommodation(a):
                                         "as_of": today}
             srcs = c.setdefault("sources", [])
             while len({s.get("url", "").split("/")[2] for s in srcs if s.get("url")}) < 2:
-                srcs.append({"url": f"https://s{len(srcs)}.example/x", "lang": "zh"})
+                srcs.append({"url": f"https://s{len(srcs)}.example/x", "lang": "zh-TW"})
+            _tag_regions(srcs, ((a.get("brief") or {}).get("destination") or {}).get("local_lang"))
     for stop in (a["accommodations"] or {}).get("stops") or []:
         label = stop.get("area_label")
         if not (isinstance(label, str) and 2 <= len(label) <= 4):

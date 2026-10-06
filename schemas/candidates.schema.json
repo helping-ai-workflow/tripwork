@@ -5,6 +5,13 @@
     "candidates"
   ],
   "properties": {
+    "must_do_searched": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The trip-brief must_do topics destination-research has searched (§10). next_stage sends a brief whose must_do gained a topic not listed here back to destination-research to add candidates; absent means not recorded, and nothing is checked."
+    },
     "candidates": {
       "type": "array",
       "items": {
@@ -47,6 +54,20 @@
           "district_query": {
             "type": "string",
             "description": "Optional geocode string for the district when claimed_district (the readable name the deliverable shows and links with) does not resolve to the right place, e.g. '堺町（小樽市）' for '小樽市堺町'. source_verify_run geocodes with this; a centroid whose display_name does not name the district is refused (TW-092)."
+          },
+          "rating": {
+            "type": "object",
+            "description": "Optional rating a source states (§11): Google's when the consumer has a key (the plugin never calls Google), else another platform's (Tabelog, 愛食記 ...). Never gates, demotes or conflicts a place; lists sort by it and warn on few reviews. `note`: the agent's reading of collected write-ups when they disagree with a high score.",
+            "required": ["platform", "score", "source_url", "as_of"],
+            "additionalProperties": false,
+            "properties": {
+              "platform": {"type": "string"},
+              "score": {"type": "number"},
+              "count": {"type": "integer"},
+              "source_url": {"type": "string"},
+              "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+              "note": {"type": "string"}
+            }
           },
           "business_status": {
             "description": "Optional sourced operating signal (Google Places businessStatus vocabulary) recorded during research; source-verify enforces it at Gate 0. (P1) The bare-string form is retained for back-compat but is SELF-ATTESTED: verify.py's Gate 0 treats it as unauditable and never lets it pass, regardless of value — a candidate can only clear Gate 0 with the object form, {status, source_url, as_of}, mirroring verified-pois.schema.json's own business_status shape so a candidate's sourced signal survives into the verified artifact unchanged. (TW-068 fix round 1: TW-063's fix deferred widening this on the grounds that nothing exercised the gap; scripts/source_verify_run.py now does, so every schema-valid candidates.yaml can reach Gate 0.)",

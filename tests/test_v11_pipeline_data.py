@@ -217,7 +217,7 @@ def _centroid(monkeypatch, display):
     from scripts import source_verify_run as svr
     from scripts.geocode import GeocodeResult
     monkeypatch.setattr(svr, "_rate_limited_resolve",
-                        lambda name, d, c, cache, name_roman=None, area=False: (GeocodeResult(43.19, 141.0, display), "nominatim"))
+                        lambda name, d, c, cache, name_roman=None, area=False, region=None: (GeocodeResult(43.19, 141.0, display), "nominatim"))
     monkeypatch.setattr(svr, "_district_fallback", lambda *a: None)         # v1.3.0: nor does the fallback
     return svr._district_centroid("小樽市堺町", "JP", {}, False, {})
 
@@ -236,7 +236,7 @@ def test_district_query_geocodes_while_district_stays_for_reading(tmp_path, monk
     from scripts.paths import artifact_path
     asked = []
 
-    def fake(name, district=None, country=None, timeout=10, cache=None, name_roman=None, pace=None, area=False):
+    def fake(name, district=None, country=None, timeout=10, cache=None, name_roman=None, pace=None, area=False, region=None):
         asked.append((name, district))
         if name == "堺町（小樽市）":
             return GeocodeResult(43.1935, 141.0035, "堺町, 小樽市, 北海道, 日本"), "nominatim"
@@ -344,7 +344,7 @@ def _ichibankan_run(tmp_path, monkeypatch, prior_status="verified", district="�
                  gmaps_place_id="ChIJ-ichibankan", verify_status=prior_status)
     prior.pop("claimed_district")
     # local_lang matches _candidate's zh source, so only the geocode decides the status
-    for name, doc in (("trip-brief.yaml", {"destination": {"country": "日本", "local_lang": "zh"}}),
+    for name, doc in (("trip-brief.yaml", {"destination": {"country": "JP", "local_lang": "zh-TW"}}),
                       ("candidates.yaml", {"candidates": [cand]}), ("verified-pois.yaml", {"pois": [prior]})):
         artifact_path(trip, name).write_text(yaml.safe_dump(doc, allow_unicode=True), encoding="utf-8")
     code, msgs, _out, pois = svr.run(str(trip), str(work), offline=False, **kw)

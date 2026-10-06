@@ -67,6 +67,7 @@ CASES = [
     (["deploy", SLUG, "--project", "p", "--confirm"],
      [("scripts.publish", ["deploy", f"trips/{SLUG}", "--project", "p", "--confirm"])]),
     (["migrate"], [("scripts.migrate_v1", ["trips"])]),
+    (["table", SLUG, "吃的"], [("scripts.survey_table", [f"trips/{SLUG}", "吃的"])]),
     (["migrate", "--apply"], [("scripts.migrate_v1", ["trips", "--apply"])]),
     (["migrate", SLUG, "--apply"], [("scripts.migrate_v1", [f"trips/{SLUG}", "--apply"])]),
     ([f"gate", f"trips/{SLUG}/"], [("scripts.gate", [f"trips/{SLUG}", "--work-dir", f"work/{SLUG}"])]),

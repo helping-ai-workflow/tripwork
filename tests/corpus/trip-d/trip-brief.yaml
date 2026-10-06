@@ -2,7 +2,7 @@ slug: trip-d
 destination:
   country: 台灣
   city: 東北角＋北海岸（基隆正濱・新北貢寮福隆・宜蘭頭城石城・金山・萬里）
-  local_lang: zh
+  local_lang: zh-TW
 dates:
   start: '2026-09-24'
   end: '2026-09-25'

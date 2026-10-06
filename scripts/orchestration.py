@@ -27,9 +27,14 @@ _ROUTES = (
     (("chosen lodging", "required facility", "accommodations stop ",
       "accommodations.yaml absent", "lodging area label missing: ",
       "lodging source record incomplete: "), "tripwork:accommodation-research"),
-    (("legs[", "legs.yaml absent"), "tripwork:inter-stop-legs"),
+    (("legs[", "legs.yaml absent", "legs official source "), "tripwork:inter-stop-legs"),
     (("routing hop ", "routing.yaml absent"), "tripwork:routing-audit"),
     (("cost.total", "cost.by_category", "cost.yaml absent"), "tripwork:cost-rollup"),
+    # v2.1.0 §5: an official source that is a search results page -- only the stage
+    # that wrote the record can find the page it links to (gate.official_search_failures).
+    (("advisory official source ",), "tripwork:travel-advisory"),
+    (("calendar official source ",), "tripwork:calendar-check"),
+    (("seasonal official source ",), "tripwork:seasonal-advisory"),
     # "carries neither hours.close" is rederive_closing's missing-hours marker
     # (scripts/rederive.py). `hours` lives in verified-pois.yaml and ONLY
     # source-verify writes that file -- skills/source-verify/SKILL.md's own
@@ -155,7 +160,7 @@ _DEPS = {
 # report against every one of these — not against a single marker file.
 GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "trip-brief.yaml",
                "accommodations.yaml", "calendar.yaml", "advisory.yaml",
-               "legs.yaml", "routing.yaml", "cost.yaml")
+               "legs.yaml", "routing.yaml", "cost.yaml", "seasonal.yaml")
 # v1.0: export_gate also opens trip-brief.yaml -- the deliverable names come from
 # its short_name -- so a renamed trip makes the export report stale too.
 EXPORT_GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "accommodations.yaml",

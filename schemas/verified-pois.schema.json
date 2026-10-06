@@ -20,7 +20,9 @@
         ],
         "properties": {
           "id": {
-            "type": "string"
+            "type": "string",
+            "not": {"enum": ["home-origin", "home-return"]},
+            "description": "home-origin / home-return are the map's home points (scripts/render/reader/maps.py::HOME_IDS)."
           },
           "name_local": {
             "type": "string"
@@ -77,6 +79,8 @@
                   "nominatim",
                   "nominatim_structured",
                   "nominatim_address",
+                  "nominatim_road",
+                  "village_centroid",
                   "cluster_fallback"
                 ],
                 "description": "Where this coordinate came from. nominatim_address: an approximate point from the venue's sourced street address (address_local) -- the 丁目 or town it lies in -- used when the name lookup missed or landed on a namesake. Optional in schema (old verified-pois.yaml stays valid); required by source-verify's Gate 2. An absent value is a refusal, not a skip: verify_poi cannot tell 'nobody recorded where this coordinate came from' apart from 'this coordinate is a district centroid', so it returns unverified. Recording provenance is its own requirement, independent of any further check on the value. (I3) Note a recorded 'cluster_fallback' now proceeds like any other value — the extra existence-proof check that used to be demanded of it (TW-062's sub-check) is retired, subsumed by Gate 0 once a sourced business_status became an existence proof in its own right (TW-072)."
@@ -175,8 +179,11 @@
           },
           "hours": {
             "type": "object",
-            "description": "Intra-day closing window, consumed by scripts/hours.py::closing_status.",
+            "description": "Intra-day closing window, consumed by scripts/hours.py::closing_status. `open` is the opening time, recorded from the same source as `close`; shown in lists only, never scheduled on.",
             "properties": {
+              "open": {
+                "type": "string"
+              },
               "close": {
                 "type": "string"
               },
@@ -232,6 +239,20 @@
           "gmaps_place_id": {
             "type": "string",
             "description": "Google Maps place_id; deep-links maps_url to the canonical place. May be re-emitted by source-verify so it survives re-verify on the canonical row."
+          },
+          "rating": {
+            "type": "object",
+            "description": "Optional rating a source states (§11): Google's when the consumer has a key (the plugin never calls Google), else another platform's (Tabelog, 愛食記 ...). Never gates, demotes or conflicts a place; lists sort by it and warn on few reviews. `note`: the agent's reading of collected write-ups when they disagree with a high score.",
+            "required": ["platform", "score", "source_url", "as_of"],
+            "additionalProperties": false,
+            "properties": {
+              "platform": {"type": "string"},
+              "score": {"type": "number"},
+              "count": {"type": "integer"},
+              "source_url": {"type": "string"},
+              "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+              "note": {"type": "string"}
+            }
           },
           "business_status": {
             "description": "Operating signal. The object form is the one Gate 0 accepts: {status, source_url, as_of}. The bare string is retained for one version so existing trips keep passing validate_artifact — it is treated as SELF-ATTESTED and yields `unverified`, which routes back to source-verify with a fixable message rather than failing validation outright. (TW-063)",

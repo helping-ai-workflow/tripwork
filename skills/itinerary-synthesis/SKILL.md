@@ -56,6 +56,10 @@ stop → … → last stop → tonight's lodging (last day: the departure point)
 
 Fallbacks hang under the stop they belong to, in `days[].alternatives`:
 `{kind: 備案 | 選項, applies_to: <that stop's poi_id>, trigger, fallback, poi_id}`.
+When you offer the user places to choose from, list the rated ones first by score, with the
+score and review count, and flag few reviews (under 30) or a `rating.note`; an unrated place is
+listed after them as 「無評分」, never dropped.
+
 The fallback place is a stop like any other — its `poi_id` must be verified; if it is not,
 send it to source-verify first. Never write inline `▸ 備案(…)｜…` rows, and never a trip-level
 `contingency` list; `itinerary-gate` fails both (`legacy …`). An alternative is a place;
@@ -155,7 +159,7 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - Fill each day's `宿 <hotel>` from the overnight stop's `chosen` lodging. Render it via
   the existing `scripts/render/markdown.py::render_day_table` (the lodging dict is
   POI-shaped: `name_local` / `name_display` / `sources`), so the hotel name becomes the
-  maps link and a primary `官網` / booking link is appended — no new renderer.
+  maps link and a primary source link (`官網` when official) is appended — no new renderer.
 - **Build the render `poi_map` as verified-pois + each stop's chosen lodging.** Call
   `scripts/gate.py::poi_pool(pois, accommodations)` so a `day.lodging` id resolves
   natively — otherwise the lodging renders as a blank `—`. This is the same pool the
@@ -192,7 +196,7 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
    Quote `due` (and `opens_at`) in YAML — `due: "2026-10-17 08:00"`; an unquoted date parses as
    a date object and fails the schema.
    Do not write location notes for approximate coordinates here; the renderers append one per
-   scheduled POI or lodging whose geocode is `cluster_fallback` or `nominatim_address`
+   scheduled POI or lodging whose geocode is `cluster_fallback`, `nominatim_address`, `nominatim_road` or `village_centroid`
    (`scripts/render/centroid.py`).
    Auto-extract from verified-pois `booking.required==true` (with `lead_time` /
    `lead_time_days`) plus passport/visa basics. For each booking carrying `lead_time_days`,

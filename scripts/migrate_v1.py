@@ -8,7 +8,9 @@ only when no artifact is left at its root. Nothing is deleted or overwritten --
 old deliverables (exports/, the root itinerary.md, an old report whose work/ copy
 already exists) go to data/legacy-exports/, renamed when two share a name.
 
-It moves files; it does not rewrite them. Inline `▸` rows and a trip-level
+It moves files, and tags the region of Chinese sources from their URL (v2.1.0 D3,
+scripts/migrate_lang.py: `lang: zh` -> `zh-TW` where the URL proves it; an unknown
+source stays `zh`); nothing else is rewritten. Inline `▸` rows and a trip-level
 `contingency` are LISTED, not converted: attaching a ▸ row by its position is the
 signal spec §4.4 names as wrong (trip-e D5), while the v1.0 gate's `legacy …`
 classes route both to itinerary-synthesis, which reads the text. short_name,
@@ -24,9 +26,11 @@ import sys
 
 import yaml
 
+from scripts.migrate_lang import apply_lang, plan_lang
 from scripts.paths import LEGACY_EXPORTS, REPORTS, data_dir, is_legacy_layout, work_dir_for
 
 _TRIANGLE_MARK = "▸"
+_LANG_FILES = ("candidates.yaml", "verified-pois.yaml", "accommodations.yaml", "trip-brief.yaml")
 
 
 def plan_trip(trip_dir, work_root=None):
@@ -120,7 +124,8 @@ def main(argv):
         sorted(p for p in root.iterdir() if p.is_dir())
     for t in trips:
         moves, notes = plan_trip(t, work_root)
-        if not moves:
+        edits, lang_notes = plan_lang(t)             # read before the moves, at today's paths
+        if not moves and not edits and not lang_notes:
             print(f"{t.name}: already v1.0 — skipped")
             continue
         print(f"{t.name}:")
@@ -128,8 +133,15 @@ def main(argv):
             print(f"  {action} {_show(src, t)}" + (f" -> {_show(dst, t)}" if dst else ""))
         for n in notes:
             print(f"  note: {n}")
+        if edits or lang_notes:
+            n = {f: sum(1 for e in edits if e.file == f) for f in _LANG_FILES}
+            print("  lang: " + " / ".join(f"{f.removesuffix('.yaml')} {k}" for f, k in n.items()))
+            for n in lang_notes:
+                print(f"  note: {n}")
         if args.apply:
             _apply(moves)
+            moved = {src: dst for action, src, dst in moves if action == "move"}
+            apply_lang([e._replace(path=moved.get(e.path, e.path)) for e in edits])
     if not args.apply:
         print("dry run — nothing changed; re-run with --apply (paths move under data/)")
     return 0

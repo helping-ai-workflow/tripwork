@@ -144,19 +144,19 @@ class TestE2EAllNineDefects:
     def test_p3_landmark_resolves_via_roman_or_bare(self, monkeypatch):
         import scripts.geocode as g
 
-        def fake_structured(name, city=None, country=None, timeout=10):
-            return None  # street-slot misses
+        def fake_structured(name, city=None, country=None, timeout=10, limit=5, details=False):
+            return []  # street-slot misses
 
-        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None):
+        def fake_geocode(query, timeout=10, countrycodes=None, feature_type=None, limit=5, details=False):
             if query in ("水社碼頭", "Shuishe Pier"):  # bare or roman resolves
-                return g.GeocodeResult(23.86, 120.91, "水社碼頭 result")
-            return None
+                return [g.GeocodeResult(23.86, 120.91, "水社碼頭, 魚池鄉")]
+            return []
 
-        monkeypatch.setattr(g, "geocode_structured", fake_structured)
-        monkeypatch.setattr(g, "geocode", fake_geocode)
+        monkeypatch.setattr(g, "geocode_structured_many", fake_structured)
+        monkeypatch.setattr(g, "geocode_many", fake_geocode)
         monkeypatch.setattr(g, "geocode_country", lambda country, timeout=10: "tw")   # v1.2.1
         res, _ = resolve_place("水社碼頭", district="日月潭", country="Taiwan",
-                               name_roman="Shuishe Pier")
+                               name_roman="Shuishe Pier", region=(23.85, 120.91, 5.0))
         assert res is not None
 
     # ---- P4 + P5 combined (the cross-defect gate run) ----

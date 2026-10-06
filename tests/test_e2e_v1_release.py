@@ -153,7 +153,7 @@ def test_the_last_day_returns_and_has_no_hotel_pins(tour):
     _t, _w, _maps, soup = tour
     assert soup.select(".hcal .stamp")[-1].select_one("small").get_text() == "返程"
     d4 = soup.select_one('section.page.day[data-pg="d4"]')
-    assert [c.get_text() for c in d4.select(".mapc .chips a.chip")][-1] != "回家"
+    assert not d4.select(".mapc .chips a.c-d4-end")                    # no hotel to end at
 
 
 def test_a_day_trip_has_no_lodging_anywhere(tmp_path):
@@ -165,8 +165,7 @@ def test_a_day_trip_has_no_lodging_anywhere(tmp_path):
     assert soup.select_one('.hside label[for="pg-lodging"] small').get_text() == "0 間"
     assert soup.select_one('[data-pg="lodging"] .empty')
     assert soup.select_one(".hcal .stamp small").get_text() == "返程"
-    chips = [c.get_text() for c in soup.select('section.page.day[data-pg="d1"] .mapc .chips a.chip')]
-    assert "出發" not in chips and "回家" not in chips
+    assert not soup.select('section.page.day[data-pg="d1"] .mapc .chips a.chip.hotel')
 
 
 def test_a_photo_on_two_days_is_embedded_once_and_lands(tour):

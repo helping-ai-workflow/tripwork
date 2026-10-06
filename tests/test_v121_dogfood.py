@@ -56,7 +56,10 @@ def test_the_country_code_is_looked_up_once_per_trip_cache(monkeypatch):
     assert sum(1 for p in seen if _country(p)) == 1
 
 
-def test_a_country_nominatim_cannot_name_leaves_the_search_open(monkeypatch):
+def test_resolve_place_alone_leaves_the_search_open_for_an_unknown_country(monkeypatch):
+    """resolve_place itself still searches unbounded when no code is known; since v2.1.0
+    (D4) the verify driver never gets here -- it stops first (test_country_code.py::
+    test_unknown_country_stops_verify)."""
     get, seen = _nominatim(lambda p: [])
     monkeypatch.setattr(G.requests, "get", get)
     G.resolve_place("ゆめ食堂", district="函館市", country="どこか")
@@ -76,7 +79,7 @@ def test_a_structured_hit_needs_no_country_lookup(monkeypatch):
 def _district(monkeypatch, display, district="小樽市堺町"):
     from scripts import source_verify_run as svr
     monkeypatch.setattr(svr, "_rate_limited_resolve",
-                        lambda name, d, c, cache, name_roman=None, area=False:
+                        lambda name, d, c, cache, name_roman=None, area=False, region=None:
                         (G.GeocodeResult(43.19, 141.0, display), "nominatim"))
     monkeypatch.setattr(svr, "_district_fallback", lambda *a: None)         # v1.3.0: nor does the fallback
     return svr._district_centroid(district, "日本", {}, False, {})

@@ -26,6 +26,8 @@ def run_main(module, argv):
         try:
             code = mod.main(argv)
         except SystemExit as exc:
+            if isinstance(exc.code, str):              # as Python itself: the text, exit 1
+                print(exc.code, file=sys.stderr)
             code = exc.code if isinstance(exc.code, int) else (0 if exc.code is None else 1)
         except Exception:                                 # a crash: what a child process would show
             traceback.print_exc()

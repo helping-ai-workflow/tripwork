@@ -47,11 +47,22 @@ def _font_bytes(path):
     return pathlib.Path(path).read_bytes()
 
 
+class FontPackageMissing(RuntimeError):
+    """fontTools or brotli is not installed (v2.1.0 D8): the page cannot embed its fonts,
+    and says so in one line instead of falling back to another typeface."""
+
+
+FONT_PACKAGE_MESSAGE = "缺少字型套件：請執行 pip install fonttools brotli"
+
+
 @functools.lru_cache(maxsize=16)
 def font_faces(text):
     """@font-face rules with each face subset to exactly `text`, woff2, base64."""
-    from fontTools import subset
-    from fontTools.ttLib import TTFont
+    try:
+        from fontTools import subset
+        from fontTools.ttLib import TTFont
+    except ImportError as exc:
+        raise FontPackageMissing(FONT_PACKAGE_MESSAGE) from exc
 
     out = []
     for (family, weight), path in FONT_FILES.items():
@@ -63,7 +74,10 @@ def font_faces(text):
         sub.subset(font)
         font.flavor = "woff2"
         buf = io.BytesIO()
-        font.save(buf)
+        try:
+            font.save(buf)                    # woff2 imports brotli only here
+        except ImportError as exc:
+            raise FontPackageMissing(FONT_PACKAGE_MESSAGE) from exc
         data = base64.b64encode(buf.getvalue()).decode()
         out.append(f"@font-face{{font-family:'{family}';src:url(data:font/woff2;base64,{data}) "
                    f"format('woff2');font-weight:{weight};font-display:block}}")

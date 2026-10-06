@@ -37,8 +37,9 @@ import sys
 import yaml
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-# run as a file, Python puts scripts/ first on sys.path, where scripts/calendar.py shadows the
-# standard library's calendar (the font subsetter needs the real one): drop it, use the root
+# run as a file, Python puts scripts/ first on sys.path, where a module named like a standard
+# library one would shadow it (scripts/calendar.py once hid the calendar the font subsetter
+# needs; tripwork.py's entry rule keeps such names out): drop it, use the root
 if sys.path and pathlib.Path(sys.path[0] or ".").resolve() == pathlib.Path(__file__).resolve().parent:
     sys.path.pop(0)
 if str(ROOT) not in sys.path:

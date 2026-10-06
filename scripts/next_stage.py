@@ -24,6 +24,7 @@ from scripts.orchestration import (ADVISORY_PROJECTION, EXPORT_DELIVERABLES,
                                     REQUIRED_DELIVERABLE, candidates_stale,
                                     input_fingerprint, route_gate_failures)
 from scripts.validate_artifact import validate_file
+from scripts.brief_names import is_survey, must_do_names
 
 # (artifact, producing stage, rule tag) in pipeline order — advisory moved to
 # rule 1.5 (D4: a banned regulation must surface before any research is spent).
@@ -50,6 +51,31 @@ def _load(path):
     # A truncated report can parse as a bare YAML scalar; degrade to {} so it
     # flows into the unreadable/invalid-report branch instead of crashing.
     return doc if isinstance(doc, dict) else {}
+
+
+def uncovered_must_do(brief, candidates_doc):
+    """must_do topics destination-research has not searched yet (v2.1.0 §10: a survey
+    upgraded to a trip adds must_do). Read from candidates.yaml's `must_do_searched`;
+    without that record nothing is checked -- must_do is free text, never matched by name."""
+    searched = (candidates_doc or {}).get("must_do_searched")
+    if not isinstance(searched, list):
+        return []
+    return [m for m in must_do_names(brief) if m not in searched]
+
+
+def _survey_done(trip_dir, brief, pois_path):
+    """A survey ends with its list page, newer than verified-pois (v2.1.0 §10)."""
+    page = deliverable_paths(trip_dir, brief)["html"]
+    if not page.is_file() or not _newer(page, pois_path):
+        return "tripwork:export-artifact", "survey：清單頁不存在或舊於 verified-pois"
+    return "complete", "survey：清單完成"
+
+
+def _bare_chinese(brief):
+    """The brief names Chinese as its local language without a region (v2.1.0 D3)."""
+    from scripts.verify import normalize_lang
+    lang = ((brief or {}).get("destination") or {}).get("local_lang")
+    return normalize_lang(lang) == ("zh", None)
 
 
 def _ready(path):
@@ -88,10 +114,16 @@ def next_stage(trip_dir, work_dir):
                 "rule 0.7: pre-v1.0 trip layout — run `python <plugin>/scripts/tripwork.py "
                 f"migrate {t.name}` (dry run), then with --apply, and resume")
 
+    survey, brief_doc = False, {}
     for name, skill, rule in _CHAIN:
         p = artifact_path(t, name)
+        if survey and name == "advisory.yaml":
+            continue                      # v2.1.0 §10: a survey has no airline or dates to check
         if not p.is_file():
             return skill, f"{rule}: no {name}"
+        if name == "trip-brief.yaml" and _ready(p):
+            brief_doc = _load(p)
+            survey = is_survey(brief_doc)
         if name == "verified-pois.yaml":
             if not _ready(p) or not any(
                     q.get("verify_status") == "verified"
@@ -103,7 +135,18 @@ def next_stage(trip_dir, work_dir):
             ver_ids = [q.get("id") for q in _load(p).get("pois") or []]
             if candidates_stale(cand_ids, ver_ids) or _newer(cand, p):
                 return skill, f"{rule}: verified-pois stale w.r.t. candidates"
+            if survey:
+                return _survey_done(t, brief_doc, p)
+        elif name == "candidates.yaml" and _ready(p) and survey and "must_do_searched" not in _load(p):
+            # an upgraded survey finds its new must_do by this record, so a survey keeps one
+            return skill, f"{rule}: survey 的 candidates.yaml 要記錄 must_do_searched（沒有就寫 []）"
+        elif name == "candidates.yaml" and _ready(p) and uncovered_must_do(brief_doc, _load(p)):
+            return skill, (f"{rule}: must_do 未涵蓋："
+                           + "、".join(uncovered_must_do(brief_doc, _load(p))))
         elif not _ready(p):
+            if name == "trip-brief.yaml" and _bare_chinese(_load(p)):
+                return skill, (f"{rule}: trip-brief 的 local_lang 是中文但沒有地區——"
+                               "請寫 zh-TW / zh-HK / zh-CN / zh-SG / zh-MY")
             return skill, f"{rule}: {name} exists but is not schema-valid"
 
     # rule 11 — advisory freshness anchors on the BRIEF's destination/dates/airline,
