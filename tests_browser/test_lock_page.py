@@ -95,3 +95,52 @@ def test_lock_page_works_without_storage(browser, locked_url):
     assert pg.evaluate("window.__writes") == 1
     assert dialogs == []
     ctx.close()
+
+
+SALT = "0123456789abcdef0123456789abcdef"
+
+
+@pytest.fixture(scope="session")
+def locked_share(tmp_path_factory, pages):
+    """The publish page locked with a known salt, and its share link's fragment
+    (`#staticrypt_pwd=<hash>`, which depends on the salt)."""
+    if not shutil.which("npx"):
+        pytest.fail("node/npx required: the lock page is made by staticrypt (npx staticrypt@3.5.4)")
+    from scripts.render.publish.lock import staticrypt_share_args
+    root = tmp_path_factory.mktemp("lock-share")
+    tpl = root / "template.html"
+    tpl.write_text(lock_template(), encoding="utf-8")
+    html = root / "index.html"
+    html.write_text(pages["publish"].read_text(encoding="utf-8"), encoding="utf-8")
+    subprocess.run(["npx", "--yes", *staticrypt_args(tpl, root / "out", html, salt=SALT)], cwd=root, check=True,
+                   capture_output=True, text=True, timeout=300, env=staticrypt_env(PASSWORD))
+    out = subprocess.run(["npx", "--yes", *staticrypt_share_args(SALT, "X")], cwd=root, check=True,
+                         capture_output=True, text=True, timeout=300, env=staticrypt_env(PASSWORD)).stdout
+    return (root / "out" / "index.html").as_uri(), out[out.index("#staticrypt_pwd="):].split()[0]
+
+
+@pytest.mark.parametrize("way", ["share link", "typed", "remembered", "remembered, share link"])
+def test_every_way_in_opens_today_during_the_trip(browser, locked_share, way):
+    """Today opens however the trip is unlocked -- the share link keeps its fragment in the
+    address bar after the unlock, and that fragment once kept the trip on its overview."""
+    from tests import reader_fixture as R
+    url, frag = locked_share
+    ctx = browser.new_context(viewport=PHONE)
+    d2 = R.itinerary()["days"][1]["date"]
+    ctx.add_init_script(f"(()=>{{const T=new Date('{d2}T10:00:00').getTime(),D=Date;"
+                        "window.Date=class extends D{constructor(...a){super(...(a.length?a:[T]))}static now(){return T}}})()")
+    pg = ctx.new_page()
+    if way == "share link":
+        pg.goto(url + frag)
+    else:
+        pg.goto(url)
+        pg.wait_for_selector("#staticrypt-password", state="visible")
+        _unlock(pg, PASSWORD)
+        if way != "typed":                                # remember is checked: a later visit opens by itself
+            pg.wait_for_selector(".page.home", state="attached")
+            pg = ctx.new_page()
+            pg.goto(url + (frag if way.endswith("share link") else ""))
+    pg.wait_for_selector(".page.home", state="attached")
+    pg.wait_for_timeout(500)
+    assert pg.evaluate("document.querySelector('input[name=pg]:checked').id") == "pg-d2"
+    ctx.close()

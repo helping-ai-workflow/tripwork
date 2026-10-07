@@ -1,5 +1,56 @@
 # Changelog
 
+## 2.2.0 — The photo goes back where it came from, today wears a tape, the share link opens today
+
+### Added
+
+- **Today's tape (shared page).** During the trip the home calendar's stamp for today wears
+  a strip of paper tape, a different one each day: nine patterns (stripes, dots, gingham,
+  diagonal, grid, scallop, diamond, dots on stripes, edged) in six of the reader's colours
+  (紅 藍 綠 芥末 橘 紫), never the colour of the stamp it sits on. The pick is made when the
+  page is rendered (`scripts/render/reader/tapes.py`): a pattern cycle and a colour cycle, each
+  shuffled once per trip from its title and first day, so a day shows the same tape on every
+  device and reload, every pattern has a day before one comes back, and a pairing does not
+  come back for 18 days; the tilt and the torn ends vary by day too. The page script only
+  marks which day is today, so the offline file and the no-script preview show no tape.
+  On the dark theme the ink is deeper and the dots light, so a tape keeps its colour.
+- **The tape sheet in the README**, light and dark, drawn by the shipped stylesheet:
+  `python docs/images/readme/demo_trip.py --tapes` re-takes it without the network.
+
+### Changed
+
+- **住宿 / 入境規定 / 行前清單 have a day page's top row (phone).** 「‹ 總覽」 sits at the top left,
+  where a day page has it (same place, same size), and the title is centred on the screen; the
+  list starts where it did.
+- **A photo grows out of its thumbnail and goes back into it (shared page, every width).**
+  Opening a stop's photo now opens it in the page's own layer: the photo grows from where it
+  sits in its card to full screen. Dragging down (touch) the photo follows the finger and
+  shrinks, the dark layer thins; let go moving down (or past 100 px) and it flies back into
+  its thumbnail, else it springs back. A tap on the photo, ✕, the dark layer or Esc go back
+  the same way. A thumbnail half under the map row or the list's top edge grows from, and
+  lands on, the part of it that shows. It plays with reduced motion on too: it is short and
+  only answers a tap or a drag. The page without script keeps the full-screen checkbox.
+
+### Fixed
+
+- **The base no longer jumps when a photo closes.** The full-screen photo used to be the
+  figure itself turned fixed, so its card lost the photo's height while it was open and the
+  list jumped back when it returned -- a moment with no photo, then the photo grew back.
+- **The share link opens today.** staticrypt leaves `#staticrypt_pwd=…` in the address bar
+  after the unlock, and any `#` used to stop today from opening, so the share link always
+  landed on the overview. Only a fragment that names a place in the page wins over today now.
+- **An opened stop shows its title (shared page, phone).** The day is one scroller whose title
+  row, map row and card top stick; opening a stop (an anchor jump) put it 8 px under the
+  scroller's top, under all of that, its title row and outline hidden. The scroller is now
+  padded by what covers its top -- the sticky rows plus the card's top edge and fade hanging
+  below them, read from the page and kept as the map row opens and closes -- so the stop lands
+  just below. Map chips and 來源 links land the same way.
+- **住宿 / 入境規定: the first card's top line shows.** A card's outline is a 1 px shadow outside
+  it, and the list's scroller had a pixel of room only at its sides, so the first card's top
+  line (and the last one's bottom line) was clipped, phone and desktop. The room is on all four
+  sides now; the cards have not moved.
+Tests: 2202 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 567 passed (headless Chromium and WebKit).
+
 ## 2.1.0 — Chinese sources carry their region, home on the map, a survey list, ratings
 
 ### Added

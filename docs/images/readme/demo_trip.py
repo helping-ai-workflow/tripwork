@@ -8,8 +8,13 @@ second), so the credit shows on every map. The photos come from the plugin's own
 shared page's lock screen is the shipped template, locked by the real staticrypt (needs
 Node) with a made-up password.
 
+The tape sheet (today's tape on the shared page's calendar: every pattern in every colour) is
+drawn by the shipped stylesheet from scripts/render/reader/tapes.py, light and dark; it needs
+no network, so it can be re-taken alone.
+
     pip install -e ".[dev,browser,maps]"
-    python docs/images/readme/demo_trip.py        # writes docs/images/readme/*.jpg
+    python docs/images/readme/demo_trip.py            # writes docs/images/readme/*.jpg and tapes*.png
+    python docs/images/readme/demo_trip.py --tapes    # only tapes.png / tapes-dark.png
 """
 import copy
 import io
@@ -227,6 +232,47 @@ def shoot(reader, picker, locked):
         cr.close()
 
 
+def tape_sheet(dark=False):
+    """Every tape pattern (rows) in every colour (columns), each strip drawn by the reader's own
+    rules -- the stylesheet, tapes.css(), the theme switch -- as today's stamp wears it."""
+    import html
+    from scripts.render.reader import tapes
+    from scripts.render.reader.assets import font_faces
+    from scripts.render.reader.theme import CSS
+    names = "".join(tapes.PATTERNS.values()) + "".join(tapes.COLOURS.values())
+    strip = lambda p, c, k: (f'<span class="tape-swatch tp-{p} tc-{c} tt{k}" '
+                             f'style="--u:2.2px;--tl:70px;--tw:23px"></span>')
+    cells = ["<span></span>"] + [f"<b>{html.escape(n)}</b>" for n in tapes.COLOURS.values()]
+    for i, (p, name) in enumerate(tapes.PATTERNS.items()):
+        cells.append(f"<span>{html.escape(name)}</span>")
+        cells += [strip(p, c, (i + j) % tapes.TEARS) for j, c in enumerate(tapes.COLOURS)]
+    sheet = (".sheet{display:inline-grid;grid-template-columns:auto repeat(6,82px);gap:12px 8px;align-items:center;"
+             "justify-items:center;padding:18px 22px;background:var(--card);font:700 14px var(--f-round);color:var(--mut)}"
+             ".sheet>span:nth-child(7n+1){justify-self:start;padding-right:6px}body{margin:0;background:var(--card)}")
+    theme = '<input type="checkbox" id="theme" checked hidden>' if dark else ""
+    return (f'<!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><style>{font_faces(names)}{CSS}{tapes.css()}{sheet}</style></head>'
+            f'<body>{theme}<div class="sheet">{"".join(cells)}</div></body></html>')
+
+
+def shoot_tapes(root):
+    from PIL import Image
+    from playwright.sync_api import sync_playwright
+    with sync_playwright() as p:
+        wk = p.webkit.launch()
+        for dark, name in ((False, "tapes"), (True, "tapes-dark")):
+            f = root / f"{name}.html"
+            f.write_text(tape_sheet(dark), encoding="utf-8")
+            pg = wk.new_page(viewport={"width": 760, "height": 600}, device_scale_factor=2)
+            pg.goto(f.as_uri()); pg.wait_for_timeout(300)
+            im = Image.open(io.BytesIO(pg.locator(".sheet").screenshot())).convert("RGB")
+            im.save(OUT / f"{name}.png", optimize=True)
+            print(name, im.size)
+            pg.close()
+        wk.close()
+
+
 if __name__ == "__main__":
     with tempfile.TemporaryDirectory() as d:
-        shoot(*render(pathlib.Path(d)))
+        if "--tapes" not in sys.argv:
+            shoot(*render(pathlib.Path(d)))
+        shoot_tapes(pathlib.Path(d))

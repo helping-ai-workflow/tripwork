@@ -82,10 +82,13 @@ def ring_svg(i, text):
             f'{esc(text)}</textPath></text></svg>')
 
 
-def stamp(i, date, area, cls, cur=False, plain=False, ring=""):
+def stamp(i, date, area, cls, cur=False, plain=False, ring="", tape=None):
     m1 = date.day == 1 and not plain
     extra = (" cur" if cur else "") + (" m1" if m1 else "")
-    return (f'<label class="stamp {cls}{extra}" for="pg-d{i}" style="--t:{TILT[(i - 1) % len(TILT)]}deg">'
+    # the home calendar's stamps carry their day's tape (tapes.py); the page script shows today's
+    extra += f" tp-{tape.pattern} tc-{tape.colour} tt{tape.tear}" if tape else ""
+    tr = f";--tr:{tape.tilt:.1f}deg" if tape else ""
+    return (f'<label class="stamp {cls}{extra}" for="pg-d{i}" style="--t:{TILT[(i - 1) % len(TILT)]}deg{tr}">'
             f'<b>{_day_label(date, plain)}</b><small>{esc(area)}</small>{ring_svg(i, ring) if ring else ""}</label>')
 
 
@@ -98,7 +101,7 @@ def _off(date, k, plain=False):
     return f'<span class="off{" sun" if k == 0 else " sat" if k == 6 else ""}">{_day_label(date, plain)}</span>'
 
 
-def _cells(week, trip, cur, month=None, rings=None):
+def _cells(week, trip, cur, month=None, rings=None, tapes=None):
     """A week of cells. With `month` the grid is that month alone: other months' days are
     blank and its own 1st reads '1'."""
     plain = month is not None
@@ -108,7 +111,8 @@ def _cells(week, trip, cur, month=None, rings=None):
             out.append("<span></span>")          # the other month draws its own days
         elif x in trip:
             i, area, cls = trip[x]
-            out.append(stamp(i, x, area, cls, cur == i, plain, (rings[i - 1] if rings and i <= len(rings) else "")))
+            out.append(stamp(i, x, area, cls, cur == i, plain, (rings[i - 1] if rings and i <= len(rings) else ""),
+                             tapes[i - 1] if tapes and i <= len(tapes) else None))
         else:
             out.append(_off(x, k, plain))
     return "".join(out)
@@ -135,7 +139,7 @@ def _trip_weeks(dates, min_rows=5, max_before=2):
     return weeks
 
 
-def months(dates, areas, rings=None):
+def months(dates, areas, rings=None, tapes=None):
     """One card (spec v1.1 §6.2): a single-month trip draws its whole month; a trip
     across months draws continuous weeks. The card title is month_title()."""
     if not dates:
@@ -144,10 +148,10 @@ def months(dates, areas, rings=None):
     if len({(d.year, d.month) for d in dates}) <= 1:
         d0 = dates[0]
         weeks = _cal.Calendar(firstweekday=6).monthdatescalendar(d0.year, d0.month)
-        body = "".join(_cells(w, trip, None, d0.month, rings) for w in weeks)
+        body = "".join(_cells(w, trip, None, d0.month, rings, tapes) for w in weeks)
     else:
         weeks = _trip_weeks(dates)
-        body = "".join(_cells([s + datetime.timedelta(days=k) for k in range(7)], trip, None, rings=rings)
+        body = "".join(_cells([s + datetime.timedelta(days=k) for k in range(7)], trip, None, rings=rings, tapes=tapes)
                        for s in weeks)
     # --wk: the desktop sizes its stamps from the row height (theme.py, review I3)
     return (f'<div class="months"><div class="month"><h3>{esc(month_title(dates))}</h3>'

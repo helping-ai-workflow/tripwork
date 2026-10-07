@@ -311,11 +311,16 @@ body:has(.pgf:checked) .page.day .unf::after{content:"";position:absolute;right:
 /* v1.1 topic 6 (pick P1): the day page mini stamp's proportion -- 14 px date in 34 px */
 .page.home .months .stamp{width:34px;height:34px}
 .page.home .hwrap{display:flex;flex-direction:column}.page.home .hside{display:contents}.page.home .ttl{order:1}.page.home .hcal{order:2}.page.home .tiles{order:3}.page.home .trip{order:4;background:var(--card);border-radius:14px;box-shadow:0 0 0 1px var(--rule);padding:14px 16px}.page.home .trip ol{max-height:168px;overflow:auto}.page.home .trip li{grid-template-columns:auto minmax(0,1fr) auto;align-items:baseline;padding-bottom:12px}.page.home .trip li b{font-size:15px}.page.home .trip li span{grid-column:2;grid-row:1;font-size:13px}.page.home .trip li em{grid-column:3;font-size:13px}.page.home .trip li::before{top:3px}.page.home .trip li:not(:last-child)::after{top:18px}
-.page.sub .ovbox{height:100%;display:flex;flex-direction:column}.page.sub .ph{padding-right:40px}
+.page.sub .ovbox{height:100%;display:flex;flex-direction:column}
+/* v2.2 (the user's pick C1): a sub page's top row is a day page's -- 「‹ 總覽」 at the top left, the
+   title centred on the screen (1fr auto 1fr, the theme bubble floats over the right column) */
+.page.sub .ph{display:grid;grid-template-columns:1fr auto 1fr;align-items:center}
+.page.sub .ph .back{grid-column:1;grid-row:1;justify-self:start;align-self:start}.page.sub .ph h2{grid-column:2;grid-row:1}
 .page.sub .pb{flex:1;min-height:0;overflow-y:auto;overscroll-behavior:contain}
 /* v1.2.1: the cards' outline is a 1 px shadow outside their box; the scroller widens by 1 px a side
    (padding gives it back) so its overflow no longer cuts the side lines -- nothing else moves */
-.ovbox .pb{margin-inline:-1px;padding-inline:1px}
+/* a card's outline is a 1px shadow outside it, and the scroller clips: a pixel of room all round, the cards where they were */
+.ovbox .pb{margin:-1px;padding:1px}
 .pmap .mapc{margin:0;position:relative;background:none;box-shadow:none}.pmap .mapc[open]{padding-bottom:12px}
 .pmap .mapc>summary{min-height:44px;padding:0 44px 0 12px}.pmap .mapc[open]>summary{margin-bottom:4px}
 .pmap .chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding:0 12px 8px}.pmap .chips::-webkit-scrollbar{display:none}
@@ -378,7 +383,7 @@ body:has(#pg-lodging:checked,#pg-advisory:checked,#pg-checklist:checked) .page.h
 .ovbg{display:block;position:absolute;inset:0;background:rgba(10,8,6,.72);cursor:pointer}
 .ovbox{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,90vw);max-height:86vh;display:flex;flex-direction:column;
   background:var(--bg);border-radius:16px;box-shadow:0 0 0 1px var(--rule),0 12px 40px rgba(0,0,0,.5);padding:14px}
-.ovbox .pb{min-height:0;overflow:auto;margin-inline:-1px;padding-inline:1px}
+.ovbox .pb{min-height:0;overflow:auto;margin:-1px;padding:1px}
 /* the user's check, pick T1 with B1's bar: a thin scrollbar in the reader's colours, and the
    list / sub-screens fade at the edges by gradients of their own background laid over the
    content -- not a mask, which cut content hard under the title and faded the bar too.
@@ -430,3 +435,13 @@ body:has(#pg-lodging:checked,#pg-advisory:checked,#pg-checklist:checked) .page.h
 @media (min-width:1024px) and (max-width:1359px){.pmap{padding-bottom:60px}}
 """
 CSS += DESKTOP_CSS
+
+# v2.2 every width: the photo layer PUBLISH_JS opens -- the page's own dark layer, the photo
+# (placed and sized by the script), the source + ✕ bar; the figure stays in its card
+PHOTO_CSS = """
+.pzx{position:fixed;inset:0;z-index:40;touch-action:none;cursor:zoom-out}
+.pzx>.pzb{position:absolute;inset:0;background:rgba(10,8,6,.94)}.pzx>.pzw{position:absolute;inset:0}
+.pzx .pzi{position:absolute;left:0;top:0;transform-origin:0 0;background-position:center;background-size:100% 100%;background-repeat:no-repeat;will-change:transform}
+.pzx>.zbar{display:flex;justify-content:space-between;align-items:center;gap:10px;position:absolute;left:0;right:0;margin:0 auto;max-width:min(100%,960px);padding:0 12px;box-sizing:border-box}
+"""
+CSS += PHOTO_CSS

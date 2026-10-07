@@ -12,7 +12,7 @@ import re
 from types import SimpleNamespace
 
 from scripts.render.heading import trip_title
-from scripts.render.reader import month_calendar
+from scripts.render.reader import month_calendar, tapes
 from scripts.render.reader.assets import ICON_DIR, _FONTS, font_faces, icon
 from scripts.render.reader.centre import CENTRE_JS
 from scripts.render.reader.publish import PUBLISH_JS
@@ -93,7 +93,7 @@ def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, adviso
     title = trip_title(ctx.brief, itinerary)
     maps_css = "".join(map_nav_css(ctx, i, d) for i, d in enumerate(ctx.days, start=1))
     images = "".join(f'.{cls}{{background-image:url("{data}")}}' for data, cls in ctx.map_images.items())
-    css = font_faces("".join(sorted(set(text)))) + CSS + _nav_css(pages) + maps_css + images
+    css = font_faces("".join(sorted(set(text)))) + CSS + tapes.css() + _nav_css(pages) + maps_css + images
     return ('<!doctype html>' + licence_notice() + '<html lang="zh-Hant"><head><meta charset="utf-8">'
             '<meta name="viewport" content="width=device-width, initial-scale=1">'
             f'<title>{esc(title)}</title><style>{css}</style></head><body>{body}'
