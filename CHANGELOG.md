@@ -19,6 +19,9 @@
 
 ### Changed
 
+- **住宿 / 入境規定 / 行前清單 have a day page's top row (phone).** 「‹ 總覽」 sits at the top left,
+  where a day page has it (same place, same size), and the title is centred on the screen; the
+  list starts where it did.
 - **A photo grows out of its thumbnail and goes back into it (shared page, every width).**
   Opening a stop's photo now opens it in the page's own layer: the photo grows from where it
   sits in its card to full screen. Dragging down (touch) the photo follows the finger and
@@ -46,7 +49,7 @@
   it, and the list's scroller had a pixel of room only at its sides, so the first card's top
   line (and the last one's bottom line) was clipped, phone and desktop. The room is on all four
   sides now; the cards have not moved.
-Tests: 2202 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 561 passed (headless Chromium and WebKit).
+Tests: 2202 passed (the corpus ships with the repo, so CI runs the same count); `tests_browser`: 567 passed (headless Chromium and WebKit).
 
 ## 2.1.0 — Chinese sources carry their region, home on the map, a survey list, ratings
 
