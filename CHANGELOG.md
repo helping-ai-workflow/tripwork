@@ -44,7 +44,7 @@
 
 - A script that compares the output of `tripwork.py next` with an old id must use the new one.
 
-Tests: 2223 passed, 1 skipped in CI (the privacy check of a local consumer workspace skips there; the corpus ships with the repo); `tests_browser`: 567 passed (headless Chromium and WebKit).
+Tests: 2222 passed, 2 skipped in CI (the two consumer-workspace checks — privacy and survey-table categories — skip there; the corpus ships with the repo); `tests_browser`: 567 passed (headless Chromium and WebKit).
 
 ## 2.2.0 — The photo goes back where it came from, today wears a tape, the share link opens today
 
