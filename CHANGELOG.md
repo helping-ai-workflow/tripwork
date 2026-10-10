@@ -1,5 +1,16 @@
 # Changelog
 
+## 3.0.1 — two test fixtures stop sharing a coordinate with a consumer trip
+
+### Fixed
+
+- `tests/test_home_points.py` and `tests/test_e2e_v210_closure.py`: a made-up home point in
+  these fixtures matched a value derived from a consumer workspace, so `test_privacy` failed
+  on that machine (CI has no workspace and skips the check). Both fixtures now use another
+  public landmark; nothing the plugin ships changes.
+
+Tests: 2222 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, the privacy check passes.
+
 ## 3.0.0 — three skills carry a tripwork- prefix, so pi loads every one
 
 ### Changed
