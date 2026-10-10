@@ -2,7 +2,7 @@
 
 F1 (P7-twin): export-gate `retryable` — a data defect (missing attribution / no official
               source) that re-rendering cannot fix is non-retryable, so the orchestrator
-              halts and asks instead of looping export-artifact forever.
+              halts and asks instead of looping tripwork-export-artifact forever.
 F2 (P6-twin): pass_break_even head-count scaling.
 (F3 is a source-verify SKILL contract change — capture gmaps_place_id during the P1 Google
  business_status check — no code behaviour, so no unit test.)

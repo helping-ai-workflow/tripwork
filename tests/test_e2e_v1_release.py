@@ -2,7 +2,7 @@
 tests/e2e_v1_fixture.py -- a month boundary, a hotel change on a long move, a last
 day with no lodging -- and a one-day trip go through the real CLIs in pipeline order:
 itinerary gate → export (md + html with the photo side-file, assembled as the
-export-artifact skill says) → day_maps (injected tiles) → html again with the maps →
+tripwork-export-artifact skill says) → day_maps (injected tiles) → html again with the maps →
 export gate → next_stage. Every v1.0 surface is asserted on the delivered page.
 Routing, calendar, seasonal, transit and cost come from mech_fixtures' base trip and
 are thin (one cluster, no line items): this closure is about the reader data, not the
@@ -69,7 +69,7 @@ def _trip(tmp_path, itin, brief, accommodations, legs, slug):
 
 
 def _export(t, maps=None):
-    """export-artifact's md + html, by the shipped `export` (v2.0.0) -- never assembled
+    """tripwork-export-artifact's md + html, by the shipped `export` (v2.0.0) -- never assembled
     here. `maps` is only a reminder that day_maps.build already wrote data/day-maps.yaml,
     which export reads like every other artifact."""
     r = run_main("scripts.export", [t])
@@ -130,7 +130,7 @@ def test_the_hotel_change_day_splits_its_map_and_names_both_hotels(tour):
     assert areas[0] != areas[1]                                      # the two nights' areas
     stays = [li.select_one("span").get_text() for li in soup.select(".hside .trip ol > li") if li.select_one("span")]
     assert "函館示意飯店" in stays[0] and "示之風度假村" in stays[1]   # the 旅程 card names both hotels
-    # the export-artifact skill passes cost=: the card is 旅程與費用 with the run's total (review I5)
+    # the tripwork-export-artifact skill passes cost=: the card is 旅程與費用 with the run's total (review I5)
     card = soup.select_one(".hside .trip")
     total = yaml.safe_load(artifact_path(_t, "cost.yaml").read_text(encoding="utf-8"))["total"]
     assert card.select_one("h3").get_text() == "旅程與費用"

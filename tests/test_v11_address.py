@@ -99,7 +99,7 @@ def test_there_is_no_line_short_deliverable():
     from scripts.paths import DELIVERABLE_SUFFIXES
     assert set(DELIVERABLE_SUFFIXES) == {"md", "html"}
     assert importlib.util.find_spec("scripts.render.line_short") is None
-    for skill in ("export-artifact", "orchestrator"):
+    for skill in ("tripwork-export-artifact", "tripwork-orchestrator"):
         text = (ROOT / "skills" / skill / "SKILL.md").read_text(encoding="utf-8")
         assert "line_short" not in text and ".txt" not in text and "LINE text" not in text, skill
 

@@ -166,7 +166,7 @@ def brief():
 
 
 def poi_map():
-    """verified-pois + chosen lodging + media overlay, as export-artifact assembles it."""
+    """verified-pois + chosen lodging + media overlay, as tripwork-export-artifact assembles it."""
     from scripts.gate import poi_pool
     from scripts.media_merge import apply_media
     pm = poi_pool(copy.deepcopy(POIS), copy.deepcopy(ACCOMMODATIONS))

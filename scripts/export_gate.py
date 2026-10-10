@@ -123,7 +123,7 @@ def _maps_link_failures(targets):
 # F1 (P7-twin): failure substrings that re-rendering CANNOT fix — they are upstream
 # DATA defects (a photo with no attribution, a bookable POI with no official source).
 # A fail whose only failures are these is non-retryable: the orchestrator must halt and
-# ask the user to fix the data, NOT loop export-artifact (which re-renders the same defect).
+# ask the user to fix the data, NOT loop tripwork-export-artifact (which re-renders the same defect).
 _DATA_DEFECT_MARKERS = ("missing attribution", "official source link")
 
 

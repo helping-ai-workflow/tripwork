@@ -6,7 +6,7 @@ description: Use when the tripwork orchestrator has routed a new travel request 
 # trip-brief
 
 > **Step 0 — preflight + slug guard (before writing anything).** If
-> `work/.preflight-completed` is absent, invoke `tripwork:workspace-shape-preflight` first and
+> `work/.preflight-completed` is absent, invoke `tripwork:tripwork-workspace-shape-preflight` first and
 > write **no** files. Then bind `<slug>`: derive it as `<yyyy-mm>-<destination>` (e.g.
 > `2026-06-seoul`) from the trip dates + destination, and **confirm it with the user**. If the
 > derived `trips/<slug>/` already exists, stop and ask (resume that trip, or pick a new slug) —
@@ -109,7 +109,7 @@ a cache keyed on the old destination would otherwise hand stale coordinates to t
 
 Write `trips/<slug>/data/trip-brief.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> trip-brief`
-(exit 0 required before returning). Return to `tripwork:orchestrator`.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -118,7 +118,7 @@ Write `trips/<slug>/data/trip-brief.yaml`, then validate it:
 | Input | A free-text brief or a Notion page reference; user answers for missing fields. |
 | Output | `trips/<slug>/data/trip-brief.yaml` (schema-valid). |
 | Stop condition | A pipeline-required field is missing and the user has not supplied it → ask. Six headline candidates are ready (`headline_pick`) → ask the user to pick one or write their own. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

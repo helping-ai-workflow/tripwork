@@ -5,11 +5,11 @@ import pytest
 SKILLS = pathlib.Path(__file__).resolve().parent.parent / "skills"
 
 EXPECTED = [
-    "using-tripwork", "orchestrator", "trip-brief", "destination-research",
+    "using-tripwork", "tripwork-orchestrator", "trip-brief", "destination-research",
     "source-verify", "routing-audit", "accommodation-research", "inter-stop-legs",
     "calendar-check", "seasonal-advisory", "transit-detail", "cost-rollup",
-    "itinerary-synthesis", "travel-advisory", "itinerary-gate", "export-artifact",
-    "export-gate", "workspace-shape-preflight",
+    "itinerary-synthesis", "travel-advisory", "itinerary-gate", "tripwork-export-artifact",
+    "export-gate", "tripwork-workspace-shape-preflight",
 ]
 
 def _frontmatter(md_text):
@@ -61,7 +61,7 @@ def test_iron_rule_skills_state_source_verified_first():
 def test_export_skill_documents_notion_as_md_paste_not_adapter():
     # 0.20.0: Notion is no longer a tracked adapter/deliverable — the agent pastes the
     # gated md via MCP, so it inherits export-gate hygiene with no separate gate.
-    text = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-export-artifact" / "SKILL.md").read_text(encoding="utf-8")
     assert "Notion" in text
     assert "not a tracked adapter" in text
     assert "MCP" in text
@@ -83,16 +83,16 @@ def test_source_verify_geocode_uses_name_local():
 
 
 def test_preflight_documents_stamp_and_gate():
-    text = (SKILLS / "workspace-shape-preflight" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-workspace-shape-preflight" / "SKILL.md").read_text(encoding="utf-8")
     assert "preflight-completed" in text  # stamp file name
-    assert "orchestrator" in text          # gates the orchestrator
+    assert "tripwork-orchestrator" in text          # gates the orchestrator
 
 def test_orchestrator_wires_export_gate_after_export():
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
-    assert "export-gate" in text, "orchestrator must route to export-gate after export-artifact"
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    assert "export-gate" in text, "orchestrator must route to export-gate after tripwork-export-artifact"
 
 def test_export_artifact_uses_slug_named_deliverable():
-    text = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-export-artifact" / "SKILL.md").read_text(encoding="utf-8")
     # D3 renamed the deliverable so it could not clash with synthesis's root
     # itinerary.md; v1.0 removed that intermediate and names every deliverable
     # by the brief's stem through the one path helper.
@@ -133,7 +133,7 @@ def test_itinerary_gate_documents_lodging_checks():
     assert "required_facilities_met" in text
 
 def test_orchestrator_wires_accommodation_research():
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "accommodation-research" in text
 
 def test_synthesis_documents_seasonal():
@@ -142,7 +142,7 @@ def test_synthesis_documents_seasonal():
     assert "after_dark" in text or "after-dark" in text
 
 def test_orchestrator_wires_seasonal_advisory():
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "seasonal-advisory" in text
 
 def test_trip_brief_documents_leg_mode():
@@ -156,7 +156,7 @@ def test_synthesis_documents_legs():
     assert "last_service" in text or "pass_advice" in text
 
 def test_orchestrator_wires_inter_stop_legs():
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "inter-stop-legs" in text
 
 def test_trip_brief_documents_budget():
@@ -178,7 +178,7 @@ def test_synthesis_documents_cost_summary():
     assert "cost.yaml" in text
 
 def test_orchestrator_wires_cost_rollup():
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "cost-rollup" in text
 
 def test_accommodation_research_documents_geocode_cache():
@@ -195,14 +195,14 @@ def test_synthesis_documents_transit():
     assert "in_peak" in text or "walk_too_far" in text
 
 def test_orchestrator_wires_transit_detail():
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "transit-detail" in text
 
 
 # ---- Wave 3 (v0.14.0) flow + contract guards ----
 
 def _orch():
-    return (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    return (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
 
 def test_tw054_orchestrator_namespaces_skill_names():
     text = _orch()
@@ -266,7 +266,7 @@ def test_tw037_using_tripwork_pipeline_full_order():
     order = ["trip-brief", "travel-advisory", "destination-research", "source-verify",
              "routing-audit", "accommodation-research", "inter-stop-legs",
              "calendar-check", "seasonal-advisory", "transit-detail", "cost-rollup",
-             "itinerary-synthesis", "itinerary-gate", "export-artifact", "export-gate"]
+             "itinerary-synthesis", "itinerary-gate", "tripwork-export-artifact", "export-gate"]
     positions = [block.find(n) for n in order]
     assert all(p >= 0 for p in positions), f"missing stages: {[n for n,p in zip(order,positions) if p<0]}"
     assert positions == sorted(positions), "using-tripwork pipeline order diverges from orchestrator"
@@ -300,7 +300,7 @@ def test_tw024_websearch_unavailable_halts():
 def test_tw025_notion_is_gated_md_paste_not_adapter():
     # 0.20.0: Notion is no longer a post-gate write-back adapter. The itinerary reaches
     # Notion by pasting the already-gated md via MCP — no page-id bookkeeping, no adapter.
-    t = _skill("export-artifact")
+    t = _skill("tripwork-export-artifact")
     assert "gated" in t and "Notion" in t and "MCP" in t
     assert ".notion-page-id" not in t   # the old adapter bookkeeping is gone
 
@@ -474,7 +474,7 @@ def test_orchestrator_rule11_describes_fingerprint_not_mtime():
     fingerprint comes from; mtime survives only as the documented fallback for
     an advisory with no recorded fingerprint, not as rule 11's definition.
     """
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     assert "input_fingerprints" in text, \
         "Definitions must name where the fingerprint comes from"
 
@@ -488,7 +488,7 @@ def test_orchestrator_rule11_describes_fingerprint_not_mtime():
 
 
 def test_orchestrator_definitions_name_fingerprint_source():
-    text = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    text = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     defs_start = text.index("## Definitions")
     defs_end = text.index("## Stage Selection")
     definitions = text[defs_start:defs_end]
@@ -505,7 +505,7 @@ def test_export_artifact_owns_the_photo_adapter():
     # tests/test_skills_structure.py:5), NOT `SKILLS_DIR`. An earlier draft wrote
     # SKILLS_DIR and would have raised NameError — the same brief defect Part 1 hit
     # three times. Reuse the existing constant; never declare a second one.
-    body = (SKILLS / "export-artifact" / "SKILL.md").read_text(encoding="utf-8")
+    body = (SKILLS / "tripwork-export-artifact" / "SKILL.md").read_text(encoding="utf-8")
     assert "scripts/photo_adapter.py" in body
     assert "preferences.photos" in body
     assert "ONLY writer" in body or "only writer" in body

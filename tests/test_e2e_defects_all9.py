@@ -191,8 +191,8 @@ class TestE2EAllNineDefects:
     def test_p4_export_html_gate_clean_on_rendered_lodging(self):
         # Matrix step-8 interaction (Family C): folding the chosen lodging into the
         # render pool (P4) must NOT make the export/html gate spuriously flag the new
-        # lodging row. Build poi_map the way export-artifact now does and gate it.
-        poi_map = poi_pool(_verified_pois(), ACCOMMODATIONS)       # TW-091: export-artifact's fold
+        # lodging row. Build poi_map the way tripwork-export-artifact now does and gate it.
+        poi_map = poi_pool(_verified_pois(), ACCOMMODATIONS)       # TW-091: tripwork-export-artifact's fold
         html = render_html_page(self._itin(), poi_map)
         assert "示麗溫德姆溫泉酒店" in html               # lodging actually rendered
         r = run_html_gate(html, pois=list(poi_map.values()), min_days=2)

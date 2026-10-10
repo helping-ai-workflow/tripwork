@@ -68,7 +68,7 @@ def _build_trip_through_cost(tmp_path):
 def test_rule0_preflight(tmp_path):
     t, w = _full(tmp_path)
     (tmp_path / "work" / ".preflight-completed").unlink()
-    assert _next(t, w)["next"] == "tripwork:workspace-shape-preflight"
+    assert _next(t, w)["next"] == "tripwork:tripwork-workspace-shape-preflight"
 
 
 def test_chain_missing_artifact_routes_to_producer(tmp_path):
@@ -269,11 +269,11 @@ def test_rule14_requires_markdown_deliverable_even_when_html_present(tmp_path):
     deliverable is optional in shipped semantics -- export_gate.py only reads
     it `if html_path.is_file()` (scripts/export_gate.py) -- so a trip that
     has an HTML export but no markdown export must still be routed to
-    tripwork:export-artifact, not treated as satisfying rule 14."""
+    tripwork:tripwork-export-artifact, not treated as satisfying rule 14."""
     t, w = _full(tmp_path)
     deliverable_paths(t, trip_brief())["md"].unlink()
     got = _next(t, w)
-    assert got["next"] == "tripwork:export-artifact"
+    assert got["next"] == "tripwork:tripwork-export-artifact"
     assert "rule 14" in got["reason"]
 
 

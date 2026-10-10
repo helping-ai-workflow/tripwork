@@ -67,7 +67,7 @@ def _survey_done(trip_dir, brief, pois_path):
     """A survey ends with its list page, newer than verified-pois (v2.1.0 §10)."""
     page = deliverable_paths(trip_dir, brief)["html"]
     if not page.is_file() or not _newer(page, pois_path):
-        return "tripwork:export-artifact", "survey：清單頁不存在或舊於 verified-pois"
+        return "tripwork:tripwork-export-artifact", "survey：清單頁不存在或舊於 verified-pois"
     return "complete", "survey：清單完成"
 
 
@@ -103,7 +103,7 @@ def next_stage(trip_dir, work_dir):
 
     # rule 0 — preflight stamp lives at the work ROOT, not work/<slug>/
     if not (w.parent / ".preflight-completed").is_file():
-        return ("tripwork:workspace-shape-preflight",
+        return ("tripwork:tripwork-workspace-shape-preflight",
                 "rule 0: work/.preflight-completed missing")
 
     # rule 0.7 (v1.0) -- a pre-v1.0 trip keeps its artifacts at the trip root.
@@ -180,7 +180,7 @@ def next_stage(trip_dir, work_dir):
     # Comparing against itinerary.yaml alone let a re-verify that demoted a
     # scheduled POI leave the oracle reporting 'complete' on a report that never
     # saw it. This fires for real on the live corpus, not just a hypothetical
-    # (see skills/orchestrator/SKILL.md's rule 13 note for a named example).
+    # (see skills/tripwork-orchestrator/SKILL.md's rule 13 note for a named example).
     gr = report_path(w, "gate-report.yaml")
     stale_inputs = gate_report_stale(t, w)
     if stale_inputs:
@@ -211,12 +211,12 @@ def next_stage(trip_dir, work_dir):
     deliverables = [paths[k] for k in EXPORT_DELIVERABLES]
     md = paths[REQUIRED_DELIVERABLE]
     if not md.is_file():
-        return "tripwork:export-artifact", "rule 14: no export deliverable"
+        return "tripwork:tripwork-export-artifact", "rule 14: no export deliverable"
     # The gate ran after the deliverables were rendered, so they may show an itinerary
     # the gate never passed: export again before anything judges them (v2.0.0 review C1).
     older = [d.name for d in deliverables if d.is_file() and _newer(gr, d)]
     if older:
-        return ("tripwork:export-artifact",
+        return ("tripwork:tripwork-export-artifact",
                 f"rule 14: {', '.join(older)} older than gate-report.yaml — export again")
 
     # rule 15 — same widening as rule 13: the export-gate report must be newer

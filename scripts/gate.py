@@ -45,14 +45,14 @@ def chosen_lodging_pois(accommodations):
 def poi_pool(pois, accommodations):
     """The id->POI map every stage resolves rows against: verified-pois plus each
     stop's chosen lodging folded in (P4). The gate, export-gate, the renderers
-    (export-artifact) and day_maps all call this -- one pool, one record per id.
+    (tripwork-export-artifact) and day_maps all call this -- one pool, one record per id.
 
     When an id is in both files, the record is the lodging candidate overlaid by
     the verified-pois record field by field (TW-091): verified-pois wins every field
     it has (identity, sources, geocode -- what the gate verifies), and fields only
     the lodging carries (booking, cost, facilities -- what the renderer shows)
     survive. Until v1.1 the gate kept the verified record whole while export-gate
-    and export-artifact let the lodging record win, so one id meant two records:
+    and tripwork-export-artifact let the lodging record win, so one id meant two records:
     trip-e's `sap-hotel` failed export-gate on a "first official
     source" that only the other record had.
 

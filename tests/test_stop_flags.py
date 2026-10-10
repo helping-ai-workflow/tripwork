@@ -24,10 +24,10 @@ from tests.cli_helpers import run_main
 # state any shipped constant holds:
 # - trip-brief: its questions ARE the stage (the brief is being written); nothing
 #   downstream exists yet to halt.
-# - workspace-shape-preflight: runs before the orchestrator (rule 0) and writes
+# - tripwork-workspace-shape-preflight: runs before the orchestrator (rule 0) and writes
 #   no trip state.
 # - orchestrator: its Stop condition relays the table's halts; it has none of its own.
-NON_PIPELINE_ASKS = {"trip-brief", "workspace-shape-preflight", "orchestrator"}
+NON_PIPELINE_ASKS = {"trip-brief", "tripwork-workspace-shape-preflight", "tripwork-orchestrator"}
 
 TABLE_ROW = re.compile(r"^\|\s*`(tripwork:[a-z-]+)`\s*\|\s*`([a-z_]+)`\s*\|.+\|\s*$", re.M)
 
@@ -38,7 +38,7 @@ def _stop_flags():
 
 
 def _orchestrator_table():
-    body = _skill("orchestrator")
+    body = _skill("tripwork-orchestrator")
     start = body.index("## Stop-on-Confirmation")
     end = body.index("\n## ", start + 1)
     rows = TABLE_ROW.findall(body[start:end])
@@ -90,7 +90,7 @@ def test_using_tripwork_points_at_the_table_instead_of_copying_it():
 
 
 def test_readback_requires_the_table_flag_verbatim():
-    body = _skill("orchestrator")
+    body = _skill("tripwork-orchestrator")
     section = body[body.index("**Read-back before re-asking.**"):]
     section = section[:section.index("\n## ")]
     assert "verbatim" in section and "flag" in section

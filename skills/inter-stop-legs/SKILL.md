@@ -63,7 +63,7 @@ in `work/<slug>/stage-state.yaml` before continuing.
 
 Write `trips/<slug>/data/legs.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> legs`
-(exit 0 required before returning). Return to `tripwork:orchestrator`.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -72,7 +72,7 @@ Write `trips/<slug>/data/legs.yaml`, then validate it:
 | Input | `trips/<slug>/data/trip-brief.yaml` (overnight_stops, transport, leg_mode, routing.max_single_drive_mins) + `trips/<slug>/data/routing.yaml` + `trips/<slug>/data/accommodations.yaml`. |
 | Output | `trips/<slug>/data/legs.yaml` (mode-aware legs + feasibility status). |
 | Stop condition | A `drive_too_long` or `missed_last_service` leg → ask user. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

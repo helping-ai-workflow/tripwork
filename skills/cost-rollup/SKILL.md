@@ -60,7 +60,7 @@ record `fx_rate` + `source_currency` on the converted line item. If
 Write `trips/<slug>/data/cost.yaml` with `as_of` + `estimate_note`. A trip with no numeric costs still writes
 a best-effort (possibly empty) `cost.yaml`. Then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> cost`
-(exit 0 required before returning). Return to `tripwork:orchestrator`.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -69,7 +69,7 @@ a best-effort (possibly empty) `cost.yaml`. Then validate it:
 | Input | `trips/<slug>/data/trip-brief.yaml` (budget, daily_incidental, home_currency, dates) + `trips/<slug>/data/accommodations.yaml` + `trips/<slug>/data/legs.yaml`. |
 | Output | `trips/<slug>/data/cost.yaml` (line items + total + budget compare + pass break-even). |
 | Stop condition | The estimated total exceeds a set `budget` (`over_budget`) → ask user. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

@@ -62,7 +62,7 @@ def _follow(t, w, synthesis, limit=12):
         taken.append(nxt)
         if nxt in ("complete", "stop-and-ask"):
             return taken, why
-        mod = {"tripwork:itinerary-gate": "scripts.gate", "tripwork:export-artifact": "scripts.export",
+        mod = {"tripwork:itinerary-gate": "scripts.gate", "tripwork:tripwork-export-artifact": "scripts.export",
                "tripwork:export-gate": "scripts.export_gate"}.get(nxt)
         if mod:
             run_main(mod, [t, "--work-dir", w])
@@ -97,7 +97,7 @@ def test_a_fixed_source_is_exported_again_and_completes(looped):
     taken, why = _follow(t, w, _fix_source)
     assert taken[-1] == "complete", (taken, why)
     after_fix = taken[taken.index("tripwork:itinerary-synthesis"):]
-    assert "tripwork:export-artifact" in after_fix, taken
+    assert "tripwork:tripwork-export-artifact" in after_fix, taken
 
 
 def test_an_unfixed_source_stops_as_a_likely_plugin_defect(looped):
@@ -105,7 +105,7 @@ def test_an_unfixed_source_stops_as_a_likely_plugin_defect(looped):
     taken, why = _follow(t, w, _fix_something_else)
     assert taken[-1] == "stop-and-ask" and "likely a plugin render defect" in why, (taken, why)
     after_fix = taken[taken.index("tripwork:itinerary-synthesis"):]
-    assert "tripwork:export-artifact" in after_fix, taken
+    assert "tripwork:tripwork-export-artifact" in after_fix, taken
 
 
 def test_rerunning_the_export_gate_alone_is_not_a_repeat(looped):
@@ -122,7 +122,7 @@ def test_a_deliverable_older_than_the_gate_report_is_exported_again(tmp_path):
     t, w = M.build_full_trip(tmp_path)
     run_main("scripts.gate", [t, "--work-dir", w])
     _touch_later(w / "gate-report.yaml")
-    assert _next(t, w)[0] == "tripwork:export-artifact"
+    assert _next(t, w)[0] == "tripwork:tripwork-export-artifact"
 
 
 # --- Important 2: Gate 1b counts only the sources that count -------------------------
@@ -159,7 +159,7 @@ def test_next_runs_before_trips_exists(tmp_path, monkeypatch, capsys, stamp):
         (tmp_path / "work" / ".preflight-completed").touch()
     tw = importlib.import_module("scripts.tripwork")
     assert tw.main(["next", "tokyo-2027"]) == 0
-    want = "tripwork:trip-brief" if stamp else "tripwork:workspace-shape-preflight"
+    want = "tripwork:trip-brief" if stamp else "tripwork:tripwork-workspace-shape-preflight"
     assert yaml.safe_load(capsys.readouterr().out)["next"] == want
 
 
@@ -172,7 +172,7 @@ def test_using_tripwork_states_the_fixed_layout():
 
 
 def test_preflight_states_the_fixed_layout():
-    s = (ROOT / "skills" / "workspace-shape-preflight" / "SKILL.md").read_text(encoding="utf-8")
+    s = (ROOT / "skills" / "tripwork-workspace-shape-preflight" / "SKILL.md").read_text(encoding="utf-8")
     assert "per the target repo CLAUDE.md convention" not in s
     assert "the layout is fixed" in s
 

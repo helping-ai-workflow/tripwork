@@ -48,7 +48,7 @@ def test_a_missing_stem_deliverable_routes_to_export(tmp_path):
     brief = yaml.safe_load(artifact_path(t, "trip-brief.yaml").read_text(encoding="utf-8"))
     deliverable_paths(t, brief)["md"].unlink()
     nxt, _ = next_stage(t, w)
-    assert nxt == "tripwork:export-artifact"
+    assert nxt == "tripwork:tripwork-export-artifact"
 
 
 def test_a_brief_without_short_name_routes_to_trip_brief(tmp_path):

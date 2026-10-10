@@ -254,7 +254,7 @@ class TestP4LodgingPool:
     def test_html_renders_chosen_lodging_from_accommodations(self):
         from scripts.render.html_page import render_html_page
         from scripts.gate import poi_pool
-        poi_map = poi_pool([_poi("rest1")], self._acc())       # TW-091: export-artifact's fold
+        poi_map = poi_pool([_poi("rest1")], self._acc())       # TW-091: tripwork-export-artifact's fold
         html = render_html_page(_itin([_meal("rest1")], lodging="hotel-a"), poi_map)
         assert "示麗溫德姆" in html  # lodging rendered, not the "—" blank
 

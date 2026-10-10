@@ -29,7 +29,7 @@ Two closure axes feed synthesis. This stage owns the **trip-wide** axis (public 
 
 Write `trips/<slug>/data/calendar.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> calendar`
-(exit 0 required before returning). Return to `tripwork:orchestrator`. Crowd/closure logic for synthesis lives in `scripts/trip_calendar.py` (`is_high_crowd`, `holiday_on`, `poi_closed_on`).
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`. Crowd/closure logic for synthesis lives in `scripts/trip_calendar.py` (`is_high_crowd`, `holiday_on`, `poi_closed_on`).
 
 ## Stop-on-Confirmation
 
@@ -42,4 +42,4 @@ If a public holiday with `closures: true` overlaps a day a `must_do` item can on
 | Input | `trips/<slug>/data/trip-brief.yaml` (destination + `dates`). |
 | Output | `trips/<slug>/data/calendar.yaml` (public holidays in range with `impact` + official source). |
 | Stop condition | A `closures: true` holiday blocks the only feasible day for a `must_do` (`holiday_blocks_must_do`) → ask user. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |

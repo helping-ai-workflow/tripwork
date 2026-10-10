@@ -43,7 +43,7 @@ def test_every_description_within_ceiling_and_use_when():
 # enumerated stem list — a new artifact file introduced later is caught
 # automatically instead of silently falling outside an already-stale list.
 ARTIFACT_REF = re.compile(r"\b[a-z][a-z-]*\.yaml\b")
-META_SKILLS = {"using-tripwork", "orchestrator", "workspace-shape-preflight"}
+META_SKILLS = {"using-tripwork", "tripwork-orchestrator", "tripwork-workspace-shape-preflight"}
 
 
 def _input_row(text: str) -> str:

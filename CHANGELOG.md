@@ -1,5 +1,51 @@
 # Changelog
 
+## 3.0.0 — three skills carry a tripwork- prefix, so pi loads every one
+
+### Changed
+
+- **Three skills are renamed** (directory and frontmatter `name`): `orchestrator` →
+  `tripwork-orchestrator`, `export-artifact` → `tripwork-export-artifact`,
+  `workspace-shape-preflight` → `tripwork-workspace-shape-preflight`. In Claude Code they are
+  `tripwork:tripwork-orchestrator` and so on. Every place tripwork names them follows: the
+  session-start pointer, `tripwork.py next` (it prints `tripwork:tripwork-export-artifact` /
+  `tripwork:tripwork-workspace-shape-preflight`), the stage contracts, GEMINI.md, the Kimi and
+  pi descriptors and the README. The other 15 skills keep their names.
+- **The pi bootstrap explains the ids.** A skill named `tripwork:<skill>` in tripwork's docs is
+  the pi skill `<skill>` (`/skill:tripwork-orchestrator`).
+- **New guards** (`tests/test_skill_names_pi.py`): every SKILL.md frontmatter parses as strict
+  YAML and follows pi's naming rules; no tripwork skill name is used by paperwork, chipwork,
+  writing-humanizer or superpowers (a checked-in snapshot of their names,
+  `tests/fixtures/sibling-skill-names.json`, since CI cannot read the private siblings); and no
+  file outside this CHANGELOG names a retired id.
+
+### Fixed
+
+- **pi skipped tripwork's orchestrator, export and preflight skills.** pi has one skill
+  namespace for every package and keeps the first skill it finds under a name; paperwork and
+  chipwork ship skills called `orchestrator`, `export-artifact` and
+  `workspace-shape-preflight`, so in pi whichever plugin was found first answered to those
+  names and the others were dropped with a collision warning. The prefix removes the clash.
+
+### Migration
+
+- Claude Code, Codex, Cursor, Gemini, Kimi, OpenCode and pi pick up the new names on
+  update; trips, `work/` and the stamp `work/.preflight-completed` are untouched.
+- If your own notes, CLAUDE.md or scripts name the old ids, replace them:
+
+  | before | now |
+  |---|---|
+  | `tripwork:orchestrator` | `tripwork:tripwork-orchestrator` |
+  | `tripwork:export-artifact` | `tripwork:tripwork-export-artifact` |
+  | `tripwork:workspace-shape-preflight` | `tripwork:tripwork-workspace-shape-preflight` |
+  | `skills/orchestrator/` | `skills/tripwork-orchestrator/` |
+  | `skills/export-artifact/` | `skills/tripwork-export-artifact/` |
+  | `skills/workspace-shape-preflight/` | `skills/tripwork-workspace-shape-preflight/` |
+
+- A script that compares the output of `tripwork.py next` with an old id must use the new one.
+
+Tests: 2222 passed, 2 skipped in CI (the two consumer-workspace checks — privacy and survey-table categories — skip there; the corpus ships with the repo); `tests_browser`: 567 passed (headless Chromium and WebKit).
+
 ## 2.2.0 — The photo goes back where it came from, today wears a tape, the share link opens today
 
 ### Added

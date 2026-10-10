@@ -50,7 +50,7 @@ Write raw search results under `work/<slug>/research-cache/` to avoid repeat que
 
 Write `trips/<slug>/data/candidates.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> candidates`
-(exit 0 required before returning). Return to `tripwork:orchestrator`. Do NOT assign `verify_status` here — that is `source-verify`'s job.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`. Do NOT assign `verify_status` here — that is `source-verify`'s job.
 
 ## Stage Contract
 
@@ -59,7 +59,7 @@ Write `trips/<slug>/data/candidates.yaml`, then validate it:
 | Input | `trips/<slug>/data/trip-brief.yaml`. |
 | Output | `trips/<slug>/data/candidates.yaml` (untrusted pool) + `work/<slug>/research-cache/`. |
 | Stop condition | None — breadth-first gathering; trust decisions belong to `source-verify`. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

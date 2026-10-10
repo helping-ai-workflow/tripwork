@@ -15,7 +15,7 @@ BODY = (Path(__file__).resolve().parents[1]
 def test_pipeline_tree_retained():
     # The canonical stage map (with output artifacts + calendar-check) stays.
     assert "## Pipeline" in BODY
-    assert "orchestrator" in BODY
+    assert "tripwork-orchestrator" in BODY
     assert "calendar-check" in BODY
 
 

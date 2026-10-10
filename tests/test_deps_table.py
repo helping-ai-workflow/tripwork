@@ -80,7 +80,7 @@ def test_every_skill_with_an_input_row_is_covered():
         if not m or "yaml" not in m.group(1):
             continue
         skill = path.rsplit("/", 2)[-2]
-        if skill in ("orchestrator", "using-tripwork", "export-artifact",
+        if skill in ("tripwork-orchestrator", "using-tripwork", "tripwork-export-artifact",
                      "itinerary-gate", "export-gate"):
             continue
         produced = [a for a, s in {
@@ -145,7 +145,7 @@ def test_deps_stale_projection_ignores_unprojected_field_changes():
 # Same contract as _DEPS above, applied to the other table scripts/next_stage.py
 # declares the SKILL prose the spec of: "the SKILL prose is the spec; this script
 # is its executable form" (scripts/next_stage.py's module docstring). Before this
-# guard, skills/orchestrator/SKILL.md's rule 13.5 listed TWO destinations while
+# guard, skills/tripwork-orchestrator/SKILL.md's rule 13.5 listed TWO destinations while
 # _ROUTES had five, and nothing caught the drift for a whole release.
 # The rows are indented (the table sits inside a numbered list item), so the
 # leading-whitespace allowance is load-bearing, not cosmetic.
@@ -154,7 +154,7 @@ RULE_135_ROW = re.compile(
 
 
 def _rule_135_targets():
-    body = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    body = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     start = body.index("13.5.")
     end = body.index("\n14. ", start)
     rows = RULE_135_ROW.findall(body[start:end])
@@ -188,7 +188,7 @@ def test_rule_13_5_names_the_marker_of_every_routes_group():
     """
     from scripts.orchestration import _ROUTES
 
-    body = (SKILLS / "orchestrator" / "SKILL.md").read_text(encoding="utf-8")
+    body = (SKILLS / "tripwork-orchestrator" / "SKILL.md").read_text(encoding="utf-8")
     section = body[body.index("13.5."):body.index("\n14. ", body.index("13.5."))]
     for markers, target in _ROUTES:
         assert any(m.strip() in section for m in markers), (target, markers)

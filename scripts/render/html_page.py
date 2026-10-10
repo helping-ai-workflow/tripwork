@@ -1,6 +1,6 @@
 """The HTML deliverable. Since v1.0 this is the reader in scripts/render/reader/
 (spec §6); this module keeps the long-standing entrypoint and signature so
-export-artifact and existing callers do not change shape."""
+tripwork-export-artifact and existing callers do not change shape."""
 import html as _html
 
 from scripts.render.reader import render_reader

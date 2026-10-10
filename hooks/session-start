@@ -12,7 +12,7 @@ ROOT_JSON="$(printf '%s' "$ROOT" | sed -e 's/\\/\\\\/g' -e 's/"/\\"/g')"
 echo "[tripwork] plugin loaded — version ${VERSION}" 1>&2
 
 # Tier-1 routing pointer (~80 tokens). \n are literal JSON newline escapes.
-pointer='<system-reminder>\nYou have tripwork. Any travel-planning request MUST run the pipeline: tripwork:workspace-shape-preflight (first time in a cwd) then tripwork:orchestrator — never plan, verify, or draft an itinerary from model memory (Source-Verified-First: no search, no fact). Even when resuming or continuing an existing trip, re-enter tripwork:orchestrator; do not continue from memory. Full contract: tripwork:using-tripwork.\ntripwork scripts: python \"'"${ROOT_JSON}"'/scripts/tripwork.py\" <command> <slug>  (run from the workspace root)\n</system-reminder>'
+pointer='<system-reminder>\nYou have tripwork. Any travel-planning request MUST run the pipeline: tripwork:tripwork-workspace-shape-preflight (first time in a cwd) then tripwork:tripwork-orchestrator — never plan, verify, or draft an itinerary from model memory (Source-Verified-First: no search, no fact). Even when resuming or continuing an existing trip, re-enter tripwork:tripwork-orchestrator; do not continue from memory. Full contract: tripwork:using-tripwork.\ntripwork scripts: python \"'"${ROOT_JSON}"'/scripts/tripwork.py\" <command> <slug>  (run from the workspace root)\n</system-reminder>'
 
 if [ -n "${CURSOR_PLUGIN_ROOT:-}" ]; then
     printf '{\n  "additional_context": "%s"\n}\n' "$pointer"

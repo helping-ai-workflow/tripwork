@@ -1,4 +1,4 @@
-"""export-artifact's renderer: write trips/<slug>/<stem>.md and <stem>.html (v2.0.0).
+"""tripwork-export-artifact's renderer: write trips/<slug>/<stem>.md and <stem>.html (v2.0.0).
 
     python <plugin>/scripts/tripwork.py export <slug>
 

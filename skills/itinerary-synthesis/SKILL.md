@@ -5,7 +5,7 @@ description: Use when verified-pois + routing + accommodations + legs + calendar
 
 # itinerary-synthesis
 
-Compose the canonical `trips/<slug>/data/itinerary.yaml` from verified POIs and routing clusters. The markdown deliverable is rendered from it later by `tripwork:export-artifact`; synthesis writes no markdown.
+Compose the canonical `trips/<slug>/data/itinerary.yaml` from verified POIs and routing clusters. The markdown deliverable is rendered from it later by `tripwork:tripwork-export-artifact`; synthesis writes no markdown.
 
 ## Rules
 
@@ -163,7 +163,7 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
 - **Build the render `poi_map` as verified-pois + each stop's chosen lodging.** Call
   `scripts/gate.py::poi_pool(pois, accommodations)` so a `day.lodging` id resolves
   natively — otherwise the lodging renders as a blank `—`. This is the same pool the
-  `itinerary-gate` builds (it folds accommodations automatically) and that `export-artifact`
+  `itinerary-gate` builds (it folds accommodations automatically) and that `tripwork-export-artifact`
   must reuse; do NOT copy hotels into canonical `verified-pois.yaml`.
 - **Periodic-facility coverage (advisory):** for each `trip-brief.facility_needs.periodic`
   entry, build the ordered stop list `[{nights, has_facility}]` from each stop's chosen
@@ -215,7 +215,7 @@ For a `slot: move` row, put the two endpoints in the optional structured `from` 
 (e.g. `from: 函館空港`, `to: 函館駅`) — **not** buried in `text`. Export builds an A→B Google Maps
 **directions** link from them; a move row that leaves `from` / `to` empty renders as plain text
 with no directions link. (`from` / `to` are optional and backward-compatible.)
-`tripwork:export-artifact` renders the markdown deliverable from it with
+`tripwork:tripwork-export-artifact` renders the markdown deliverable from it with
 `python <plugin>/scripts/tripwork.py export <slug>`, which assembles every day's table plus the
 備案 / 出發前檢查清單 / 費用估算 sections in one pass; never hand-assemble those sections around
 the day tables.
@@ -224,7 +224,7 @@ the day tables.
 re-build a day structure from the rendered `.md`. The `.md` is a derived view, not a source.
 
 Validate the canonical artifact: `python <plugin>/scripts/tripwork.py validate <slug> itinerary`
-(exit 0 required before returning). Return to `tripwork:orchestrator`.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -233,4 +233,4 @@ Validate the canonical artifact: `python <plugin>/scripts/tripwork.py validate <
 | Input | verified-pois + routing + accommodations + legs (empty only if no inter-stop moves and no home endpoints) + calendar + seasonal + transit + cost + advisory — all nine trip artifacts, read but deliberately NOT individually tracked as `_DEPS` edges (`scripts/orchestration.py`): re-synthesis is the expensive branch, so this artifact's own freshness is decided by rule 13's report-tier check instead of a research-tier content diff — see `deps_stale`'s docstring. |
 | Output | `trips/<slug>/data/itinerary.yaml` (canonical). |
 | Stop condition | A `must_do` theme has no verified POI to cover it (`must_do_uncovered`), is closed on every feasible trip day (`must_do_closed_every_day`), or cannot fit before its last order/entry on any feasible slot (`must_do_after_last_call`); a booking whose **lead-time missed** (`lead_time_missed`); or a travel-day move that re-checks `missed_last_service` at its now-known departure → ask user. Six title candidates a day are written (`day_title_pick`) → give the user the title picker (`scripts/title_picker.py`) and apply their reply (`scripts/title_picks.py`). |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
