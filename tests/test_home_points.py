@@ -14,7 +14,7 @@ from scripts.rederive import MAX_HOP_MINS
 from tests.mech_fixtures import write_artifact
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
-HOME = {"name": "示意超商", "lat": 25.0478, "lng": 121.5170, "geocode_source": "nominatim"}
+HOME = {"name": "示意超商", "lat": 24.9983, "lng": 121.5810, "geocode_source": "nominatim"}
 BACK = {"name": "示意公園", "lat": 25.0330, "lng": 121.5654, "geocode_source": "nominatim"}
 
 

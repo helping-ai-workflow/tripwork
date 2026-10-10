@@ -60,8 +60,8 @@ BRIEF = {"slug": "t", "dates": {"start": "2030-01-07", "end": "2030-01-08"},
          "members": [{"name": "成員1"}], "base": {"name": "示意旅館", "district": "中西區"},
          "must_do": [], "constraints": [], "preferences": {}, "short_name": "府城",
          "home_origin": "示意車站", "home_return": "示意車站",
-         "home_origin_point": {"name": "示意車站", "lat": 25.0478, "lng": 121.5170, "geocode_source": "nominatim"},
-         "home_return_point": {"name": "示意車站", "lat": 25.0478, "lng": 121.5170, "geocode_source": "nominatim"}}
+         "home_origin_point": {"name": "示意車站", "lat": 24.9983, "lng": 121.5810, "geocode_source": "nominatim"},
+         "home_return_point": {"name": "示意車站", "lat": 24.9983, "lng": 121.5810, "geocode_source": "nominatim"}}
 CANDIDATES = {"candidates": [
     _cand("road", "示意小館", [{"url": "https://road.example.tw/", "lang": "zh"},
                               {"url": "https://guide.example/road", "lang": "zh", "site": "示意指南"}],

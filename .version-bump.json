@@ -60,7 +60,7 @@
       ".version-bump.json"
     ]
   },
-  "previous": "2.2.0",
-  "current": "3.0.0",
+  "previous": "3.0.0",
+  "current": "3.0.1",
   "next": "3.1.0"
 }
