@@ -27,7 +27,7 @@ timestamps and re-runs this stage after any unrelated edit to the brief.
 
 **Standalone mode (ad-hoc regulation question).** When invoked directly (not via the orchestrator), do **NOT** write `trips/<slug>/data/advisory.yaml` — that file is the pipeline artifact, and writing it out of band lets the orchestrator's rule 11 treat the stage as already done and skip the real gate. Answer inline, or write `work/<slug>/advisory-adhoc.yaml` instead.
 
-Return to `tripwork:orchestrator`.
+Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -36,7 +36,7 @@ Return to `tripwork:orchestrator`.
 | Input | `trips/<slug>/data/trip-brief.yaml` (destination, airline, dates). Standalone use also allowed. |
 | Output | `trips/<slug>/data/advisory.yaml` (rules with `effective_date` + `risk`). |
 | Stop condition | A `banned` item exists (`banned_item`) → require explicit user acknowledgement. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Red Flags
 

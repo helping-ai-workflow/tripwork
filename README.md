@@ -299,8 +299,8 @@ tripwork 不是一次把行程「生」出來，而是一條**有關卡的流水
 %%{init: {'flowchart':{'htmlLabels':true}}}%%
 flowchart TB
     P["✍️ 你的一句話需求"]
-    P --> WSP["workspace-shape-preflight<br/>確認工作資料夾"]
-    WSP --> ORC["orchestrator<br/>調度中心"]
+    P --> WSP["tripwork-workspace-<br/>shape-preflight<br/>確認工作資料夾"]
+    WSP --> ORC["tripwork-orchestrator<br/>調度中心"]
     ORC --> TB["trip-brief<br/>把需求整理成參數"]
     TB --> ADV["travel-advisory ⛔ 關卡<br/>入境／海關<br/>／行動電源規定<br/>（官方來源）"]
     ADV --> DR["destination-research<br/>廣泛蒐集候選地點<br/>（含當地語言搜尋）"]
@@ -315,7 +315,7 @@ flowchart TB
     TRN --> COST["cost-rollup<br/>加總住宿/交通/Pass<br/>+ 雜支，對照預算"]
     COST --> SYN["itinerary-synthesis<br/>排出逐日行程<br/>+ 備案 + 行前清單<br/>（閉館日不排、<br/>假期標人潮）"]
     SYN --> GATE["itinerary-gate<br/>輸出前的結構檢查<br/>+ 重算核對資料<br/>+ 語氣檢查<br/>+ 住宿查證"]
-    GATE --> EXP["export-artifact<br/>Markdown / Maps<br/>HTML"]
+    GATE --> EXP["tripwork-export-artifact<br/>Markdown / Maps<br/>HTML"]
     EXP --> EGATE["export-gate ⛔ 關卡<br/>檢查成品連結<br/>格式可正常顯示"]
 ```
 
@@ -336,7 +336,7 @@ flowchart TB
 | **cost-rollup** | 把**大宗花費**加總給你看：住宿（每晚×**房數**×晚數）、城際交通、交通 Pass，外加你給的每日雜支估值；精算 **Pass 到底划不划算**；有設預算的話，**超出會停下來問你**（預算對照的是整趟總額：住宿＋交通＋雜支）。全部標明是估算（含查詢日期），不是精確報價 |
 | **itinerary-synthesis** | 排出逐日時段表，幫帶長輩／小孩的人把同區行程排在一起省體力；**閉館日不排該點、假期/週末標人潮並建議提早出門、過了閉店/L.O./最後入場的時段不排**；自動產生**備案**與**行前訂位清單**；每天寫 **6 個標題候選**（有畫面、有梗、押韻照台灣讀音），用「挑標題」網頁讓你挑 |
 | **itinerary-gate** | 輸出前做機械式結構檢查（餐廳、活動、景點都有對應到驗證過的地點）。**現在還會**：①把路線時間、花費、關店 buffer 這些數字**重新算一遍**，跟行程裡記錄的核對是否一致，兜不起來就擋下來 ②檢查文案**有沒有 AI 罐頭味**（例如「首選必訪」這種空話、破折號濫用）③連**住宿**的查證狀態（名字有沒有對到、座標有沒有查證來源）也一起核對，不再只查景點 ④**景點與住宿的「已驗證」是不是用現在還算數的規則判定的**——例如營業狀態只是隨口打勾、沒有查證來源與日期，就算當初有記錄，現在也會被判定過時、擋下來重新查證 ⑤為新版閱讀器把關資料：每天從住宿出發、一站接一站、最後回到住宿，每一段都要寫清楚怎麼移動、多久、多遠（估算的會用兩站座標重算一次）；每一站都必須是查證過的地點；備案要掛在它對應的那一站；每天要有一句短主題；行前清單要分好「預約／出發前確認／打包」；來源要附網站名稱與說明；住宿要有地區短名；行程要有短名與你選定的搞笑標題 |
-| **export-artifact** | 一行 `tripwork.py export` 產出成品：Markdown 行程（附 Google Maps 連結）、離線可看的一頁式 HTML（放在行程資料夾最上層，例：`2026-05-12 東京 3天2夜.html`，每天附一張地圖，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion；使用者要分享時，再用 `tripwork.py publish` 做加密的分享版並在確認後部署到 Cloudflare Pages）|
+| **tripwork-export-artifact** | 一行 `tripwork.py export` 產出成品：Markdown 行程（附 Google Maps 連結）、離線可看的一頁式 HTML（放在行程資料夾最上層，例：`2026-05-12 東京 3天2夜.html`，每天附一張地圖，**可選擇為景點疊上授權照片**——照片來源現在全程都會過一次授權檢查才寫入成品，不會有漏網的來路不明照片；可把 Markdown 貼進 Notion；使用者要分享時，再用 `tripwork.py publish` 做加密的分享版並在確認後部署到 Cloudflare Pages）|
 | **export-gate** | 對輸出的成品做最後機械檢查（HTML 另查：離線可看、沒有來路不明的程式碼、授權與地圖出處都標了）：每個地點名稱本身是可點連結、**每個 Google Maps 連結都能正常打開（擋掉會失效、打不開的地圖連結）**、要訂的項目附官方來源連結、金額不會把預覽弄壞（不殘留裸 `$`）；文字有問題就退回 itinerary-synthesis 修原文（不直接改成品），同一個問題修過還出現就停下來問你 |
 
 </details>
@@ -395,7 +395,7 @@ python -m pytest tests_browser
 
 **程式在哪裡**
 
-- **流水線**：`skills/` 下有 18 個 skill：16 個流水線步驟、調度中心 `orchestrator`，以及給 agent 看的入口 `using-tripwork`；純邏輯在 `scripts/`（都有單元測試），schema 在 `schemas/`，端到端 fixture 在 `tests/`。
+- **流水線**：`skills/` 下有 18 個 skill：16 個流水線步驟、調度中心 `tripwork-orchestrator`，以及給 agent 看的入口 `using-tripwork`。和其他 plugin 撞名的三個 skill 帶 `tripwork-` 前綴（`tripwork-orchestrator`、`tripwork-export-artifact`、`tripwork-workspace-shape-preflight`，v3.0.0 起）：pi 這類 skill 名稱不分 plugin 的工具遇到同名 skill 只會載入一個；純邏輯在 `scripts/`（都有單元測試），schema 在 `schemas/`，端到端 fixture 在 `tests/`。
 - **CLI**：所有腳本只有一個入口，在工作資料夾（有 `trips/` 的那層）執行
   `python <plugin>/scripts/tripwork.py <指令> <slug>`：`next`（印出下一站）、`verify`、`gate`、`export`、`export-gate`、
   `maps`、`photos`、`picker`、`validate`、`fingerprint`、`publish`、`deploy`、`migrate`；它補上 `trips/<slug>`、

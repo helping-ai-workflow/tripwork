@@ -175,7 +175,7 @@ def test_the_pool_keeps_lodging_only_fields_and_verified_wins_the_rest():
 def test_the_export_gate_resolves_a_shared_id_as_the_renderer_does(tmp_path):
     """The report's sap-hotel: the same id in verified-pois and as a chosen
     lodging, each with a different first official source. The markdown is rendered
-    from poi_pool (export-artifact's fold); the export gate must judge that record."""
+    from poi_pool (tripwork-export-artifact's fold); the export gate must judge that record."""
     from scripts.paths import artifact_path, deliverable_paths, report_path, work_dir_for
     from scripts.render.markdown import render_markdown_page
     from scripts.gate import poi_pool

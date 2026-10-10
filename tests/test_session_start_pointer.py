@@ -28,8 +28,8 @@ def test_stdout_is_valid_json_with_additional_context():
 
 def test_pointer_carries_routing_imperative():
     ctx = json.loads(_run_claude())["hookSpecificOutput"]["additionalContext"]
-    assert "tripwork:orchestrator" in ctx
-    assert "tripwork:workspace-shape-preflight" in ctx
+    assert "tripwork:tripwork-orchestrator" in ctx
+    assert "tripwork:tripwork-workspace-shape-preflight" in ctx
     assert "memory" in ctx           # "never ... from model memory"
     assert "Source-Verified-First" in ctx
     assert "tripwork:using-tripwork" in ctx
@@ -42,7 +42,7 @@ def test_pointer_pins_resume_clause():
     # on the incidental substring overlap of the other assertions.
     ctx = json.loads(_run_claude())["hookSpecificOutput"]["additionalContext"]
     assert "resuming" in ctx, "resume clause missing — warm-resume free-draft mitigation must stay"
-    assert "re-enter tripwork:orchestrator" in ctx
+    assert "re-enter tripwork:tripwork-orchestrator" in ctx
 
 
 def test_pointer_is_tier1_not_full_body():

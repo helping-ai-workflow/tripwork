@@ -20,4 +20,4 @@ extension; if it is not there, ask the user where tripwork is installed.
   for discovery only — never the fact itself). HALT the stage and tell the user only
   when every rung of the source ladder is unavailable (Source-Verified-First:
   "No unsourced fact") — model recall is never a source.
-- Always enter tripwork:using-tripwork first, then let tripwork:orchestrator pick the stage.
+- Always enter tripwork:using-tripwork first, then let tripwork:tripwork-orchestrator pick the stage.

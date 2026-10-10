@@ -82,7 +82,7 @@ function stripFrontmatter(content: string): string {
 function piToolMapping(): string {
 	return `## Pi tool mapping
 
-Pi has native skills but does not expose Claude Code's \`Skill\` tool. When a tripwork instruction says to invoke a skill, load the relevant \`SKILL.md\` with \`read\` (always enter tripwork:using-tripwork first, then let tripwork:orchestrator pick the stage), or let a human invoke \`/skill:name\`.
+Pi has native skills but does not expose Claude Code's \`Skill\` tool. When a tripwork instruction says to invoke a skill, load the relevant \`SKILL.md\` with \`read\` (always enter tripwork:using-tripwork first, then let tripwork:tripwork-orchestrator pick the stage), or let a human invoke \`/skill:name\`. In Pi, the skill named \`tripwork:<skill>\` in tripwork's docs is the Pi skill \`<skill>\` (drop the \`tripwork:\` prefix), e.g. \`tripwork:tripwork-orchestrator\` is \`/skill:tripwork-orchestrator\`.
 
 Pi's built-in coding tools are lowercase: \`read\`, \`write\`, \`edit\`, \`bash\`, plus optional \`grep\`, \`find\`, \`ls\`. Use those for read/create/edit/run/search/find/list actions.
 

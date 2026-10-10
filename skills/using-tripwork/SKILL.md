@@ -7,7 +7,7 @@ description: Use when starting any travel-planning workflow with tripwork, befor
 
 tripwork is a staged, orchestrator-driven pipeline for building source-verified travel itineraries.
 
-**Entry point:** Always start with `tripwork:workspace-shape-preflight` (first time in a cwd) then `tripwork:orchestrator`. Never jump directly to synthesis or export.
+**Entry point:** Always start with `tripwork:tripwork-workspace-shape-preflight` (first time in a cwd) then `tripwork:tripwork-orchestrator`. Never jump directly to synthesis or export.
 
 ## The Workspace Layout
 
@@ -41,8 +41,8 @@ of the above gives a path, ask the user where tripwork is installed.
 The orchestrator's Stage Selection is canonical for order and predicates; this tree mirrors it.
 
 ```
-workspace-shape-preflight  (entry gate — first invocation only)
-  └─ orchestrator
+tripwork-workspace-shape-preflight  (entry gate — first invocation only)
+  └─ tripwork-orchestrator
        ├─ trip-brief            → trip-brief.yaml
        ├─ travel-advisory (gate)→ advisory.yaml (entry/customs/battery — before research)
        ├─ destination-research  → candidates.yaml (untrusted pool)
@@ -56,7 +56,7 @@ workspace-shape-preflight  (entry gate — first invocation only)
        ├─ cost-rollup           → cost.yaml (estimate vs budget)
        ├─ itinerary-synthesis   → itinerary.yaml (canonical)
        ├─ itinerary-gate        → gate-report.yaml (pass)
-       ├─ export-artifact       → trips/<slug>/<stem>.md (md / gmaps / line / notion)
+       ├─ tripwork-export-artifact → trips/<slug>/<stem>.md (md / gmaps / line / notion)
        └─ export-gate           → export-gate-report.yaml (pass = pipeline complete)
 ```
 
@@ -70,9 +70,9 @@ workspace-shape-preflight  (entry gate — first invocation only)
 | Calendar-aware scheduling | Synthesis hard-avoids scheduling a POI on a closed day and flags holiday/weekend crowd days. Logic in `scripts/trip_calendar.py`. |
 | Closing-buffer-aware scheduling | Synthesis checks every timed slot via `scripts/hours.py::closing_status`: never schedules past last order/entry, flags thin buffers, and stops if a `must_do` cannot fit. |
 | Gate ≠ content correct | `itinerary-gate` passing means structure is valid; content correctness is guaranteed upstream by `source-verify`. |
-| Stop on confirmation | Every halt in `tripwork:orchestrator`'s Stop-on-Confirmation table (cross-source conflict, a `far` hop, a `banned` regulation, a failed `must_do`, an over-budget estimate, …) → stop and ask the user. Never silently drop content. |
-| Invoke orchestrator to advance | After any stage completes, re-invoke `tripwork:orchestrator` to determine the next stage. |
-| Preflight before pipeline | First invocation in a cwd is gated by `workspace-shape-preflight`; the `work/.preflight-completed` stamp must exist before the orchestrator advances. |
+| Stop on confirmation | Every halt in `tripwork:tripwork-orchestrator`'s Stop-on-Confirmation table (cross-source conflict, a `far` hop, a `banned` regulation, a failed `must_do`, an over-budget estimate, …) → stop and ask the user. Never silently drop content. |
+| Invoke orchestrator to advance | After any stage completes, re-invoke `tripwork:tripwork-orchestrator` to determine the next stage. |
+| Preflight before pipeline | First invocation in a cwd is gated by `tripwork-workspace-shape-preflight`; the `work/.preflight-completed` stamp must exist before the orchestrator advances. |
 
 ## Workspace
 
@@ -84,6 +84,6 @@ workspace-shape-preflight  (entry gate — first invocation only)
 | Field | Value |
 |---|---|
 | Input | Any travel-planning request (new or resumed). |
-| Output | Control passes to `tripwork:orchestrator`. No trip artifact is written by this skill. |
-| Stop condition | Agent has invoked `tripwork:orchestrator`. Every subsequent stage decision belongs to the orchestrator. |
-| Next stage | `tripwork:orchestrator` — always. There is no alternative entry point. |
+| Output | Control passes to `tripwork:tripwork-orchestrator`. No trip artifact is written by this skill. |
+| Stop condition | Agent has invoked `tripwork:tripwork-orchestrator`. Every subsequent stage decision belongs to the orchestrator. |
+| Next stage | `tripwork:tripwork-orchestrator` — always. There is no alternative entry point. |

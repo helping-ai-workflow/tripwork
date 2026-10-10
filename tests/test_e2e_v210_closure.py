@@ -181,7 +181,7 @@ def test_a_survey_lists_then_upgrades(trip):
     cands["must_do_searched"] = []                                            # research records it
     write_artifact(artifact_path(t, "candidates.yaml"), cands)
     assert svr.main([str(t), "--work-dir", str(w)]) in (0, 1)
-    assert _next(t, w)["next"] == "tripwork:export-artifact"                     # survey: the list page
+    assert _next(t, w)["next"] == "tripwork:tripwork-export-artifact"                     # survey: the list page
     from scripts import survey_table
     assert survey_table.main([str(t), "--page"]) == 0
     brief = _load(t, "trip-brief.yaml")

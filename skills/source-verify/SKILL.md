@@ -70,7 +70,7 @@ A place with genuinely no closing time — an open-air beach, lake, park or old 
 Produce the artifact with `python <plugin>/scripts/tripwork.py verify <slug>` (add `--official-domain <suffix>` for a venue domain this trip needs flagged). It paces requests per REQUEST, not per candidate: `resolve_place`'s multi-tier fallback (`scripts/geocode.py`) can issue up to five lookups on one hard-to-resolve candidate, and each is spaced by the `pace` callback the driver passes in, so a whole `candidates.yaml` cannot burst past Nominatim's <= 1 req/s policy. A cache hit issues no request and costs no delay. For a candidate with `address_local` it also looks up the address (`scripts/geocode.py::address_point`) and keeps what `scripts/geocode.py::pick_point` returns: the name hit when it lies near the address, else the address point (`geocode_source: nominatim_address`, approximate, disclosed in the deliverable). Each name lookup counts only when its name matches and, for a bare-name query, it lies in the claimed district; in Taiwan, with no name lookup accepted, the road point in the district (`nominatim_road`) or its 村里's centre (`village_centroid`) stands in, approximate and disclosed the same way. It also owns the district centroids, and — decisively — it always forwards `resolved_name` and `local_lang`. Gate 1b silently no-ops when `local_lang` is absent, so a hand-written driver that omits it produces a green artifact with one fewer gate and nothing anywhere says so. (Gate 2b refuses outright rather than skipping.) Downstream stages read ONLY `verify_status: verified`. Never silently drop a candidate — `rejected`/`conflicting`/`unverified` stay recorded with their reason. **Every non-`verified` POI must carry a non-empty `status_reason`** (the schema enforces this; `verified` POIs instead require `geocode` + >= 2 sources). A non-`verified` POI may omit `geocode` and carry a single source — that is how a Nominatim miss (D7) or single-source candidate is recorded without fabricating coordinates or padding a second source. If a `must_do` item fails, stop and tell the user explicitly.
 
 Then validate it: `python <plugin>/scripts/tripwork.py validate <slug> verified-pois`
-(exit 0 required before returning). Return to `tripwork:orchestrator`.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -79,7 +79,7 @@ Then validate it: `python <plugin>/scripts/tripwork.py validate <slug> verified-
 | Input | `trips/<slug>/data/candidates.yaml` + `trips/<slug>/data/trip-brief.yaml`. |
 | Output | `trips/<slug>/data/verified-pois.yaml` with per-POI `verify_status` + reasons. |
 | Stop condition | Cross-source conflict (`cross_source_conflict`), or a `must_do` item fails verification (`must_do_unverified`) → ask user. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Red Flags
 

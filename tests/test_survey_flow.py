@@ -92,7 +92,7 @@ def test_survey_after_verify_routes_to_export_artifact(tmp_path):
     t, w = _survey_trip(tmp_path)
     _verified(t)
     out = _next(t, w)
-    assert out == {"next": "tripwork:export-artifact", "reason": "survey：清單頁不存在或舊於 verified-pois"}
+    assert out == {"next": "tripwork:tripwork-export-artifact", "reason": "survey：清單頁不存在或舊於 verified-pois"}
 
 
 def test_survey_page_older_than_pois_routes_again(tmp_path):
@@ -101,7 +101,7 @@ def test_survey_page_older_than_pois_routes_again(tmp_path):
     page = deliverable_paths(t, survey_brief())["html"]
     page.write_text("<html></html>", encoding="utf-8")
     _bump(page, -60)
-    assert _next(t, w)["next"] == "tripwork:export-artifact"
+    assert _next(t, w)["next"] == "tripwork:tripwork-export-artifact"
 
 
 def test_survey_complete_when_page_fresh(tmp_path):

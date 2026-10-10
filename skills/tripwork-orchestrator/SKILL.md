@@ -1,5 +1,5 @@
 ---
-name: orchestrator
+name: tripwork-orchestrator
 description: Use when a tripwork stage has completed and the next stage must be selected, or when a travel-planning request must be routed into the pipeline.
 ---
 
@@ -57,7 +57,7 @@ just re-run the oracle — the fixing stage rewrites its own artifact with a new
 mtime than `gate-report.yaml`, and rule 13 (see below) notices that on its own.
 Do not delete `gate-report.yaml` by hand.
 
-0. If `work/.preflight-completed` is absent → run `tripwork:workspace-shape-preflight` first.
+0. If `work/.preflight-completed` is absent → run `tripwork:tripwork-workspace-shape-preflight` first.
 0.5. **Bind `<slug>` first.** A new request must allocate a `<slug>` that does **not**
    already exist under `trips/`; a resumed request must name or confirm exactly one
    existing `trips/<slug>/`. Never apply rules 1-16 across different `trips/<slug>/` dirs.
@@ -73,7 +73,7 @@ Do not delete `gate-report.yaml` by hand.
    has a topic missing from candidates.yaml's `must_do_searched` (a survey upgraded to a trip):
    research adds candidates for it, and source-verify checks only what is new.
 3s. **Survey** (`mode: survey`): once verified-pois is ready, the list page decides — absent or
-   older than verified-pois -> run `tripwork:export-artifact` (its survey branch); newer ->
+   older than verified-pois -> run `tripwork:tripwork-export-artifact` (its survey branch); newer ->
    complete. Report the list page's path, `python <plugin>/scripts/tripwork.py table <slug>`
    with its presets (吃的 / 景點), and that saying "排成行程" upgrades the same folder.
 3. candidates exist but verified-pois.yaml **stale** (see Definitions) or missing -> run `tripwork:source-verify`.
@@ -132,7 +132,7 @@ Do not delete `gate-report.yaml` by hand.
     so re-running it invalidates all four; fix the cheaper downstream classes first.
 
     Then re-run rule 13.
-14. gate-report status==pass, no trips/<slug>/<stem>.md -> run `tripwork:export-artifact`.
+14. gate-report status==pass, no trips/<slug>/<stem>.md -> run `tripwork:tripwork-export-artifact`.
 15. export deliverable (md) exists, and no export-gate-report.yaml **or any of
     `EXPORT_DELIVERABLES`** (md — required by rule 14; html, compared only once it exists)
     **or any of `EXPORT_GATE_INPUTS`** (itinerary / verified-pois / accommodations /
@@ -149,7 +149,7 @@ Do not delete `gate-report.yaml` by hand.
     - **retryable==false** (an upstream DATA defect re-render cannot fix — a photo with no
       attribution, a bookable POI with no official source) -> **STOP and ask the user to fix
       the data** (add the attribution / mark the official source), then re-verify. Do NOT
-      loop export-artifact on it.
+      loop tripwork-export-artifact on it.
     A non-distributable label is NOT a fail (see rule 16), so it never triggers this loop.
 16. **export-gate-report status==pass -> pipeline complete.** Report the deliverables
     (`trips/<slug>/<stem>.md`, `<stem>.html`, maps links, optional Notion) and stop. If the

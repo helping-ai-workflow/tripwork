@@ -402,7 +402,7 @@ def build_full_trip(root, slug=SLUG):
 
 def html_deliverable():
     """The HTML deliverable for this fixture trip, rendered by the shipped reader
-    exactly as export-artifact renders it (never a hand-written stand-in)."""
+    exactly as tripwork-export-artifact renders it (never a hand-written stand-in)."""
     from scripts.gate import poi_pool
     from scripts.render.html_page import render_html_page
     poi_map = poi_pool(verified_pois()["pois"], accommodations())

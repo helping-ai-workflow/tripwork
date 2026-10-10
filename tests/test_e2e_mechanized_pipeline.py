@@ -26,7 +26,7 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 SCRIPTS = ROOT / "scripts"
 
 EXPECTED_WALK = [
-    (None, "tripwork:workspace-shape-preflight"),
+    (None, "tripwork:tripwork-workspace-shape-preflight"),
     ("stamp", "tripwork:trip-brief"),
     ("trip-brief.yaml", "tripwork:travel-advisory"),
     ("advisory.yaml", "tripwork:destination-research"),
@@ -40,7 +40,7 @@ EXPECTED_WALK = [
     ("transit.yaml", "tripwork:cost-rollup"),
     ("cost.yaml", "tripwork:itinerary-synthesis"),
     ("itinerary.yaml", "tripwork:itinerary-gate"),
-    ("gate", "tripwork:export-artifact"),
+    ("gate", "tripwork:tripwork-export-artifact"),
     ("exports", "tripwork:export-gate"),
     ("egate", "complete"),
 ]

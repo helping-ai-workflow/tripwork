@@ -128,7 +128,7 @@ def test_next_on_a_new_slug(ws, capsys):
     assert yaml.safe_load(capsys.readouterr().out)["next"] == "tripwork:trip-brief"
     (ws / "work" / ".preflight-completed").unlink()
     assert _tw().main(["next", "brand-new"]) == 0
-    assert yaml.safe_load(capsys.readouterr().out)["next"] == "tripwork:workspace-shape-preflight"
+    assert yaml.safe_load(capsys.readouterr().out)["next"] == "tripwork:tripwork-workspace-shape-preflight"
 
 
 @pytest.mark.parametrize("argv", [["-h"], ["--help"]])

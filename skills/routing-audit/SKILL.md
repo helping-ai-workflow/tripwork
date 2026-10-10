@@ -22,7 +22,7 @@ Any hop flagged `far` -> stop and ask the user whether to keep or replace the PO
 
 Write `trips/<slug>/data/routing.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> routing`
-(exit 0 required before returning). Return to `tripwork:orchestrator`.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -31,7 +31,7 @@ Write `trips/<slug>/data/routing.yaml`, then validate it:
 | Input | `trips/<slug>/data/verified-pois.yaml` + `trips/<slug>/data/trip-brief.yaml`. |
 | Output | `trips/<slug>/data/routing.yaml` (clusters, hops, warnings). |
 | Stop condition | A hop flagged `far` (`far_hop`) → ask user keep-or-replace. A hop flagged `implausible` (`implausible_hop`) → ask user for a real source. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

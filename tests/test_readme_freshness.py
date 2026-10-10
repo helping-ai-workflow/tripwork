@@ -77,7 +77,7 @@ def _mermaid_block():
 # 12-16) in next_stage.py, not part of a shipped sequence constant. If a future
 # release collects them into one, delete these four lines and derive them too.
 _PIPELINE_ORDER = [s.removeprefix("tripwork:") for _a, s, _r in _CHAIN] + [
-    "itinerary-synthesis", "itinerary-gate", "export-artifact", "export-gate",
+    "itinerary-synthesis", "itinerary-gate", "tripwork-export-artifact", "export-gate",
 ]
 
 def test_tw060_every_stage_in_mermaid_block():

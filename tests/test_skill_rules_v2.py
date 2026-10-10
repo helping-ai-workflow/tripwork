@@ -21,9 +21,9 @@ def _skill(name):
     ("routing-audit", "replacement options must be verified"),
     ("using-tripwork", "including the places offered to the user to choose from"),
     ("source-verify", "keep every traveller write-up in sources"),
-    ("export-artifact", "tripwork.py export"),
+    ("tripwork-export-artifact", "tripwork.py export"),
     ("export-gate", "never edit the rendered deliverable"),
-    ("orchestrator", "never edit the rendered deliverable"),
+    ("tripwork-orchestrator", "never edit the rendered deliverable"),
 ])
 def test_rule_phrase_present(skill, phrase):
     assert phrase in _skill(skill)
@@ -35,11 +35,11 @@ def test_v13_two_travellers_rule_is_gone():
 
 @pytest.mark.parametrize("call", ["render_markdown_page(", "render_html_page(", "apply_media("])
 def test_export_artifact_has_no_hand_rendering(call):
-    assert call not in _skill("export-artifact")
+    assert call not in _skill("tripwork-export-artifact")
 
 
 def test_password_text():
-    s = _skill("export-artifact")
+    s = _skill("tripwork-export-artifact")
     assert "or let" not in s
     assert "TRIPWORK_PUBLISH_PASSWORD=" in s and "process list" in s
     assert "CLOUDFLARE_API_TOKEN" in s

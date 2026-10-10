@@ -1,9 +1,9 @@
 ---
-name: workspace-shape-preflight
+name: tripwork-workspace-shape-preflight
 description: Use when the tripwork pipeline is about to run its first stage in a cwd with no work/.preflight-completed stamp.
 ---
 
-# workspace-shape-preflight
+# tripwork-workspace-shape-preflight
 
 The first pipeline invocation in any cwd is gated here. It validates that the trip workspace matches tripwork's expected shape before the orchestrator advances to trip-brief.
 
@@ -33,7 +33,7 @@ Always stop and ask before creating directories in a non-empty cwd. Never overwr
 | Input | A travel-planning request in a cwd with no `work/.preflight-completed` stamp. |
 | Output | Confirmed workspace layout + `work/.preflight-completed` stamp. |
 | Stop condition | Non-empty/brownfield cwd, or any layout ambiguity → ask the user before writing. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

@@ -1,9 +1,9 @@
 ---
-name: export-artifact
+name: tripwork-export-artifact
 description: Use when gate-report status is pass and the itinerary must be exported. Produces trips/<slug>/<stem>.md.
 ---
 
-# export-artifact
+# tripwork-export-artifact
 
 Render the verified itinerary into deliverables at the top of `trips/<slug>/`. Run only when `gate-report.yaml` status is `pass`. The markdown deliverable is `trips/<slug>/<stem>.md`, where `<stem>` is `{dates.start} {short_name} {N天M夜}` (e.g. `2026-05-12 東京 3天2夜`); every deliverable path comes from `scripts/paths.py::deliverable_paths(trip_dir, brief)` — md and html share the stem. It is the only markdown copy of the itinerary.
 
@@ -119,7 +119,7 @@ One trip is one Pages project: `deploy` uploads this trip's page only and a depl
 
 Before `deploy`, stop and ask the user: show the project name, the URL and that the page goes on the internet behind a password. Deploy only after an explicit yes.
 
-Return to `tripwork:orchestrator`.
+Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -128,4 +128,4 @@ Return to `tripwork:orchestrator`.
 | Input | `trips/<slug>/data/itinerary.yaml` (canonical) + `verified-pois.yaml` + optional `verified-pois-media.yaml` (photo side-file) + `day-maps.yaml` + `gate-report.yaml` (status pass, fresh). `tripwork.py export` reads them all through `scripts/trip_inputs.py`; Notion runs only after `export-gate` passes. |
 | Output | `trips/<slug>/<stem>.md` (+ `<stem>.html`) + optional `verified-pois-media.yaml` (photo side-file, written by `scripts/photo_adapter.py`) + optional `trips/<slug>/publish/` (the locked publish page, `scripts/publish.py`). |
 | Stop condition | `gate-report` status != pass → do not export; return upstream. Before `tripwork.py deploy` → stop for the user's explicit yes (it publishes to the internet). |
-| Next stage | `tripwork:orchestrator` (which routes to `export-gate`). |
+| Next stage | `tripwork:tripwork-orchestrator` (which routes to `export-gate`). |

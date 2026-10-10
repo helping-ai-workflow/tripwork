@@ -122,7 +122,7 @@ Write `trips/<slug>/data/accommodations.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> accommodations`
 (exit 0 required before returning). Never silently drop a
 candidate — `conflicting`/`rejected`/`unverified` stay recorded with their reason. Return
-to `tripwork:orchestrator`.
+to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -131,7 +131,7 @@ to `tripwork:orchestrator`.
 | Input | `trips/<slug>/data/routing.yaml` (clusters + centroids) + `trips/<slug>/data/trip-brief.yaml`. |
 | Output | `trips/<slug>/data/accommodations.yaml` (per-stop candidates + chosen, each candidate carrying `resolved_name` for gate re-derivation). |
 | Stop condition | Unfilled stop needs a pick (`unfilled_overnight_stop`); a required facility is missing (`missing_required_facility`); a hotel geocodes outside its stop (`lodging_outside_stop`); arrival is after reception close (`arrival_after_reception_close`) → ask user. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

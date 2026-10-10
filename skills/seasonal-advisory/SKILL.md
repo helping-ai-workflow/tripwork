@@ -46,7 +46,7 @@ driving leg whose estimated arrival is `after_dark(arrival, date, lat)` — emit
 
 Write `trips/<slug>/data/seasonal.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> seasonal`
-(exit 0 required before returning). Return to `tripwork:orchestrator`.
+(exit 0 required before returning). Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -55,7 +55,7 @@ Write `trips/<slug>/data/seasonal.yaml`, then validate it:
 | Input | `trips/<slug>/data/trip-brief.yaml` (destination, dates, transport) + `trips/<slug>/data/routing.yaml` + `trips/<slug>/data/accommodations.yaml`. |
 | Output | `trips/<slug>/data/seasonal.yaml` (hazard `items` + per-stop `daylight`). |
 | Stop condition | A `blocking` hazard makes a leg/stop infeasible (`blocking_hazard`) → ask user. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 

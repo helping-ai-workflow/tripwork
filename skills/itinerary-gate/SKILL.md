@@ -73,7 +73,7 @@ here. The accommodation/calendar/must_do checks run only when their input is pre
 
 ## Output
 
-Write `work/<slug>/gate-report.yaml` (schema: `schemas/gate-report.schema.json`). If `status: fail`, list each failure and return to the responsible upstream stage via `tripwork:orchestrator`. Only `status: pass` permits `export-artifact`. `notices` (for example a stop with no `address_local`, so no 給司機看 sheet) never change the status: tell the user, do not route them.
+Write `work/<slug>/gate-report.yaml` (schema: `schemas/gate-report.schema.json`). If `status: fail`, list each failure and return to the responsible upstream stage via `tripwork:tripwork-orchestrator`. Only `status: pass` permits `tripwork-export-artifact`. `notices` (for example a stop with no `address_local`, so no 給司機看 sheet) never change the status: tell the user, do not route them.
 
 ## Stage Contract
 
@@ -82,7 +82,7 @@ Write `work/<slug>/gate-report.yaml` (schema: `schemas/gate-report.schema.json`)
 | Input | `trips/<slug>/data/itinerary.yaml` + `trips/<slug>/data/verified-pois.yaml` + `trips/<slug>/data/accommodations.yaml` + `trips/<slug>/data/calendar.yaml` + `trips/<slug>/data/advisory.yaml` + `trips/<slug>/data/legs.yaml` + `trips/<slug>/data/routing.yaml` + `trips/<slug>/data/cost.yaml` + `trips/<slug>/data/seasonal.yaml` + `trips/<slug>/data/trip-brief.yaml` (must_do). |
 | Output | `work/<slug>/gate-report.yaml` (`status` pass/fail + failures). |
 | Stop condition | `status: fail` → return to the responsible upstream stage. |
-| Next stage | `tripwork:orchestrator` (which routes to `export-artifact` only on pass). |
+| Next stage | `tripwork:tripwork-orchestrator` (which routes to `tripwork-export-artifact` only on pass). |
 
 ## Common Mistakes
 

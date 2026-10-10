@@ -1,6 +1,6 @@
 ---
 name: export-gate
-description: Use when export-artifact has produced trips/<slug>/<stem>.md and the rendered deliverable must be validated before the pipeline completes. Produces export-gate-report.yaml.
+description: Use when tripwork-export-artifact has produced trips/<slug>/<stem>.md and the rendered deliverable must be validated before the pipeline completes. Produces export-gate-report.yaml.
 ---
 
 # export-gate — mechanical post-export check
@@ -75,4 +75,4 @@ non-distributable, 勿散布", it does NOT re-export loop.
 | Input | `trips/<slug>/<stem>.md` (named from `trips/<slug>/data/trip-brief.yaml`'s `short_name` via `scripts/paths.py::deliverable_paths`) + the MERGED pois (`trips/<slug>/data/verified-pois.yaml` overlaid with `trips/<slug>/data/accommodations.yaml`'s chosen lodgings and optional `trips/<slug>/data/verified-pois-media.yaml` via `scripts/media_merge.py::apply_media`), plus optional `trips/<slug>/data/itinerary.yaml` (for `min_days`), so the photo / distributability checks see the same photos the deliverable rendered. |
 | Output | `work/<slug>/export-gate-report.yaml` (`status` pass/fail + failures). |
 | Stop condition | `status: fail` + `retryable: true` → return to `itinerary-synthesis` to fix the source text (never edit the rendered deliverable); `retryable: false` → stop and ask the user (`nonretryable_export_fail`): fix the data, or report a repeated failure as a plugin defect. |
-| Next stage | `tripwork:orchestrator` (pipeline complete on pass). |
+| Next stage | `tripwork:tripwork-orchestrator` (pipeline complete on pass). |

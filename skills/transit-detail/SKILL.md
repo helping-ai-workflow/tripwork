@@ -30,7 +30,7 @@ Research using the **source ladder** in `tripwork:using-tripwork` (WebSearch, el
 Write `trips/<slug>/data/transit.yaml`, then validate it:
 `python <plugin>/scripts/tripwork.py validate <slug> transit`
 (exit 0 required before returning). A walk-everywhere / cash-only trip
-writes empty `peak_windows` / `walks` and no `ic_card`. Return to `tripwork:orchestrator`.
+writes empty `peak_windows` / `walks` and no `ic_card`. Return to `tripwork:tripwork-orchestrator`.
 
 ## Stage Contract
 
@@ -39,7 +39,7 @@ writes empty `peak_windows` / `walks` and no `ic_card`. Return to `tripwork:orch
 | Input | `trips/<slug>/data/trip-brief.yaml` (destination, members) + `trips/<slug>/data/verified-pois.yaml`. |
 | Output | `trips/<slug>/data/transit.yaml` (peak_windows + ic_card + per-POI walks). |
 | Stop condition | None — advisory only. |
-| Next stage | `tripwork:orchestrator`. |
+| Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes
 
