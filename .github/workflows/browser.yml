@@ -2,69 +2,66 @@ name: browser
 
 # spec §7: the reader's interaction checks (anchor linkage, overlays, no widened page,
 # dashboard not scrolling, centring without rebound) run in headless Chromium and
-# WebKit (the engine of the LINE / iPhone Files previews the reader is opened in) --
-# only when something that shapes the page changes. The filter is the whole scripts/
-# package: the page and the fixture that builds it load ~20 modules outside
-# scripts/render (tests/test_browser_workflow.py measures that list, it is not kept here).
+# WebKit (the engine of the LINE / iPhone Files previews the reader is opened in).
+# Every pull request, no path filter: `interaction` is a required check on main, and a
+# path-filtered required check never reports on a PR that does not touch those paths,
+# which would block the merge. A PR that only changes README.md, CLAUDE.md,
+# CHANGELOG.md or docs/** skips every step after the scope check and reports success
+# (.github/docs-only.sh; tests/test_browser_workflow.py keeps every module the page
+# loads off its allow-list). Pushes to main do not re-run: main only moves by a PR
+# that was up to date with it, so the merge lands the tree that was tested.
 on:
-  push:
-    branches: [main]
-    paths:
-      - "scripts/**"
-      - "assets/fonts/**"
-      - "assets/icons/**"
-      - "assets/dict/**"
-      - "tests_browser/**"
-      - "tests/__init__.py"
-      - "tests/e2e_v1_fixture.py"
-      - "tests/reader_fixture.py"
-      - "tests/title_fixture.py"
-      - "tests/mech_fixtures.py"
-      - "pyproject.toml"
-      - ".github/workflows/browser.yml"
   pull_request:
-    paths:
-      - "scripts/**"
-      - "assets/fonts/**"
-      - "assets/icons/**"
-      - "assets/dict/**"
-      - "tests_browser/**"
-      - "tests/__init__.py"
-      - "tests/e2e_v1_fixture.py"
-      - "tests/reader_fixture.py"
-      - "tests/title_fixture.py"
-      - "tests/mech_fixtures.py"
-      - "pyproject.toml"
-      - ".github/workflows/browser.yml"
+  workflow_dispatch:
 
 jobs:
   interaction:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: the label moved to Ubuntu 26.04 in October 2026 and a
+    # cached WebKit built for 24.04 could not start there for want of libicudata.so.74
+    # (md2doc PR #54, #55). Move this on purpose, with the cache key below.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2
+      - name: Docs-only change?
+        id: scope
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+        run: .github/docs-only.sh
       - uses: actions/setup-python@v5
+        if: steps.scope.outputs.docs_only != 'true'
         with:
           python-version: '3.11'
       # v1.2: the lock page is made by staticrypt (npx staticrypt@3.5.4, pinned in scripts/render/publish/lock.py)
       - uses: actions/setup-node@v4
+        if: steps.scope.outputs.docs_only != 'true'
         with:
           node-version: '20'
       - name: Install
+        if: steps.scope.outputs.docs_only != 'true'
         run: pip install -e ".[dev,browser]"
       - name: Playwright version
+        if: steps.scope.outputs.docs_only != 'true'
         id: pw
-        run: echo "version=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+        run: |
+          echo "version=$(python -c 'import importlib.metadata as m; print(m.version("playwright"))')" >> "$GITHUB_OUTPUT"
+          echo "image=$ImageOS" >> "$GITHUB_OUTPUT"
       - name: Cache Playwright browsers
+        if: steps.scope.outputs.docs_only != 'true'
         id: cache
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-cw-${{ runner.os }}-${{ steps.pw.outputs.version }}
+          # The runner image is in the key: browsers cached on one Ubuntu release
+          # link against libraries another release may not ship.
+          key: playwright-cw-${{ runner.os }}-${{ steps.pw.outputs.image }}-${{ steps.pw.outputs.version }}
       - name: Install Chromium and WebKit
-        if: steps.cache.outputs.cache-hit != 'true'
+        if: steps.scope.outputs.docs_only != 'true' && steps.cache.outputs.cache-hit != 'true'
         run: python -m playwright install --with-deps chromium webkit
       - name: Install Chromium and WebKit system deps
-        if: steps.cache.outputs.cache-hit == 'true'
+        if: steps.scope.outputs.docs_only != 'true' && steps.cache.outputs.cache-hit == 'true'
         run: python -m playwright install-deps chromium webkit
       - name: Interaction checks
+        if: steps.scope.outputs.docs_only != 'true'
         run: python -m pytest tests_browser -q

@@ -1,8 +1,8 @@
 """Headless-Chromium interaction checks for the reader (spec §7). Not part of the
 default `pytest` sweep (testpaths = tests): run with `python -m pytest tests_browser`
 after `pip install -e ".[dev,browser]"` and `python -m playwright install --with-deps chromium webkit`.
-CI runs them in .github/workflows/browser.yml when the reader, export-gate, fonts or
-icons change.
+CI runs them in .github/workflows/browser.yml on every pull request; a PR that changes
+only docs skips them (.github/docs-only.sh).
 
 The page under test is the release e2e tour (tests/e2e_v1_fixture.py) rendered by the
 shipped reader with a day-maps side-file built by the shipped generator from injected
