@@ -1,13 +1,20 @@
 name: ci
 
+# Runs once per pull request. `test` is a required check on main (with `interaction`
+# from browser.yml), and main only moves by a PR that is up to date with it, so a merge
+# lands exactly the tree that was tested; pushes to main do not re-run the suite.
+# No docs-only skip here, unlike browser.yml: the unit suite reads README.md (freshness),
+# CHANGELOG.md (version) and every tracked text file (test_privacy, test_no_merge_markers),
+# so a README edit is exactly what this job must check (.github/docs-only.sh says more).
 on:
-  push:
-    branches: [main]
   pull_request:
+  workflow_dispatch:
 
 jobs:
   test:
-    runs-on: ubuntu-latest
+    # Pinned, not ubuntu-latest: the label moved to Ubuntu 26.04 in October 2026; move
+    # this on purpose, together with browser.yml.
+    runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

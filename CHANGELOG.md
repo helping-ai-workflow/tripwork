@@ -1,5 +1,29 @@
 # Changelog
 
+## 3.0.2 — main is protected: `test` and `interaction` must pass on an up-to-date branch
+
+### Changed
+
+- **Both CI jobs run on every pull request, with no path filter.** `test` (ci.yml) and
+  `interaction` (browser.yml) become required checks on `main`, and a required check that
+  never reports blocks the merge, so browser.yml loses its `paths:` filter. A PR that only
+  changes `README.md`, `CLAUDE.md`, `CHANGELOG.md` or `docs/**` still runs `interaction`,
+  which skips every step after a scope check (`.github/docs-only.sh`, from md2doc) and
+  reports success. `test` has no such skip: the unit suite reads all of those files.
+- **Pushes to `main` no longer re-run either workflow.** Once `main` is protected it only
+  moves by a PR that is up to date with it, so the merge lands the tree that was tested.
+  Both workflows can still be run by hand (`workflow_dispatch`).
+- **Pinned runner.** Both jobs run on `ubuntu-24.04` instead of `ubuntu-latest`, and the
+  Playwright cache key carries the runner image: md2doc's cached WebKit could not start
+  once `ubuntu-latest` moved to a newer release (a missing `libicudata.so.74`).
+- `tests/test_browser_workflow.py` now guards this: no path filter on either workflow, the
+  pinned image, the image in the cache key, every browser step gated on the scope check,
+  and no module the reader page loads counting as docs (asked of the shipped script).
+
+Nothing the plugin ships changes.
+
+Tests: 2227 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2229 passed and the privacy check passes.
+
 ## 3.0.1 — two test fixtures stop sharing a coordinate with a consumer trip
 
 ### Fixed
