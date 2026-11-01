@@ -19,6 +19,7 @@ from scripts.facilities import stop_meets_required
 from scripts.trip_calendar import poi_closed_on
 from scripts.verify import official_source_url
 from scripts.rederive import run_rederivation
+from scripts import reservation
 from scripts.source_records import area_label_failures, source_record_failures
 from scripts.text_hygiene import (ai_tone_failures, jargon_failures,
                                    kana_gloss_failures, kana_name_without_gloss)
@@ -230,7 +231,8 @@ def _itinerary_text(itinerary):
 
 def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
              calendar=None, advisory=None, must_do=None,
-             legs=None, routing=None, cost=None, trip_brief=None, seasonal=None):
+             legs=None, routing=None, cost=None, trip_brief=None, seasonal=None,
+             reservations=None):
     """Return a gate-report dict: {status, checks, failures}.
 
     Args:
@@ -239,6 +241,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         calendar:   optional calendar dict; when given, the closed-day check runs.
         advisory:   optional advisory dict; when given, banned/restricted items must be surfaced.
         must_do:    optional list of POI ids that MUST be scheduled.
+        reservations: optional reservations.yaml dict; when given, every entry must match
+                    one row (scripts/reservation.py::match) and its details are text-checked.
     """
     # P4: fold each stop's chosen lodging into the POI pool so a `day.lodging` /
     # lodging-row id referencing a hotel resolves natively (verified-pois win each
@@ -349,6 +353,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     # source, including renderers that have no gate of their own. (defense-in-depth copies
     # also live in export_gate for the rendered md/html.)
     hygiene_text = _itinerary_text(itinerary)
+    # the traveller's own reservation details reach every renderer too (never the ref)
+    hygiene_text += "\n" + "\n".join(reservation.texts(reservations))
     failures.extend(jargon_failures(hygiene_text, pois))
     failures.extend(kana_gloss_failures(hygiene_text))
     ai_tone = ai_tone_failures(hygiene_text)
@@ -361,12 +367,15 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     moves = move_record_failures(itinerary)
     alts = alternative_failures(itinerary)
     themes = theme_failures(itinerary)
-    checklist_f = checklist_failures(itinerary, by_id, referenced)
+    res_pairs, res_f = reservation.match(itinerary, legs, reservations, by_id)
+    booked = frozenset(p["res"].get("poi_id") or p["res"].get("lodging")
+                       for p in res_pairs if p["res"].get("status") == "booked") - {None}
+    checklist_f = checklist_failures(itinerary, by_id, referenced, booked_poi_ids=booked)
     sources_f = source_record_failures(by_id, {p.get("id") for p in pois}, referenced)
     area_f = area_label_failures(accommodations) if accommodations is not None else []
     brief_f = (name_failures(trip_brief) + headline_failures(trip_brief)
                if trip_brief is not None else [])
-    failures.extend(chain + moves + alts + themes + checklist_f + sources_f + area_f + brief_f)
+    failures.extend(chain + moves + alts + themes + checklist_f + sources_f + area_f + brief_f + res_f)
 
     # TW-069 fix round 1: a `kind: home` leg's verdict is re-derived (below) and
     # its fare is summed (cost-rollup), but neither of those proves it ever
@@ -442,6 +451,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         checks.append({"name": "lodging_area_labelled", "passed": not area_f})
     if trip_brief is not None:
         checks.append({"name": "brief_names_valid", "passed": not brief_f})
+    if reservations is not None:
+        checks.append({"name": "reservations_match", "passed": not res_f})
 
     report = {"status": "pass" if not failures else "fail", "checks": checks, "failures": failures}
     # v1.1 topic 7: the user's day-title picks never fail; two patterns get a word
@@ -517,6 +528,7 @@ def main(argv):
         routing = opt("routing.yaml")
         cost = opt("cost.yaml")
         seasonal = opt("seasonal.yaml")
+        reservations = opt("reservations.yaml")
     except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError,
             _MalformedOptionalArtifact) as exc:
         print(f"missing/invalid required or optional artifact: {exc!r}",
@@ -535,6 +547,7 @@ def main(argv):
         cost=cost,
         trip_brief=brief,
         seasonal=seasonal,
+        reservations=reservations,
     )
     w.mkdir(parents=True, exist_ok=True)
     report_path(w, "gate-report.yaml").write_text(

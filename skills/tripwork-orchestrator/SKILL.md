@@ -121,7 +121,8 @@ Do not delete `gate-report.yaml` by hand.
     | 7 | `seasonal official source …` | `tripwork:seasonal-advisory` |
     | 8 | a scheduled POI `carries neither hours.close nor hours.no_fixed_close`; `POI source record incomplete:` | `tripwork:source-verify` |
     | 9 | `trip-brief name invalid:` / `trip-brief headline invalid:` | `tripwork:trip-brief` |
-    | 10 | AI-tone hits; the v1.0 reader-data classes synthesis writes (`day chain broken:`, `chain node without poi:`, `move record incomplete:`, `move rederive …`, `legacy …`, `alternative invalid:`, `day theme invalid:`, `checklist item invalid:`, `booking not in checklist:`) | `tripwork:itinerary-synthesis` |
+    | 10 | `reservation …` — a booking in `reservations.yaml` that matches no row, several rows, or a row another booking already holds | `tripwork:record-reservation` |
+    | 11 | AI-tone hits; the v1.0 reader-data classes synthesis writes (`day chain broken:`, `chain node without poi:`, `move record incomplete:`, `move rederive …`, `legacy …`, `alternative invalid:`, `day theme invalid:`, `checklist item invalid:`, `booking not in checklist:`) | `tripwork:itinerary-synthesis` |
     | — | everything else (no-meal / unknown-POI / non-verified / geocode / closed-day / must_do / advisory-surface / no-resolved-lodging / unrendered home leg / missing `closing_status`) | `tripwork:itinerary-synthesis` |
 
     Row 8 is **not** a synthesis defect even though the gate reads it off an itinerary row:

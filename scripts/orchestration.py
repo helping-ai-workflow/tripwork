@@ -77,6 +77,10 @@ _ROUTES = (
     # v1.0 P1: the day chain, move records, alternatives, day theme and
     # structured checklist are all fields synthesis writes -- named explicitly
     # rather than left to the fall-through, for the same reason AI-tone is.
+    # reservations.yaml is the traveller's own file: a booking that no longer matches a row
+    # (the plan dropped a booked place) is theirs to decide, so it goes to the one stage that
+    # writes the file -- and asks. Before synthesis, which must not "fix" it by re-planning.
+    (("reservation ",), "tripwork:record-reservation"),
     (("AI-tone ", "day chain broken: ", "chain node without poi: ", "move record incomplete: ",
       "move rederive mismatch: ", "move rederive missing: ", "legacy contingency: ",
       "legacy alternative row: ", "alternative invalid: ", "day theme invalid: ",
@@ -160,7 +164,8 @@ _DEPS = {
 # report against every one of these — not against a single marker file.
 GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "trip-brief.yaml",
                "accommodations.yaml", "calendar.yaml", "advisory.yaml",
-               "legs.yaml", "routing.yaml", "cost.yaml", "seasonal.yaml")
+               "legs.yaml", "routing.yaml", "cost.yaml", "seasonal.yaml",
+               "reservations.yaml")
 # v1.0: export_gate also opens trip-brief.yaml -- the deliverable names come from
 # its short_name -- so a renamed trip makes the export report stale too.
 EXPORT_GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "accommodations.yaml",

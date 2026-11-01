@@ -12,7 +12,9 @@ _ABS_DUE = re.compile(r"^\d{4}-\d{2}-\d{2}( \d{2}:\d{2})?$")
 P = "checklist item invalid: "
 
 
-def checklist_failures(itinerary, by_id, referenced):
+def checklist_failures(itinerary, by_id, referenced, booked_poi_ids=frozenset()):
+    """booked_poi_ids: places the traveller has already booked (reservations.yaml) -- their
+    opens_at reminder is done, so it no longer needs a hard-dated 預約 item."""
     items = itinerary.get("checklist") or []
     out = []
     for k, it in enumerate(items):
@@ -34,7 +36,7 @@ def checklist_failures(itinerary, by_id, referenced):
               and isinstance(it.get("due"), str)}
     for pid in sorted(referenced):
         opens = ((by_id.get(pid) or {}).get("booking") or {}).get("opens_at")
-        if opens and opens not in booked:
+        if opens and opens not in booked and pid not in booked_poi_ids:
             out.append(f"booking not in checklist: POI {pid!r} opens reservations at a "
                        f"recorded time but no hard-dated 預約 item carries it")
     return out
