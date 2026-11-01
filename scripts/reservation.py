@@ -134,3 +134,67 @@ def texts(reservations):
             if isinstance(d, dict):
                 out += [str(d.get("label") or ""), str(d.get("value") or "")]
     return [s for s in out if s]
+
+
+def _row(itinerary, pair):
+    return None if pair["row"] is None else itinerary["days"][pair["day"]]["rows"][pair["row"]]
+
+
+def _booking_name(itinerary, legs, pair, poi_map):
+    res, row = pair["res"], _row(itinerary, pair)
+    if pair["kind"] == "move":
+        li = (row or {}).get("leg_index")
+        items = (legs or {}).get("legs") or []
+        leg = items[li] if isinstance(li, int) and 0 <= li < len(items) else {}
+        return leg.get("service") or (row or {}).get("text") or what(res)
+    return what(res, poi_map)
+
+
+def _people(res):
+    return next((d["value"] for d in res.get("details") or [] if isinstance(d, dict) and d.get("label") == "人數"), "")
+
+
+def visible_checklist(itinerary, legs, reservations, poi_map):
+    """The checklist the traveller sees: a 預約 line for something already booked is gone
+    (linked by poi_id / leg_index; an old line with neither is matched by its due ==
+    the place's booking.opens_at), and a booking still to make adds one line unless a
+    written line already points at it. Derived at render time, never written back."""
+    items = [it if isinstance(it, dict) else {"kind": "出發前確認", "task": str(it)}
+             for it in itinerary.get("checklist") or []]
+    pairs = match(itinerary, legs, reservations, poi_map)[0]
+    days = itinerary.get("days") or []
+
+    def target(pair):
+        row = _row(itinerary, pair)
+        if pair["kind"] == "move":
+            return ("leg", (row or {}).get("leg_index"))
+        return ("poi", pair["res"].get("poi_id") or pair["res"].get("lodging"))
+    booked = {target(p) for p in pairs if p["res"].get("status") == "booked"}
+    opens = {((poi_map.get(pid) or {}).get("booking") or {}).get("opens_at")
+             for kind, pid in booked if kind == "poi"} - {None}
+
+    def points_at(it):
+        if it.get("poi_id"):
+            return ("poi", it["poi_id"])
+        if isinstance(it.get("leg_index"), int):
+            return ("leg", it["leg_index"])
+        return None
+
+    out = []
+    for it in items:
+        if it.get("kind") == "預約":
+            t = points_at(it)
+            if t in booked or (t is None and it.get("due") in opens):
+                continue
+        out.append(it)
+    written = {points_at(it) for it in items if it.get("kind") == "預約"}
+    for p in pairs:
+        if p["res"].get("status") != "todo" or target(p) in written:
+            continue
+        row = _row(itinerary, p) or {}
+        head = f"訂{_booking_name(itinerary, legs, p, poi_map)}" + (f" {row['time']}" if row.get("time") else "")
+        people = _people(p["res"])
+        y, m, d = str(days[p["day"]].get("date")).split("-")
+        out.append({"kind": "預約", "task": head + (f"，{people}" if people else ""),
+                    "origin": f"D{p['day'] + 1}・{int(m)}/{int(d)}"})
+    return out

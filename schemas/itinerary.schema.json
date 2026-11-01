@@ -48,6 +48,15 @@
               "detail": {
                 "type": "string"
               },
+              "poi_id": {
+                "type": "string",
+                "description": "The place this 預約 line is for; once the traveller books it (reservations.yaml) the line is hidden."
+              },
+              "leg_index": {
+                "type": "integer",
+                "minimum": 0,
+                "description": "The legs.yaml leg this seat reminder is for; hidden once that leg is booked."
+              },
               "links": {
                 "type": "array",
                 "items": {

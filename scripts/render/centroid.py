@@ -47,3 +47,41 @@ def centroid_note(poi):
                                                     "所在區域的中心點")
     return (f"{_label(poi)}：地圖座標是{where}，不是它本身的位置"
             f"——距離與步行時間請出發前自行確認")
+
+
+_CENTRE = "所在區域的中心點"
+
+
+def _where(poi):
+    return {"nominatim_address": "它地址所在街區的中心點", "nominatim_road": "它地址那條路上的一點",
+            "village_centroid": "它所在村里的中心點"}.get((poi.get("geocode") or {}).get("geocode_source"), _CENTRE)
+
+
+def _merged(itin, poi_map):
+    """(title, places sentence) for every approximately-placed scheduled place, or None.
+    One disclosure line instead of one per place: a trip with ten small restaurants
+    otherwise fills 出發前確認 with ten copies of the same warning."""
+    places = centroid_items(itin, poi_map)
+    if not places:
+        return None
+    if all(_where(p) == _CENTRE for p in places):
+        title = f"{len(places)} 個地點的地圖只標到區域中心"
+        names = "、".join(_label(p) for p in places)
+        body = f"{names}：地圖座標是{_CENTRE}，不是它們本身的位置，距離與步行時間請出發前自行確認。"
+    else:
+        title = f"{len(places)} 個地點的地圖只標到大概的位置"
+        names = "、".join(_label(p) + ("" if _where(p) == _CENTRE else f"（{_where(p)}）") for p in places)
+        body = f"{names}：地圖座標不是它們本身的位置，距離與步行時間請出發前自行確認。"
+    return title, body
+
+
+def merged_note(itin, poi_map):
+    """The reader's single 出發前確認 item (names in its detail), or None."""
+    m = _merged(itin, poi_map)
+    return {"kind": "出發前確認", "task": m[0], "detail": m[1]} if m else None
+
+
+def merged_line(itin, poi_map):
+    """The md's single checklist line (no fold-out there, so the names are on the line), or None."""
+    m = _merged(itin, poi_map)
+    return f"{m[0]}：{m[1]}" if m else None
