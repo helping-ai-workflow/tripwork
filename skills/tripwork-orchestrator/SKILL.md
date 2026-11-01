@@ -160,6 +160,14 @@ Do not delete `gate-report.yaml` by hand.
 
 After each stage completes, re-invoke this skill to pick the next stage.
 
+## Bookings the traveller reports
+
+Whenever the traveller shares a booking confirmation or says something is booked, still to
+book, or left to them — before or after export — run `tripwork:record-reservation`, then
+re-enter Stage Selection (the itinerary gate re-runs because `reservations.yaml` is one of
+its inputs, and export follows). It is the only stage that writes `reservations.yaml`;
+never hand-write a booking into the itinerary or its checklist.
+
 ## Stop-on-Confirmation
 
 Halt and ask the user when a stage reports any row below. This table is the complete
@@ -189,6 +197,7 @@ the same flags.
 | `tripwork:itinerary-synthesis` | `lead_time_missed` | a booking lead time is missed (`scripts/booking.py::lead_time_missed`) |
 | `tripwork:itinerary-synthesis` | `missed_last_service` | the re-check of a travel-day move at its now-known departure misses the last service |
 | `tripwork:itinerary-synthesis` | `day_title_pick` | six title candidates a day are written and the user picks them (and may change the headline) in the title picker |
+| `tripwork:record-reservation` | `booked_place_dropped` | a booking in `reservations.yaml` matches no row of the re-planned trip — the traveller decides: put it back, or cancel the booking |
 | `tripwork:export-gate` | `nonretryable_export_fail` | export-gate fails with `retryable: false` — rule 15's `stop-and-ask` |
 
 **Read-back before re-asking.** Before halting on any of the above, consult

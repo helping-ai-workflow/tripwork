@@ -110,5 +110,6 @@ def test_every_pipeline_basename_is_mapped():
                 "legs.yaml", "calendar.yaml", "seasonal.yaml", "transit.yaml",
                 "cost.yaml", "advisory.yaml", "itinerary.yaml", "gate-report.yaml",
                 "export-gate-report.yaml", "stage-state.yaml",
-                "day-maps.yaml"}            # v1.0 P5: the map side-file
+                "day-maps.yaml",            # v1.0 P5: the map side-file
+                "reservations.yaml"}        # the traveller's own bookings
     assert set(SCHEMA_BY_BASENAME) == expected

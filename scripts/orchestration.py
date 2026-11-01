@@ -221,6 +221,7 @@ STOP_FLAGS = (
     ("itinerary-synthesis", "lead_time_missed"),
     ("itinerary-synthesis", "missed_last_service"),
     ("itinerary-synthesis", "day_title_pick"),
+    ("record-reservation", "booked_place_dropped"),
     ("export-gate", "nonretryable_export_fail"),
 )
 
