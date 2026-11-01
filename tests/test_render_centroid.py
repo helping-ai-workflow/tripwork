@@ -47,11 +47,6 @@ ITIN = {
 }
 
 
-def _disclosed(poi):
-    from scripts.render.centroid import centroid_note
-    return centroid_note(poi)
-
-
 def test_centroid_items_are_scheduled_or_lodging_in_first_use_order():
     from scripts.render.centroid import centroid_items
     assert [p["id"] for p in centroid_items(ITIN, POIS)] == [
@@ -79,19 +74,23 @@ def test_markdown_discloses_every_centroid_in_one_line():
         assert LABELS[pid] not in line, pid
 
 
-def test_html_discloses_each_centroid_once():
-    out = render_html_page(ITIN, POIS)
+def test_html_discloses_every_centroid_in_one_item():
+    from bs4 import BeautifulSoup
+    from scripts.render.centroid import merged_note
+    sec = BeautifulSoup(render_html_page(ITIN, POIS), "html.parser").select_one('section[data-pg="checklist"]')
+    note = merged_note(ITIN, POIS)
+    items = [d for d in sec.select(".ci") if note["task"] in d.get_text()]
+    assert len(items) == 1 and sec.get_text().count("地圖只標到") == 1
     for pid in ("centroid-poi", "centroid-inn", "kana-poi"):
-        note = _disclosed(POIS[pid])
-        assert out.count(note) == 1, (pid, note)
+        assert items[0].get_text().count(LABELS[pid]) == 1, pid
     for pid in ("exact-poi", "unscheduled"):
-        assert _disclosed(POIS[pid]) not in out, pid
+        assert LABELS[pid] not in items[0].get_text(), pid
 
 
 def test_disclosure_renders_without_an_authored_checklist():
     itin = dict(ITIN, checklist=[])
     assert _line(itin) in render_markdown_page(itin, POIS)
-    assert _disclosed(POIS["centroid-inn"]) in render_html_page(itin, POIS)
+    assert "觀止飯店" in render_html_page(itin, POIS).split('data-pg="checklist"')[1]
 
 
 def test_disclosure_follows_the_authored_checklist():

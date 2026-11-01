@@ -67,6 +67,9 @@ def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=Non
     ctx.areas = month_calendar.day_areas({"days": days}, ctx.accommodations)
     # the matched reservations; an entry that matches nothing is the gate's to report
     ctx.res_pairs = reservation.match({"days": days}, ctx.legs, ctx.reservations, ctx.poi_map)[0]
+    # looked up by the row object itself (day.py walks the same dicts), and a stay by its check-in
+    ctx.res_by_row = {id(days[p["day"]]["rows"][p["row"]]): p for p in ctx.res_pairs if p["row"] is not None}
+    ctx.res_by_stay = {(p["date"], p["res"]["lodging"]): p for p in ctx.res_pairs if p["kind"] == "lodging"}
     return ctx
 
 

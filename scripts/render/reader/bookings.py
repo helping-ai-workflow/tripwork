@@ -74,6 +74,10 @@ CSS = """
 .bd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:2px 12px 14px 60px;font-size:13.5px;line-height:1.6}
 .bd dt{font:700 12px/1.8 var(--f-round);color:var(--mut)}.bd dd{margin:0;overflow-wrap:anywhere}
 .tile small .todo{font-style:normal;color:var(--plan);font-weight:700}
+.stop.sug{--k:var(--opt)}
+.sgt{display:inline-block;margin-right:6px;font:700 11px var(--f-round);line-height:16px;padding:0 6px;border-radius:999px;color:var(--opt);border:1.5px solid var(--opt);vertical-align:2px}
+.lbk{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}
+.lbk .bk{font-size:11px;line-height:16px;padding:0 6px}
 @media (max-width:1023px){.tiles{grid-template-columns:repeat(6,1fr)}.tiles .tile{grid-column:span 2}
 .tiles .tile:nth-child(n+4){grid-column:span 3}}
 """

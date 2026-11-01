@@ -117,9 +117,10 @@ def detail_pairs(res, kind):
     return out
 
 
-def summary(res, kind):
-    """'已訂・訂房編號 ••••3907・15:00 起・三人房，含早餐' -- status, masked number, detail values."""
-    parts = [LABEL.get(res.get("status"), "")]
+def summary(res, kind, with_status=True):
+    """'已訂・訂房編號 ••••3907・15:00 起・三人房，含早餐' -- status, masked number, detail values
+    (with_status=False drops the status word, for a line that shows it as a pill)."""
+    parts = [LABEL.get(res.get("status"), "")] if with_status else []
     if res.get("ref"):
         parts.append(f"{REF_LABEL[kind]} {mask_ref(res['ref'])}")
     parts += [d["value"] for d in res.get("details") or [] if isinstance(d, dict)]
