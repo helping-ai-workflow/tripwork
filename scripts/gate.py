@@ -229,6 +229,17 @@ def _itinerary_text(itinerary):
         parts.extend(x for x in (c.get("trigger"), c.get("fallback"), c.get("note")) if x)
     return " \n ".join(p for p in parts if isinstance(p, str) and p)
 
+def _flight_arrive_failures(legs):
+    """A flight leg must say when it lands, in local time: depart + duration_mins would put
+    the landing in the departure time zone (台北 08:50 + 3 h 10 m = 12:00, 羽田 13:00).
+    The message names legs[i] so the failure routes to inter-stop-legs, the leg's owner."""
+    out = []
+    for i, leg in enumerate((legs or {}).get("legs") or []):
+        if isinstance(leg, dict) and leg.get("mode") == "flight" and not leg.get("arrive"):
+            out.append(f"legs[{i}] flight has no arrive (local arrival time at {leg.get('to')})")
+    return out
+
+
 def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
              calendar=None, advisory=None, must_do=None,
              legs=None, routing=None, cost=None, trip_brief=None, seasonal=None,
@@ -382,6 +393,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     # reached the reader — this is the mechanical form of that render-side gap.
     home_leg_failures = _home_legs_rendered_failures(itinerary, legs)
     failures.extend(home_leg_failures)
+    arrive_f = _flight_arrive_failures(legs)
+    failures.extend(arrive_f)
     official_f = official_search_failures(advisory=advisory, calendar=calendar, seasonal=seasonal, legs=legs)
     failures.extend(official_f)
 
@@ -451,6 +464,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         checks.append({"name": "lodging_area_labelled", "passed": not area_f})
     if trip_brief is not None:
         checks.append({"name": "brief_names_valid", "passed": not brief_f})
+    if arrive_f or any(isinstance(l, dict) and l.get("mode") == "flight" for l in (legs or {}).get("legs") or []):
+        checks.append({"name": "flight_legs_have_arrive", "passed": not arrive_f})
     if reservations is not None:
         checks.append({"name": "reservations_match", "passed": not res_f})
 

@@ -24,13 +24,13 @@ POIS = [
 LEGS = {"legs": [
     {"from": "桃園機場", "to": "羽田空港", "kind": "home", "mode": "flight", "status": "ok",
      "service": "示意航空 SA 101", "depart": "08:50", "arrive": "13:00", "duration_mins": 190, "km": 2190,
-     "sources": [{"url": "https://air.example/sa101", "lang": "zh", "official": True}]},
+     "sources": [{"url": "https://air.example/sa101", "official": True}]},
     {"from": "羽田空港", "to": "淺草", "kind": "home", "mode": "rail", "status": "ok",
      "service": "京急線直通淺草線", "duration_mins": 45, "km": 20,
-     "sources": [{"url": "https://rail.example/keikyu", "lang": "ja", "official": True}]},
+     "sources": [{"url": "https://rail.example/keikyu", "official": True}]},
     {"from": "羽田空港", "to": "桃園機場", "kind": "home", "mode": "flight", "status": "ok",
      "service": "示意航空 SA 102", "depart": "14:30", "arrive": "17:20", "duration_mins": 170, "km": 2190,
-     "sources": [{"url": "https://air.example/sa102", "lang": "zh", "official": True}]},
+     "sources": [{"url": "https://air.example/sa102", "official": True}]},
 ]}
 
 

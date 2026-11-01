@@ -66,6 +66,11 @@
           "depart": {
             "type": "string"
           },
+          "arrive": {
+            "type": "string",
+            "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+            "description": "Local arrival time at `to`. Required on a flight leg (gate): depart + duration_mins lands in the departure time zone."
+          },
           "last_service": {
             "type": "string"
           },

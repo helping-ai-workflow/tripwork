@@ -41,6 +41,14 @@ otherwise; the reader shows it beside the minutes), and per mode:
   pass likely worth it given the leg count — a research-based judgement, **not** a precise
   fare calc; `cost-rollup` computes the exact break-even with `pass_break_even`).
 - **drive / taxi** — `duration_mins` (a taxi is judged as a drive, `drive_too_long` included).
+- **flight** — a flight between the traveller's home and the trip is a `kind: home` leg like any
+  other: `service` is the flight number, `depart` and `arrive` are the scheduled times in each
+  airport's **local** time (the gate requires `arrive` on every flight leg; never derive it from
+  `depart + duration_mins`, which lands in the departure time zone). The schedule is a public
+  fact, so it needs the airline's timetable page as an `official: true` source. The chain follows
+  `home_origin` / `home_return`: from a home address it is home → airport, the flight, then
+  airport → first base; from the airport itself it starts with the flight. Seats and booking
+  numbers are not leg facts — they belong to the traveller's `reservations.yaml`.
 
 Also record the numeric **cost** for the rollup: each leg's `fare` (amount + currency) and,
 when a regional/rail pass applies, a trip-level `pass` object (`name`, `price`, `covers`).
