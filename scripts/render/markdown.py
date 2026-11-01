@@ -132,7 +132,7 @@ def _amount(n):
     return f"{n:,}"
 
 
-def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None):
+def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reservations=None):
     """Canonical itinerary.yaml -> the full markdown deliverable page.
 
     HTML has render_html_page; until now markdown's

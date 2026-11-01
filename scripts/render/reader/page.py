@@ -11,6 +11,7 @@ import html as _html
 import re
 from types import SimpleNamespace
 
+from scripts import reservation
 from scripts.render.heading import trip_title
 from scripts.render.reader import month_calendar, tapes
 from scripts.render.reader.assets import ICON_DIR, _FONTS, font_faces, icon
@@ -43,7 +44,8 @@ def licence_notice():
 _FONT_EXTRA = "0123456789:：–—・、。，（）()/→←‹›↺＋·約分小時晚間項禁止限制須知"
 
 
-def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=None, cost=None):
+def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=None, cost=None,
+             reservations=None):
     days = [d for d in itinerary.get("days") or [] if isinstance(d, dict)]
     dates = []
     for d in days:
@@ -59,8 +61,11 @@ def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=Non
         checklist=list(itinerary.get("checklist") or []),
         local_lang=((brief.get("destination") or {}).get("local_lang")),
         maps=maps if isinstance(maps, dict) else None, map_images={},
-        cost=cost if isinstance(cost, dict) else None)
+        cost=cost if isinstance(cost, dict) else None,
+        reservations=reservations if isinstance(reservations, dict) else None)
     ctx.areas = month_calendar.day_areas({"days": days}, ctx.accommodations)
+    # the matched reservations; an entry that matches nothing is the gate's to report
+    ctx.res_pairs = reservation.match({"days": days}, ctx.legs, ctx.reservations, ctx.poi_map)[0]
     return ctx
 
 
@@ -73,10 +78,10 @@ def _nav_css(pages):
 
 
 def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, advisory=None, legs=None,
-                  maps=None, cost=None, build="check"):
+                  maps=None, cost=None, reservations=None, build="check"):
     if build not in ("check", "publish"):
         raise ValueError(f"unknown build: {build!r}")
-    ctx = _context(itinerary or {}, poi_map, brief, accommodations, advisory, legs, maps, cost)
+    ctx = _context(itinerary or {}, poi_map, brief, accommodations, advisory, legs, maps, cost, reservations)
     pages = ["home", "lodging", "advisory", "checklist"] + [f"d{i}" for i in range(1, len(ctx.days) + 1)]
     # each day has a second radio, pg-dNf: the day opened with its small calendar put away --
     # the phone's stepper takes it once the calendar is mostly away (H1c2, theme.py), so a

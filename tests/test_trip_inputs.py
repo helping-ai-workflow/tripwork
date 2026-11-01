@@ -87,3 +87,25 @@ def test_gate_report_stale(tmp_path):
     later = time.time() + 5
     os.utime(artifact_path(t, "itinerary.yaml"), (later, later))
     assert gate_report_stale(t, w) == ["itinerary.yaml"]
+
+
+def test_reservations_are_an_optional_input(tmp_path):
+    from scripts.paths import artifact_path
+    from scripts.trip_inputs import trip_inputs
+    from tests.reservation_fixture import reservations
+    t, _ = M.build_full_trip(tmp_path)
+    assert trip_inputs(t)[2]["reservations"] is None
+    M.write_artifact(artifact_path(t, "reservations.yaml"), reservations())
+    assert trip_inputs(t)[2]["reservations"] == reservations()
+
+
+def test_both_renderers_take_reservations(tmp_path):
+    from scripts.render.html_page import render_html_page
+    from scripts.render.markdown import render_markdown_page
+    from scripts.trip_inputs import trip_inputs
+    t, _ = M.build_full_trip(tmp_path)
+    itin, poi_map, kw, _ = trip_inputs(t)
+    kw["reservations"] = {"reservations": []}
+    assert render_html_page(itin, poi_map, build="check", **kw).startswith("<!doctype html>")
+    assert render_markdown_page(itin, poi_map, kw["cost"], brief=kw["brief"], legs=kw["legs"],
+                                reservations=kw["reservations"]).startswith("# ")
