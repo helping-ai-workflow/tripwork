@@ -44,10 +44,11 @@ def test_a_one_day_trip_draws_its_whole_month():
     assert len(g.select(".stamp")) == 1 and len(g.select(".off")) >= 27
 
 
-def test_the_side_column_keeps_title_and_the_three_buttons():
+def test_the_side_column_keeps_title_and_the_five_buttons():
     home = _soup().select_one("section.page.home")
     assert home.select_one(".hside .headline")
-    assert [t["for"] for t in home.select(".hside .tiles label.tile")] == ["pg-lodging", "pg-advisory", "pg-checklist"]
+    assert [t["for"] for t in home.select(".hside .tiles label.tile")] == ["pg-lodging", "pg-transport", "pg-meals",
+                                                                              "pg-advisory", "pg-checklist"]
 
 
 # ---- V2 overlays -----------------------------------------------------------------

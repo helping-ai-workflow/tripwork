@@ -1,4 +1,4 @@
-"""The mobile home (N1) and its three sub-screens (spec §6.1)."""
+"""The mobile home (N1) and its sub-screens (spec §6.1); 交通 / 餐廳 live in bookings.py."""
 import datetime
 
 from scripts.checklist import KINDS
@@ -96,8 +96,11 @@ def _dates(ctx):
 
 def home(ctx):
     title = trip_title(ctx.brief, ctx.itinerary)
+    from scripts.render.reader.bookings import tile_note
     tiles = [("pg-lodging", "bed-double", "住宿", f"{len({r['id'] for r in lodging_runs(ctx)})} 間"),
-             ("pg-advisory", "stamp", "入境規定", f"{len(ctx.advisory_items)} 項"),
+             ("pg-transport", "train-front", "交通", tile_note(ctx, "move")),
+             ("pg-meals", "utensils", "餐廳", tile_note(ctx, "meal")),
+             ("pg-advisory", "stamp", "出入境規定", f"{len(ctx.advisory_items)} 項"),
              ("pg-checklist", "list-checks", "行前清單", f"{len(checklist_items(ctx))} 項")]
     # v1.1 topic 6: the month card is its own panel -- the desktop's big calendar, zoomed
     # x1.9, each day's theme on its stamp ring; the phone keeps its order (theme.py)
@@ -147,7 +150,7 @@ def advisory_screen(ctx):
         items.append(f'<details class="adv {cls}"><summary><span class="tl2"><span class="rk">{label}</span>'
                      f'<b>{esc(title)}</b></span><span class="do qbar">{esc(do)}</span><span class="cv"></span></summary>'
                      f'<p class="act qbar">{esc(do)}</p>{det}{f"<p class=lnk>{links}</p>" if links else ""}</details>')
-    return _sub("advisory", "入境規定", "".join(items) or '<p class="empty">沒有需要特別注意的入境規定。</p>')
+    return _sub("advisory", "出入境規定", "".join(items) or '<p class="empty">沒有需要特別注意的出入境規定。</p>')
 
 
 def _host(url):

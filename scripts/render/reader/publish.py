@@ -149,8 +149,8 @@ const fin=()=>{if(!s||s.mode!=='x'){s=null;return}const W=innerWidth,v=s.v,f=s.f
   const go=s.j!=null&&(Math.abs(s.dx)>W/2||(Math.abs(vel)>.5&&Math.sign(vel)===Math.sign(s.dx)));
   const j=s.j,dir=s.dx<0?1:-1;s=null;days.forEach(clear);glide(cur,j,dir,f,go)};
 T.addEventListener('touchend',fin,{passive:true});T.addEventListener('touchcancel',fin,{passive:true});
-// a sub-screen (住宿 / 入境規定 / 行前清單) slides off to the right over the home, iOS-style
-const SUBS=['lodging','advisory','checklist'],home=document.querySelector('.page.home');let u=null;
+// a sub-screen (住宿 / 交通 / 餐廳 / 出入境規定 / 行前清單) slides off to the right over the home, iOS-style
+const SUBS=['lodging','transport','meals','advisory','checklist'],home=document.querySelector('.page.home');let u=null;
 const subOn=()=>{const r=document.querySelector('input[name=pg]:checked');const id=r&&r.id.slice(3);return SUBS.includes(id)?document.querySelector('.page[data-pg="'+id+'"]'):null};
 document.addEventListener('touchstart',e=>{u=null;const p=subOn();if(!p||e.touches.length!==1||e.target.closest('.chips,input,textarea')||edge(e.touches[0]))return;
   const q=e.touches[0];u={p,x:q.clientX,y:q.clientY,mode:null,v:[],dx:0}},{passive:true});

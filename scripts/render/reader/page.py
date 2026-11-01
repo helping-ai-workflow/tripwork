@@ -17,6 +17,7 @@ from scripts.render.reader import month_calendar, tapes
 from scripts.render.reader.assets import ICON_DIR, _FONTS, font_faces, icon
 from scripts.render.reader.centre import CENTRE_JS
 from scripts.render.reader.publish import PUBLISH_JS
+from scripts.render.reader.bookings import meals_screen, transport_screen
 from scripts.render.reader.day import day_page
 from scripts.render.reader.home import advisory_screen, checklist_screen, home, lodging_screen
 from scripts.render.reader.maps import OSM_COPYRIGHT, nav_css as map_nav_css
@@ -82,7 +83,8 @@ def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, adviso
     if build not in ("check", "publish"):
         raise ValueError(f"unknown build: {build!r}")
     ctx = _context(itinerary or {}, poi_map, brief, accommodations, advisory, legs, maps, cost, reservations)
-    pages = ["home", "lodging", "advisory", "checklist"] + [f"d{i}" for i in range(1, len(ctx.days) + 1)]
+    pages = (["home", "lodging", "transport", "meals", "advisory", "checklist"]
+             + [f"d{i}" for i in range(1, len(ctx.days) + 1)])
     # each day has a second radio, pg-dNf: the day opened with its small calendar put away --
     # the phone's stepper takes it once the calendar is mostly away (H1c2, theme.py), so a
     # put-away calendar stays away from day to day with no script (LINE / Files run none)
@@ -90,7 +92,8 @@ def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, adviso
                      + (f'<input autocomplete="off" type="radio" class="pgr pgf" name="pg" id="pg-{p}f">' if p.startswith("d") else "")
                      for p in pages)
     body = (f'<input autocomplete="off" type="checkbox" id="theme">{radios}'
-            f'{home(ctx)}{lodging_screen(ctx)}{advisory_screen(ctx)}{checklist_screen(ctx)}'
+            f'{home(ctx)}{lodging_screen(ctx)}{transport_screen(ctx)}{meals_screen(ctx)}'
+            f'{advisory_screen(ctx)}{checklist_screen(ctx)}'
             f'{"".join(day_page(ctx, i) for i in range(1, len(ctx.days) + 1))}'
             f'<label class="bubble" for="theme" aria-label="切換深色／淺色">'
             f'<span class="moon">{icon("moon")}</span><span class="sun">{icon("sun")}</span></label>')

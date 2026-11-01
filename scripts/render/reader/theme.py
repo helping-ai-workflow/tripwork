@@ -377,8 +377,8 @@ body{overflow:hidden}
 .hcal .stamp b{font-size:calc(var(--s) * 25 / 65)}.hcal .stamp small{font-size:calc(var(--s) * 13 / 65)}.hcal .stamp.m1 b{font-size:calc(var(--s) * 21 / 65)}
 .hcal .ring{display:block;position:absolute;left:50%;top:50%;width:calc(var(--s) * 140 / 65);height:calc(var(--s) * 140 / 65);transform:translate(-50%,-50%);pointer-events:none;overflow:visible}
 .ring text{font:700 13px var(--f-round);letter-spacing:.02em;fill:var(--c)}
-/* the three sub-screens = V2 overlays over the calendar */
-body:has(#pg-lodging:checked,#pg-advisory:checked,#pg-checklist:checked) .page.home{display:block}
+/* the sub-screens = V2 overlays over the calendar */
+body:has(#pg-lodging:checked,#pg-transport:checked,#pg-meals:checked,#pg-advisory:checked,#pg-checklist:checked) .page.home{display:block}
 .page.sub{position:fixed;inset:0;z-index:20;max-width:none;min-height:0;padding:0;background:none}
 .ovbg{display:block;position:absolute;inset:0;background:rgba(10,8,6,.72);cursor:pointer}
 .ovbox{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);width:min(760px,90vw);max-height:86vh;display:flex;flex-direction:column;
@@ -445,3 +445,6 @@ PHOTO_CSS = """
 .pzx>.zbar{display:flex;justify-content:space-between;align-items:center;gap:10px;position:absolute;left:0;right:0;margin:0 auto;max-width:min(100%,960px);padding:0 12px;box-sizing:border-box}
 """
 CSS += PHOTO_CSS
+
+from scripts.render.reader.bookings import CSS as BOOKINGS_CSS   # noqa: E402 (the 交通 / 餐廳 screens)
+CSS += BOOKINGS_CSS

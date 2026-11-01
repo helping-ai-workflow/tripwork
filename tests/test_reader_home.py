@@ -39,11 +39,12 @@ def test_the_stamp_calendar():
     assert any("sun" in o["class"] and o.get_text() == "11" for o in offs)
 
 
-def test_the_three_tiles():
+def test_the_five_tiles():
     h = _home(_soup())
     tiles = {t["for"]: t.get_text(" ", strip=True) for t in h.select("label.tile")}
     assert "住宿" in tiles["pg-lodging"] and "1 間" in tiles["pg-lodging"]
-    assert "入境規定" in tiles["pg-advisory"] and "2 項" in tiles["pg-advisory"]
+    assert "出入境規定" in tiles["pg-advisory"] and "2 項" in tiles["pg-advisory"]
+    assert "0 段" in tiles["pg-transport"] and "0 餐" in tiles["pg-meals"]      # no reservations.yaml
     assert "行前清單" in tiles["pg-checklist"] and "3 項" in tiles["pg-checklist"]
 
 
