@@ -65,19 +65,29 @@ CSS = """
 .bkrow summary,div.ci.bkrow{gap:2px}div.ci.bkrow{padding:10px 34px 10px 12px}
 .bh{display:flex;align-items:center;gap:6px;min-width:0}
 .bt{flex:none;width:42px;font:700 14px var(--f-round);font-variant-numeric:tabular-nums;color:var(--mut)}
-.bh .lu{width:16px;height:16px;color:var(--mut)}
+.bh .lu{position:relative;top:1px;width:16px;height:16px;color:var(--mut)}
 .bn{flex:1 1 auto;min-width:0;font:700 15px var(--f-round);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bs{display:block;padding-left:48px;font-size:13px;color:var(--mut)}
 .bk{flex:none;font:700 12px var(--f-round);line-height:18px;padding:0 8px;border-radius:999px;border:1.5px solid currentColor}
+/* a CJK name's ink sits below its line box's middle: the pill and the icon drop 1 px to its ink
+   (measured: 1.5 px high in WebKit, 1.2 in Chromium; the user's OK on the board) */
+.bh .bk{position:relative;top:1px}
 .bk-booked{color:var(--card);background:var(--ink);border-color:var(--ink)}.bk-none{color:var(--mut);border-color:var(--rule)}
 .bk-todo{color:var(--plan)}.bk-self{color:var(--opt)}
 .bd{display:grid;grid-template-columns:auto minmax(0,1fr);gap:4px 12px;margin:2px 12px 14px 60px;font-size:13.5px;line-height:1.6}
 .bd dt{font:700 12px/1.8 var(--f-round);color:var(--mut)}.bd dd{margin:0;overflow-wrap:anywhere}
 .tile small .todo{font-style:normal;color:var(--plan);font-weight:700}
 .stop.sug{--k:var(--opt)}
-.sgt{display:inline-block;margin-right:6px;font:700 11px var(--f-round);line-height:16px;padding:0 6px;border-radius:999px;color:var(--opt);border:1.5px solid var(--opt);vertical-align:2px}
+.sgt{display:inline-block;margin-right:6px;font:700 11px var(--f-round);line-height:16px;padding:0 6px;border-radius:999px;color:var(--opt);border:1.5px solid var(--opt);vertical-align:1px}
 .lbk{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}
 .lbk .bk{font-size:11px;line-height:16px;padding:0 6px}
 @media (max-width:1023px){.tiles{grid-template-columns:repeat(6,1fr)}.tiles .tile{grid-column:span 2}
-.tiles .tile:nth-child(n+4){grid-column:span 3}}
+/* the user's pick C: the phone home stays one screen. 住宿 / 交通 / 餐廳 (used on the road) keep the
+   tall tile; 出入境規定 / 行前清單 take the desktop's bar (45 px), and when the screen is still short
+   the 旅程與費用 card gives up height first -- its stay list scrolls inside it */
+.tiles .tile:nth-child(n+4){grid-column:span 3;flex-direction:row;justify-content:center;gap:8px;padding:12px}
+.tiles .tile:nth-child(n+4) small{margin-left:4px}
+.page.home .hwrap{height:100%;min-height:0}.page.home .ttl,.page.home .hcal,.page.home .tiles{flex:none}
+.page.home .trip{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}.page.home .trip>h3,.page.home .trip>p{flex:none}
+.page.home .trip ol{flex:0 1 auto;min-height:0}}
 """

@@ -93,9 +93,18 @@ def build_pages(root):
     one = dict(copy.deepcopy(R.itinerary()), days=copy.deepcopy(R.itinerary()["days"][:1]))
     one_day = root / "one-day.html"
     one_day.write_text(render_reader(one, R.poi_map(), build="publish", **R.reader_kwargs()), encoding="utf-8")
+    # the reservations screens: a made-up Tokyo trip with every kind of booking
+    from tests import reservation_fixture as RF
+    bookings = root / "bookings.html"
+    # with a cost card: the common one-stay trip whose 旅程與費用 must still fit the phone home
+    cost = {"currency": "JPY", "as_of": "2026-04-01", "estimate_note": "估算",
+            "line_items": [{"category": "lodging", "label": "示意飯店 2 晚", "amount": 52000, "poi_id": "demo-hotel"}],
+            "by_category": {"lodging": 52000, "transport": 6400}, "total": 58400}
+    bookings.write_text(render_reader(RF.itinerary(), RF.poi_map(), brief=R.brief(), advisory=R.ADVISORY,
+                                      legs=RF.legs(), cost=cost, reservations=RF.reservations()), encoding="utf-8")
     return {"tour": tour, "hakodate": hakodate, "many": many, "rings": rings, "picker": picker,
             "publish": pub, "check": chk, "two_month": two_month, "one_day": one_day,
-            "tour_publish": tour_publish}
+            "tour_publish": tour_publish, "bookings": bookings}
 
 
 def _long_rings(R):
@@ -197,6 +206,11 @@ def one_day_url(pages):
 @pytest.fixture(scope="session")
 def tour_publish_url(pages):
     return pages["tour_publish"].as_uri()
+
+
+@pytest.fixture(scope="session")
+def bookings_url(pages):
+    return pages["bookings"].as_uri()
 
 
 @pytest.fixture(scope="session")

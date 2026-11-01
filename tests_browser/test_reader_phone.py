@@ -146,7 +146,7 @@ def test_cross_month_home_is_one_card(open_page):
     assert pg.eval_on_selector('.home .month label.stamp[for="pg-d3"] b', "b => b.textContent") == "11/1"
 
 
-@pytest.mark.parametrize("sub", ["lodging", "advisory", "checklist"])
+@pytest.mark.parametrize("sub", ["lodging", "transport", "meals", "advisory", "checklist"])
 def test_a_sub_screen_scrolls_inside_and_keeps_its_way_back(open_page, sub):
     """Ruling (v1.1 Task 7): with the page locked, a long sub-screen scrolls in .pb, and
     its back label stays clear of the top-right toggle."""
