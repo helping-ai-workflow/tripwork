@@ -198,3 +198,43 @@ def visible_checklist(itinerary, legs, reservations, poi_map):
         out.append({"kind": "預約", "task": head + (f"，{people}" if people else ""),
                     "origin": f"D{p['day'] + 1}・{int(m)}/{int(d)}"})
     return out
+
+
+def _leg_of(row, legs):
+    li = (row or {}).get("leg_index")
+    items = (legs or {}).get("legs") or []
+    return items[li] if isinstance(li, int) and not isinstance(li, bool) and 0 <= li < len(items) else {}
+
+
+def reservation_rows(itinerary, legs, reservations, poi_map, kind):
+    """The 交通 (kind='move') or 餐廳 (kind='meal') listing, in trip order. Each entry:
+    {date, day, time, title, sub, status, details (detail_pairs), res, row}. A move's sub
+    is its two ends, with the leg's local depart / arrive when known."""
+    out = []
+    for p in sorted(match(itinerary, legs, reservations, poi_map)[0], key=lambda p: (p["day"], p["row"] or 0)):
+        row = _row(itinerary, p)
+        if p["kind"] == "lodging" or row is None:
+            continue
+        if kind == "move" and p["kind"] == "move":
+            leg = _leg_of(row, legs)
+            a, b = _ends(row, legs)
+            dep, arr = leg.get("depart"), leg.get("arrive")
+            sub = f"{a}{' ' + dep if dep else ''} → {b}{' ' + arr if arr else ''}"
+            entry = {"title": leg.get("service") or row.get("text") or f"{a}→{b}", "sub": sub,
+                     "time": row.get("time") or dep or ""}
+        elif kind == "meal" and p["kind"] == "stop" and row.get("slot") == "meal":
+            entry = {"title": what(p["res"], poi_map), "sub": row.get("text") or "", "time": row.get("time") or ""}
+        else:
+            continue
+        entry.update(date=p["date"], day=p["day"], status=p["res"].get("status"), res=p["res"], row=row,
+                     details=detail_pairs(p["res"], p["kind"]))
+        out.append(entry)
+    return out
+
+
+def pair_for(itinerary, legs, reservations, poi_map, day, row=None):
+    """The matched reservation of one row (row index) or of the stay starting that day (row=None)."""
+    for p in match(itinerary, legs, reservations, poi_map)[0]:
+        if p["day"] == day and p["row"] == row:
+            return p
+    return None
