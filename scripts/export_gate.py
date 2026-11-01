@@ -124,7 +124,30 @@ def _maps_link_failures(targets):
 # DATA defects (a photo with no attribution, a bookable POI with no official source).
 # A fail whose only failures are these is non-retryable: the orchestrator must halt and
 # ask the user to fix the data, NOT loop tripwork-export-artifact (which re-renders the same defect).
-_DATA_DEFECT_MARKERS = ("missing attribution", "official source link")
+# A leaked reservation number is neither: re-rendering the same renderer leaks it again, so it
+# is a plugin defect to report -- halt, never loop.
+_DATA_DEFECT_MARKERS = ("missing attribution", "official source link", "reservation number leaked")
+
+
+def reservation_leak_failures(text, reservations):
+    """Every reservations.yaml number that a deliverable shows in full, or with more of its
+    end than scripts/reservation.py::mask_ref allows (checked on at least four characters,
+    so a short tail cannot match ordinary text). Never prints the number."""
+    import re
+    from scripts import reservation
+    out = []
+    text = text or ""
+    for res in reservation.entries(reservations):
+        ref = str(res.get("ref") or "")
+        code = re.sub(r"[^0-9A-Za-z]", "", ref)
+        if not code:
+            continue
+        shown = len(reservation.mask_ref(code)) - len(reservation.MASK)
+        k = max(shown + 1, 4)
+        if ref in text or code in text or (len(code) >= k and code[-k:] in text):
+            out.append(f"full reservation number leaked into the deliverable: {res.get('date')} "
+                       f"{reservation.what(res)}")
+    return out
 
 
 def _is_retryable(failures):
@@ -134,7 +157,7 @@ def _is_retryable(failures):
         not any(m in f for m in _DATA_DEFECT_MARKERS) for f in failures)
 
 
-def run_export_gate(md_text, pois, min_days=None):
+def run_export_gate(md_text, pois, min_days=None, reservations=None):
     """Return {status, checks, failures} for a rendered itinerary markdown.
 
     Args:
@@ -166,6 +189,7 @@ def run_export_gate(md_text, pois, min_days=None):
 
     failures.extend(_maps_link_failures(t for _, t in _LINK.findall(md_text)))
     failures.extend(kana_gloss_failures(md_text))
+    failures.extend(reservation_leak_failures(md_text, reservations))
     failures.extend(jargon_failures(md_text, pois))
 
     for p in pois:
@@ -211,6 +235,9 @@ def run_export_gate(md_text, pois, min_days=None):
         {"name": "no_nondistributable_photo_source",
          "passed": not nondistributable},
     ]
+    if reservations is not None:
+        checks.append({"name": "no_full_reservation_number",
+                       "passed": not any("reservation number leaked" in f for f in failures)})
     return {"status": "pass" if not failures else "fail",
             "distributable": not nondistributable,
             "retryable": _is_retryable(failures),
@@ -342,7 +369,7 @@ def html_safety_failures(html_text):
     return failures
 
 
-def run_html_gate(html_text, pois, min_days=None, media_count=0):
+def run_html_gate(html_text, pois, min_days=None, media_count=0, reservations=None):
     """Validate a rendered one-page HTML deliverable. Structure/format only:
     non-empty, >= min_days day-cards, every href is http(s), no <script> but the reader's two shipped constants.
     Output shape matches run_export_gate. (dogfood D4)
@@ -380,6 +407,7 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
                     failures.append("map tiles shown without their attribution")
                     break
         failures.extend(jargon_failures(html_text, pois))
+    failures.extend(reservation_leak_failures(html_text, reservations))
     failures.extend(_photo_failures(pois))
 
     # P8: a present media side-file that produced no <img> means the overlay was lost
@@ -422,6 +450,9 @@ def run_html_gate(html_text, pois, min_days=None, media_count=0):
         {"name": "media_landed",
          "passed": not any("has 0 photos" in f for f in failures)},
     ]
+    if reservations is not None:
+        checks.append({"name": "no_full_reservation_number",
+                       "passed": not any("reservation number leaked" in f for f in failures)})
     return {"status": "pass" if not failures else "fail",
             "distributable": not nondistributable,
             "retryable": _is_retryable(failures),
@@ -571,7 +602,7 @@ def main(argv):
 
     from scripts.trip_inputs import TripInputError, trip_inputs
     try:
-        itin, poi_map, _, media_count = trip_inputs(d)       # the renderers' own inputs
+        itin, poi_map, kwargs, media_count = trip_inputs(d)   # the renderers' own inputs
     except TripInputError as exc:
         print(exc, file=sys.stderr)
         return 2
@@ -579,13 +610,13 @@ def main(argv):
     min_days = len(itin.get("days") or []) or None
 
     md_report = run_export_gate(md_path.read_text(encoding="utf-8"),
-                                merged_pois, min_days=min_days)
+                                merged_pois, min_days=min_days, reservations=kwargs["reservations"])
     html_path = paths["html"]
     html_report = None
     if html_path.is_file():
         html_report = run_html_gate(html_path.read_text(encoding="utf-8"),
                                     merged_pois, min_days=min_days,
-                                    media_count=media_count)
+                                    media_count=media_count, reservations=kwargs["reservations"])
     report = merge_reports(md_report, html_report)
     report["inputs_fingerprint"] = _inputs_fingerprint(d)
     report["repeat_of_previous"] = _repeats(report, report_path(w, "export-gate-report.yaml"))

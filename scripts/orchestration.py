@@ -169,7 +169,7 @@ GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "trip-brief.yaml",
 # v1.0: export_gate also opens trip-brief.yaml -- the deliverable names come from
 # its short_name -- so a renamed trip makes the export report stale too.
 EXPORT_GATE_INPUTS = ("itinerary.yaml", "verified-pois.yaml", "accommodations.yaml",
-                      "verified-pois-media.yaml", "trip-brief.yaml")
+                      "verified-pois-media.yaml", "trip-brief.yaml", "reservations.yaml")
 
 # export_gate.py reads and passes judgement on every one of these (scripts/
 # export_gate.py's md_path / html_path). v1.0: they are KEYS into

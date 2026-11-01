@@ -25,6 +25,9 @@ content correctness is guaranteed upstream by `source-verify`.
   text. **Content hygiene (`japanese_glossed` + `no_internal_jargon`) is primarily enforced
   at the canonical layer in `itinerary-gate`** (over the unescaped row text/checklist, so it
   protects every renderer); these render-side copies are defense-in-depth.
+- `no_full_reservation_number` — when `reservations.yaml` exists, no deliverable (md or html)
+  shows a booking number in full or with more of its end than the mask allows. A leak is a
+  plugin defect, not a data one: the report is non-retryable, stop and report it.
 - `photo_has_attribution` — any POI carrying a `photo` must also carry a non-empty
   `photo_attribution` (author + license + source_url).
 - `no_nondistributable_photo_source` — a POI carrying `photo_source: google` has no
@@ -72,7 +75,7 @@ non-distributable, 勿散布", it does NOT re-export loop.
 
 | Field | Value |
 |---|---|
-| Input | `trips/<slug>/<stem>.md` (named from `trips/<slug>/data/trip-brief.yaml`'s `short_name` via `scripts/paths.py::deliverable_paths`) + the MERGED pois (`trips/<slug>/data/verified-pois.yaml` overlaid with `trips/<slug>/data/accommodations.yaml`'s chosen lodgings and optional `trips/<slug>/data/verified-pois-media.yaml` via `scripts/media_merge.py::apply_media`), plus optional `trips/<slug>/data/itinerary.yaml` (for `min_days`), so the photo / distributability checks see the same photos the deliverable rendered. |
+| Input | `trips/<slug>/<stem>.md` (named from `trips/<slug>/data/trip-brief.yaml`'s `short_name` via `scripts/paths.py::deliverable_paths`) + the MERGED pois (`trips/<slug>/data/verified-pois.yaml` overlaid with `trips/<slug>/data/accommodations.yaml`'s chosen lodgings and optional `trips/<slug>/data/verified-pois-media.yaml` via `scripts/media_merge.py::apply_media`), plus optional `trips/<slug>/data/itinerary.yaml` (for `min_days`), so the photo / distributability checks see the same photos the deliverable rendered, and optional `trips/<slug>/data/reservations.yaml` (no deliverable may show a booking number in full). |
 | Output | `work/<slug>/export-gate-report.yaml` (`status` pass/fail + failures). |
 | Stop condition | `status: fail` + `retryable: true` → return to `itinerary-synthesis` to fix the source text (never edit the rendered deliverable); `retryable: false` → stop and ask the user (`nonretryable_export_fail`): fix the data, or report a repeated failure as a plugin defect. |
 | Next stage | `tripwork:tripwork-orchestrator` (pipeline complete on pass). |
