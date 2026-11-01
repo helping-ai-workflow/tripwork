@@ -1,0 +1,47 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "reservations.yaml",
+  "description": "The traveller's own bookings, written only by record-reservation. Each entry is matched to the plan at render and gate time (scripts/reservation.py::match): a stop by date + poi_id (+ time), a move by date + from + to, a stay by its check-in date + lodging id. The booking number (ref) lives only here; every renderer masks it.",
+  "type": "object",
+  "required": ["reservations"],
+  "additionalProperties": false,
+  "properties": {
+    "reservations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "status"],
+        "additionalProperties": false,
+        "properties": {
+          "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "time": {"type": "string", "pattern": "^([01][0-9]|2[0-3]):[0-5][0-9]$",
+                   "description": "Only to tell two visits to the same place on one day apart."},
+          "poi_id": {"type": "string", "minLength": 1},
+          "from": {"type": "string", "minLength": 1},
+          "to": {"type": "string", "minLength": 1},
+          "lodging": {"type": "string", "minLength": 1, "description": "The lodging POI id; date is the check-in date."},
+          "status": {"enum": ["booked", "todo", "none", "self"],
+                     "description": "booked 已訂 / todo 還要訂 / none 不用訂 / self 自理 (meals only)."},
+          "ref": {"type": "string", "description": "Booking number. Never rendered in full."},
+          "details": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": ["label", "value"],
+              "additionalProperties": false,
+              "properties": {
+                "label": {"type": "string", "minLength": 1},
+                "value": {"type": "string", "minLength": 1}
+              }
+            }
+          }
+        },
+        "oneOf": [
+          {"required": ["poi_id"]},
+          {"required": ["from", "to"]},
+          {"required": ["lodging"]}
+        ]
+      }
+    }
+  }
+}
