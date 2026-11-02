@@ -35,7 +35,8 @@
 - **「入境規定」 is 「出入境規定」** on the home tile, its screen and the README.
 - **The 行前清單 hides a 預約 line once that place or leg is booked**, and adds one for a booking
   still to make (derived at render time, never written back). A 預約 item may carry `poi_id` /
-  `leg_index` to say what it is for; an older line without them is matched by its due date.
+  `leg_index` to say what it is for (record-reservation adds them to an older line when it records
+  the booking; a line that does not say is never hidden by a coincidence of dates).
   A booked place also satisfies its `opens_at` reminder in the gate.
 - **The approximate-location disclosures fold into one line**: 「N 個地點的地圖只標到區域中心」
   with the places named once, in the reader (its detail) and the md, instead of one line per
@@ -46,8 +47,11 @@
 - Nothing to do for an existing trip: without `reservations.yaml` the two new screens are empty
   and everything else renders as before (apart from the one folded location line). To show
   bookings, paste the confirmations to the agent.
+- **A trip with a flight leg needs its `arrive`**: the itinerary gate now fails a `mode: flight`
+  leg without the local arrival time (`legs[i] flight has no arrive …`) and routes it to
+  inter-stop-legs, which adds it from the airline's timetable on the next run.
 
-Tests: 2301 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2303 passed and the privacy check passes. Browser suite: 601 passed (Chromium and WebKit).
+Tests: 2315 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2317 passed and the privacy check passes. Browser suite: 601 passed (Chromium and WebKit).
 
 ## 3.0.2 — main is protected: `test` and `interaction` must pass on an up-to-date branch
 

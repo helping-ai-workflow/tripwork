@@ -136,7 +136,10 @@ def reservation_leak_failures(text, reservations):
     import re
     from scripts import reservation
     out = []
-    text = text or ""
+    # what a person sees or copies: embedded fonts, map tiles and photos are base64 whose
+    # 4-character runs would match a short ref's tail by chance
+    text = re.sub(r"(?is)<(style|script)\b.*?</\1>", " ", text or "")
+    text = re.sub(r"data:[^\s\"')]+", " ", text)
     for res in reservation.entries(reservations):
         ref = str(res.get("ref") or "")
         code = re.sub(r"[^0-9A-Za-z]", "", ref)
@@ -144,7 +147,8 @@ def reservation_leak_failures(text, reservations):
             continue
         shown = len(reservation.mask_ref(code)) - len(reservation.MASK)
         k = max(shown + 1, 4)
-        if ref in text or code in text or (len(code) >= k and code[-k:] in text):
+        tail = re.compile(r"(?<![0-9A-Za-z])" + re.escape(code[-k:]) + r"(?![0-9A-Za-z])")
+        if ref in text or code in text or (len(code) >= k and tail.search(text)):
             out.append(f"full reservation number leaked into the deliverable: {res.get('date')} "
                        f"{reservation.what(res)}")
     return out

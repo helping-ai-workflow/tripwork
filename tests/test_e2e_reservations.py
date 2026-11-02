@@ -41,16 +41,20 @@ def test_every_defect_closes_on_one_trip():
 
 
 def test_dropping_a_booked_place_stops_and_leaves_the_file_alone(tmp_path):
-    res = F.reservations()
-    path = tmp_path / "reservations.yaml"
-    path.write_text(yaml.safe_dump(res, allow_unicode=True), encoding="utf-8")
+    """Through the gate CLI on a trip folder: a booking whose place the plan no longer has
+    fails the gate, routes to record-reservation, and the file is byte-for-byte unchanged."""
+    from scripts.gate import main as gate_main
+    from scripts.paths import artifact_path, report_path
+    t, w = M.build_full_trip(tmp_path)
+    path = artifact_path(t, "reservations.yaml")
+    M.write_artifact(path, {"reservations": [
+        {"date": "2026-08-01", "poi_id": "poi-1", "status": "booked", "ref": "RSV-58213"},
+        {"date": "2026-08-01", "poi_id": "kappo", "status": "booked", "ref": "K7Q2PX"}]})   # not in the plan
     before = path.read_bytes()
-    itin = _trip()
-    itin["days"][1]["rows"] = [r for r in itin["days"][1]["rows"] if r.get("poi_id") != "kappo"]
-
-    r = run_gate(list(F.poi_map().values()), itin, advisory={"items": []},
-                 **M.rederive_kwargs(legs=F.legs()), reservations=yaml.safe_load(path.read_text(encoding="utf-8")))
-    dropped = [f for f in r["failures"] if f.startswith("reservation has no row")]
-    assert dropped == ["reservation has no row: 2026-05-13 押上示意割烹"]
-    assert route_gate_failures(dropped) == "tripwork:record-reservation"
+    assert gate_main([str(t), "--work-dir", str(w)]) == 1
+    report = yaml.safe_load(report_path(w, "gate-report.yaml").read_text(encoding="utf-8"))
+    dropped = [f for f in report["failures"] if f.startswith("reservation has no row")]
+    assert dropped == ["reservation has no row: 2026-08-01 kappo"]
+    assert route_gate_failures(report["failures"]) == "tripwork:record-reservation"
     assert path.read_bytes() == before
+    assert "K7Q2PX" not in report_path(w, "gate-report.yaml").read_text(encoding="utf-8")

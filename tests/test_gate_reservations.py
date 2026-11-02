@@ -34,9 +34,13 @@ def test_orphan_fails_and_routes_to_record_reservation():
 
 
 def test_no_reservations_file_changes_nothing():
-    plain = _gate()
-    assert plain == _gate(reservations=None)
+    """Without the file the report is the one an empty file gives, minus its own check --
+    so nothing reservation-related leaks into an old trip's gate."""
+    plain, empty = _gate(), _gate(reservations={"reservations": []})
+    assert plain["failures"] == empty["failures"] == [] and plain["status"] == "pass"
+    assert [c for c in empty["checks"] if c["name"] != "reservations_match"] == plain["checks"]
     assert not any(c["name"] == "reservations_match" for c in plain["checks"])
+    assert any(c["name"] == "reservations_match" for c in empty["checks"])
 
 
 def test_kana_in_details_needs_gloss():

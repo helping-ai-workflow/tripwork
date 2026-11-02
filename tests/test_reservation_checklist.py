@@ -27,11 +27,14 @@ def test_booked_leg_hides_its_seat_reminder():
     assert "去程劃位" not in _tasks(_visible([seat]))
 
 
-def test_old_line_without_poi_id_matches_by_opens_at():
+def test_old_line_without_poi_id_stays_visible():
+    """A line that does not say what it is for is never hidden by a matching due date (the
+    review found a seat reminder opening the same minute as a booked restaurant). The skill
+    gives the line its poi_id when the booking is recorded."""
     pm = F.poi_map()
     pm["skytree"]["booking"] = {"required": True, "opens_at": "2026-05-05"}
     old = {k: v for k, v in SKY.items() if k != "poi_id"}
-    assert "晴空塔線上預約時段票" not in _tasks(_visible([old], poi_map=pm))
+    assert "晴空塔線上預約時段票" in _tasks(_visible([old], poi_map=pm))
 
 
 def test_todo_derives_one_line():

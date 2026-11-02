@@ -213,7 +213,7 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reserv
                 last = e["date"]
             det = "；".join(f"{k} {v}" for k, v in e["details"])
             head = f"{e['time'] + ' ' if e['time'] else ''}{e['title']}" + (f"，{e['sub']}" if e["sub"] else "")
-            lines.append(f"  - {md_escape(head)}：**{reservation.LABEL[e['status']]}**"
+            lines.append(f"  - {md_escape(head)}：**{reservation.LABEL.get(e['status'], '')}**"
                          + (f"（{md_escape(det)}）" if det else ""))
         lines.append("")
 

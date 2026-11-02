@@ -194,7 +194,7 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
 2. **Pre-trip checklist** — structured items `{kind, task, due?, due_is_hard?, origin?,
    detail?, links?}` with `kind` one of 預約 / 出發前確認 / 打包. `due` is an absolute date
    (`YYYY-MM-DD[ HH:MM]`) when `due_is_hard: true`, otherwise relative text (出發前、行前 1 週).
-   `origin` says where the item came from (`D6・10/17`, `入境規定`). Every stop or alternative POI with
+   `origin` says where the item came from (`D6・10/17`, `出入境規定`). Every stop or alternative POI with
    `booking.opens_at` gets a 預約 item with `due` = that time and `due_is_hard: true`. Give a 預約
    item the `poi_id` of the place it is for (a seat reminder from a leg: its `leg_index`), so the
    reader hides it once the traveller has booked that place or leg. An item

@@ -30,7 +30,55 @@ def kind_of(res):
 
 
 def entries(reservations):
-    return [r for r in (reservations or {}).get("reservations") or [] if isinstance(r, dict)]
+    """The entries, with date / time read as text: a hand-written `date: 2026-05-13` arrives
+    from YAML as a date object. Entries the schema rejects are left out (file_failures says
+    why), so a typo never reaches a renderer."""
+    out = []
+    for r in (reservations or {}).get("reservations") or []:
+        if not isinstance(r, dict):
+            continue
+        r = dict(r)
+        for k in ("date", "time"):
+            if k in r and not isinstance(r[k], (str, int, float, bool)) and r[k] is not None:
+                r[k] = str(r[k])
+        if _valid(r):
+            out.append(r)
+    return out
+
+
+_SCHEMA = None
+
+
+def _validator():
+    global _SCHEMA
+    if _SCHEMA is None:
+        import json
+        import pathlib
+        import jsonschema
+        path = pathlib.Path(__file__).resolve().parent.parent / "schemas" / "reservations.schema.json"
+        _SCHEMA = jsonschema.Draft7Validator(json.loads(path.read_text(encoding="utf-8")))
+    return _SCHEMA
+
+
+def _valid(entry):
+    return not any(True for _ in _validator().iter_errors({"reservations": [entry]}))
+
+
+def file_failures(reservations):
+    """Schema problems of a hand-editable file, routed to its writer ('reservation file
+    invalid: '). Names the entry and the rule, never a value: a value may be the number."""
+    if reservations is None:
+        return []
+    doc = dict(reservations) if isinstance(reservations, dict) else reservations
+    if isinstance(doc, dict) and isinstance(doc.get("reservations"), list):
+        doc["reservations"] = [
+            {k: (str(v) if k in ("date", "time") and v is not None and not isinstance(v, (str, int, float, bool)) else v)
+             for k, v in e.items()} if isinstance(e, dict) else e for e in doc["reservations"]]
+    out = []
+    for e in _validator().iter_errors(doc):
+        where = "/".join(str(x) for x in e.absolute_path) or "."
+        out.append(f"reservation file invalid: {where} breaks '{e.validator}'")
+    return sorted(set(out))
 
 
 def _name(poi):
@@ -157,8 +205,7 @@ def _people(res):
 
 def visible_checklist(itinerary, legs, reservations, poi_map):
     """The checklist the traveller sees: a 預約 line for something already booked is gone
-    (linked by poi_id / leg_index; an old line with neither is matched by its due ==
-    the place's booking.opens_at), and a booking still to make adds one line unless a
+    (linked by poi_id / leg_index -- record-reservation adds them to an older line), and a booking still to make adds one line unless a
     written line already points at it. Derived at render time, never written back."""
     items = [it if isinstance(it, dict) else {"kind": "出發前確認", "task": str(it)}
              for it in itinerary.get("checklist") or []]
@@ -171,8 +218,6 @@ def visible_checklist(itinerary, legs, reservations, poi_map):
             return ("leg", (row or {}).get("leg_index"))
         return ("poi", pair["res"].get("poi_id") or pair["res"].get("lodging"))
     booked = {target(p) for p in pairs if p["res"].get("status") == "booked"}
-    opens = {((poi_map.get(pid) or {}).get("booking") or {}).get("opens_at")
-             for kind, pid in booked if kind == "poi"} - {None}
 
     def points_at(it):
         if it.get("poi_id"):
@@ -185,7 +230,9 @@ def visible_checklist(itinerary, legs, reservations, poi_map):
     for it in items:
         if it.get("kind") == "預約":
             t = points_at(it)
-            if t in booked or (t is None and it.get("due") in opens):
+            # only a line that says what it is for: a shared due date is a coincidence
+            # (a seat reminder can open the same minute as a restaurant's bookings)
+            if t is not None and t in booked:
                 continue
         out.append(it)
     written = {points_at(it) for it in items if it.get("kind") == "預約"}

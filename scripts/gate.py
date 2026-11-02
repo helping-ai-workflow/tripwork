@@ -364,8 +364,6 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     # source, including renderers that have no gate of their own. (defense-in-depth copies
     # also live in export_gate for the rendered md/html.)
     hygiene_text = _itinerary_text(itinerary)
-    # the traveller's own reservation details reach every renderer too (never the ref)
-    hygiene_text += "\n" + "\n".join(reservation.texts(reservations))
     failures.extend(jargon_failures(hygiene_text, pois))
     failures.extend(kana_gloss_failures(hygiene_text))
     ai_tone = ai_tone_failures(hygiene_text)
@@ -379,6 +377,12 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     alts = alternative_failures(itinerary)
     themes = theme_failures(itinerary)
     res_pairs, res_f = reservation.match(itinerary, legs, reservations, by_id)
+    # the traveller's details reach every renderer too (never the ref): the same three text
+    # checks, prefixed so a hit routes to record-reservation, the file's only writer
+    res_text = "\n".join(reservation.texts(reservations))
+    res_f = reservation.file_failures(reservations) + res_f + [
+        f"reservation details: {m}" for m in
+        jargon_failures(res_text, pois) + kana_gloss_failures(res_text) + ai_tone_failures(res_text)]
     booked = frozenset(p["res"].get("poi_id") or p["res"].get("lodging")
                        for p in res_pairs if p["res"].get("status") == "booked") - {None}
     checklist_f = checklist_failures(itinerary, by_id, referenced, booked_poi_ids=booked)
