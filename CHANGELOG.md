@@ -14,8 +14,8 @@
   which stops and asks (`booked_place_dropped`): put it back, or cancel the booking.
 - **The reader's home has five tiles**: 住宿, **交通**, **餐廳**, 出入境規定, 行前清單. On the phone the
   three used on the road keep the tall tile and 出入境規定 / 行前清單 take the desktop's bar, so the
-  home still fits one screen; when it is still short, the 旅程與費用 card's stay list scrolls inside
-  it. 交通 and 餐廳 list the reserved moves and meals by
+  home still fits one screen; when it is still short, the 旅程與費用 card gets shorter and scrolls
+  inside itself (its text never draws outside the card). 交通 and 餐廳 list the reserved moves and meals by
   date, each with its status pill; opening one shows the details. A tile shows 「・N 待訂」
   while something is still to book.
 - **On the day page**: a meal left to the traveller (自理) draws in the 選項 green with a 建議
@@ -51,7 +51,7 @@
   leg without the local arrival time (`legs[i] flight has no arrive …`) and routes it to
   inter-stop-legs, which adds it from the airline's timetable on the next run.
 
-Tests: 2315 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2317 passed and the privacy check passes. Browser suite: 601 passed (Chromium and WebKit).
+Tests: 2315 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2317 passed and the privacy check passes. Browser suite: 609 passed (Chromium and WebKit).
 
 ## 3.0.2 — main is protected: `test` and `interaction` must pass on an up-to-date branch
 

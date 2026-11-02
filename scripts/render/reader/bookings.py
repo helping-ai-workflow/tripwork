@@ -84,10 +84,10 @@ CSS = """
 @media (max-width:1023px){.tiles{grid-template-columns:repeat(6,1fr)}.tiles .tile{grid-column:span 2}
 /* the user's pick C: the phone home stays one screen. 住宿 / 交通 / 餐廳 (used on the road) keep the
    tall tile; 出入境規定 / 行前清單 take the desktop's bar (45 px), and when the screen is still short
-   the 旅程與費用 card gives up height first -- its stay list scrolls inside it */
+   the 旅程與費用 card gives up height first and scrolls inside itself -- its text never draws
+   outside the card (the user's call; a floor for the stay list is left to a later version) */
 .tiles .tile:nth-child(n+4){grid-column:span 3;flex-direction:row;justify-content:center;gap:8px;padding:12px}
 .tiles .tile:nth-child(n+4) small{margin-left:4px}
 .page.home .hwrap{height:100%;min-height:0}.page.home .ttl,.page.home .hcal,.page.home .tiles{flex:none}
-.page.home .trip{flex:0 1 auto;min-height:0;display:flex;flex-direction:column}.page.home .trip>h3,.page.home .trip>p{flex:none}
-.page.home .trip ol{flex:0 1 auto;min-height:0}}
+.page.home .trip{flex:0 1 auto;min-height:0;overflow-y:auto}}
 """

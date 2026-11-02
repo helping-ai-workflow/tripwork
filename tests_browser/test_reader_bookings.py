@@ -113,3 +113,20 @@ def test_booking_cards_keep_their_side_lines(browser, bookings_url, vp, sub):
     assert cards, sub
     assert not [c for c in cards if c["left"] < c["min"] - .01 or c["right"] > c["max"] + .01], cards
     pg.close()
+
+
+SPILL = """(()=>{const c=document.querySelector('.page.home .trip'),r=c.getBoundingClientRect(),cs=getComputedStyle(c);
+  const out=[...c.children].filter(e=>e.getClientRects().length).some(e=>{const q=e.getBoundingClientRect();return q.bottom>r.bottom+1||q.top<r.top-1});
+  return out && cs.overflowY==='visible'})()"""
+
+
+# the user's call: the 旅程與費用 card may get shorter on a short screen, but its text never
+# draws outside it -- the card scrolls inside itself (the stay list's own floor is next version's)
+@pytest.mark.parametrize("vp", [{"width": 390, "height": 844}, {"width": 390, "height": 750},
+                                {"width": 390, "height": 667}, {"width": 844, "height": 390}],
+                         ids=["844", "750", "667", "landscape"])
+def test_the_trip_card_text_stays_inside_the_card(browser, bookings_url, vp):
+    pg = browser.new_page(viewport=vp, java_script_enabled=False)
+    pg.goto(bookings_url)
+    assert not pg.evaluate(SPILL), (browser.engine, vp)
+    pg.close()
