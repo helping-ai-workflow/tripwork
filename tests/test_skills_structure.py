@@ -9,7 +9,7 @@ EXPECTED = [
     "source-verify", "routing-audit", "accommodation-research", "inter-stop-legs",
     "calendar-check", "seasonal-advisory", "transit-detail", "cost-rollup",
     "itinerary-synthesis", "travel-advisory", "itinerary-gate", "tripwork-export-artifact",
-    "export-gate", "tripwork-workspace-shape-preflight",
+    "export-gate", "tripwork-workspace-shape-preflight", "record-reservation",
 ]
 
 def _frontmatter(md_text):

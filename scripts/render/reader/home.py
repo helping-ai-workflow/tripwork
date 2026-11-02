@@ -1,8 +1,9 @@
-"""The mobile home (N1) and its three sub-screens (spec §6.1)."""
+"""The mobile home (N1) and its sub-screens (spec §6.1); 交通 / 餐廳 live in bookings.py."""
 import datetime
 
 from scripts.checklist import KINDS
-from scripts.render.centroid import centroid_items, centroid_note
+from scripts import reservation
+from scripts.render.centroid import merged_note
 from scripts.render.gmaps_links import maps_url
 from scripts.render.heading import dates_line, trip_title
 from scripts.render.reader import month_calendar, tapes
@@ -96,8 +97,11 @@ def _dates(ctx):
 
 def home(ctx):
     title = trip_title(ctx.brief, ctx.itinerary)
+    from scripts.render.reader.bookings import tile_note
     tiles = [("pg-lodging", "bed-double", "住宿", f"{len({r['id'] for r in lodging_runs(ctx)})} 間"),
-             ("pg-advisory", "stamp", "入境規定", f"{len(ctx.advisory_items)} 項"),
+             ("pg-transport", "train-front", "交通", tile_note(ctx, "move")),
+             ("pg-meals", "utensils", "餐廳", tile_note(ctx, "meal")),
+             ("pg-advisory", "stamp", "出入境規定", f"{len(ctx.advisory_items)} 項"),
              ("pg-checklist", "list-checks", "行前清單", f"{len(checklist_items(ctx))} 項")]
     # v1.1 topic 6: the month card is its own panel -- the desktop's big calendar, zoomed
     # x1.9, each day's theme on its stamp ring; the phone keeps its order (theme.py)
@@ -123,12 +127,16 @@ def _sub(pg, title, body):
 
 
 def lodging_screen(ctx):
+    from scripts.render.reader.bookings import pill
     rows = []
     for r in lodging_runs(ctx):
         p = ctx.poi_map.get(r["id"])
         out = r["d"] + datetime.timedelta(days=r["n"])
+        pr = getattr(ctx, "res_by_stay", {}).get((r["d"].isoformat(), r["id"]))
+        res = (f'<span class="lbk">{pill(pr["res"].get("status"))}'
+               f'<span>{esc(reservation.summary(pr["res"], "lodging", with_status=False))}</span></span>') if pr else ""
         rows.append(f'<div class="lrow {r["cls"]}"><span class="dot"></span><div class="lt"><b>{esc(_name(p) or "住宿資料待補")}</b>'
-                    f'<small>{esc(r["area"])}・{md(r["d"])} → {md(out)}・{r["n"]} 晚</small></div>{navb(p)}</div>')
+                    f'<small>{esc(r["area"])}・{md(r["d"])} → {md(out)}・{r["n"]} 晚</small>{res}</div>{navb(p)}</div>')
     return _sub("lodging", "住宿", "".join(rows) or '<p class="empty">這趟沒有過夜住宿。</p>')
 
 
@@ -147,7 +155,7 @@ def advisory_screen(ctx):
         items.append(f'<details class="adv {cls}"><summary><span class="tl2"><span class="rk">{label}</span>'
                      f'<b>{esc(title)}</b></span><span class="do qbar">{esc(do)}</span><span class="cv"></span></summary>'
                      f'<p class="act qbar">{esc(do)}</p>{det}{f"<p class=lnk>{links}</p>" if links else ""}</details>')
-    return _sub("advisory", "入境規定", "".join(items) or '<p class="empty">沒有需要特別注意的入境規定。</p>')
+    return _sub("advisory", "出入境規定", "".join(items) or '<p class="empty">沒有需要特別注意的出入境規定。</p>')
 
 
 def _host(url):
@@ -156,13 +164,15 @@ def _host(url):
 
 
 def checklist_items(ctx):
-    """The itinerary's checklist (pre-v1.0 string items read as 出發前確認) plus one
-    出發前確認 line per scheduled POI or lodging whose coordinate is a district
-    centroid (scripts/render/centroid.py) -- the disclosure every renderer carries."""
-    items = [it if isinstance(it, dict) else {"kind": "出發前確認", "task": str(it)} for it in ctx.checklist]
-    items += [{"kind": "出發前確認", "task": centroid_note(p)}
-              for p in centroid_items({"days": ctx.days}, ctx.poi_map)]
-    return items
+    """The checklist the traveller sees (scripts/reservation.py::visible_checklist: a booked
+    place's 預約 line is gone, a booking still to make adds one; pre-v1.0 string items read
+    as 出發前確認) plus ONE 出發前確認 item naming every scheduled POI or lodging whose
+    coordinate is approximate (scripts/render/centroid.py::merged_note) -- the disclosure
+    every renderer carries, folded so ten small restaurants are not ten copies of it."""
+    items = reservation.visible_checklist({"days": ctx.days, "checklist": ctx.checklist},
+                                          ctx.legs, ctx.reservations, ctx.poi_map)
+    note = merged_note({"days": ctx.days}, ctx.poi_map)
+    return items + ([note] if note else [])
 
 
 def checklist_screen(ctx):

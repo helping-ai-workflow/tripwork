@@ -36,7 +36,7 @@ What it writes:
    (fonts and photos embedded), usable without any script (Quick Look runs none); on a phone
    the page holds still and only the day's list card scrolls, on a desktop (≥1024 px) the same
    page lays out as a big-calendar home and per-day dashboards — a home with the KUSO
-   headline, the stamp calendar, the 旅程與費用 card and the 住宿 / 入境規定 / 行前清單
+   headline, the stamp calendar, the 旅程與費用 card and the 住宿 / 交通 / 餐廳 / 出入境規定 / 行前清單
    screens, and one page per day with the move chain, one stop open at a time, per-stop
    alternatives and named sources. Each day has a map card: for real map images run
    `python <plugin>/scripts/tripwork.py maps <slug>` first (needs the `[maps]` extra and the

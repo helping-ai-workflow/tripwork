@@ -1,5 +1,58 @@
 # Changelog
 
+## 3.1.0 — bookings in the reader: 交通 and 餐廳 screens, booking status, masked numbers
+
+### Added
+
+- **`reservations.yaml`, the traveller's own bookings** (`schemas/reservations.schema.json`).
+  A flight, a train, a meal, a stay or a ticket, each with a status — 已訂 / 還要訂 / 不用訂 /
+  自理 — its booking number and the details the family needs on the road (座位, 人數, 取消期限,
+  入住). It is written only by the new skill **`record-reservation`** (paste the confirmation,
+  or say "訂好了"), never by synthesis, so re-planning cannot drop a booking silently. Every
+  entry is matched to the plan by date and place (`scripts/reservation.py::match`); one that
+  matches no row any more is an itinerary-gate failure that routes to `record-reservation`,
+  which stops and asks (`booked_place_dropped`): put it back, or cancel the booking.
+- **The reader's home has five tiles**: 住宿, **交通**, **餐廳**, 出入境規定, 行前清單. On the phone the
+  three used on the road keep the tall tile and 出入境規定 / 行前清單 take the desktop's bar, so the
+  home still fits one screen; when it is still short, the 旅程與費用 card gets shorter and scrolls
+  inside itself (its text never draws outside the card). 交通 and 餐廳 list the reserved moves and meals by
+  date, each with its status pill; opening one shows the details. A tile shows 「・N 待訂」
+  while something is still to book.
+- **On the day page**: a meal left to the traveller (自理) draws in the 選項 green with a 建議
+  tag, so it no longer reads as a fixed booking; a booked or to-book stop shows a 訂位 line when
+  opened (tickets included). The 住宿 screen shows a stay's booking.
+- **The md deliverable** gains 「## 交通」 and 「## 餐廳」 (bullet lists), and a stay's or a
+  ticket's booking at the end of its line.
+- **Booking numbers are masked everywhere**: at most the last four characters, never fewer than
+  four hidden (a 6-character PNR shows two: `••••PX`). Export-gate fails any deliverable that
+  shows more (`no_full_reservation_number`, non-retryable: it is a plugin defect).
+- **Flights as home legs**: a flight leg carries its local arrival time `arrive`, required by
+  the itinerary gate (`flight_legs_have_arrive`); depart + duration would land in the departure
+  time zone.
+
+### Changed
+
+- **「入境規定」 is 「出入境規定」** on the home tile, its screen and the README.
+- **The 行前清單 hides a 預約 line once that place or leg is booked**, and adds one for a booking
+  still to make (derived at render time, never written back). A 預約 item may carry `poi_id` /
+  `leg_index` to say what it is for (record-reservation adds them to an older line when it records
+  the booking; a line that does not say is never hidden by a coincidence of dates).
+  A booked place also satisfies its `opens_at` reminder in the gate.
+- **The approximate-location disclosures fold into one line**: 「N 個地點的地圖只標到區域中心」
+  with the places named once, in the reader (its detail) and the md, instead of one line per
+  place.
+
+### Migration
+
+- Nothing to do for an existing trip: without `reservations.yaml` the two new screens are empty
+  and everything else renders as before (apart from the one folded location line). To show
+  bookings, paste the confirmations to the agent.
+- **A trip with a flight leg needs its `arrive`**: the itinerary gate now fails a `mode: flight`
+  leg without the local arrival time (`legs[i] flight has no arrive …`) and routes it to
+  inter-stop-legs, which adds it from the airline's timetable on the next run.
+
+Tests: 2315 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2317 passed and the privacy check passes. Browser suite: 609 passed (Chromium and WebKit).
+
 ## 3.0.2 — main is protected: `test` and `interaction` must pass on an up-to-date branch
 
 ### Changed

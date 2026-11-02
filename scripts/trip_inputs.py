@@ -35,7 +35,8 @@ def _load(trip_dir, name, required=False):
 
 def trip_inputs(trip_dir):
     """(itinerary, poi_map, render kwargs, media count). kwargs carries brief,
-    accommodations, advisory, legs, maps (day-maps.yaml) and cost."""
+    accommodations, advisory, legs, maps (day-maps.yaml), cost and reservations
+    (the traveller's own reservations.yaml; None when absent)."""
     itin = _load(trip_dir, "itinerary.yaml", required=True)
     pois = _load(trip_dir, "verified-pois.yaml", required=True).get("pois") or []
     acc = _load(trip_dir, "accommodations.yaml")
@@ -43,5 +44,6 @@ def trip_inputs(trip_dir):
     poi_map = apply_media(dict(poi_pool(pois, acc)), media)       # non-mutating: keep the return
     kwargs = {"brief": _load(trip_dir, "trip-brief.yaml"), "accommodations": acc,
               "advisory": _load(trip_dir, "advisory.yaml"), "legs": _load(trip_dir, "legs.yaml"),
-              "maps": _load(trip_dir, "day-maps.yaml"), "cost": _load(trip_dir, "cost.yaml")}
+              "maps": _load(trip_dir, "day-maps.yaml"), "cost": _load(trip_dir, "cost.yaml"),
+              "reservations": _load(trip_dir, "reservations.yaml")}
     return itin, poi_map, kwargs, len((media or {}).get("media") or {})

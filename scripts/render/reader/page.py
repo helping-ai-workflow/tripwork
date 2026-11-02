@@ -11,11 +11,13 @@ import html as _html
 import re
 from types import SimpleNamespace
 
+from scripts import reservation
 from scripts.render.heading import trip_title
 from scripts.render.reader import month_calendar, tapes
 from scripts.render.reader.assets import ICON_DIR, _FONTS, font_faces, icon
 from scripts.render.reader.centre import CENTRE_JS
 from scripts.render.reader.publish import PUBLISH_JS
+from scripts.render.reader.bookings import meals_screen, transport_screen
 from scripts.render.reader.day import day_page
 from scripts.render.reader.home import advisory_screen, checklist_screen, home, lodging_screen
 from scripts.render.reader.maps import OSM_COPYRIGHT, nav_css as map_nav_css
@@ -43,7 +45,8 @@ def licence_notice():
 _FONT_EXTRA = "0123456789:：–—・、。，（）()/→←‹›↺＋·約分小時晚間項禁止限制須知"
 
 
-def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=None, cost=None):
+def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=None, cost=None,
+             reservations=None):
     days = [d for d in itinerary.get("days") or [] if isinstance(d, dict)]
     dates = []
     for d in days:
@@ -59,8 +62,14 @@ def _context(itinerary, poi_map, brief, accommodations, advisory, legs, maps=Non
         checklist=list(itinerary.get("checklist") or []),
         local_lang=((brief.get("destination") or {}).get("local_lang")),
         maps=maps if isinstance(maps, dict) else None, map_images={},
-        cost=cost if isinstance(cost, dict) else None)
+        cost=cost if isinstance(cost, dict) else None,
+        reservations=reservations if isinstance(reservations, dict) else None)
     ctx.areas = month_calendar.day_areas({"days": days}, ctx.accommodations)
+    # the matched reservations; an entry that matches nothing is the gate's to report
+    ctx.res_pairs = reservation.match({"days": days}, ctx.legs, ctx.reservations, ctx.poi_map)[0]
+    # looked up by the row object itself (day.py walks the same dicts), and a stay by its check-in
+    ctx.res_by_row = {id(days[p["day"]]["rows"][p["row"]]): p for p in ctx.res_pairs if p["row"] is not None}
+    ctx.res_by_stay = {(p["date"], p["res"]["lodging"]): p for p in ctx.res_pairs if p["kind"] == "lodging"}
     return ctx
 
 
@@ -73,11 +82,12 @@ def _nav_css(pages):
 
 
 def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, advisory=None, legs=None,
-                  maps=None, cost=None, build="check"):
+                  maps=None, cost=None, reservations=None, build="check"):
     if build not in ("check", "publish"):
         raise ValueError(f"unknown build: {build!r}")
-    ctx = _context(itinerary or {}, poi_map, brief, accommodations, advisory, legs, maps, cost)
-    pages = ["home", "lodging", "advisory", "checklist"] + [f"d{i}" for i in range(1, len(ctx.days) + 1)]
+    ctx = _context(itinerary or {}, poi_map, brief, accommodations, advisory, legs, maps, cost, reservations)
+    pages = (["home", "lodging", "transport", "meals", "advisory", "checklist"]
+             + [f"d{i}" for i in range(1, len(ctx.days) + 1)])
     # each day has a second radio, pg-dNf: the day opened with its small calendar put away --
     # the phone's stepper takes it once the calendar is mostly away (H1c2, theme.py), so a
     # put-away calendar stays away from day to day with no script (LINE / Files run none)
@@ -85,7 +95,8 @@ def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, adviso
                      + (f'<input autocomplete="off" type="radio" class="pgr pgf" name="pg" id="pg-{p}f">' if p.startswith("d") else "")
                      for p in pages)
     body = (f'<input autocomplete="off" type="checkbox" id="theme">{radios}'
-            f'{home(ctx)}{lodging_screen(ctx)}{advisory_screen(ctx)}{checklist_screen(ctx)}'
+            f'{home(ctx)}{lodging_screen(ctx)}{transport_screen(ctx)}{meals_screen(ctx)}'
+            f'{advisory_screen(ctx)}{checklist_screen(ctx)}'
             f'{"".join(day_page(ctx, i) for i in range(1, len(ctx.days) + 1))}'
             f'<label class="bubble" for="theme" aria-label="切換深色／淺色">'
             f'<span class="moon">{icon("moon")}</span><span class="sun">{icon("sun")}</span></label>')

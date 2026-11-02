@@ -91,7 +91,7 @@ def _inside(pg, sel, vp):
     return r[0] >= 0 and r[1] >= 0 and r[2] <= vp["width"] and r[3] <= vp["height"]
 
 
-@pytest.mark.parametrize("sub", ["lodging", "advisory", "checklist"])
+@pytest.mark.parametrize("sub", ["lodging", "transport", "meals", "advisory", "checklist"])
 def test_the_overlay_close_control_is_on_screen_and_both_ways_close(open_page, sub):
     pg = open_page(DESKTOP)
     pg.click(f'.hside label.tile[for="pg-{sub}"]')
@@ -135,7 +135,7 @@ def test_no_page_is_wider_than_the_phone(open_page):
     pg = open_page(PHONE, js=False)
     w = _WIDTH % PHONE["width"]
     widths = {"home": pg.evaluate(w)}
-    for sub in ("lodging", "advisory", "checklist"):
+    for sub in ("lodging", "transport", "meals", "advisory", "checklist"):
         pg.click(f'.home label.tile[for="pg-{sub}"]')
         for s in pg.query_selector_all(f'section[data-pg="{sub}"] details > summary'):
             s.click()

@@ -3,6 +3,7 @@ theme, and the chain — anchor, stop, move, stop, …, anchor — with one stop
 a time (the URL fragment names it, v1.1 §8.1), alternatives under their stop, and sources."""
 import re
 
+from scripts import reservation
 from scripts.render.gmaps_links import maps_url
 from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import MODE_ICON, SLOT_ICON, icon
@@ -115,10 +116,19 @@ def stop(ctx, i, j, row, p, local_lang):
         rows.append(("地址", dd))
     if row.get("text"):
         rows.append(("安排", esc(row["text"])))
+    # the traveller's reservation (reservations.yaml): booked / to-book shows its line; a meal
+    # left open (自理) is drawn as a suggestion -- its own colour and a 建議 tag
+    pr = getattr(ctx, "res_by_row", {}).get(id(row))
+    status = pr["res"].get("status") if pr else None
+    if status in ("booked", "todo"):
+        rows.append(("訂位", esc(reservation.summary(pr["res"], pr["kind"]))))
+    if status == "self":
+        head = head.replace('<span class="n">', '<span class="n"><span class="sgt">建議</span>', 1)
     src = sources(p, tid)
     if src:
         rows.append(("來源", src))
-    return card(ctx, tid, slot, row.get("poi_id"), head, rows, sheet, p)
+    html = card(ctx, tid, slot, row.get("poi_id"), head, rows, sheet, p)
+    return html.replace('class="stop s-meal"', 'class="stop s-meal sug"', 1) if status == "self" else html
 
 
 def address(tid, p, lang):

@@ -47,42 +47,57 @@ ITIN = {
 }
 
 
-def _disclosed(poi):
-    from scripts.render.centroid import centroid_note
-    return centroid_note(poi)
-
-
 def test_centroid_items_are_scheduled_or_lodging_in_first_use_order():
     from scripts.render.centroid import centroid_items
     assert [p["id"] for p in centroid_items(ITIN, POIS)] == [
         "centroid-poi", "centroid-inn", "kana-poi"]
 
 
-@pytest.mark.parametrize("render", [
-    lambda i, m: render_markdown_page(i, m),
-    lambda i, m: render_html_page(i, m),
-], ids=["markdown", "html"])
-def test_deliverable_discloses_each_centroid_once(render):
-    out = render(ITIN, POIS)
+def _line(itin=ITIN):
+    from scripts.render.centroid import merged_line
+    return merged_line(itin, POIS)
+
+
+LABELS = {"centroid-poi": "噴水雞肉飯", "centroid-inn": "觀止飯店", "kana-poi": "すし処（壽司店）",
+          "exact-poi": "文化路夜市", "unscheduled": "沒排進去的點"}
+
+
+def test_markdown_discloses_every_centroid_in_one_line():
+    """One line for all of them (a trip with ten small restaurants otherwise fills
+    出發前確認 with ten copies of the same warning); each place is still named, once."""
+    md = render_markdown_page(ITIN, POIS)
+    line = _line()
+    assert md.count(line) == 1 and md.count("地圖只標到") == 1
     for pid in ("centroid-poi", "centroid-inn", "kana-poi"):
-        note = _disclosed(POIS[pid])
-        assert out.count(note) == 1, (pid, note)
+        assert line.count(LABELS[pid]) == 1, pid
     for pid in ("exact-poi", "unscheduled"):
-        assert _disclosed(POIS[pid]) not in out, pid
+        assert LABELS[pid] not in line, pid
 
 
-@pytest.mark.parametrize("render", [render_markdown_page, render_html_page],
-                         ids=["markdown", "html"])
-def test_disclosure_renders_without_an_authored_checklist(render):
+def test_html_discloses_every_centroid_in_one_item():
+    from bs4 import BeautifulSoup
+    from scripts.render.centroid import merged_note
+    sec = BeautifulSoup(render_html_page(ITIN, POIS), "html.parser").select_one('section[data-pg="checklist"]')
+    note = merged_note(ITIN, POIS)
+    items = [d for d in sec.select(".ci") if note["task"] in d.get_text()]
+    assert len(items) == 1 and sec.get_text().count("地圖只標到") == 1
+    for pid in ("centroid-poi", "centroid-inn", "kana-poi"):
+        assert items[0].get_text().count(LABELS[pid]) == 1, pid
+    for pid in ("exact-poi", "unscheduled"):
+        assert LABELS[pid] not in items[0].get_text(), pid
+
+
+def test_disclosure_renders_without_an_authored_checklist():
     itin = dict(ITIN, checklist=[])
-    assert _disclosed(POIS["centroid-inn"]) in render(itin, POIS)
+    assert _line(itin) in render_markdown_page(itin, POIS)
+    assert "觀止飯店" in render_html_page(itin, POIS).split('data-pg="checklist"')[1]
 
 
 def test_disclosure_follows_the_authored_checklist():
     itin = dict(ITIN, checklist=["帶悠遊卡"])
     md = render_markdown_page(itin, POIS)
     assert md.count("## 出發前檢查清單") == 1
-    assert md.index("帶悠遊卡") < md.index(_disclosed(POIS["centroid-poi"]))
+    assert md.index("帶悠遊卡") < md.index(_line(itin))
 
 
 def test_no_centroid_no_extra_section():
@@ -97,6 +112,6 @@ def test_no_centroid_no_extra_section():
 def test_disclosure_passes_the_export_text_hygiene():
     md = render_markdown_page(ITIN, POIS)
     # Without this the test is vacuous: no disclosure text, nothing to fail on.
-    assert _disclosed(POIS["kana-poi"]) in md
+    assert LABELS["kana-poi"] in _line() and _line() in md
     assert jargon_failures(md, list(POIS.values())) == []
     assert kana_gloss_failures(md) == []

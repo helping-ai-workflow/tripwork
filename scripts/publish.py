@@ -87,7 +87,7 @@ def build(trip_dir, password, *, run=None, share_base=None):
     itin, poi_map, kwargs, media_count = trip_inputs(trip_dir)
     html = render_html_page(itin, poi_map, build="publish", **kwargs)
     report = run_html_gate(html, list(poi_map.values()), min_days=len(itin.get("days") or []) or None,
-                           media_count=media_count)
+                           media_count=media_count, reservations=kwargs["reservations"])
     if report.get("status") != "pass":
         raise PublishError("the publish page fails the html gate: " + "; ".join(report.get("failures") or []))
     code = publish_code(trip_dir)

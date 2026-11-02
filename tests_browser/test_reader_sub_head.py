@@ -17,7 +17,7 @@ def _go(pg, pid):
     pg.wait_for_timeout(500)
 
 
-@pytest.mark.parametrize("screen", ["lodging", "advisory", "checklist"])
+@pytest.mark.parametrize("screen", ["lodging", "transport", "meals", "advisory", "checklist"])
 def test_the_back_pill_is_where_a_day_has_it_and_the_title_is_centred(browser, many_stays_url, screen):
     pg = browser.new_page(viewport=PHONE)
     pg.goto(many_stays_url)

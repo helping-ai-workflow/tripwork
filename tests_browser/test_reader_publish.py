@@ -680,7 +680,7 @@ def test_sub_pages_swipe_right_to_home(chromium, publish_url):
     errors = []
     ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errors)
     t = _touch(ctx, pg)
-    for sub in ("lodging", "advisory", "checklist"):
+    for sub in ("lodging", "transport", "meals", "advisory", "checklist"):
         _go(pg, f"pg-{sub}")
         _drag(pg, t, 60, 500, 120, 0)          # under half: stays
         assert _cur(pg) == f"pg-{sub}"
@@ -1025,7 +1025,7 @@ def test_a_swipe_from_the_screen_edge_is_left_to_the_system(chromium, publish_ur
     ctx, pg = _new(chromium, ANDROID, publish_url, touch=True, errors=errors)
     t = _touch(ctx, pg)
     W = ANDROID["width"]
-    for sub in ("lodging", "advisory", "checklist"):
+    for sub in ("lodging", "transport", "meals", "advisory", "checklist"):
         _go(pg, f"pg-{sub}")
         t("touchStart", 4, 500)
         for i in range(1, 11):

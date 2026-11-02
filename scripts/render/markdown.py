@@ -6,7 +6,9 @@ Generated link markup ([name](url)) is never escaped — only free text is.
 """
 from scripts.render.heading import dates_line, trip_title
 from scripts.render.gmaps_links import link_markdown, dir_url
-from scripts.render.centroid import centroid_items, centroid_note
+from scripts import reservation
+from scripts.render.centroid import merged_line
+from scripts.render.reader.text import md_wd, to_date
 from scripts.checklist import checklist_line
 from scripts.day_chain import alternative_line
 from scripts.render.reader.assets import MODE_ICON
@@ -88,7 +90,7 @@ def _move_cell(frm, to, text, poi=None, mode=None):
         parts.append(escaped)
     return " ".join(parts)
 
-def render_day_table(day, poi_map, legs=None):
+def render_day_table(day, poi_map, legs=None, tickets=None):
     """Render one canonical itinerary.yaml day -> markdown table.
 
     Args:
@@ -96,7 +98,7 @@ def render_day_table(day, poi_map, legs=None):
         poi_map:  {poi_id: verified-poi dict} for resolving row poi_id -> link.
     """
     lines = [f"### {md_escape(day.get('label', ''))}", "", "| 時段 | 行程 |", "|---|---|"]
-    for row in day.get("rows", []):
+    for i, row in enumerate(day.get("rows", [])):
         time = md_escape(row.get("time", ""))
         text = row.get("text", "")
         pid = row.get("poi_id")
@@ -112,6 +114,9 @@ def render_day_table(day, poi_map, legs=None):
             cell = _poi_cell(poi, text)
         else:
             cell = md_escape(text)
+        tail = (tickets or {}).get(i)
+        if tail:
+            cell = f"{cell}（{md_escape(tail)}）"
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"
 
@@ -132,7 +137,7 @@ def _amount(n):
     return f"{n:,}"
 
 
-def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None):
+def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reservations=None):
     """Canonical itinerary.yaml -> the full markdown deliverable page.
 
     HTML has render_html_page; until now markdown's
@@ -145,12 +150,15 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None):
 
     Section order (each omitted entirely when its data is absent):
       # {title}
-      per day: render_day_table(...) + "**宿**：" lodging line (only when
+      per day: render_day_table(...) (a ticket's reservation at its cell end) + "**宿**：" lodging line
+        (its stay's reservation at the end; only when
         day["lodging"] resolves in poi_map — never falls back to the raw id;
         see the docstring warning below)
+      ## 交通 / ## 餐廳       (reservations.yaml, bullet lists -- no ### and no table:
+                               export_gate counts ### as days and reads | rows in them)
       ## 備案 / Contingency  (itin["contingency"])
-      ## 出發前檢查清單       (itin["checklist"], then one centroid_note per
-                               scheduled/lodging cluster_fallback place)
+      ## 出發前檢查清單       (reservation.visible_checklist, then ONE merged line for
+                               every approximately-placed place)
       ## 費用估算（估算非報價） (cost, when given)
 
     The lodging line must never fall back to the raw id when it does not resolve —
@@ -176,13 +184,38 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None):
     if sub:
         lines += [md_escape(sub), ""]
 
-    for day in itin.get("days", []):
-        lines.append(render_day_table(day, poi_map, legs).rstrip())
+    def res_of(d, r=None):
+        p = reservation.pair_for(itin, legs, reservations, poi_map, d, r)
+        return reservation.summary(p["res"], p["kind"]) if p else ""
+
+    for d, day in enumerate(itin.get("days", [])):
+        # a ticket (a visit / activity stop) carries its reservation in its own cell; meals
+        # and moves have their own sections below, so their cells stay as they are
+        tickets = {r: res_of(d, r) for r, row in enumerate(day.get("rows", []))
+                   if isinstance(row, dict) and row.get("slot") in ("visit", "activity")}
+        lines.append(render_day_table(day, poi_map, legs, tickets).rstrip())
         lines.append("")
         poi = poi_map.get(day.get("lodging"))
         if poi:
-            lines.append(f"**宿**：{_poi_cell(poi, '')}")
+            stay = res_of(d)
+            lines.append(f"**宿**：{_poi_cell(poi, '')}" + (f"（{md_escape(stay)}）" if stay else ""))
             lines.append("")
+
+    for kind, head in (("move", "交通"), ("meal", "餐廳")):
+        rows = reservation.reservation_rows(itin, legs, reservations, poi_map, kind)
+        if not rows:
+            continue
+        lines += [f"## {head}", ""]
+        last = None
+        for e in rows:
+            if e["date"] != last:
+                lines.append(f"- **{md_escape(md_wd(to_date(e['date'])))}**")
+                last = e["date"]
+            det = "；".join(f"{k} {v}" for k, v in e["details"])
+            head = f"{e['time'] + ' ' if e['time'] else ''}{e['title']}" + (f"，{e['sub']}" if e["sub"] else "")
+            lines.append(f"  - {md_escape(head)}：**{reservation.LABEL.get(e['status'], '')}**"
+                         + (f"（{md_escape(det)}）" if det else ""))
+        lines.append("")
 
     contingency = itin.get("contingency") or []
     alternatives = [(d.get("date", ""), a) for d in itin.get("days", [])
@@ -200,8 +233,10 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None):
             lines.append(f"- {md_escape(date)} {md_escape(alternative_line(a))}")
         lines.append("")
 
-    checklist = list(itin.get("checklist") or [])
-    checklist += [centroid_note(p) for p in centroid_items(itin, poi_map)]
+    checklist = reservation.visible_checklist(itin, legs, reservations, poi_map)
+    centroid = merged_line(itin, poi_map)
+    if centroid:
+        checklist.append(centroid)
     if checklist:
         lines.append("## 出發前檢查清單")
         lines.append("")

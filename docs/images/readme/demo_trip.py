@@ -60,6 +60,12 @@ POIS = [
     poi("skytree", "東京スカイツリー", "東京晴空塔", "sight", 35.7101, 139.8107,
         {"close": "22:00", "last_entry": "21:00", "typical_visit_mins": 90, "as_of": "2026-04-01"},
         "押上", intro="高 634 m，天望甲板 350 m。", address="東京都墨田区押上1-1-2"),
+    poi("izakaya", "浅草サンプル居酒屋", "淺草示意居酒屋", "food", 35.7125, 139.7960,
+        {"close": "23:00", "last_order": "22:30", "typical_visit_mins": 90, "as_of": "2026-04-01"},
+        "淺草", intro="示意的居酒屋：今晚自己找，這家只是推薦。"),
+    poi("kappo", "押上サンプル割烹", "押上示意割烹", "food", 35.7098, 139.8120,
+        {"close": "22:00", "last_order": "21:00", "typical_visit_mins": 90, "as_of": "2026-04-01"},
+        "押上", intro="示意的割烹：會席套餐，已訂位。"),
     poi("asakusa-tic", "浅草文化観光センター", "淺草文化觀光中心", "sight", 35.7107, 139.7966,
         {"close": "20:00", "last_entry": "19:45", "typical_visit_mins": 30, "as_of": "2026-04-01"},
         "淺草", intro="8 樓免費展望台，看得到晴空塔與仲見世。"),
@@ -91,13 +97,17 @@ def itinerary():
         {"date": "2026-05-12", "lodging": "demo-hotel", "theme": "雷門下的第一口", "theme_refs": ["senso-ji"],
          "theme_candidates": six(["雷門下的第一口", "燈籠在等，人形燒在燙", "淺草寺會不會太熱鬧？",
                                   "逛完本堂才想起要吃", "雷門、香爐、人形燒", "仲見世，在數我們的零錢"], "senso-ji"),
-         "rows": [_mv("rail", 20, 45, basis="sourced", text="京急線直通淺草線",
-                      source_url="https://rail.example/keikyu", **{"from": "羽田空港"}),
+         "rows": [dict(_mv("flight", 2190, 190, basis="sourced", text="示意航空 SA 101",
+                           source_url="https://air.example/sa101"), leg_index=0, time="08:50"),
+                  _mv("rail", 20, 45, basis="sourced", text="京急線直通淺草線",
+                      source_url="https://rail.example/keikyu", **{"from": "羽田空港", "to": "淺草"}),
                   {"slot": "lodging", "time": "13:30", "poi_id": "demo-hotel", "text": "放行李"},
                   _mv("walk", 0.5, 8),
                   _stop("visit", "14:00", "senso-ji", "雷門 → 本堂，抽一支籤"),
                   _mv("walk", 0.4, 6),
                   _stop("meal", "15:30", "nakamise", "人形燒、炸饅頭當下午茶"),
+                  _mv("walk", 0.3, 5),
+                  _stop("meal", "18:30", "izakaya", "居酒屋晚餐"),
                   _mv("walk", 0.3, 5, text="走回飯店")]},
         {"date": "2026-05-13", "lodging": "demo-hotel", "theme": "上野一整天，晚上看塔",
          "theme_refs": ["tnm", "skytree"],
@@ -113,6 +123,8 @@ def itinerary():
                   _stop("meal", "13:00", "ameyoko", "海鮮丼午餐"),
                   _mv("rail", 6, 25, basis="sourced", text="銀座線＋淺草線到押上", source_url="https://rail.example/oshiage"),
                   _stop("visit", "17:00", "skytree", "看夕陽轉夜景"),
+                  _mv("walk", 0.4, 6),
+                  _stop("meal", "19:00", "kappo", "會席晚餐"),
                   _mv("taxi", 2.5, 10, text="計程車回飯店")]},
         {"date": "2026-05-14", "theme": "最後再逛一圈淺草", "theme_refs": ["nakamise"],
          "theme_candidates": six(["最後再逛一圈淺草", "早上的門，最後的燒", "人形燒還買得下嗎？",
@@ -120,18 +132,53 @@ def itinerary():
          "rows": [_mv("walk", 0.3, 5),
                   _stop("meal", "09:30", "nakamise", "早上的仲見世，買伴手禮"),
                   _mv("rail", 20, 45, basis="sourced", text="淺草線直通京急線",
-                      source_url="https://rail.example/keikyu", to="羽田空港")]},
+                      source_url="https://rail.example/keikyu", **{"from": "淺草", "to": "羽田空港"}),
+                  dict(_mv("flight", 2190, 170, basis="sourced", text="示意航空 SA 102",
+                           source_url="https://air.example/sa102"), leg_index=1, time="14:30")]},
     ]
     for d in days:
         _closing(d["rows"], by_id)
     checklist = [
-        {"kind": "預約", "task": "晴空塔線上預約時段票", "due": "2026-05-05", "due_is_hard": True,
+        {"kind": "預約", "task": "晴空塔線上預約時段票", "due": "2026-05-05", "due_is_hard": True, "poi_id": "skytree",
          "origin": "D2・5/13", "detail": "日落前後的時段最先賣完。",
          "links": [{"label": "tokyo-skytree.jp", "url": "https://www.tokyo-skytree.jp/"}]},
         {"kind": "出發前確認", "task": "確認東京國立博物館當天開館", "due": "出發前"},
         {"kind": "打包", "task": "不帶任何肉製品入境"},
     ]
     return {"title": "東京三天", "checklist": checklist, "days": days}
+
+
+# the two flights: home legs with local depart / arrive (made-up flight numbers)
+LEGS = {"legs": [
+    {"from": "桃園機場", "to": "羽田空港", "kind": "home", "mode": "flight", "status": "ok", "service": "示意航空 SA 101",
+     "depart": "08:50", "arrive": "13:00", "duration_mins": 190, "km": 2190,
+     "sources": [{"url": "https://air.example/sa101", "official": True}]},
+    {"from": "羽田空港", "to": "桃園機場", "kind": "home", "mode": "flight", "status": "ok", "service": "示意航空 SA 102",
+     "depart": "14:30", "arrive": "17:20", "duration_mins": 170, "km": 2190,
+     "sources": [{"url": "https://air.example/sa102", "official": True}]},
+]}
+
+# the traveller's bookings (made-up numbers): every renderer masks them
+RESERVATIONS = {"reservations": [
+    {"date": "2026-05-12", "from": "桃園機場", "to": "羽田空港", "status": "booked", "ref": "K7Q2PX",
+     "details": [{"label": "座位", "value": "32A・32B・32C"}, {"label": "行李", "value": "每人託運 23 kg"}]},
+    {"date": "2026-05-12", "from": "羽田空港", "to": "淺草", "status": "none",
+     "details": [{"label": "付款", "value": "刷 IC 卡，不用買票"}]},
+    {"date": "2026-05-12", "lodging": "demo-hotel", "status": "booked", "ref": "HB48213907",
+     "details": [{"label": "入住", "value": "15:00 起"}, {"label": "房型", "value": "三人房，含早餐"}]},
+    {"date": "2026-05-12", "poi_id": "nakamise", "time": "15:30", "status": "none"},
+    {"date": "2026-05-12", "poi_id": "izakaya", "status": "self",
+     "details": [{"label": "備註", "value": "這餐自己決定吃哪家，這家是推薦，換別家也可以"}]},
+    {"date": "2026-05-13", "poi_id": "ameyoko", "status": "none"},
+    {"date": "2026-05-13", "poi_id": "skytree", "status": "booked", "ref": "TK7730X1",
+     "details": [{"label": "時段", "value": "17:00 入場"}, {"label": "張數", "value": "3 張"}]},
+    {"date": "2026-05-13", "poi_id": "kappo", "status": "booked", "ref": "RSV-58213",
+     "details": [{"label": "人數", "value": "3 位"}, {"label": "套餐", "value": "會席套餐"},
+                 {"label": "取消", "value": "5/10 前免費取消"}]},
+    {"date": "2026-05-14", "from": "淺草", "to": "羽田空港", "status": "none"},
+    {"date": "2026-05-14", "from": "羽田空港", "to": "桃園機場", "status": "booked", "ref": "M3R8TZ",
+     "details": [{"label": "座位", "value": "41A・41B・41C"}]},
+]}
 
 
 def brief():
@@ -154,7 +201,7 @@ def render(root):
     t, w = M.build_full_trip(root, slug="2026-05-tokyo-demo")
     itin, b = itinerary(), brief()
     for name, doc in (("trip-brief.yaml", b), ("verified-pois.yaml", {"pois": POIS}),
-                      ("accommodations.yaml", ACC), ("legs.yaml", {"legs": []}),
+                      ("accommodations.yaml", ACC), ("legs.yaml", LEGS), ("reservations.yaml", RESERVATIONS),
                       ("itinerary.yaml", itin), ("cost.yaml", COST)):
         M.write_artifact(artifact_path(t, name), doc)
     maps = build(t, w)                                     # real OSM tiles, cached, 1 req/s
@@ -166,7 +213,7 @@ def render(root):
                      load_media(artifact_path(t, "verified-pois-media.yaml")))
     reader = root / "reader.html"
     reader.write_text(render_reader(itin, pm, brief=b, accommodations=ACC, advisory=R.ADVISORY,
-                                    legs={"legs": []}, maps=maps, cost=COST), encoding="utf-8")
+                                    legs=LEGS, maps=maps, cost=COST, reservations=RESERVATIONS), encoding="utf-8")
     picker = root / "picker.html"
     picker.write_text(picker_page(itin, b, ACC), encoding="utf-8")
     return reader, picker, lock(root, reader)

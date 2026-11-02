@@ -19,6 +19,7 @@ from scripts.facilities import stop_meets_required
 from scripts.trip_calendar import poi_closed_on
 from scripts.verify import official_source_url
 from scripts.rederive import run_rederivation
+from scripts import reservation
 from scripts.source_records import area_label_failures, source_record_failures
 from scripts.text_hygiene import (ai_tone_failures, jargon_failures,
                                    kana_gloss_failures, kana_name_without_gloss)
@@ -228,9 +229,21 @@ def _itinerary_text(itinerary):
         parts.extend(x for x in (c.get("trigger"), c.get("fallback"), c.get("note")) if x)
     return " \n ".join(p for p in parts if isinstance(p, str) and p)
 
+def _flight_arrive_failures(legs):
+    """A flight leg must say when it lands, in local time: depart + duration_mins would put
+    the landing in the departure time zone (台北 08:50 + 3 h 10 m = 12:00, 羽田 13:00).
+    The message names legs[i] so the failure routes to inter-stop-legs, the leg's owner."""
+    out = []
+    for i, leg in enumerate((legs or {}).get("legs") or []):
+        if isinstance(leg, dict) and leg.get("mode") == "flight" and not leg.get("arrive"):
+            out.append(f"legs[{i}] flight has no arrive (local arrival time at {leg.get('to')})")
+    return out
+
+
 def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
              calendar=None, advisory=None, must_do=None,
-             legs=None, routing=None, cost=None, trip_brief=None, seasonal=None):
+             legs=None, routing=None, cost=None, trip_brief=None, seasonal=None,
+             reservations=None):
     """Return a gate-report dict: {status, checks, failures}.
 
     Args:
@@ -239,6 +252,8 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         calendar:   optional calendar dict; when given, the closed-day check runs.
         advisory:   optional advisory dict; when given, banned/restricted items must be surfaced.
         must_do:    optional list of POI ids that MUST be scheduled.
+        reservations: optional reservations.yaml dict; when given, every entry must match
+                    one row (scripts/reservation.py::match) and its details are text-checked.
     """
     # P4: fold each stop's chosen lodging into the POI pool so a `day.lodging` /
     # lodging-row id referencing a hotel resolves natively (verified-pois win each
@@ -361,18 +376,29 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     moves = move_record_failures(itinerary)
     alts = alternative_failures(itinerary)
     themes = theme_failures(itinerary)
-    checklist_f = checklist_failures(itinerary, by_id, referenced)
+    res_pairs, res_f = reservation.match(itinerary, legs, reservations, by_id)
+    # the traveller's details reach every renderer too (never the ref): the same three text
+    # checks, prefixed so a hit routes to record-reservation, the file's only writer
+    res_text = "\n".join(reservation.texts(reservations))
+    res_f = reservation.file_failures(reservations) + res_f + [
+        f"reservation details: {m}" for m in
+        jargon_failures(res_text, pois) + kana_gloss_failures(res_text) + ai_tone_failures(res_text)]
+    booked = frozenset(p["res"].get("poi_id") or p["res"].get("lodging")
+                       for p in res_pairs if p["res"].get("status") == "booked") - {None}
+    checklist_f = checklist_failures(itinerary, by_id, referenced, booked_poi_ids=booked)
     sources_f = source_record_failures(by_id, {p.get("id") for p in pois}, referenced)
     area_f = area_label_failures(accommodations) if accommodations is not None else []
     brief_f = (name_failures(trip_brief) + headline_failures(trip_brief)
                if trip_brief is not None else [])
-    failures.extend(chain + moves + alts + themes + checklist_f + sources_f + area_f + brief_f)
+    failures.extend(chain + moves + alts + themes + checklist_f + sources_f + area_f + brief_f + res_f)
 
     # TW-069 fix round 1: a `kind: home` leg's verdict is re-derived (below) and
     # its fare is summed (cost-rollup), but neither of those proves it ever
     # reached the reader — this is the mechanical form of that render-side gap.
     home_leg_failures = _home_legs_rendered_failures(itinerary, legs)
     failures.extend(home_leg_failures)
+    arrive_f = _flight_arrive_failures(legs)
+    failures.extend(arrive_f)
     official_f = official_search_failures(advisory=advisory, calendar=calendar, seasonal=seasonal, legs=legs)
     failures.extend(official_f)
 
@@ -442,6 +468,10 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         checks.append({"name": "lodging_area_labelled", "passed": not area_f})
     if trip_brief is not None:
         checks.append({"name": "brief_names_valid", "passed": not brief_f})
+    if arrive_f or any(isinstance(l, dict) and l.get("mode") == "flight" for l in (legs or {}).get("legs") or []):
+        checks.append({"name": "flight_legs_have_arrive", "passed": not arrive_f})
+    if reservations is not None:
+        checks.append({"name": "reservations_match", "passed": not res_f})
 
     report = {"status": "pass" if not failures else "fail", "checks": checks, "failures": failures}
     # v1.1 topic 7: the user's day-title picks never fail; two patterns get a word
@@ -517,6 +547,7 @@ def main(argv):
         routing = opt("routing.yaml")
         cost = opt("cost.yaml")
         seasonal = opt("seasonal.yaml")
+        reservations = opt("reservations.yaml")
     except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError,
             _MalformedOptionalArtifact) as exc:
         print(f"missing/invalid required or optional artifact: {exc!r}",
@@ -535,6 +566,7 @@ def main(argv):
         cost=cost,
         trip_brief=brief,
         seasonal=seasonal,
+        reservations=reservations,
     )
     w.mkdir(parents=True, exist_ok=True)
     report_path(w, "gate-report.yaml").write_text(

@@ -121,7 +121,8 @@ Do not delete `gate-report.yaml` by hand.
     | 7 | `seasonal official source …` | `tripwork:seasonal-advisory` |
     | 8 | a scheduled POI `carries neither hours.close nor hours.no_fixed_close`; `POI source record incomplete:` | `tripwork:source-verify` |
     | 9 | `trip-brief name invalid:` / `trip-brief headline invalid:` | `tripwork:trip-brief` |
-    | 10 | AI-tone hits; the v1.0 reader-data classes synthesis writes (`day chain broken:`, `chain node without poi:`, `move record incomplete:`, `move rederive …`, `legacy …`, `alternative invalid:`, `day theme invalid:`, `checklist item invalid:`, `booking not in checklist:`) | `tripwork:itinerary-synthesis` |
+    | 10 | `reservation …` — a booking in `reservations.yaml` that matches no row, several rows, or a row another booking already holds | `tripwork:record-reservation` |
+    | 11 | AI-tone hits; the v1.0 reader-data classes synthesis writes (`day chain broken:`, `chain node without poi:`, `move record incomplete:`, `move rederive …`, `legacy …`, `alternative invalid:`, `day theme invalid:`, `checklist item invalid:`, `booking not in checklist:`) | `tripwork:itinerary-synthesis` |
     | — | everything else (no-meal / unknown-POI / non-verified / geocode / closed-day / must_do / advisory-surface / no-resolved-lodging / unrendered home leg / missing `closing_status`) | `tripwork:itinerary-synthesis` |
 
     Row 8 is **not** a synthesis defect even though the gate reads it off an itinerary row:
@@ -159,6 +160,14 @@ Do not delete `gate-report.yaml` by hand.
 
 After each stage completes, re-invoke this skill to pick the next stage.
 
+## Bookings the traveller reports
+
+Whenever the traveller shares a booking confirmation or says something is booked, still to
+book, or left to them — before or after export — run `tripwork:record-reservation`, then
+re-enter Stage Selection (the itinerary gate re-runs because `reservations.yaml` is one of
+its inputs, and export follows). It is the only stage that writes `reservations.yaml`;
+never hand-write a booking into the itinerary or its checklist.
+
 ## Stop-on-Confirmation
 
 Halt and ask the user when a stage reports any row below. This table is the complete
@@ -188,6 +197,7 @@ the same flags.
 | `tripwork:itinerary-synthesis` | `lead_time_missed` | a booking lead time is missed (`scripts/booking.py::lead_time_missed`) |
 | `tripwork:itinerary-synthesis` | `missed_last_service` | the re-check of a travel-day move at its now-known departure misses the last service |
 | `tripwork:itinerary-synthesis` | `day_title_pick` | six title candidates a day are written and the user picks them (and may change the headline) in the title picker |
+| `tripwork:record-reservation` | `booked_place_dropped` | a booking in `reservations.yaml` matches no row of the re-planned trip — the traveller decides: put it back, or cancel the booking |
 | `tripwork:export-gate` | `nonretryable_export_fail` | export-gate fails with `retryable: false` — rule 15's `stop-and-ask` |
 
 **Read-back before re-asking.** Before halting on any of the above, consult

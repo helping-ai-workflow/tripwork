@@ -80,8 +80,10 @@ def test_every_skill_with_an_input_row_is_covered():
         if not m or "yaml" not in m.group(1):
             continue
         skill = path.rsplit("/", 2)[-2]
+        # record-reservation writes the traveller's own data (reservations.yaml), not an
+        # artifact derived from upstream ones, so it has no _DEPS edges to keep in step.
         if skill in ("tripwork-orchestrator", "using-tripwork", "tripwork-export-artifact",
-                     "itinerary-gate", "export-gate"):
+                     "itinerary-gate", "export-gate", "record-reservation"):
             continue
         produced = [a for a, s in {
             "advisory.yaml": "travel-advisory", "candidates.yaml": "destination-research",

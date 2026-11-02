@@ -83,6 +83,11 @@ Logic in `scripts/trip_calendar.py` (`poi_closed_on`, `is_high_crowd`, `holiday_
 - **Hard-avoid closures.** Never place a POI on a day `poi_closed_on(poi, date, calendar)` returns closed (weekly fixed day, one-off date, or `public_holiday`). Move it to an open trip day or fall back to its alternative. If a `must_do` POI is closed on **every** feasible trip day → stop and ask the user.
 - **Holiday/weekend crowd handling.** For any day `is_high_crowd(date, calendar)` is true (weekend, or a public holiday flagged `crowds`): label the day with the holiday name, advise an earlier start + off-peak dining, and steer crowd-fragile spots (small shops, queue-heavy restaurants) onto calmer days. Do not silently leave them on the packed day.
 - Push holiday facts + any closure-driven reschedule into the **Pre-trip checklist**.
+- **The traveller's bookings are fixed points.** When `trips/<slug>/data/reservations.yaml`
+  exists, read it before re-planning: a `booked` stop or move stays on its date (and its time,
+  when the entry gives one), like a `must_do`. If the plan cannot keep it, stop and let the gate
+  report it — `tripwork:record-reservation` asks the traveller; never drop or move it silently.
+  Never write that file, and never add 「已訂…」 checklist lines: the reader shows bookings itself.
 
 ## Closing-buffer check (reads each POI's `hours`)
 
@@ -189,8 +194,10 @@ travel-advisory runs **before** synthesis, so its rules shape the itinerary, not
 2. **Pre-trip checklist** — structured items `{kind, task, due?, due_is_hard?, origin?,
    detail?, links?}` with `kind` one of 預約 / 出發前確認 / 打包. `due` is an absolute date
    (`YYYY-MM-DD[ HH:MM]`) when `due_is_hard: true`, otherwise relative text (出發前、行前 1 週).
-   `origin` says where the item came from (`D6・10/17`, `入境規定`). Every stop or alternative POI with
-   `booking.opens_at` gets a 預約 item with `due` = that time and `due_is_hard: true`. An item
+   `origin` says where the item came from (`D6・10/17`, `出入境規定`). Every stop or alternative POI with
+   `booking.opens_at` gets a 預約 item with `due` = that time and `due_is_hard: true`. Give a 預約
+   item the `poi_id` of the place it is for (a seat reminder from a leg: its `leg_index`), so the
+   reader hides it once the traveller has booked that place or leg. An item
    is an action to tick off; do not restate a stop's opening hours or transport — those
    already live on the day. Packing items that repeat an entry rule may stay (reinforcement).
    Quote `due` (and `opens_at`) in YAML — `due: "2026-10-17 08:00"`; an unquoted date parses as

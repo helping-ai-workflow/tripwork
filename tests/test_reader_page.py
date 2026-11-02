@@ -31,7 +31,7 @@ def test_theme_toggle_and_page_radios():
     assert s.select_one('input#theme[type="checkbox"]') and s.select_one('label.bubble[for="theme"]')
     radios = s.select('input[name="pg"]')
     # H1c2: each day also has pg-dNf, the day opened with its small calendar put away
-    assert [r["id"] for r in radios] == ["pg-home", "pg-lodging", "pg-advisory", "pg-checklist",
+    assert [r["id"] for r in radios] == ["pg-home", "pg-lodging", "pg-transport", "pg-meals", "pg-advisory", "pg-checklist",
                                          "pg-d1", "pg-d1f", "pg-d2", "pg-d2f", "pg-d3", "pg-d3f"]
     assert radios[0].has_attr("checked") and not any(r.has_attr("checked") for r in radios[1:])
 
