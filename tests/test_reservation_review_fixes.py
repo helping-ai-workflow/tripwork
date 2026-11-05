@@ -90,7 +90,8 @@ def test_a_line_without_poi_id_is_not_hidden_by_a_shared_due():
 
 # I6 -- the migration note tells a trip with flights what the new gate check needs
 def test_changelog_migration_names_the_flight_arrive_check():
-    top = (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("\n## ")[1]
+    # the 3.1.0 entry by name: once a newer release sits on top, "the newest" is not 3.1.0's
+    top = next(e for e in (ROOT / "CHANGELOG.md").read_text(encoding="utf-8").split("\n## ") if e.startswith("3.1.0 "))
     mig = top[top.index("### Migration"):]
     assert "arrive" in mig and "flight" in mig
 
