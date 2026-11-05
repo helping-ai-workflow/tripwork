@@ -145,6 +145,11 @@ label,summary,a.hd,a.chip,.mnav a,.vsum{{-webkit-touch-callout:none}}.list{{posi
 .leg{{display:flex;align-items:center;gap:8px;margin:0 0 0 22px;padding:3px 0 3px 16px;border-left:2px dashed var(--move);font-size:13px;color:var(--mut)}}
 .leg.zero{{border-left:2px dotted var(--rule)}}.leg .lu{{width:20px;height:20px;color:var(--move)}}.lico{{width:20px;text-align:center}}
 .ltx b{{color:var(--ink)}}.lkm{{font-size:12px;color:var(--mut)}}
+.leg.lr{{align-items:flex-start}}.lrb{{flex:1 1 auto;min-width:0;display:grid;gap:1px}}
+.lrh{{display:flex;align-items:center;gap:6px;min-height:20.8px}}
+.lrk{{flex:none;font:700 11px/15px var(--f-round);padding:0 6px;border-radius:999px;border:1px solid}}
+.lrk-booked{{background:var(--ink);color:var(--card);border-color:var(--ink)}}.lrk-todo{{background:none;color:var(--plan);border-color:currentColor}}
+.lrv{{color:var(--ink);font-size:13px;line-height:1.6;overflow-wrap:anywhere}}.lrv+.lrv{{font-weight:700}}
 .gap,.tight{{margin:0 0 0 22px;padding:2px 0 2px 16px;border-left:2px dashed var(--move);font-size:12px;color:var(--mut)}}.tight{{color:var(--tight);font-weight:700}}
 .k備案{{--a:var(--plan)}}.k選項{{--a:var(--opt)}}
 .altrow{{margin:-2px 0 2px 22px;border:1.5px dashed var(--a);border-radius:12px;background:color-mix(in srgb,var(--a) 7%,var(--card))}}

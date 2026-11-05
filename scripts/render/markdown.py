@@ -4,6 +4,7 @@ All free text passes through md_escape so a price like $180 cannot trigger KaTeX
 math mode in a markdown preview, and a stray | cannot break the table cell.
 Generated link markup ([name](url)) is never escaped — only free text is.
 """
+import re
 from scripts.render.heading import dates_line, trip_title
 from scripts.render.gmaps_links import link_markdown, dir_url
 from scripts import reservation
@@ -129,6 +130,25 @@ def _leg(row, legs):
     return None
 
 
+def _move_tail(res, text):
+    """A move cell's booking, without the brackets render_day_table adds: the status and the
+    first two details (reservation.road_line), less any value the row text already spells
+    out -- synthesis once copied trains and seats into it (R2). '' adds nothing."""
+    line = reservation.road_line(res)
+    if not line:
+        return ""
+    label, values = line
+    return "・".join(([label] if label else []) + [v for v in values if not _spelled_out(v, text)])
+
+
+def _spelled_out(value, text):
+    """value appears in text as a whole: a value that starts or ends in a Latin letter or digit
+    must not sit inside a longer token there (「2A」 is not in 「12A」, 「10」 not in 「2190」)."""
+    lead = r"(?<![0-9A-Za-z])" if re.match(r"[0-9A-Za-z]", value) else ""
+    tail = r"(?![0-9A-Za-z])" if re.search(r"[0-9A-Za-z]$", value) else ""
+    return re.search(lead + re.escape(value) + tail, text) is not None
+
+
 def _amount(n):
     """Format a cost number with thousands separators. Integral values (5000 or
     5000.0) render without a decimal point; anything else keeps its fraction."""
@@ -188,11 +208,17 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reserv
         p = reservation.pair_for(itin, legs, reservations, poi_map, d, r)
         return reservation.summary(p["res"], p["kind"]) if p else ""
 
+    def move_of(d, r, row):
+        p = reservation.pair_for(itin, legs, reservations, poi_map, d, r)
+        return _move_tail(p["res"], row.get("text") or "") if p else ""
+
     for d, day in enumerate(itin.get("days", [])):
-        # a ticket (a visit / activity stop) carries its reservation in its own cell; meals
-        # and moves have their own sections below, so their cells stay as they are
-        tickets = {r: res_of(d, r) for r, row in enumerate(day.get("rows", []))
-                   if isinstance(row, dict) and row.get("slot") in ("visit", "activity")}
+        # a ticket (a visit / activity stop) carries its reservation in its own cell, a move
+        # its status and first two details (the reader's 移動列 rule); meals have their own
+        # section below, so their cells stay as they are
+        tickets = {r: res_of(d, r) if row.get("slot") in ("visit", "activity") else move_of(d, r, row)
+                   for r, row in enumerate(day.get("rows", []))
+                   if isinstance(row, dict) and row.get("slot") in ("visit", "activity", "move")}
         lines.append(render_day_table(day, poi_map, legs, tickets).rstrip())
         lines.append("")
         poi = poi_map.get(day.get("lodging"))
@@ -212,7 +238,8 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reserv
                 lines.append(f"- **{md_escape(md_wd(to_date(e['date'])))}**")
                 last = e["date"]
             det = "；".join(f"{k} {v}" for k, v in e["details"])
-            head = f"{e['time'] + ' ' if e['time'] else ''}{e['title']}" + (f"，{e['sub']}" if e["sub"] else "")
+            title = e["title"].rstrip("。") if e["sub"] else e["title"]       # never 「。，」
+            head = f"{e['time'] + ' ' if e['time'] else ''}{title}" + (f"，{e['sub']}" if e["sub"] else "")
             lines.append(f"  - {md_escape(head)}：**{reservation.LABEL.get(e['status'], '')}**"
                          + (f"（{md_escape(det)}）" if det else ""))
         lines.append("")

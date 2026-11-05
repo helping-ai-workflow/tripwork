@@ -169,14 +169,24 @@ def _leg_fields(row, legs):
     return row.get("mode"), number(row.get("mins")), number(row.get("km"))
 
 
-def leg(row, legs):
-    """The 移動列: mode, minutes and distance, nothing else (v1.1, user: no note, no 估
-    mark, no route button -- every stop already has its own 導航)."""
+def leg(row, legs, ctx=None):
+    """The 移動列: mode, minutes and distance (v1.1, user: no note, no 估 mark, no route
+    button -- every stop already has its own 導航). A booked or to-book move adds its label
+    and the first two details on lines below, a none move its details alone
+    (reservation.road_line, the md day table's rule too: the user's picks M1 + S2)."""
     mode, mins, km = _leg_fields(row, legs)
     if mode == "none":
         return '<div class="leg zero"><span class="lico">·</span><span class="ltx">同一個地方，不用移動</span></div>'
     ic = icon(MODE_ICON[mode], f"lu m-{mode}") if mode in MODE_ICON else '<span class="lico">·</span>'
-    return f'<div class="leg">{ic}<span class="ltx">{move_summary(MODE_LABEL.get(mode, "移動"), mins, km)}</span></div>'
+    ltx = f'<span class="ltx">{move_summary(MODE_LABEL.get(mode, "移動"), mins, km)}</span>'
+    pr = getattr(ctx, "res_by_row", {}).get(id(row))
+    line = reservation.road_line(pr["res"]) if pr else None
+    if not line:
+        return f'<div class="leg">{ic}{ltx}</div>'
+    label, values = line
+    pill = f'<span class="lrk lrk-{esc(pr["res"]["status"])}">{esc(label)}</span>' if label else ""
+    lines = "".join(f'<span class="lrv">{esc(v)}</span>' for v in values)
+    return f'<div class="leg lr">{ic}<div class="lrb"><span class="lrh">{ltx}{pill}</span>{lines}</div></div>'
 
 
 def alternative(alt, poi_map, sid=""):
@@ -246,7 +256,7 @@ def chain(ctx, i, day):
     prev_leave, travel, placed = None, 0, set()
     for j, r in enumerate(rows):
         if _is_move(r):
-            out.append(leg(r, legs))
+            out.append(leg(r, legs, ctx))
             travel += _leg_fields(r, legs)[1] or 0
             continue
         p = ctx.poi_map.get(r.get("poi_id"))

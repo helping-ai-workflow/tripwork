@@ -130,3 +130,31 @@ def test_the_trip_card_text_stays_inside_the_card(browser, bookings_url, vp):
     pg.goto(bookings_url)
     assert not pg.evaluate(SPILL), (browser.engine, vp)
     pg.close()
+
+
+def test_the_move_label_sits_on_its_line(browser, bookings_url):
+    """A booked 移動列 (the user's pick M1): the 已訂 label is no taller than the line it sits
+    in (20.8 px) and centres on 「飛機 190 分」's ink -- WebKit within 1 px, Chromium within 2
+    (the board measured 0.05 / 1.8 px) -- the icon still sits on that ink, and the detail
+    lines stay inside the row."""
+    dpr = 3
+    pg = browser.new_page(viewport=PHONE, device_scale_factor=dpr)
+    pg.goto(bookings_url)
+    _go(pg, "pg-d1")
+    pg.evaluate("document.querySelector('section[data-pg=d1] .leg.lr').scrollIntoView({block:'center'})")
+    pg.wait_for_timeout(300)
+    pill = pg.evaluate(ONE, "section[data-pg=d1] .leg.lr .lrk")
+    b = pg.evaluate(ONE, "section[data-pg=d1] .leg.lr .lrh b")
+    assert 16 <= pill[3] <= 20.8, (browser.engine, pill)
+    ink = _ink_centre(pg, b, dpr)
+    tol = 1.0 if browser.engine == "webkit" else 2.0
+    assert abs(pill[1] + pill[3] / 2 - ink) <= tol, (browser.engine, ink, pill)
+    icon = pg.evaluate(ONE, "section[data-pg=d1] .leg.lr .lu")
+    # Chromium: 3.1.0's one-line row already drew the icon 2.39 px below the text's ink (WebKit
+    # 0.16); the new row must be no worse (measured 1.33 / -0.4). WebKit decides.
+    assert abs(_ink_centre(pg, icon, dpr, thr=170) - ink) <= (1.0 if browser.engine == "webkit" else 2.5), browser.engine
+    row = pg.evaluate(ONE, "section[data-pg=d1] .leg.lr")
+    lines = pg.evaluate("sel => [...document.querySelector(sel).querySelectorAll('.lrv')].map(e => { const r = e.getBoundingClientRect(); return [r.x, r.y, r.width, r.height] })",
+                        "section[data-pg=d1] .leg.lr")
+    assert len(lines) == 2 and all(x + w <= row[0] + row[2] + 0.5 for x, _, w, _ in lines), (browser.engine, lines, row)
+    pg.close()

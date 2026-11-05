@@ -175,6 +175,21 @@ def summary(res, kind, with_status=True):
     return "・".join(p for p in parts if p)
 
 
+def road_line(res):
+    """What a day's move row shows of its booking -- the one rule the reader's 移動列 and the
+    md day table share: (status word or None, the first two detail values), or None for
+    nothing. booked / todo carry their word; none shows its details without one (不用訂 is no
+    use on the road); self and a bare none show nothing. Never the ref, masked or not: the
+    first two details are what the traveller wrote for the platform (record-reservation)."""
+    status = res.get("status")
+    values = [str(d.get("value")) for d in res.get("details") or [] if isinstance(d, dict)][:2]
+    if status in ("booked", "todo"):
+        return LABEL[status], values
+    if status == "none" and values:
+        return None, values
+    return None
+
+
 def texts(reservations):
     """Every traveller-written string a renderer shows, for the gate's text checks. Never the ref."""
     out = []

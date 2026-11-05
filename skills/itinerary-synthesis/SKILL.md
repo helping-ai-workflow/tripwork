@@ -127,6 +127,9 @@ Day-granularity closure (above) is not enough — a place open on the chosen day
   two endpoints in the row's structured `from` / `to` fields so export renders an A→B
   directions link; keep `service` / `reserved` / `transfers` / `duration_mins` in the row
   `text`, not the endpoints.
+- A move with a booked or to-book reservation (`reservations.yaml`): its row `text` does not
+  copy the booking's details (seats, car, the booked train's times) -- the day's move row
+  shows them from the reservation, and a copy goes stale when the booking changes.
 - Push `reserved`-seat reminders, `pass_advice`, and `last_service` notes into the
   **Pre-trip checklist**.
 - `drive_too_long` is depart-independent and already resolved in `inter-stop-legs`; do not

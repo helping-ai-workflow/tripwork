@@ -39,6 +39,8 @@ still carries the airline's official source; the seat and booking number here do
    it. Never repeat a full number back in chat either — quote the masked form.
 5. `details`: `{label, value}` pairs the family will want on the road — 座位, 人數, 套餐, 取票,
    取消期限, 入住. A Japanese term in a value carries its （中文）gloss, like any other text.
+   The first two details show on the day's move row (and in the md day table), so put what
+   the family needs on the platform first -- 車次 / 航班, then 座位.
    Quote dates and times in YAML (`date: "YYYY-MM-DD"`).
 6. When a 預約 checklist item points at the place or leg just booked, give it the `poi_id` /
    `leg_index` it lacks, so the item hides once booked. Do not add 「已訂…」 checklist lines: the

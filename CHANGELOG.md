@@ -1,5 +1,36 @@
 # Changelog
 
+## 3.1.1 — a booked move shows its train and seats on the day
+
+### Fixed
+
+- **The 移動列 shows its booking.** 3.1.0 brought bookings to the stop cards, the 住宿 / 交通 /
+  餐廳 screens and the checklist, but not to the day's moves: a booked train read only 「電車 45
+  分（20 km）」, and the family had to go back to 交通 to find the train and the seats. Now a
+  booked or to-book move adds a small 已訂 / 還要訂 label to its line and the first two details
+  of the booking on the lines below (the second, usually the seats, in bold); a move marked 不用訂
+  shows its details without a label; any other move stays the one line it was
+  (`scripts/reservation.py::road_line`, the one rule both outputs call). The booking number never
+  shows there. The label is 17 px tall inside the line's 20.8 px and centres on its ink (WebKit).
+- **The md day table** carries the same: a move cell ends with 「（已訂・…・…）」, or the details
+  alone for 不用訂. A value the row's text already spells out is not repeated.
+- **The md 交通 list** no longer reads 「。，」 when a move's text ends in 「。」.
+
+### Changed
+
+- `record-reservation`: the first two details are the ones shown on the day, so they go first
+  (車次 / 航班, then 座位).
+- `itinerary-synthesis`: a move with a booked or to-book reservation does not copy the booking's
+  details into its row text; the move row shows them, and a copy goes stale when the booking
+  changes.
+
+### Migration
+
+- None: update the plugin and re-export. A trip whose move texts already carry the train or the
+  seats keeps them; the md table skips any detail its text spells out word for word.
+
+Tests: 2338 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2340 passed and the privacy check passes. Browser suite: 611 passed (Chromium and WebKit).
+
 ## 3.1.0 — bookings in the reader: 交通 and 餐廳 screens, booking status, masked numbers
 
 ### Added
