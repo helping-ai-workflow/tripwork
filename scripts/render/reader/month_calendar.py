@@ -97,24 +97,26 @@ def _head():
                    for k, w in enumerate(WEEKDAYS))
 
 
-def _off(date, k, plain=False):
-    return f'<span class="off{" sun" if k == 0 else " sat" if k == 6 else ""}">{_day_label(date, plain)}</span>'
+def _off(date, k, plain=False, ow=""):
+    return f'<span class="off{" sun" if k == 0 else " sat" if k == 6 else ""}{ow}">{_day_label(date, plain)}</span>'
 
 
 def _cells(week, trip, cur, month=None, rings=None, tapes=None):
     """A week of cells. With `month` the grid is that month alone: other months' days are
-    blank and its own 1st reads '1'."""
+    blank and its own 1st reads '1'. A week with no trip day marks its cells `ow`: the
+    phone's home draws only the trip weeks (the user's pick H1), the desktop all of them."""
     plain = month is not None
+    ow = "" if any(x in trip for x in week) else " ow"
     out = []
     for k, x in enumerate(week):
         if month is not None and x.month != month:
-            out.append("<span></span>")          # the other month draws its own days
+            out.append(f'<span class="{ow.strip()}"></span>' if ow else "<span></span>")   # the other month draws its own days
         elif x in trip:
             i, area, cls = trip[x]
             out.append(stamp(i, x, area, cls, cur == i, plain, (rings[i - 1] if rings and i <= len(rings) else ""),
                              tapes[i - 1] if tapes and i <= len(tapes) else None))
         else:
-            out.append(_off(x, k, plain))
+            out.append(_off(x, k, plain, ow))
     return "".join(out)
 
 

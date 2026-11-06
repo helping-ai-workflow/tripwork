@@ -59,7 +59,7 @@ def meals_screen(ctx):
 
 
 # the approved look (design board): the reader's own tokens only. Shared rules here; the
-# phone's 3 + 2 tile grid sits in the phone media block (the desktop keeps one per row).
+# phone's 2 + 3 tile rows sit in the phone media block (the desktop keeps one per row).
 CSS = """
 .bkd{font:700 15px var(--f-round);margin:14px 2px 6px}.bkd:first-child,.ft+.bkd{margin-top:4px}
 .bkrow summary,div.ci.bkrow{gap:2px}div.ci.bkrow{padding:10px 34px 10px 12px}
@@ -81,13 +81,20 @@ CSS = """
 .sgt{display:inline-block;margin-right:6px;font:700 11px var(--f-round);line-height:16px;padding:0 6px;border-radius:999px;color:var(--opt);border:1.5px solid var(--opt);vertical-align:1px}
 .lbk{display:flex;align-items:center;gap:6px;margin-top:4px;font-size:12.5px;color:var(--mut)}
 .lbk .bk{font-size:11px;line-height:16px;padding:0 6px}
-@media (max-width:1023px){.tiles{grid-template-columns:repeat(6,1fr)}.tiles .tile{grid-column:span 2}
-/* the user's pick C: the phone home stays one screen. 住宿 / 交通 / 餐廳 (used on the road) keep the
-   tall tile; 出入境規定 / 行前清單 take the desktop's bar (45 px), and when the screen is still short
-   the 旅程與費用 card gives up height first and scrolls inside itself -- its text never draws
-   outside the card (the user's call; a floor for the stay list is left to a later version) */
-.tiles .tile:nth-child(n+4){grid-column:span 3;flex-direction:row;justify-content:center;gap:8px;padding:12px}
-.tiles .tile:nth-child(n+4) small{margin-left:4px}
+.tile .tns{display:none}
+@media (max-width:1023px){
+/* the user's picks T1 + W1 (design board): two rows of 40 px bars -- 交通 / 餐廳 (used on the road,
+   their 待訂 needs the room) share the first row, 住宿 / 出入境 / 待辦 the second, each as wide as
+   its words. Each bar's foot takes 2 px: a CJK line's ink sits 1.3 px below its box's middle
+   (WebKit, measured on the board), so icon, name and count now centre on the bar. */
+.tiles{display:flex;flex-wrap:wrap;gap:8px}
+.tiles .tile{flex:1 1 auto;flex-direction:row;justify-content:center;align-items:center;gap:4px;height:40px;
+  padding:0 6px 2px;white-space:nowrap;font-size:14px}
+.tiles .tile .lu{width:18px;height:18px}
+.tiles :is(.tile[for=pg-transport],.tile[for=pg-meals]){order:-1;flex:1 1 calc(50% - 4px);gap:6px;padding:0 8px 2px;font-size:15px}
+.tiles .tnl{display:none}.tiles .tns{display:inline}
 .page.home .hwrap{height:100%;min-height:0}.page.home .ttl,.page.home .hcal,.page.home .tiles{flex:none}
-.page.home .trip{flex:0 1 auto;min-height:0;overflow-y:auto}}
+/* the 旅程與費用 card gives up height first, its stay list scrolling inside it, but the list keeps
+   two rows (the floor the user parked in v3.1.0); below that the home scrolls instead */
+.page.home .trip{flex:0 1 auto}}
 """

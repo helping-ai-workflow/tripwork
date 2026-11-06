@@ -1,5 +1,5 @@
 """交通 / 餐廳 on the shipped reader, both engines (WebKit is the iPhone): the five home tiles
-keep the old tile's size, the status pill sits on its name's line (ink, not boxes), the
+keep their bar heights, the status pill sits on its name's line (ink, not boxes), the
 desktop overlay keeps the home behind it, and the four pills stay apart in the dark theme."""
 import io
 
@@ -16,20 +16,15 @@ def _go(pg, pid):
     pg.wait_for_timeout(300)
 
 
-# 86 / 45: the tile heights before this change, measured on the shipped reader (the phone's
-# tall tile, the desktop's bar) -- literals because the sizes to keep are the old ones. The
-# phone's second row takes the desktop's bar (the user's pick C): the home must fit one screen.
-@pytest.mark.parametrize("vp,heights", [(PHONE, [86, 86, 86, 45, 45]), (DESKTOP, [45] * 5)], ids=["phone", "desktop"])
-def test_five_tiles_keep_the_old_tile_heights(browser, bookings_url, vp, heights):
+# 45: the desktop's bar, kept; the phone's tiles are two rows of 40 px bars since the user's
+# picks T1 + W1 (their geometry: tests_browser/test_reader_home_squeeze.py)
+@pytest.mark.parametrize("vp,heights", [(PHONE, [40] * 5), (DESKTOP, [45] * 5)], ids=["phone", "desktop"])
+def test_five_tiles_keep_their_heights(browser, bookings_url, vp, heights):
     pg = browser.new_page(viewport=vp)
     pg.goto(bookings_url)
     tiles = pg.evaluate(RECT, ".page.home label.tile")
     assert len(tiles) == 5
     assert [round(t[3]) for t in tiles] == heights, tiles
-    if vp is PHONE:                     # 3 + 2: the second row spans the first row's outer edges
-        a, b, c, d, e = tiles
-        assert d[0] == pytest.approx(a[0], abs=.5) and e[0] + e[2] == pytest.approx(c[0] + c[2], abs=.5)
-        assert d[2] == pytest.approx(e[2], abs=.5) and a[1] == b[1] == c[1] < d[1] == e[1]
     pg.close()
 
 
@@ -121,7 +116,8 @@ SPILL = """(()=>{const c=document.querySelector('.page.home .trip'),r=c.getBound
 
 
 # the user's call: the 旅程與費用 card may get shorter on a short screen, but its text never
-# draws outside it -- the card scrolls inside itself (the stay list's own floor is next version's)
+# draws outside it -- its stay list scrolls inside it down to a floor of two rows (H1), below
+# which the home scrolls (tests_browser/test_reader_home_squeeze.py)
 @pytest.mark.parametrize("vp", [{"width": 390, "height": 844}, {"width": 390, "height": 750},
                                 {"width": 390, "height": 667}, {"width": 844, "height": 390}],
                          ids=["844", "750", "667", "landscape"])

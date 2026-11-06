@@ -225,7 +225,7 @@ details[open]>summary>.cv{{transform:rotate(-135deg);margin-top:-2px}}
 
 # The phone (spec v1.1 §3–§7): the page never scrolls. A day stacks the dashboard's three
 # blocks -- fixed header (.pcal), fixed map row (.pmap), and the list card (.plist), the
-# only scroller; the home is one screen; the toggle sits top-right; the map card drops
+# only scroller; the home is one screen (it scrolls only when the stay list would drop below two rows); the toggle sits top-right; the map card drops
 # prev/next and the legend and fills its width with a 4:3 frame. Ported from the decided
 # mockup (docs/superpowers/mockups/v11/gen_skeleton.py).
 PHONE_CSS = """
@@ -315,7 +315,20 @@ body:has(.pgf:checked) .page.day .unf::after{content:"";position:absolute;right:
 .page.home .month{background:var(--card);border-radius:14px;box-shadow:0 0 0 1px var(--rule);padding:10px 12px 12px}
 /* v1.1 topic 6 (pick P1): the day page mini stamp's proportion -- 14 px date in 34 px */
 .page.home .months .stamp{width:34px;height:34px}
-.page.home .hwrap{display:flex;flex-direction:column}.page.home .hside{display:contents}.page.home .ttl{order:1}.page.home .hcal{order:2}.page.home .tiles{order:3}.page.home .trip{order:4;background:var(--card);border-radius:14px;box-shadow:0 0 0 1px var(--rule);padding:14px 16px}.page.home .trip ol{max-height:168px;overflow:auto}.page.home .trip li{grid-template-columns:auto minmax(0,1fr) auto;align-items:baseline;padding-bottom:12px}.page.home .trip li b{font-size:15px}.page.home .trip li span{grid-column:2;grid-row:1;font-size:13px}.page.home .trip li em{grid-column:3;font-size:13px}.page.home .trip li::before{top:3px}.page.home .trip li:not(:last-child)::after{top:18px}
+/* the user's pick H1: the home's month card draws only the weeks that hold trip days, as the day
+   pages' mini calendar does; every week row keeps 46 px (a week of seven stamps drew 34, rings touching) */
+.page.home .months .g{grid-template-rows:24px;grid-auto-rows:46px}.page.home .months .g>.ow{display:none}
+/* the stay list's floor (H1): three stays or more, the list keeps 86 px -- two rows and the fade of a
+   third, as the board showed at 667 -- and the card keeps that list plus its own parts, whose heights
+   follow from their type (the same in WebKit and Chromium: padding 2 x 14, title 20 + 10, a total
+   row 8 + its line, the note 6 + its line, the rule above the first total 4 + 1). A flex card cannot
+   say "my content, but never below this" by itself: its smallest size is its whole list. Below the
+   floor the home scrolls (it has overflow-y: auto) */
+.page.home .trip:has(ol>li:nth-child(3)){min-height:calc(2 * 14px + 20px + 10px + 86px + var(--fl, 0px))}
+.page.home .trip:has(ol>li:nth-child(3)) ol{min-height:86px}
+.page.home .trip:has(.tt.sum){--fl:calc(4px + 1px + 8px + 17px * 1.6 + 6px + 12px * 1.6)}
+.page.home .trip:has(.tt:not(.sum)){--fl:calc(4px + 1px + 8px + 14px * 1.6 + 8px + 17px * 1.6 + 6px + 12px * 1.6)}
+.page.home .hwrap{display:flex;flex-direction:column}.page.home .hside{display:contents}.page.home .ttl{order:1}.page.home .hcal{order:2}.page.home .tiles{order:3}.page.home .trip{order:4;background:var(--card);border-radius:14px;box-shadow:0 0 0 1px var(--rule);padding:14px 16px}.page.home .trip{display:flex;flex-direction:column}.page.home .trip h3{line-height:20px}.page.home .trip ol{flex:0 1 auto;min-height:0;overflow:auto}.page.home .trip li{grid-template-columns:auto minmax(0,1fr) auto;align-items:baseline;padding-bottom:12px}.page.home .trip li b{font-size:15px}.page.home .trip li span{grid-column:2;grid-row:1;font-size:13px}.page.home .trip li em{grid-column:3;font-size:13px}.page.home .trip li::before{top:3px}.page.home .trip li:not(:last-child)::after{top:18px}
 .page.sub .ovbox{height:100%;display:flex;flex-direction:column}
 /* v2.2 (the user's pick C1): a sub page's top row is a day page's -- 「‹ 總覽」 at the top left, the
    title centred on the screen (1fr auto 1fr, the theme bubble floats over the right column) */

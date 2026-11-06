@@ -327,7 +327,11 @@ def test_a_tapped_control_neither_selects_nor_flashes(open_page, sel):
         style = close.evaluate("e=>{const s=getComputedStyle(e);return [s.webkitTapHighlightColor||'', s.webkitUserSelect||s.userSelect]}")
         assert style[0] in ("rgba(0, 0, 0, 0)", "transparent") and style[1] == "none", ("hd-close", style)
         return
-    if "tiles" not in sel:          # a tile's first tap opens its screen; the second lands there
+    # a tile's or a home stamp's first tap opens its screen and the second lands there: since the
+    # home draws only the trip weeks (H1) the first stamp sits in the top row, and the second tap
+    # met the day title's grey 「‹」 (no day before day 1; text, not a control). Their style above
+    # is what keeps them from selecting.
+    if "tiles" not in sel and ".home .month" not in sel:
         el.dblclick(force=True)
         assert pg.evaluate("String(getSelection())").strip() == "", sel
 
