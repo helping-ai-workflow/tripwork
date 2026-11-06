@@ -1,5 +1,32 @@
 # Changelog
 
+## 3.1.2 — the phone home gives 旅程與費用 its room back
+
+### Fixed
+
+- **旅程與費用 no longer gets squeezed off the phone home.** Since 交通 and 餐廳 joined the tiles, a
+  trip with several stays showed only part of its stay list and no total on an iPhone 14, two rows
+  on a 750 px screen and only the card's title on an iPhone SE. Three changes, each picked on the
+  design board:
+  - **The month card draws only the weeks that hold trip days**, as the day pages' small calendar
+    already does (`month_calendar._cells` marks the other weeks; the phone hides them, the desktop
+    keeps its whole month). On the board's 8-day trip the card went from 348 to 164 px.
+  - **The five tiles are two rows of 40 px bars**: 交通 and 餐廳 first, half the width each, so a long
+    「24 餐・12 待訂」 fits; then 住宿, 出入境 and 待辦, each as wide as its words. The phone's tiles
+    say 出入境 / 待辦 so two-digit counts still fit at 375 px; their screens and the desktop keep
+    出入境規定 / 行前清單. Icon, name and count centre on the bar within 0.7 px (WebKit).
+  - **The stay list keeps a floor**: with three stays or more it scrolls inside the card down to
+    86 px (two rows and the fade of a third), and the total stays on screen; below that the home
+    scrolls instead of squeezing it further.
+- **A week of seven trip days no longer collapses** on the phone's month card: its row fell to the
+  stamp's 34 px and the rings touched. Every week row keeps 46 px.
+
+### Migration
+
+- None: update the plugin and re-export.
+
+Tests: 2338 passed, 2 skipped in CI (the two consumer-workspace checks skip there); with the consumer workspace, 2340 passed and the privacy check passes. Browser suite: 653 tests (Chromium and WebKit), 42 of them new (`tests_browser/test_reader_home_squeeze.py`); `test_the_pill_sits_on_its_names_ink[webkit]` fails about one run in six on 3.1.1 too (its day-page half can measure mid-scroll) and passes on rerun.
+
 ## 3.1.1 — a booked move shows its train and seats on the day
 
 ### Fixed

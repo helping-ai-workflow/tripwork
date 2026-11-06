@@ -108,7 +108,12 @@ def home(ctx):
     rings = [d.get("theme") or d.get("label") or "" for d in ctx.days]
     # v2.2: each day's tape for the day it is today (tapes.py)
     day_tapes = tapes.day_tapes(title, ctx.dates[0], [c for _, c in ctx.areas]) if ctx.dates else None
-    tiles_html = "".join(f'<label class="tile" for="{pg}">{icon(ic)}<b>{t}</b><small>{n}</small></label>'
+    # W1 (the user's pick): two-digit counts pushed the phone's third bar to a row of its own, so
+    # the phone says 出入境 / 待辦; the desktop and the screens' own titles keep the full names
+    short = {"pg-advisory": "出入境", "pg-checklist": "待辦"}
+    tiles_html = "".join(f'<label class="tile" for="{pg}">{icon(ic)}<b>'
+                         + (f'<span class="tnl">{t}</span><span class="tns">{short[pg]}</span>' if pg in short else t)
+                         + f'</b><small>{n}</small></label>'
                          for pg, ic, t, n in tiles)
     return (f'<section class="page home" data-pg="home"><div class="hwrap"><div class="hside">'
             f'<div class="ttl"><h1 class="headline">{esc(title)}</h1>'
