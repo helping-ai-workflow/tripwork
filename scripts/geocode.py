@@ -73,6 +73,23 @@ def in_region(lat, lng, region_lat, region_lng, radius_km=5.0):
     """True if (lat,lng) is within radius_km of a region centroid."""
     return haversine_km(lat, lng, region_lat, region_lng) <= radius_km
 
+
+# #29 A': a place the result's own address names as the claimed district is in it even
+# beyond the radius (a zoo on the edge of a large city), up to this far from the
+# district's centre -- a guard for units that are huge or span islands (重慶市 ~470 km,
+# 竹富町 mostly sea), where "in the district" alone says nothing.
+REGION_CAP_KM = 30.0
+
+
+def in_claimed(lat, lng, display_name, region):
+    """The region test every lookup shares: `region` = (lat, lng, radius_km[, named]).
+    Inside the radius, or -- when `named(display_name)` says the result's address parts
+    name the claimed district -- within REGION_CAP_KM of its centre (#29)."""
+    clat, clng, radius = region[:3]
+    named = region[3] if len(region) > 3 else None
+    d = haversine_km(lat, lng, clat, clng)
+    return d <= radius or (named is not None and d <= REGION_CAP_KM and bool(named(display_name)))
+
 def name_matches(query_name, display_name):
     """True if a resolved place plausibly corresponds to the queried venue. (P2)
 
@@ -125,7 +142,7 @@ def accept(result, tier, name_local, name_roman=None, region=None):
             or (name_roman and name_matches(name_roman, result.display_name))):
         return False
     if tier in BARE_NAME_TIERS:
-        return region is not None and in_region(result.lat, result.lng, *region)
+        return region is not None and in_claimed(result.lat, result.lng, result.display_name, region)
     return True
 
 def geocode_country(country, timeout=10):
@@ -275,7 +292,7 @@ def _best(results, tier, name, name_roman, region):
     first accepted (a precise hit elsewhere may have moved; Gate 3b asks). None if none."""
     ok = [r for r in results if accept(r, tier, name, name_roman, region)]
     if region is not None:
-        inside = next((r for r in ok if in_region(r.lat, r.lng, *region)), None)
+        inside = next((r for r in ok if in_claimed(r.lat, r.lng, r.display_name, region)), None)
         if inside is not None:
             return inside
     return ok[0] if ok else None

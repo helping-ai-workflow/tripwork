@@ -6,7 +6,7 @@ Generated link markup ([name](url)) is never escaped — only free text is.
 """
 import re
 from scripts.render.heading import dates_line, trip_title
-from scripts.render.gmaps_links import link_markdown, dir_url
+from scripts.render.gmaps_links import link_markdown, dir_url, search_url
 from scripts import reservation
 from scripts.render.centroid import merged_line
 from scripts.render.reader.text import md_wd, to_date
@@ -73,6 +73,13 @@ def _poi_cell(poi, text):
         parts.append(escaped)
     return " ".join(parts)
 
+def same_place(frm, to, mode=None):
+    """A move row that goes nowhere (#27): its two ends are the same place, or it is a
+    stay written as `mode: none` (a ticket window inside a station). Its directions link
+    would be a zero-length route."""
+    return mode == "none" or str(frm).strip() == str(to).strip()
+
+
 def _move_cell(frm, to, text, poi=None, mode=None):
     """Move row with endpoints: a directions link LEADS the cell (mirrors _poi_cell's
     link-first ordering). When the row ALSO resolves a poi, the poi maps link + official
@@ -80,7 +87,12 @@ def _move_cell(frm, to, text, poi=None, mode=None):
     official link for the export gate's bookable check (no silent evasion). Then the text.
     Labels are escaped free text; generated link targets (dir_url / maps_url) are not. (G2)"""
     mark = MODE_MARK.get(mode)
-    parts = [f"[{mark + ' ' if mark else ''}{md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
+    lead = f"{mark} " if mark else ""
+    if same_place(frm, to, mode):    # #27: no A->A route; a search link for the place
+        label = md_escape(frm) if str(frm).strip() == str(to).strip() else f"{md_escape(frm)}→{md_escape(to)}"
+        parts = [f"[{lead}{label}]({search_url(to)})"]
+    else:
+        parts = [f"[{lead}{md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
     if poi:
         parts.append(link_markdown(poi))
         link = _source_link(poi)

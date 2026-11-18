@@ -1,4 +1,5 @@
 """POI -> Google Maps search link. Pure string transform, no network."""
+import re
 from urllib.parse import quote
 
 BASE = "https://www.google.com/maps/search/?api=1&query="
@@ -56,10 +57,36 @@ def dir_url(origin, destination):
             + "&origin=" + quote(str(origin), safe="")
             + "&destination=" + quote(str(destination), safe=""))
 
+# a name that already ends in a gloss: 'ハセガワストア（やきとり弁当）', full- or half-width
+_TRAILING_GLOSS = re.compile(r"^(.*\S)\s*[（(]([^（）()]*)[）)]$")
+
+
+def poi_label(poi, fallback=""):
+    """name_display（name_zh）-- one pair of brackets at most (#28). A name_display that
+    already ends in a bracketed note gets name_zh merged into it with '・' --
+    '札幌ステラプレイス（札幌站直結購物中心・Stellar Place 購物中心）' -- rather than a
+    second bracket, and rather than dropping name_zh: the note may itself be kana, so
+    the gloss is still needed. A name_zh already inside the note is not repeated."""
+    base = poi.get("name_display") or poi.get("name_local") or fallback
+    zh = (poi.get("name_zh") or "").strip()
+    if not zh or zh == base:
+        return base
+    m = _TRAILING_GLOSS.match(base)
+    if not m:
+        return f"{base}（{zh}）"
+    name, note = m.group(1), m.group(2).strip()
+    if zh in note.split("・") or zh == note:
+        return f"{name}（{note}）"
+    return f"{name}（{note}・{zh}）" if note else f"{name}（{zh}）"
+
+
 def link_markdown(poi):
     """Markdown link: [display name（中文）](maps url). Label escaped so a scraped
     name containing `]`/`|`/`$` cannot break the markdown. (TW-022, dogfood D3)"""
-    base = poi.get("name_display") or poi.get("name_local") or poi.get("id", "")
-    zh = poi.get("name_zh")
-    label = f"{base}（{zh}）" if zh and zh != base else base
-    return f"[{_esc_label(label)}]({maps_url(poi)})"
+    return f"[{_esc_label(poi_label(poi, poi.get('id', '')))}]({maps_url(poi)})"
+
+
+def search_url(place):
+    """A plain search link for one place name -- what a move row whose two ends are the
+    same place gets instead of an A->A route (#27)."""
+    return BASE + quote(str(place), safe="")

@@ -8,6 +8,7 @@ it cannot be forgotten: source-verify's instruction to "tell the user" was never
 followed in the consumer corpus (verified cluster_fallback POIs and chosen lodgings,
 zero disclosures in the deliverables).
 """
+from scripts.render.gmaps_links import poi_label
 
 CENTROID_SOURCE = "cluster_fallback"
 # v1.3.0: a point from the venue's sourced address (its 丁目 or town) is approximate too
@@ -16,10 +17,8 @@ APPROX_SOURCES = (CENTROID_SOURCE, "nominatim_address", "nominatim_road", "villa
 
 def _label(poi):
     """name_display（name_zh）— the same label the day rows use, so a kana name keeps
-    its gloss. Never the poi id: that would leak an internal token."""
-    base = poi.get("name_display") or poi.get("name_local") or ""
-    zh = poi.get("name_zh")
-    return f"{base}（{zh}）" if zh and zh != base else base
+    its gloss (one bracket at most, #28). Never the poi id: that would leak an internal token."""
+    return poi_label(poi)
 
 
 def centroid_items(itin, poi_map):

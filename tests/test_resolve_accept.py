@@ -144,7 +144,9 @@ def test_verify_passes_the_district_centre_as_region(monkeypatch):
         return None, None
     monkeypatch.setattr(svr, "resolve_place", fake)
     svr._geocode_candidate({"name_local": "示意食堂", "claimed_district": "示意區"}, "TW", {}, False, {}, 5.0)
-    assert seen["region"] == (*HERE, 5.0)
+    assert seen["region"][:3] == (*HERE, 5.0)
+    # #29 A': the fourth item names the claimed district in a result's address parts
+    assert seen["region"][3]("示意食堂, 示意區, 示意市") and not seen["region"][3]("示意食堂, 別區")
 
 
 def test_a_branch_inside_the_district_beats_one_elsewhere(fake):

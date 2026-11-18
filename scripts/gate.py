@@ -475,23 +475,58 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
 
     report = {"status": "pass" if not failures else "fail", "checks": checks, "failures": failures}
     # v1.1 topic 7: the user's day-title picks never fail; two patterns get a word
-    notices = address_notices(itinerary, by_id) + pick_notices(itinerary)
+    notices = (address_notices(itinerary, by_id) + gloss_notices(itinerary, by_id)
+               + same_place_notices(itinerary) + pick_notices(itinerary))
     if notices:
         report["notices"] = notices
     return report
 
 
+def summary_notice(what, items, hint=""):
+    """One line for a whole kind of notice, never one line per item (#36/#37: a notice per
+    stop drowned the rest -- one trip printed more than a dozen). [] when nothing to say."""
+    items = list(dict.fromkeys(i for i in items if i))
+    if not items:
+        return []
+    line = f"{len(items)} {what}: {', '.join(items)}"
+    return [f"{line} -- {hint}" if hint else line]
+
+
 def address_notices(itinerary, by_id):
     """v1.1 TW-096: a scheduled stop or chosen lodging with no address_local -- its 給司機看
     sheet is not shown. A notice, never a failure (the user: 不合適不硬放 -- an area like
-    a hot-spring street, or a market whose official address is an office, has none)."""
-    out = []
-    for pid in sorted(_referenced_ids((itinerary or {}).get("days") or [])):
-        p = by_id.get(pid)
-        if p is not None and not p.get("address_local"):
-            out.append(f"no address for {pid} — 給司機看 not shown "
-                       f"(record address_local from an official source if it has one)")
-    return out
+    a hot-spring street, or a market whose official address is an office, has none).
+    One summary line (#36)."""
+    missing = [pid for pid in sorted(_referenced_ids((itinerary or {}).get("days") or []))
+               if by_id.get(pid) is not None and not by_id[pid].get("address_local")]
+    return summary_notice("stops have no address -- 給司機看 not shown", missing,
+                          "record address_local from an official source if it has one")
+
+
+def gloss_notices(itinerary, by_id):
+    """#28: a scheduled place whose name_display already carries a bracketed note and
+    which also has name_zh. The renderers merge the two into one bracket; the note
+    belongs in name_zh (or the intro), name_display holds the name alone."""
+    from scripts.render.gmaps_links import _TRAILING_GLOSS
+    noted = [pid for pid in sorted(_referenced_ids((itinerary or {}).get("days") or []))
+             if (by_id.get(pid) or {}).get("name_zh")
+             and _TRAILING_GLOSS.match(by_id[pid].get("name_display") or "")]
+    return summary_notice("names carry a bracketed note in name_display", noted,
+                          "move the note to name_zh; name_display holds the name alone")
+
+
+def same_place_notices(itinerary):
+    """#27: a move row that goes nowhere (same from/to, or mode: none) -- a stay at a
+    station is a transfer point, not a move."""
+    from scripts.render.markdown import same_place
+    where = []
+    for d in (itinerary or {}).get("days") or []:
+        for row in d.get("rows") or []:
+            if row.get("slot") == "move" and (row.get("mode") == "none" or (
+                    row.get("from") and row.get("to") and same_place(row["from"], row["to"]))):
+                where.append(f"{d.get('date')} {row.get('time') or ''}".strip())
+    return summary_notice("move rows go nowhere (same from/to or mode: none)", where,
+                          "write the stay as a transfer point")
 
 
 def _load_yaml_file(path):
