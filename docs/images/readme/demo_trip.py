@@ -102,11 +102,11 @@ def itinerary():
                   _mv("rail", 20, 45, basis="sourced", text="京急線直通淺草線",
                       source_url="https://rail.example/keikyu", **{"from": "羽田空港", "to": "淺草"}),
                   {"slot": "lodging", "time": "13:30", "poi_id": "demo-hotel", "text": "放行李"},
-                  _mv("walk", 0.5, 8),
+                  _mv("walk", 0.5, 8, text=""),
                   _stop("visit", "14:00", "senso-ji", "雷門 → 本堂，抽一支籤"),
-                  _mv("walk", 0.4, 6),
+                  _mv("walk", 0.4, 6, text=""),
                   _stop("meal", "15:30", "nakamise", "人形燒、炸饅頭當下午茶"),
-                  _mv("walk", 0.3, 5),
+                  _mv("walk", 0.3, 5, text=""),
                   _stop("meal", "18:30", "izakaya", "居酒屋晚餐"),
                   _mv("walk", 0.3, 5, text="走回飯店")]},
         {"date": "2026-05-13", "lodging": "demo-hotel", "theme": "上野一整天，晚上看塔",
@@ -117,19 +117,27 @@ def itinerary():
                            "fallback": "改上淺草文化觀光中心 8 樓免費展望台", "poi_id": "asakusa-tic"}],
          "rows": [_mv("rail", 2.5, 12, basis="sourced", text="銀座線 淺草 → 上野", source_url="https://rail.example/ginza"),
                   _stop("visit", "09:30", "ueno-park", "不忍池邊散步"),
-                  _mv("walk", 0.6, 10),
+                  _mv("walk", 0.6, 10, text=""),
                   _stop("visit", "10:45", "tnm", "本館看日本美術"),
-                  _mv("walk", 1.0, 15),
+                  _mv("walk", 1.0, 15, text=""),
                   _stop("meal", "13:00", "ameyoko", "海鮮丼午餐"),
-                  _mv("rail", 6, 25, basis="sourced", text="銀座線＋淺草線到押上", source_url="https://rail.example/oshiage"),
+                  # a change of line with its transfer point (#37) and platform facts (#32 / #22)
+                  dict(_mv("rail", 3, 12, basis="sourced", text="銀座線往淺草方向，坐到終點",
+                           source_url="https://rail.example/ginza"), time="15:40",
+                       board_at="上野広小路駅 2番線", board_at_en="Ueno-hirokoji", route="銀座線",
+                       route_en="Ginza Line", alight_at="浅草駅", alight_at_en="Asakusa", pay="刷 IC 卡"),
+                  {"slot": "transfer", "place": "浅草駅（淺草站）", "platform": "淺草線 1番線",
+                   "text": "出銀座線剪票口，跟藍色「淺草線」指標走約 5 分"},
+                  dict(_mv("rail", 1.5, 3, basis="sourced", text="都營淺草線 淺草 → 押上",
+                           source_url="https://rail.example/asakusa"), time="16:20"),
                   _stop("visit", "17:00", "skytree", "看夕陽轉夜景"),
-                  _mv("walk", 0.4, 6),
+                  _mv("walk", 0.4, 6, text=""),
                   _stop("meal", "19:00", "kappo", "會席晚餐"),
                   _mv("taxi", 2.5, 10, text="計程車回飯店")]},
         {"date": "2026-05-14", "theme": "最後再逛一圈淺草", "theme_refs": ["nakamise"],
          "theme_candidates": six(["最後再逛一圈淺草", "早上的門，最後的燒", "人形燒還買得下嗎？",
                                   "行李都收好了才想再吃", "早餐、伴手禮、機場", "淺草，在後照鏡裡揮手"], "nakamise"),
-         "rows": [_mv("walk", 0.3, 5),
+         "rows": [_mv("walk", 0.3, 5, text=""),
                   _stop("meal", "09:30", "nakamise", "早上的仲見世，買伴手禮"),
                   _mv("rail", 20, 45, basis="sourced", text="淺草線直通京急線",
                       source_url="https://rail.example/keikyu", **{"from": "淺草", "to": "羽田空港"}),
@@ -181,6 +189,24 @@ RESERVATIONS = {"reservations": [
 ]}
 
 
+# the week-before forecast (#31): made-up figures, in the shape scripts/forecast.py writes
+FORECAST = {"fetched_at": "2026-05-11T17:00+09:00", "days": [
+    {"date": "2026-05-12", "tmin": 14, "tmax": 22, "weather": "晴時多雲", "pop": 10, "kind": "official",
+     "source": "日本氣象廳 週間天氣預報", "source_url": "https://www.jma.go.jp/bosai/forecast/"},
+    {"date": "2026-05-13", "tmin": 15, "tmax": 19, "weather": "多雲短暫雨", "pop": 60, "rain": True,
+     "kind": "official", "source": "日本氣象廳 週間天氣預報", "source_url": "https://www.jma.go.jp/bosai/forecast/"},
+    {"date": "2026-05-14", "tmin": 16, "tmax": 23, "weather": "晴", "pop": 0, "kind": "official",
+     "source": "日本氣象廳 週間天氣預報", "source_url": "https://www.jma.go.jp/bosai/forecast/"}]}
+
+
+def _fresh(fc):
+    """The demo forecast as fetched an hour before the shots, so the reader does not mark
+    it 預報已過時 (the page compares with the device clock)."""
+    import datetime
+    at = datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=9))) - datetime.timedelta(hours=1)
+    return dict(fc, fetched_at=at.isoformat(timespec="minutes"))
+
+
 def brief():
     heads = ["雷門下吃到撐", "為了人形燒走遍淺草", "晴空塔看我們吃午餐", "淺草吃不停",
              "東京三天胖三斤", "上野的午餐很有料"]
@@ -213,7 +239,8 @@ def render(root):
                      load_media(artifact_path(t, "verified-pois-media.yaml")))
     reader = root / "reader.html"
     reader.write_text(render_reader(itin, pm, brief=b, accommodations=ACC, advisory=R.ADVISORY,
-                                    legs=LEGS, maps=maps, cost=COST, reservations=RESERVATIONS), encoding="utf-8")
+                                    legs=LEGS, maps=maps, cost=COST, reservations=RESERVATIONS,
+                                    forecast=_fresh(FORECAST)), encoding="utf-8")
     picker = root / "picker.html"
     picker.write_text(picker_page(itin, b, ACC), encoding="utf-8")
     return reader, picker, lock(root, reader)

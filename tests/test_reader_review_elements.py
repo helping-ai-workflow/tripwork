@@ -9,7 +9,6 @@ from bs4 import BeautifulSoup
 
 from scripts.render.reader import render_reader
 from scripts.render.reader.theme import CSS
-from tests.reader_fixture import _mv
 
 import sys, pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).resolve().parents[1] / "docs" / "images" / "readme"))
@@ -19,15 +18,7 @@ TZ = datetime.timezone(datetime.timedelta(hours=9))
 
 
 def _trip(fetched=None):
-    itin = D.itinerary()
-    d2 = itin["days"][1]["rows"]
-    k = next(i for i, r in enumerate(d2) if r.get("text", "").startswith("銀座線＋淺草線"))
-    d2[k:k + 1] = [
-        dict(_mv("rail", 3, 12, basis="sourced", text="銀座線 往淺草方向", source_url="https://rail.example/g"),
-             time="15:40", board_at="上野広小路駅 2番線", board_at_en="Ueno-hirokoji", alight_at="浅草駅",
-             alight_at_en="Asakusa", route="銀座線", route_en="Ginza Line", pay="刷 IC 卡"),
-        {"slot": "transfer", "place": "浅草駅（淺草站）", "platform": "淺草線 1番線", "text": "跟藍色指標走"},
-        dict(_mv("rail", 1.5, 3, basis="sourced", text="都營淺草線", source_url="https://rail.example/a"), time="16:20")]
+    itin = D.itinerary()        # D2 carries a change of line: platform facts and a transfer point
     pois = copy.deepcopy(D.POIS)
     for p in pois:
         if p["id"] == "ameyoko":
@@ -51,13 +42,14 @@ def test_move_notes_are_open_with_one_fact_a_line():
     leg = next(l for l in s.select(".leg") if "Ginza Line" in l.get_text())
     facts = [f.select_one("b").get_text() for f in leg.select(".lfa .lf")]
     assert facts == ["上車", "車次", "下車", "付款", "售票機"]
-    assert leg.select_one(".lnt").get_text() == "銀座線 往淺草方向" and not leg.select("details")
+    assert leg.select_one(".lnt").get_text() == "銀座線往淺草方向，坐到終點" and not leg.select("details")
 
 
 def test_a_transfer_is_a_dot_on_the_line_with_its_wait():
     t = _trip().select_one('section[data-pg="d2"] .tfr')
     assert t.select_one(".tdot") and t.select_one(".tn").get_text() == "浅草駅（淺草站）"
     assert t.select_one(".twt").get_text() == "等 28 分" and "淺草線 1番線" in t.get_text()
+    assert t.find_previous_sibling().select_one(".lu.m-rail")       # on the move line, after the ride
 
 
 def test_no_address_sheet_names_the_place_and_points_at_navigation():
