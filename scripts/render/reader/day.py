@@ -9,12 +9,19 @@ from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import MODE_ICON, SLOT_ICON, icon
 from scripts.render.reader.home import _name, navb
 from scripts.render.reader.maps import DATA_IMAGE, day_points, image_class, map_card, target
-from scripts.transfer import transfer_line
+from scripts.transfer import machine_line, move_facts, transfer_line, wait_mins
 from scripts.render.reader.text import dur, esc, hhmm, lang_label, minutes, move_summary, number
 
 MODE_LABEL = {"walk": "步行", "rail": "電車", "bus": "巴士", "taxi": "計程車", "drive": "開車",
               "ferry": "渡輪", "flight": "飛機", "ropeway": "纜車"}
 GAP_MINS = 20
+# 2026-11-18 review, design board: the shipped look of each new element. A prototype for
+# the board flips these; after the user's pick only the chosen branch stays.
+LOOK = {"move_note": "open", "transfer": "node", "no_address": "sheet", "dining": "dl",
+        "cancel": "banner", "forecast": "title"}
+DINING_WORDS = {"order": {"table": "桌邊點餐", "counter": "櫃台點餐", "ticket_machine": "餐券機點餐"},
+                "pay": {"before": "先付", "after": "後付"},
+                "queue": {"ticket": "先抽號碼牌", "line": "現場排隊", "no_reservation": "不收訂位"}}
 
 
 def _is_move(r):
@@ -115,6 +122,12 @@ def stop(ctx, i, j, row, p, local_lang, name=None):
     if p and p.get("address_local"):
         dd, sheet = address(tid, p, lang)
         rows.append(("地址", dd))
+    elif p:
+        dd, sheet = no_address(tid, p, lang)            # #36: the driver can still search the name
+        rows.append(("地址", dd))
+    rule = dining_line(p)                                # #30: how the place works
+    if rule and LOOK["dining"] == "dl":
+        rows.append(("用餐", esc(rule)))
     if row.get("text"):
         rows.append(("安排", esc(row["text"])))
     # the traveller's reservation (reservations.yaml): booked / to-book shows its line; a meal
@@ -128,8 +141,45 @@ def stop(ctx, i, j, row, p, local_lang, name=None):
     src = sources(p, tid)
     if src:
         rows.append(("來源", src))
+    if rule and LOOK["dining"] == "head":
+        head = head.replace('<span class="one">', f'<span class="dng">{esc(rule)}</span><span class="one">', 1)
     html = card(ctx, tid, slot, row.get("poi_id"), head, rows, sheet, p)
     return html.replace('class="stop s-meal"', 'class="stop s-meal sug"', 1) if status == "self" else html
+
+
+def dining_line(p):
+    """#30: '餐券機點餐・先付・只收現金・吃完自己收餐具' from the sourced dining record; ''
+    when there is none. Only what a source said -- an absent item says nothing."""
+    d = (p or {}).get("dining") if isinstance((p or {}).get("dining"), dict) else {}
+    val = lambda k: (d.get(k) or {}).get("value") if isinstance(d.get(k), dict) else None
+    out = [DINING_WORDS[k].get(val(k)) for k in ("order", "pay") if val(k) in DINING_WORDS[k]]
+    pay = val("payment")
+    if pay == ["cash"]:
+        out.append("只收現金")
+    elif isinstance(pay, list) and pay:
+        names = {"cash": "現金", "card": "信用卡", "ic": "IC 卡", "qr": "QR"}
+        out.append("可用" + "、".join(names[x] for x in pay if x in names))
+    if val("self_service") is True:
+        out.append("吃完自己收餐具")
+    if val("queue") in DINING_WORDS["queue"]:
+        out.append(DINING_WORDS["queue"][val("queue")])
+    return "・".join(x for x in out if x)
+
+
+def no_address(tid, p, lang):
+    """#36 (the user's pick): no street address -- the driver's sheet shows the local name
+    and its area to search, said plainly; or (the board's other card) only a line."""
+    area = p.get("district") or ""
+    if LOOK["no_address"] == "line":
+        return '<span class="nadr">沒有門牌地址，請司機用店名搜尋</span>', ""
+    dd = ('<span class="nadr">沒有門牌地址</span>'
+          f'<a class="drvbtn" href="#{tid}-drv">給司機看</a>')
+    sheet = (f'<div class="drv" id="{tid}-drv"><a class="drvbg" href="#{tid}" aria-label="關閉"></a>'
+             f'<a class="drvx" href="#{tid}">✕ 關閉</a>'
+             f'<p class="drvn" lang="{lang}">{esc(p.get("name_local") or _name(p))}</p>'
+             + (f'<p class="drva">{esc(area)}</p>' if area else "")
+             + '<p class="drvh">沒有門牌地址，請用店名搜尋・把手機轉給司機看</p></div>')
+    return dd, sheet
 
 
 def address(tid, p, lang):
@@ -182,12 +232,71 @@ def leg(row, legs, ctx=None):
     ltx = f'<span class="ltx">{move_summary(MODE_LABEL.get(mode, "移動"), mins, km)}</span>'
     pr = getattr(ctx, "res_by_row", {}).get(id(row))
     line = reservation.road_line(pr["res"]) if pr else None
-    if not line:
+    note = move_note(row, mode)
+    if not line and not note:
         return f'<div class="leg">{ic}{ltx}</div>'
-    label, values = line
+    label, values = line or ("", [])
     pill = f'<span class="lrk lrk-{esc(pr["res"]["status"])}">{esc(label)}</span>' if label else ""
     lines = "".join(f'<span class="lrv">{esc(v)}</span>' for v in values)
-    return f'<div class="leg lr">{ic}<div class="lrb"><span class="lrh">{ltx}{pill}</span>{lines}</div></div>'
+    return f'<div class="leg lr">{ic}<div class="lrb"><span class="lrh">{ltx}{pill}</span>{lines}{note}</div></div>'
+
+
+def cancel_banner(ctx, i):
+    """#26: bookings of this day given up and still to cancel, on top of the day's list."""
+    date = str(ctx.days[i - 1].get("date"))
+    items = [r for r in reservation.to_cancel(ctx.reservations) if r.get("date") == date]
+    if not items:
+        return ""
+    out = []
+    for r in items:
+        det = "・".join(v for _k, v in reservation.detail_pairs(r, reservation.kind_of(r)))
+        when = f'<span class="cby">{esc(r["cancel_by"])} 前</span>' if r.get("cancel_by") else ""
+        how = f'<span class="chw">{esc(r["cancel_how"])}</span>' if r.get("cancel_how") else ""
+        out.append(f'<div class="cnl"><span class="cnk">要取消</span><span class="cw">'
+                   f'<b>{esc(reservation.what(r, ctx.poi_map))}</b>{when}</span>'
+                   f'{f"<span class=cdt>{esc(det)}</span>" if det else ""}{how}</div>')
+    return f'<div class="cnls cnls-{LOOK["cancel"]}">{"".join(out)}</div>'
+
+
+def transfer(rows, j):
+    """#37: where the traveller changes vehicle -- the place, its platform, the wait and
+    what to do there -- drawn on the move line, lighter than a stop."""
+    r = rows[j]
+    w = wait_mins(rows, j)
+    wait = f'<span class="twt">等 {dur(w)}</span>' if w is not None and w > 0 else ""
+    plat = f'<span class="tpl">{esc(r["platform"])}</span>' if r.get("platform") else ""
+    text = f'<span class="ttx">{esc(r["text"])}</span>' if r.get("text") else ""
+    place = esc(r.get("place") or "")
+    look = LOOK["transfer"]
+    if look == "inline":
+        return (f'<div class="leg tfr-i"><span class="lico">⇄</span><div class="lrb"><span class="lrh">'
+                f'<span class="ltx">在 <b>{place}</b> 換車</span>{wait}</span>{plat}{text}</div></div>')
+    cls = "tfr tfr-card" if look == "card" else "tfr"
+    return (f'<div class="{cls}"><span class="tdot" aria-hidden="true"></span><div class="tb">'
+            f'<span class="th"><b class="tn">{place}</b>{wait}</span>{plat}{text}</div></div>')
+
+
+def move_note(row, mode):
+    """#32: what the row says about the ride -- the platform facts (#22 English beside each
+    name) and its text -- under the move, open (the user's pick) or folded."""
+    text = str(row.get("text") or "").strip()
+    facts = move_facts(row)
+    machine = machine_line(row) if mode == "rail" else ""
+    if machine:
+        facts = facts + [("售票機", machine)]
+    if not text and not facts:
+        return ""
+    fl = ('<span class="lfa">' + "".join(f'<span class="lf"><b>{esc(k)}</b><span>{esc(v)}</span></span>'
+                                          for k, v in facts) + "</span>") if facts else ""
+    tx = f'<span class="lnt">{esc(text)}</span>' if text else ""
+    look = LOOK["move_note"]
+    if look == "fold":
+        return f'<details class="lmore"><summary>怎麼搭</summary>{fl}{tx}</details>'
+    if look == "first" and text:
+        first, rest = _first_clause(text), text[len(_first_clause(text)):].lstrip("；;。，, ")
+        more = f'<details class="lmore"><summary>{esc(first)}</summary>{fl}<span class="lnt">{esc(rest)}</span></details>'
+        return more if rest or fl else f'<span class="lnt">{esc(first)}</span>'
+    return f'{fl}{tx}'
 
 
 def alternative(alt, poi_map, sid=""):
@@ -253,7 +362,7 @@ def chain(ctx, i, day):
     # hotel gets home's own row after it
     ends = {p["key"]: p for _, p in day_points(ctx, i, day)}
     head_id = target(i, "home-start" if "home-start" in ends and "start" not in ends else "start")
-    out = [f'<span class="tx" id="{target(i, "all")}"></span>', _anchor(head, head_id)]
+    out = [f'<span class="tx" id="{target(i, "all")}"></span>', cancel_banner(ctx, i), _anchor(head, head_id)]
     prev_leave, travel, placed = None, 0, set()
     for j, r in enumerate(rows):
         if _is_move(r):
@@ -261,7 +370,7 @@ def chain(ctx, i, day):
             travel += _leg_fields(r, legs)[1] or 0
             continue
         if r.get("slot") == "transfer":       # #37: a place between two moves, not a stop
-            out.append(stop(ctx, i, j, r, None, ctx.local_lang, name=transfer_line(rows, j)))
+            out.append(transfer(rows, j))
             continue
         p = ctx.poi_map.get(r.get("poi_id"))
         start = minutes(r.get("time"))
@@ -290,6 +399,22 @@ def chain(ctx, i, day):
     return f'<div class="list">{"".join(out)}</div>'
 
 
+def weather(ctx, i):
+    """#31: the day's forecast in one line under its title -- when it was fetched always
+    shown; the script marks it 預報已過時 past 48 hours (data-at)."""
+    from scripts.forecast_text import forecast_line
+    fc = getattr(ctx, "forecast", None)
+    line = forecast_line(fc, ctx.days[i - 1].get("date"), who=False)
+    if not line:
+        return ""
+    main, _, tips = line.partition("；")
+    tip = "".join(f'<span class="wtp">{esc(t)}</span>' for t in tips.split("；") if t)
+    at = str(fc.get("fetched_at", ""))
+    at = re.sub(r"T(\d\d:\d\d)([+\-Z])", r"T\1:00\2", at)          # Safari parses HH:MM:SS only
+    return (f'<p class="wx wx-{LOOK["forecast"]}" data-at="{esc(at)}">'
+            f'<span class="wxt">{esc(main)}</span>{tip}<span class="wold">預報已過時</span></p>')
+
+
 def day_page(ctx, i):
     day = ctx.days[i - 1]
     theme = day.get("theme") or day.get("label") or ""
@@ -313,8 +438,10 @@ def day_page(ctx, i):
                 f'<label class="sf" for="pg-d{k}f" aria-label="{word}">{arrow}</label></span>')
     pprev = both(i - 1, "‹", "前一天") if i > 1 else prev
     pnxt = both(i + 1, "›", "後一天") if i < n else nxt
+    wx = weather(ctx, i)
     title = (f'<h2 class="dh"><span class="dht">{esc(theme)}</span>'
-             f'<span class="dstep">{pprev}<span class="dn">Day {i}</span>{pnxt}</span></h2>')
+             f'<span class="dstep">{pprev}<span class="dn">Day {i}</span>{pnxt}</span></h2>'
+             + (wx if LOOK["forecast"] == "title" else ""))
     # pick F1: the desktop's list title steps too, at the row's right end like the phone's
     list_title = (f'<h2 class="dh dh-list"><span class="dht">{esc(theme)}</span>'
                   f'<span class="dstep dstep-d">{prev}<span class="dn">Day {i}</span>{nxt}</span></h2>')
@@ -325,7 +452,7 @@ def day_page(ctx, i):
             f'<b class="ym"><label class="unf" for="pg-d{i}" aria-label="展開月曆"></label>'
             f'{esc(month_calendar.month_title(ctx.dates))}</b><span></span></div>'
             f'{month_calendar.mini(ctx.dates, ctx.areas, i)}{title}</div>'
-            f'<div class="pmap">{map_card(ctx, i, day)}</div>'
+            f'<div class="pmap">{wx if LOOK["forecast"] == "card" else ""}{map_card(ctx, i, day)}</div>'
             # H1c: the phone list card's top edge (its clipped top has no outline of its own)
             # and foot fade, drawn beside it so they do not scroll (theme.py)
             f'<div class="lcap" aria-hidden="true"></div>'

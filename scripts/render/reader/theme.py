@@ -132,7 +132,7 @@ label,summary,a.hd,a.chip,.mnav a,.vsum{{-webkit-touch-callout:none}}.list{{posi
 .plist{{scroll-behavior:smooth}}
 .c3 .t{{display:flex;flex-direction:column;line-height:1.15}}.c3 .t b{{font:700 15px var(--f-round);color:var(--k)}}.c3 .t small{{font:500 11px var(--f-round);color:var(--mut)}}
 .c3 .n{{display:block;font:700 16px/1.35 var(--f-round)}}.c3 .one{{display:block;font-size:13px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
-.c3 dl{{display:grid;grid-template-columns:40px minmax(0,1fr);gap:6px 10px;margin:12px 14px 14px;font-size:14.5px;line-height:1.65}}
+.c3 dl{{display:grid;grid-template-columns:44px minmax(0,1fr);gap:6px 10px;margin:12px 14px 14px;font-size:14.5px;line-height:1.65}}
 .c3 dt{{font:700 12px/1.9 var(--f-round);color:var(--mut)}}.c3 dd{{margin:0;overflow-wrap:anywhere}}
 .bp{{margin:0;position:relative}}.bpi{{display:block;width:100%;height:220px;background-size:cover;background-position:center;filter:var(--photof)}}
 .bpi,.mimg{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}
@@ -152,6 +152,32 @@ label,summary,a.hd,a.chip,.mnav a,.vsum{{-webkit-touch-callout:none}}.list{{posi
 .lrv{{color:var(--ink);font-size:13px;line-height:1.6;overflow-wrap:anywhere}}.lrv+.lrv{{font-weight:700}}
 .gap,.tight{{margin:0 0 0 22px;padding:2px 0 2px 16px;border-left:2px dashed var(--move);font-size:12px;color:var(--mut)}}.tight{{color:var(--tight);font-weight:700}}
 .k備案{{--a:var(--plan)}}.k選項{{--a:var(--opt)}}
+/* 2026-11-18 review (#32 #37 #36 #30 #26 #31 #39), measured against .leg: 13px / 20.8px, 16px past a 2px dashed line */
+.lnt{{color:var(--ink);font-size:13px;line-height:1.6;overflow-wrap:anywhere}}
+.lfa{{display:grid;margin:1px 0 2px;color:var(--ink);font-size:12px;line-height:1.6}}.lf{{display:grid;grid-template-columns:44px minmax(0,1fr);overflow-wrap:anywhere}}.lf b{{color:var(--mut);font-weight:700}}
+.lmore summary{{display:inline-flex;align-items:center;gap:4px;list-style:none;cursor:pointer;color:var(--move);font:700 13px/1.6 var(--f-round)}}
+.lmore summary::-webkit-details-marker{{display:none}}.lmore summary::before{{content:"▸";font-size:11px}}.lmore[open] summary::before{{content:"▾"}}
+.lmore[open]{{display:grid;gap:1px}}
+.tfr{{position:relative;margin:0 0 0 22px;padding:4px 0 4px 16px;border-left:2px dashed var(--move)}}
+.tdot{{position:absolute;left:-8px;top:9px;width:14px;height:14px;border-radius:50%;background:var(--card);border:2.5px solid var(--move);box-sizing:border-box}}
+.tb{{display:grid;gap:1px;min-width:0;margin-left:28px}}.th{{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:22px}}
+.tn{{font:700 14px/1.5 var(--f-round);color:var(--ink)}}
+.twt{{flex:none;font:700 12px/18px var(--f-round);padding:0 8px;border-radius:999px;background:color-mix(in srgb,var(--move) 16%,var(--card));color:var(--ink)}}
+.tpl{{font-size:12px;line-height:1.6;color:var(--mut)}}.ttx{{font-size:13px;line-height:1.6;color:var(--ink);overflow-wrap:anywhere}}
+.tfr-card{{border-left:0;margin-left:22px;padding:7px 10px;border:1.5px dashed var(--move);border-radius:12px;background:var(--card)}}.tfr-card .tdot{{display:none}}.tfr-card .tb{{margin-left:0}}
+.tfr-i{{align-items:flex-start}}.tfr-i .twt{{margin-left:2px}}
+.nadr{{color:var(--mut)}}
+.dng{{display:block;font-size:12px;line-height:1.6;color:var(--meal);font-weight:700}}
+.cnls{{display:grid;gap:6px}}.cnl{{display:grid;gap:1px;padding:8px 12px;border:1.5px solid var(--tight);border-radius:12px;background:color-mix(in srgb,var(--tight) 8%,var(--card))}}
+.cnk{{justify-self:start;font:700 12px/18px var(--f-round);padding:0 8px;border-radius:999px;background:var(--tight);color:var(--card)}}
+.cw{{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px}}.cw b{{font:700 14px/1.5 var(--f-round)}}.cby{{font:700 12px/1.5 var(--f-round);color:var(--tight)}}
+.cdt,.chw{{font-size:13px;line-height:1.6;color:var(--mut)}}
+.cnls-strike .cnl{{border-color:var(--rule);background:var(--card)}}.cnls-strike .cnk{{background:none;color:var(--tight);border:1px solid currentColor}}.cnls-strike .cw b{{text-decoration:line-through;text-decoration-color:var(--tight)}}
+.wx{{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:-6px 0 10px;font-size:13px;line-height:1.6;color:var(--mut)}}
+.wtp{{font:700 12px/18px var(--f-round);padding:0 8px;border-radius:999px;border:1px solid var(--rule);color:var(--ink)}}
+.wold{{display:none;font:700 12px/18px var(--f-round);color:var(--tight)}}.wx.old .wold{{display:inline}}.wx.old .wxt{{text-decoration:line-through}}
+.wx-card{{margin:0 0 8px;padding:8px 12px;border-radius:12px;background:var(--card);box-shadow:0 0 0 1px var(--rule)}}
+:root:has(.drv:target) .bubble{{display:none}}
 .altrow{{margin:-2px 0 2px 22px;border:1.5px dashed var(--a);border-radius:12px;background:color-mix(in srgb,var(--a) 7%,var(--card))}}
 .altrow summary{{position:relative;display:flex;align-items:center;gap:8px;padding:6px 30px 6px 10px;cursor:pointer;list-style:none}}
 .ai{{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:50%;background:var(--a);color:var(--card);font:700 13px var(--f-round)}}

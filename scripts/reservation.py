@@ -283,7 +283,25 @@ def visible_checklist(itinerary, legs, reservations, poi_map):
         y, m, d = str(days[p["day"]].get("date")).split("-")
         out.append({"kind": "預約", "task": head + (f"，{people}" if people else ""),
                     "origin": f"D{p['day'] + 1}・{int(m)}/{int(d)}"})
+    # #26: a booking given up -- its own line until it is cancelled, deadline first
+    for r in to_cancel(reservations):
+        det = "；".join(f"{k} {v}" for k, v in detail_pairs(r, kind_of(r)))
+        detail = "；".join(x for x in (r.get("cancel_how"), det) if x)
+        out.append(dict({"kind": "預約", "task": f"取消 {what(r, poi_map)} 的訂位",
+                         "due": str(r["cancel_by"]) if r.get("cancel_by") else "出發前", "due_is_hard": bool(r.get("cancel_by")),
+                         "origin": r["date"]}, **({"detail": detail} if detail else {})))
+    # #30: a scheduled place that takes cash only -- one 打包 line naming them
+    cash = [_name(poi_map.get(row.get("poi_id"))) for day in days for row in day.get("rows") or []
+            if isinstance(row, dict) and _cash_only((poi_map or {}).get(row.get("poi_id")))]
+    cash = list(dict.fromkeys(c for c in cash if c))
+    if cash:
+        out.append({"kind": "打包", "task": "準備現金", "detail": "只收現金：" + "、".join(cash)})
     return out
+
+
+def _cash_only(poi):
+    pay = (((poi or {}).get("dining") or {}).get("payment") or {}) if isinstance((poi or {}).get("dining"), dict) else {}
+    return isinstance(pay, dict) and pay.get("value") == ["cash"]
 
 
 def _leg_of(row, legs):

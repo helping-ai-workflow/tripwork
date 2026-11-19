@@ -179,10 +179,11 @@ def test_d7_move_directions_e2e():
     # stop's 導航 button, so the HTML carries no A→B directions chip any more.
     html = render_html_page({"title": "北海道", "days": [day]}, pmap)
     assert "從 函館空港 出發" in html and "travelmode" not in html
-    # v1.1 (user): a 移動列 is mode + minutes + distance; its note is not shown
+    # v1.1 (user): a 移動列 is mode + minutes + distance; #32 (user, 2026-11-18): its own
+    # words now follow under it -- where to board and how to pay are what the platform needs
     legs = [l.get_text(" ", strip=True) for l in BeautifulSoup(html, "html.parser").select(".leg")]
     assert legs[0].startswith("電車 20 分") and "7 km" in legs[0] and legs[1].startswith("步行 10 分")
-    assert "午後抵達" not in html and "步行接駁" not in html
+    assert "午後抵達" in legs[0] and "步行接駁" in legs[1]
     assert run_html_gate(html, list(pmap.values()), min_days=1)["status"] == "pass"
 
     md = render_day_table(day, pmap)
