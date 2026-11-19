@@ -34,7 +34,7 @@ REPLY_HINT = ('回覆格式：tripwork 標題 D1=3 D2=1 …（每天一個號碼
               'D2="自己寫的" 用自己的字）')
 
 CSS = """
-:root{%(light)s;color-scheme:light;--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body)}
+:root{%(light)s;color-scheme:light;--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body)}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body)}input,button,textarea{font-family:var(--f-body)}
 /* the user's check (pick L2): one sheet that does not scroll -- the cards scroll inside */
 html,body{height:100%%;overflow:hidden}body{display:flex;flex-direction:column}

@@ -16,7 +16,7 @@ WARM_LIGHT = ("--bg:#f6f3ea;--paper:#f6f3ea;--card:#fffdf7;--ink:#2a2620;--mut:#
               "--tight:#b2362b;--mapf:none;--photof:none;--pagebg:#ece7dc;color-scheme:light")
 
 CSS = f"""
-:root{{{WARM_LIGHT};--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body)}}
+:root{{{WARM_LIGHT};--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body)}}
 :root:has(#theme:checked){{{WARM_DARK}}}
 *{{box-sizing:border-box}}
 html{{-webkit-text-size-adjust:100%}}

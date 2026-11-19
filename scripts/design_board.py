@@ -48,7 +48,7 @@ if str(ROOT) not in sys.path:
 UI_TEXT = "樣式看板「」：；（）已選題還沒選複製選擇已複製，貼回對話請手動複製下面那行我推薦補充（選填）推薦代號例如=0123456789"
 
 CSS = """
-:root{%(light)s;--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Microsoft JhengHei",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body);color-scheme:light}
+:root{%(light)s;--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Noto Sans CJK TC","Microsoft JhengHei",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body);color-scheme:light}
 @media (prefers-color-scheme:dark){:root{%(dark)s;color-scheme:dark}}
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%%}
