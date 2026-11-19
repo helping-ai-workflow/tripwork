@@ -180,6 +180,7 @@ the same flags.
 | `tripwork:travel-advisory` | `banned_item` | a regulation is tagged `banned` (restricted/info are surfaced, not halted) |
 | `tripwork:source-verify` | `cross_source_conflict` | independent sources materially disagree (hours, closed day, address) |
 | `tripwork:source-verify` | `must_do_unverified` | a `must_do` item fails verification |
+| `tripwork:source-verify` | `scheduled_poi_downgrade` | a re-run would take a POI the itinerary uses from `verified` to anything else (the driver exits 3 and writes nothing) |
 | `tripwork:routing-audit` | `far_hop` | a hop is flagged `far` |
 | `tripwork:routing-audit` | `implausible_hop` | a hop is flagged `implausible` |
 | `tripwork:accommodation-research` | `unfilled_overnight_stop` | an overnight stop needs a lodging pick |
@@ -196,6 +197,7 @@ the same flags.
 | `tripwork:itinerary-synthesis` | `must_do_after_last_call` | a `must_do` POI cannot fit before its last order/entry on any feasible slot |
 | `tripwork:itinerary-synthesis` | `lead_time_missed` | a booking lead time is missed (`scripts/booking.py::lead_time_missed`) |
 | `tripwork:itinerary-synthesis` | `missed_last_service` | the re-check of a travel-day move at its now-known departure misses the last service |
+| `tripwork:itinerary-synthesis` | `check_in_missed` | the trip to the airport, at the upper end of its estimate, arrives after the time to be at the airport for a flight |
 | `tripwork:itinerary-synthesis` | `day_title_pick` | six title candidates a day are written and the user picks them (and may change the headline) in the title picker |
 | `tripwork:record-reservation` | `booked_place_dropped` | a booking in `reservations.yaml` matches no row of the re-planned trip — the traveller decides: put it back, or cancel the booking |
 | `tripwork:export-gate` | `nonretryable_export_fail` | export-gate fails with `retryable: false` — rule 15's `stop-and-ask` |

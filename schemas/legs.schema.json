@@ -25,7 +25,10 @@
           },
           "kind": {
             "type": "string",
-            "enum": ["inter_stop", "home"],
+            "enum": [
+              "inter_stop",
+              "home"
+            ],
             "default": "inter_stop",
             "description": "`home` is the drive between the traveller's home and the trip's first/last base. It is a real leg with a real fare and a real duration — usually the LONGEST drive of a single-base trip, so it is the one leg drive_too_long exists for. Absent means inter_stop. (TW-065)"
           },
@@ -76,11 +79,19 @@
           },
           "last_service_exempt": {
             "type": "object",
-            "required": ["reason"],
+            "required": [
+              "reason"
+            ],
             "additionalProperties": false,
             "properties": {
-              "reason": {"type": "string", "minLength": 1},
-              "source_url": {"type": "string", "pattern": "^https?://"}
+              "reason": {
+                "type": "string",
+                "minLength": 1
+              },
+              "source_url": {
+                "type": "string",
+                "pattern": "^https?://"
+              }
             },
             "description": "Sourced claim that this non-drive leg has no last-service concept (charter, single daily sailing already named in `service`). Without it, scripts/legs.py:56-58 returns 'ok' whenever depart/last_service are absent — a verdict that is reproducible and meaningless. Optional in schema; required by the gate for any non-drive leg lacking depart+last_service."
           },
@@ -134,6 +145,28 @@
               },
               "additionalProperties": false
             }
+          },
+          "check_in_close_mins": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "#23 flights: check-in closes this many minutes before departure, from the airline's own page (check_in_source). Never a default."
+          },
+          "check_in_source": {
+            "type": "string",
+            "pattern": "^https?://"
+          },
+          "arrive_by_mins": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "#23 flights: the airline's or airport's published advice to be at the airport this many minutes before departure (arrive_by_source)."
+          },
+          "arrive_by_source": {
+            "type": "string",
+            "pattern": "^https?://"
+          },
+          "international": {
+            "type": "boolean",
+            "description": "#23 flights: an international flight (60 min buffer before check-in closes when no arrive_by_mins is published; domestic 30)."
           }
         },
         "allOf": [
@@ -141,7 +174,10 @@
             "if": {
               "properties": {
                 "mode": {
-                  "enum": ["drive", "taxi"]
+                  "enum": [
+                    "drive",
+                    "taxi"
+                  ]
                 }
               }
             },

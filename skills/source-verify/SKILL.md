@@ -55,6 +55,25 @@ Gates are evaluated in strict order — Gate 0 fires before Gate 1, Gate 1 befor
   candidate in `candidates.yaml`: `source_verify_run.py` rebuilds verified-pois from candidates
   on every run and carries these through, so a later re-verify keeps them. Added only to verified-pois, they are wiped.
 
+## Places inside buildings, airports, and how a restaurant works
+
+- **Inside a building (#35).** A shop in a department store, station, airport terminal or
+  underground mall records `inside: <the building's poi_id>` and `floor` (with `floor_source`)
+  on its candidate. The driver gives it the building's coordinate and `geocode_source` (so a
+  building that is itself approximate keeps its shops approximate), and — when the shop has no
+  `address_local` — the building's address plus the floor. The building must be verified in
+  the same run. **Never for a shopping street**: its shops have their own addresses.
+- **Side of airport security (#33).** An airport shop records `security_zone`: `landside`
+  (before security) or `airside` (after), with `security_zone_source`; `unknown` when no source
+  says — never assume landside. The same chain's two shops on either side are two POIs.
+- **How a restaurant works (#30).** For a restaurant the itinerary schedules, record `dining`
+  items the place's own site, its official social account or a review page states, each with
+  `source_url`: `order` (table / counter / ticket_machine), `pay` (before / after), `payment`
+  (cash / card / ic / qr; `[cash]` alone = 只收現金), `self_service` (clear your own tray),
+  `queue` (ticket / line / no_reservation). Leave out what no source says — never infer it from
+  the country or the kind of shop — and never copy Google Places payment data (only
+  `gmaps_place_id` may be stored).
+
 ## Record closure days + hours
 
 While verifying opening hours, record each POI's `closed_days` (the per-POI closure axis consumed by synthesis via `scripts/trip_calendar.py::poi_closed_on`). Values: weekday names (`tuesday`) for fixed weekly closures, ISO dates (`2026-05-25`) for one-off closures, or the token `public_holiday` when a place shuts on any public holiday. Closures come from the same cross-source hours check — a POI's stated regular closing day (e.g. a palace closed Tuesdays, a small shop closed on holidays) belongs here, not invented.
@@ -90,7 +109,7 @@ Then validate it: `python <plugin>/scripts/tripwork.py validate <slug> verified-
 |---|---|
 | Input | `trips/<slug>/data/candidates.yaml` + `trips/<slug>/data/trip-brief.yaml`. |
 | Output | `trips/<slug>/data/verified-pois.yaml` with per-POI `verify_status` + reasons. |
-| Stop condition | Cross-source conflict (`cross_source_conflict`), or a `must_do` item fails verification (`must_do_unverified`) → ask user. |
+| Stop condition | Cross-source conflict (`cross_source_conflict`), or a `must_do` item fails verification (`must_do_unverified`), or a re-run would downgrade a POI the itinerary uses (`scheduled_poi_downgrade`, exit 3) → ask user. |
 | Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Red Flags

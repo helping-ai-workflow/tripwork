@@ -466,7 +466,8 @@ def _build_poi(cand, official_domains, resolved_name):
     # v1.0 P2: carried through so a re-verify does not wipe them (research
     # records them on the candidate; this driver rebuilds verified-pois from
     # candidates on every run).
-    for key in ("intro", "intro_source", "booking", "address_local", "address_source"):
+    for key in ("intro", "intro_source", "booking", "address_local", "address_source",
+                "inside", "floor", "floor_source", "security_zone", "security_zone_source", "dining"):
         if cand.get(key) is not None:
             poi[key] = cand[key]
     if resolved_name is NO_RESOLVED_NAME:
@@ -477,6 +478,39 @@ def _build_poi(cand, official_domains, resolved_name):
 
 
 STOPPED_DOWNGRADE = 3
+
+
+def _place_inside(pois, inside, prior, official_domains, local_lang, today, carried):
+    """#35: a place inside a building (`inside: <poi_id>`) takes the building's coordinate
+    -- and its geocode_source, so a building that is itself only approximate keeps its
+    shops approximate -- and, lacking its own, the building's address plus `floor`.
+    The building must be `verified` in this same run; otherwise the place stays
+    `unverified` with the reason."""
+    by_id = {p["id"]: p for p in pois if p}
+    for at, cand in inside:
+        poi = _carry_over(_build_poi(cand, official_domains, NO_RESOLVED_NAME),
+                          prior.get(cand.get("id")), cand, carried)
+        parent = by_id.get(cand["inside"])
+        geo = (parent or {}).get("geocode") or {}
+        if not parent or parent.get("verify_status") != "verified" or geo.get("lat") is None:
+            poi["verify_status"] = "unverified"
+            poi["status_reason"] = (f"inside {cand['inside']}: that building is not a verified POI "
+                                    f"with a coordinate, so this place has no position yet")
+            pois[at] = poi
+            continue
+        poi["geocode"] = {"lat": geo["lat"], "lng": geo["lng"], "geocode_source": geo["geocode_source"],
+                          "parent": parent["id"], "query": _lookup_query(cand)}
+        if not poi.get("address_local") and parent.get("address_local"):
+            poi["address_local"] = " ".join(x for x in (parent["address_local"], cand.get("floor")) if x)
+            if parent.get("address_source"):
+                poi["address_source"] = parent["address_source"]
+        normalised, status, note = _verify_one(poi, True, True, local_lang, NO_RESOLVED_NAME, today)
+        normalised["verify_status"] = status
+        if note:
+            normalised["status_reason"] = note
+            if status == "conflicting":
+                normalised["conflict_note"] = note
+        pois[at] = normalised
 
 
 def _scheduled_ids(trip_dir):
@@ -529,7 +563,7 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False,
     # v1.3.0: the cache is saved even when a failure (a network that outlasts the retries,
     # Ctrl+C) leaves the loop, so it costs one re-run, not the run's progress
     only = set(only) if only else None
-    carried = []
+    carried, inside = [], []
     try:
         for cand in candidates:
             old = prior.get(cand.get("id"))
@@ -541,6 +575,10 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False,
                                      verify_status="unverified",
                                      status_reason="not verified yet: this run verified only "
                                                    "the candidates named with --only"))
+                continue
+            if cand.get("inside"):             # #35: placed by its building, after the loop
+                inside.append((len(pois), cand))
+                pois.append(None)
                 continue
             kept = None if regeocode else _confirmed_geocode(old, cand)
             if kept is not None:
@@ -577,6 +615,7 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False,
                 if status == "conflicting":
                     normalised["conflict_note"] = note
             pois.append(normalised)
+        _place_inside(pois, inside, prior, official_domains, local_lang, today, carried)
     finally:
         save_cache(str(cache_path), cache)
 

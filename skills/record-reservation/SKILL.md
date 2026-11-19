@@ -54,8 +54,12 @@ still carries the airline's official source; the seat and booking number here do
 `reservation has no row: …` means the plan dropped something the traveller already booked.
 Never delete the entry and never move it to another place on your own: ask (`booked_place_dropped`)
 — "5/13 押上示意割烹已經訂好，但新行程沒有這一站。要把它排回去，還是你要去取消訂位？" Put it back
-→ itinerary-synthesis re-plans with it fixed in place. Cancelled → remove the entry. Record the
-decision in `work/<slug>/stage-state.yaml`.
+→ itinerary-synthesis re-plans with it fixed in place. To cancel (#26) → set `status: cancel`,
+keep the number and details (the refund needs them), and add `cancel_by` (the last moment
+without losing the refund, with `cancel_by_source`) and `cancel_how` when known. A `cancel`
+entry needs no row: the reader lists it at the top of its day and on the home page until it is
+`cancelled`; the gate notices one past its `cancel_by`. Once done → `status: cancelled` (kept,
+not shown). Record the decision in `work/<slug>/stage-state.yaml`.
 
 `reservation matches several rows` → add the entry's `time`. `reservation duplicates another`
 → two entries point at one row: keep the one the traveller confirms. `reservation self is for
@@ -67,7 +71,7 @@ meals only` → use `none` or `booked` instead.
 |---|---|
 | Input | The traveller's confirmation text or words + `trips/<slug>/data/itinerary.yaml` + `trips/<slug>/data/legs.yaml` + `trips/<slug>/data/verified-pois.yaml`. |
 | Output | `trips/<slug>/data/reservations.yaml` (the traveller's bookings; numbers kept in full here only). |
-| Stop condition | A booked entry matches no row of the plan (`booked_place_dropped`) → ask the user: put it back, or they cancel the booking. |
+| Stop condition | A booked entry matches no row of the plan (`booked_place_dropped`) → ask the user: put it back, or mark it to cancel (`status: cancel`). |
 | Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Common Mistakes

@@ -222,6 +222,9 @@ def _itinerary_text(itinerary):
             parts.append(row.get("text", ""))
             parts.append(row.get("from", ""))
             parts.append(row.get("to", ""))
+            # #37 / #32: rendered too, so scanned too
+            parts.extend(row.get(k, "") for k in ("place", "platform", "board_at", "route",
+                                                  "alight_at", "pay", "next_service", "detour"))
         for a in d.get("alternatives") or []:
             if isinstance(a, dict):
                 parts.extend(x for x in (a.get("trigger"), a.get("fallback")) if x)
@@ -391,6 +394,10 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
     brief_f = (name_failures(trip_brief) + headline_failures(trip_brief)
                if trip_brief is not None else [])
     failures.extend(chain + moves + alts + themes + checklist_f + sources_f + area_f + brief_f + res_f)
+    from scripts.airport import check_in_failures, security_failures
+    security_f = security_failures(itinerary, by_id)                 # #33
+    check_in_f = check_in_failures(itinerary, legs)                  # #23
+    failures.extend(security_f + check_in_f)
 
     # TW-069 fix round 1: a `kind: home` leg's verdict is re-derived (below) and
     # its fare is summed (cost-rollup), but neither of those proves it ever
@@ -472,20 +479,37 @@ def run_gate(pois, itinerary, accommodations=None, facility_needs=None,
         checks.append({"name": "flight_legs_have_arrive", "passed": not arrive_f})
     if reservations is not None:
         checks.append({"name": "reservations_match", "passed": not res_f})
+    if security_f or any(p.get("security_zone") for p in by_id.values()):
+        checks.append({"name": "security_zone_order", "passed": not security_f})
+    if check_in_f or any(isinstance(r, dict) and r.get("mode") == "flight"
+                         for d in itinerary.get("days") or [] for r in d.get("rows") or []):
+        checks.append({"name": "check_in_reachable", "passed": not check_in_f})
 
     report = {"status": "pass" if not failures else "fail", "checks": checks, "failures": failures}
     # v1.1 topic 7: the user's day-title picks never fail; two patterns get a word
+    from scripts.transfer import (bare_transit_notices, missing_en_notices, transfer_notices,
+                                  transfer_warnings)
+    from scripts.airport import check_in_notices, security_notices
+    from scripts.venue_notices import detour_warnings, venue_notices
     notices = (address_notices(itinerary, by_id) + gloss_notices(itinerary, by_id)
-               + same_place_notices(itinerary) + pick_notices(itinerary))
+               + same_place_notices(itinerary) + transfer_notices(itinerary)
+               + bare_transit_notices(itinerary) + missing_en_notices(itinerary)
+               + security_notices(itinerary, by_id, legs) + check_in_notices(itinerary, legs)
+               + venue_notices(itinerary, by_id, trip_brief) + reservation.cancel_notices(reservations)
+               + pick_notices(itinerary))
     if notices:
         report["notices"] = notices
+    # warnings never change the status either, but say something is likely wrong (#37)
+    warnings = transfer_warnings(itinerary) + detour_warnings(itinerary)
+    if warnings:
+        report["warnings"] = warnings
     return report
 
 
 def summary_notice(what, items, hint=""):
     """One line for a whole kind of notice, never one line per item (#36/#37: a notice per
     stop drowned the rest -- one trip printed more than a dozen). [] when nothing to say."""
-    items = list(dict.fromkeys(i for i in items if i))
+    items = list(dict.fromkeys(str(i) for i in items if i))
     if not items:
         return []
     line = f"{len(items)} {what}: {', '.join(items)}"
@@ -610,6 +634,8 @@ def main(argv):
     print(f"gate: {report['status']} ({len(report['failures'])} failures)")
     for f in report["failures"]:
         print(f"  - {f}")
+    for w in report.get("warnings") or []:                # never change the status
+        print(f"  warning: {w}")
     for n in report.get("notices") or []:                 # never change the status
         print(f"  notice: {n}")
     return 0 if report["status"] == "pass" else 1

@@ -7,6 +7,8 @@ Generated link markup ([name](url)) is never escaped — only free text is.
 import re
 from scripts.render.heading import dates_line, trip_title
 from scripts.render.gmaps_links import link_markdown, dir_url, search_url
+from scripts.transfer import machine_line, move_facts, transfer_line
+from scripts.airport import be_at_airport
 from scripts import reservation
 from scripts.render.centroid import merged_line
 from scripts.render.reader.text import md_wd, to_date
@@ -123,13 +125,24 @@ def render_day_table(day, poi_map, legs=None, tickets=None):
         mode = (leg or {}).get("mode") if leg is not None else row.get("mode")
         if row.get("slot") == "move" and frm and to:
             cell = _move_cell(frm, to, text, poi, mode)   # G2: directions link at cell start
+        elif row.get("slot") == "transfer":               # #37: where the traveller waits
+            cell = " ".join(x for x in (f"**{md_escape(transfer_line(day.get('rows', []), i))}**",
+                                        md_escape(text)) if x)
         elif poi:
             cell = _poi_cell(poi, text)
         else:
             cell = md_escape(text)
+        facts = move_facts(row) if row.get("slot") == "move" else []
+        if row.get("slot") == "move" and mode == "flight":    # #23: when to be at the airport
+            need = be_at_airport(dict(leg or {}, **row))
+            facts.append(("到機場", f"{need // 60:02d}:{need % 60:02d} 前" if need is not None
+                          else "報到截止時間未查"))
+        if facts:                                         # #32 / #22: the platform facts
+            cell = f"{cell} · " + "・".join(f"{k} {md_escape(v)}" for k, v in facts)
         tail = (tickets or {}).get(i)
         if tail:
-            cell = f"{cell}（{md_escape(tail)}）"
+            machine = machine_line(row) if row.get("mode") == "rail" else ""
+            cell = f"{cell}（{md_escape(tail)}" + (f"；售票機上選：{md_escape(machine)}" if machine else "") + "）"
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"
 
@@ -254,6 +267,17 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reserv
             head = f"{e['time'] + ' ' if e['time'] else ''}{title}" + (f"，{e['sub']}" if e["sub"] else "")
             lines.append(f"  - {md_escape(head)}：**{reservation.LABEL.get(e['status'], '')}**"
                          + (f"（{md_escape(det)}）" if det else ""))
+        lines.append("")
+
+    cancel = reservation.to_cancel(reservations)
+    if cancel:                                            # #26: given up, still to cancel
+        lines += ["## 要取消的訂位", ""]
+        for r in cancel:
+            det = "；".join(f"{k} {v}" for k, v in reservation.detail_pairs(r, reservation.kind_of(r)))
+            extra = [x for x in (f"{r['cancel_by']} 前取消" if r.get("cancel_by") else "",
+                                 r.get("cancel_how") or "", det) if x]
+            lines.append(f"- {md_escape(md_wd(to_date(r['date'])))} {md_escape(reservation.what(r, poi_map))}"
+                         + (f"：{md_escape('；'.join(extra))}" if extra else ""))
         lines.append("")
 
     contingency = itin.get("contingency") or []

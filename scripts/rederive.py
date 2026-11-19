@@ -260,10 +260,13 @@ def _move_segments(itinerary):
                 j += 1
                 continue
             k = j
-            while k < len(rows) and rows[k].get("slot") == "move":
+            # #37: a transfer point between two moves is part of the run, not its end
+            while k < len(rows) and rows[k].get("slot") in ("move", "transfer"):
                 k += 1
+            while rows[k - 1].get("slot") == "transfer":        # never ends on one
+                k -= 1
             nxt = rows[k].get("poi_id") if k < len(rows) else d.get("lodging")
-            yield d.get("date", "?"), j, rows[j:k], last_node, nxt
+            yield d.get("date", "?"), j, [r for r in rows[j:k] if r.get("slot") == "move"], last_node, nxt
             j = k
         prev_lodging = d.get("lodging")
 

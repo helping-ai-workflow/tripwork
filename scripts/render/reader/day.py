@@ -9,6 +9,7 @@ from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import MODE_ICON, SLOT_ICON, icon
 from scripts.render.reader.home import _name, navb
 from scripts.render.reader.maps import DATA_IMAGE, day_points, image_class, map_card, target
+from scripts.transfer import transfer_line
 from scripts.render.reader.text import dur, esc, hhmm, lang_label, minutes, move_summary, number
 
 MODE_LABEL = {"walk": "步行", "rail": "電車", "bus": "巴士", "taxi": "計程車", "drive": "開車",
@@ -90,14 +91,14 @@ def _photo(ctx, p):
             f'<div class="zbar"><span class="zc">{credit}</span><label class="zx" for="{pid}">✕ 關閉</label></div></figure>')
 
 
-def stop(ctx, i, j, row, p, local_lang):
+def stop(ctx, i, j, row, p, local_lang, name=None):
     slot = row.get("slot") or "visit"
     tid = target(i, f"s{j}")
     start = minutes(row.get("time"))
     stay = _stay(p)
     leave = f'<small>– {hhmm(start + stay)}</small>' if start is not None and stay else ""
     head = (f'<span class="t"><b>{esc(row.get("time") or "")}</b>{leave}</span>'
-            f'<span class="nm"><span class="n">{esc(_name(p) or row.get("text"))}</span>'
+            f'<span class="nm"><span class="n">{esc(name or _name(p) or row.get("text"))}</span>'
             f'<span class="one">{esc(_first_clause(row.get("text")))}</span></span>')
     rows = []
     if stay:
@@ -258,6 +259,9 @@ def chain(ctx, i, day):
         if _is_move(r):
             out.append(leg(r, legs, ctx))
             travel += _leg_fields(r, legs)[1] or 0
+            continue
+        if r.get("slot") == "transfer":       # #37: a place between two moves, not a stop
+            out.append(stop(ctx, i, j, r, None, ctx.local_lang, name=transfer_line(rows, j)))
             continue
         p = ctx.poi_map.get(r.get("poi_id"))
         start = minutes(r.get("time"))

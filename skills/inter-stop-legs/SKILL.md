@@ -67,6 +67,14 @@ leg's `status` field and use `reason` in what you tell the user — the schema r
 Both stops mirror a routing `far` hop / a `seasonal` `blocking` item; record the decision
 in `work/<slug>/stage-state.yaml` before continuing.
 
+## Flights: check-in (#23)
+
+For a flight leg record `check_in_close_mins` from the airline's own page (`check_in_source`) —
+counter and online check-in, international and domestic differ, so never assume one — and
+`international`. When the airline or airport publishes how early to arrive, record it as
+`arrive_by_mins` (`arrive_by_source`). itinerary-synthesis plans the trip to the airport from
+these (`scripts/airport.py::be_at_airport`).
+
 ## Output
 
 Write `trips/<slug>/data/legs.yaml`, then validate it:

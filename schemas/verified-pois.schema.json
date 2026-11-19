@@ -21,7 +21,12 @@
         "properties": {
           "id": {
             "type": "string",
-            "not": {"enum": ["home-origin", "home-return"]},
+            "not": {
+              "enum": [
+                "home-origin",
+                "home-return"
+              ]
+            },
             "description": "home-origin / home-return are the map's home points (scripts/render/reader/maps.py::HOME_IDS)."
           },
           "name_local": {
@@ -93,12 +98,25 @@
                 "type": "object",
                 "description": "The strings this coordinate was looked up with (source_verify_run.py). A re-run keeps a verified POI's coordinate while these are unchanged instead of asking Nominatim again (TW-097); --regeocode forces a fresh lookup.",
                 "properties": {
-                  "name": {"type": "string"},
-                  "district": {"type": "string"},
-                  "name_roman": {"type": "string"},
-                  "address": {"type": "string"}
+                  "name": {
+                    "type": "string"
+                  },
+                  "district": {
+                    "type": "string"
+                  },
+                  "name_roman": {
+                    "type": "string"
+                  },
+                  "address": {
+                    "type": "string"
+                  }
                 },
                 "additionalProperties": false
+              },
+              "parent": {
+                "type": "string",
+                "minLength": 1,
+                "description": "#35: the building whose coordinate this is (the POI's `inside`); geocode_source is the building's own."
               }
             },
             "additionalProperties": false
@@ -233,7 +251,11 @@
                 "pattern": "^https?://"
               }
             },
-            "dependencies": {"opens_at": ["opens_at_source"]},
+            "dependencies": {
+              "opens_at": [
+                "opens_at_source"
+              ]
+            },
             "additionalProperties": false
           },
           "gmaps_place_id": {
@@ -243,15 +265,33 @@
           "rating": {
             "type": "object",
             "description": "Optional rating a source states (§11): Google's when the consumer has a key (the plugin never calls Google), else another platform's (Tabelog, 愛食記 ...). Never gates, demotes or conflicts a place; lists sort by it and warn on few reviews. `note`: the agent's reading of collected write-ups when they disagree with a high score.",
-            "required": ["platform", "score", "source_url", "as_of"],
+            "required": [
+              "platform",
+              "score",
+              "source_url",
+              "as_of"
+            ],
             "additionalProperties": false,
             "properties": {
-              "platform": {"type": "string"},
-              "score": {"type": "number"},
-              "count": {"type": "integer"},
-              "source_url": {"type": "string"},
-              "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
-              "note": {"type": "string"}
+              "platform": {
+                "type": "string"
+              },
+              "score": {
+                "type": "number"
+              },
+              "count": {
+                "type": "integer"
+              },
+              "source_url": {
+                "type": "string"
+              },
+              "as_of": {
+                "type": "string",
+                "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+              },
+              "note": {
+                "type": "string"
+              }
             }
           },
           "business_status": {
@@ -259,23 +299,38 @@
             "oneOf": [
               {
                 "type": "string",
-                "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+                "enum": [
+                  "OPERATIONAL",
+                  "CLOSED_TEMPORARILY",
+                  "CLOSED_PERMANENTLY"
+                ]
               },
               {
                 "type": "object",
-                "required": ["status", "source_url", "as_of"],
+                "required": [
+                  "status",
+                  "source_url",
+                  "as_of"
+                ],
                 "additionalProperties": false,
                 "properties": {
                   "status": {
                     "type": "string",
-                    "enum": ["OPERATIONAL", "CLOSED_TEMPORARILY", "CLOSED_PERMANENTLY"]
+                    "enum": [
+                      "OPERATIONAL",
+                      "CLOSED_TEMPORARILY",
+                      "CLOSED_PERMANENTLY"
+                    ]
                   },
                   "source_url": {
                     "type": "string",
                     "pattern": "^(https?://[^\\s]+|tel:[+0-9][0-9()\\-. ]{5,})$",
                     "description": "The Places API endpoint, the dated page, or `tel:<number>` for a phone confirmation. `tel:` is admitted deliberately: it is the only route available to a consumer without a Places API key, and rejecting it would make this fix name an unobtainable source — the exact defect TW-063 closes. End-anchored (I4): the prior pattern had no `$`, so `tel:` alone or `https://` alone satisfied it — this is Gate 0's sole auditability carrier, so a pattern four junk characters can pass is not a minor gap."
                   },
-                  "as_of": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"}
+                  "as_of": {
+                    "type": "string",
+                    "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                  }
                 }
               }
             ]
@@ -395,9 +450,156 @@
           "intro_source": {
             "type": "string",
             "pattern": "^https?://"
+          },
+          "inside": {
+            "type": "string",
+            "minLength": 1,
+            "description": "#35: the poi_id of the building this place is inside (a department store, a station, an airport terminal, an underground mall) -- never a shopping street. Its coordinate and, with `floor`, its address come from that building."
+          },
+          "floor": {
+            "type": "string",
+            "minLength": 1,
+            "description": "#35: where in the building, e.g. B1, 國內線 2F・安檢前."
+          },
+          "floor_source": {
+            "type": "string",
+            "pattern": "^https?://"
+          },
+          "security_zone": {
+            "enum": [
+              "landside",
+              "airside",
+              "unknown"
+            ],
+            "description": "#33: before (landside) or after (airside) airport security. unknown when no source says."
+          },
+          "security_zone_source": {
+            "type": "string",
+            "pattern": "^https?://"
+          },
+          "dining": {
+            "type": "object",
+            "additionalProperties": false,
+            "description": "#30: how the place works, each item with the page that says so. Leave an item out when no source says it -- never guess from the country or the kind of shop.",
+            "properties": {
+              "order": {
+                "type": "object",
+                "required": [
+                  "value",
+                  "source_url"
+                ],
+                "additionalProperties": false,
+                "description": "桌邊點餐 / 櫃台點餐 / 餐券機",
+                "properties": {
+                  "value": {
+                    "enum": [
+                      "table",
+                      "counter",
+                      "ticket_machine"
+                    ]
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^https?://"
+                  }
+                }
+              },
+              "pay": {
+                "type": "object",
+                "required": [
+                  "value",
+                  "source_url"
+                ],
+                "additionalProperties": false,
+                "description": "先付 / 後付",
+                "properties": {
+                  "value": {
+                    "enum": [
+                      "before",
+                      "after"
+                    ]
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^https?://"
+                  }
+                }
+              },
+              "payment": {
+                "type": "object",
+                "required": [
+                  "value",
+                  "source_url"
+                ],
+                "additionalProperties": false,
+                "description": "accepted payment; [cash] alone = 只收現金",
+                "properties": {
+                  "value": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                      "enum": [
+                        "cash",
+                        "card",
+                        "ic",
+                        "qr"
+                      ]
+                    }
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^https?://"
+                  }
+                }
+              },
+              "self_service": {
+                "type": "object",
+                "required": [
+                  "value",
+                  "source_url"
+                ],
+                "additionalProperties": false,
+                "description": "true = 吃完自己收餐具",
+                "properties": {
+                  "value": {
+                    "type": "boolean"
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^https?://"
+                  }
+                }
+              },
+              "queue": {
+                "type": "object",
+                "required": [
+                  "value",
+                  "source_url"
+                ],
+                "additionalProperties": false,
+                "description": "號碼牌 / 現場排隊 / 不收訂位",
+                "properties": {
+                  "value": {
+                    "enum": [
+                      "ticket",
+                      "line",
+                      "no_reservation"
+                    ]
+                  },
+                  "source_url": {
+                    "type": "string",
+                    "pattern": "^https?://"
+                  }
+                }
+              }
+            }
           }
         },
-        "dependencies": {"intro": ["intro_source"]},
+        "dependencies": {
+          "intro": [
+            "intro_source"
+          ]
+        },
         "allOf": [
           {
             "if": {
