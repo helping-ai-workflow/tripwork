@@ -305,8 +305,8 @@ def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False, edges=(), route=
     user's pick on the design board: no pill, no leader line) set in the nearest spot
     that overlaps no other label, no dot, and not the corner credit. #38: each stop's dot
     carries its number and a dashed line joins them in order (M3); dots on one spot are
-    fanned out round a dashed ring (M5), or, all in one building, drawn as one '×N' dot
-    (#35); a far end is an edge arrow (M4)."""
+    fanned out, each with its number, round a dashed ring (M5) -- a solid ring with the
+    building's name when they are all inside one (#35); a far end is an edge arrow (M4)."""
     s = w / PHONE_W
     marks = []
     drawn = set()
@@ -322,29 +322,31 @@ def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False, edges=(), route=
             tag = LABELS["home_merged" if pt["kind"] == "home" else "hotel_merged"]
         marks.append((pt, x, y, tag))
     r = (9 if any(p.get("no") for p, *_ in marks) else 7) * s
-    rings, drop = [], set()
+    rings = []
+    names = []
     for ks in _groups(marks):
         b = {_building(marks[k][0]) for k in ks}
         x0, y0 = marks[ks[0]][1], marks[ks[0]][2]
-        if len(b) == 1 and None not in b:                     # #35: one building, one dot
-            nos = [marks[k][0].get("no") for k in ks if marks[k][0].get("no")]
-            pt0 = marks[ks[0]][0]
-            span = f" {min(nos)}–{max(nos)}" if len(nos) > 1 else ""
-            marks[ks[0]] = (dict(pt0, no=None, many=len(ks)), x0, y0, f"{pt0.get('building') or pt0['tag']}{span}")
-            drop.update(ks[1:])
-            continue
-        rr = (r * 1.6) if len(ks) <= 6 else r * 2.2           # M5: fan out, approximate
+        one = len(b) == 1 and None not in b
+        rr = (r * 1.6) if len(ks) <= 6 else r * 2.2           # every dot keeps its own number
         for n, k in enumerate(ks):
             a = -math.pi / 2 + 2 * math.pi * n / len(ks)
             pt, _x, _y, tag = marks[k]
             marks[k] = (pt, round(x0 + math.cos(a) * rr, 1), round(y0 + math.sin(a) * rr, 1), tag)
-        rings.append(f'<circle class="apx" cx="{x0}" cy="{y0}" r="{round(rr + r + 3 * s, 1)}"/>')
-    marks = [m for k, m in enumerate(marks) if k not in drop]
+        ring = round(rr + r + 3 * s, 1)
+        # #35 (user, 2026-11-19): one building -- a solid ring named after it (the place is
+        # right, only shared); M5: a shared approximate point -- a dashed ring
+        rings.append(f'<circle class="{"bld" if one else "apx"}" cx="{x0}" cy="{y0}" r="{ring}"/>')
+        if one:
+            nm = marks[ks[0]][0].get("building") or ""
+            names.append((nm, x0, y0 + ring + 14 * s))
     line = ""
-    seq = [(x, y) for p, x, y, _ in marks if p.get("no") or p.get("many")]
+    seq = [(x, y) for p, x, y, _ in marks if p.get("no")]
     if route and len(seq) > 1:
         line = '<path class="seqline" d="M' + "L".join(f"{x} {y}" for x, y in seq) + '"/>'
     taken = [(x - r, y - r, x + r, y + r) for _, x, y, _ in marks]
+    for nm, x, y in names:
+        taken.append((x - _label_w(nm) * s / 2, y - 10 * s, x + _label_w(nm) * s / 2, y + 10 * s))
     if credit:
         taken.append((w - 96 * s, h - 24 * s, w, h))      # "© OpenStreetMap", bottom right
     out = []
@@ -358,14 +360,16 @@ def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False, edges=(), route=
             tx, ty = min(max(x, tw * s / 2), w - tw * s / 2), max(y - 22 * s, 10 * s)
         cls = (f'pin k-{esc(pt["kind"])}{" hl" if hl and pt["key"] in hl else ""}'
                f'{" dim" if hl and pt["key"] not in hl else ""}')
-        big = r * 1.35 if pt.get("many") else r
-        inner = (str(pt["no"]) if pt.get("no") else f'×{pt["many"]}' if pt.get("many") else "")
+        big = r
+        inner = str(pt["no"]) if pt.get("no") else ""
         no = (f'<text x="{x}" y="{y}" class="no" style="font-size:{round(11 * s, 1)}px">{esc(inner)}</text>'
               if inner else "")
         out.append(f'<g class="{cls}" data-poi="{esc(pt["poi"].get("id"))}">'
                    f'<circle cx="{x}" cy="{y}" r="{round(big, 1)}" class="pt"/>{no}'
                    f'<g transform="translate({round(tx, 1)},{round(ty, 1)}) scale({round(s, 2)})">'
                    f'<text y="5" class="tl">{esc(tag)}</text></g></g>')
+    out += [f'<g class="bname" transform="translate({round(x, 1)},{round(y, 1)}) scale({round(s, 2)})">'
+            f'<text y="5" class="tl">{esc(nm)}</text></g>' for nm, x, y in names if nm]
     seen = set()
     edges = [(p, km) for p, km in edges if id(p["poi"]) not in seen and not seen.add(id(p["poi"]))]
     far = "".join(_edge(p, bbox, w, h, s, km) for p, km in edges)

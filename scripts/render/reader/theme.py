@@ -211,7 +211,8 @@ details[open]>summary>.cv{{transform:rotate(-135deg);margin-top:-2px}}
 .pin.hl .pt{{stroke-width:6}}.pin.dim{{opacity:.5}}
 .pin .no{{fill:#fff;font-family:var(--f-round);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}}
 .seqline{{fill:none;stroke:var(--ink);stroke-width:3;stroke-dasharray:7 6;stroke-linecap:round;opacity:.7}}
-.apx{{fill:none;stroke:var(--ink);stroke-width:2;stroke-dasharray:4 5;opacity:.6}}
+.apx{{fill:none;stroke:var(--ink);stroke-width:2;stroke-dasharray:4 5;opacity:.6}}.bld{{fill:color-mix(in srgb,var(--card) 55%,transparent);stroke:var(--ink);stroke-width:2;opacity:.85}}
+.bname .tl{{fill:var(--ink);font-size:13px}}
 .pin.edge .ea{{stroke:#fff;stroke-width:2}}.pin.edge.k-lodging .ea{{fill:var(--lodging)}}.pin.edge.k-home .ea{{fill:var(--ink)}}.tl{{font:700 14px var(--f-round);text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}}
 .mnav{{display:flex;justify-content:space-between;padding:6px 2px 0;font:700 12px var(--f-round);color:var(--mut)}}.mnav label{{cursor:pointer}}
 .mv:has(.zck:checked){{position:fixed;inset:0;z-index:30;background:rgba(10,8,6,.92);display:flex!important;flex-direction:column;justify-content:safe center;overflow:auto;padding:12px}}

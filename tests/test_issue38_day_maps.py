@@ -44,18 +44,20 @@ def test_stops_are_numbered_and_joined(tmp_path):
     _doc, html = _kamakura(tmp_path)
     view = BeautifulSoup(html, "html.parser").select_one('section[data-pg="d3"] .mv-d3-all')
     nos = [t.get_text() for t in view.select(".pin .no")]
-    assert nos[:5] == ["1", "2", "3", "4", "5"] and "×2" in nos and "9" in nos
+    assert nos == [str(n) for n in range(1, 10)]                                       # every stop, 1-9
     assert view.select_one("path.seqline")
 
 
-def test_shared_spots_fan_out_and_a_building_is_one_dot(tmp_path):
+def test_shared_spots_fan_out_each_with_its_number(tmp_path):
+    # #35 (user, 2026-11-19): a ×N dot hid which stops it held -- one building now fans out
+    # like a shared point, round a solid ring named after the building
     _doc, html = _kamakura(tmp_path)
     view = BeautifulSoup(html, "html.parser").select_one('section[data-pg="d3"] .mv-d3-all')
-    assert len(view.select("circle.apx")) == 1                                         # the 3 street shops
-    spots = {(c["cx"], c["cy"]) for c in view.select(".pin:not(.edge) circle.pt")}
-    assert len(spots) == len(view.select(".pin:not(.edge) circle.pt"))                 # nothing stacked
-    merged = [g for g in view.select(".pin") if g.select_one(".no") and g.select_one(".no").get_text() == "×2"]
-    assert "示意百貨 6–7" in merged[0].get_text()
+    assert len(view.select("circle.apx")) == 1 and len(view.select("circle.bld")) == 1
+    assert view.select_one(".bname").get_text() == "示意百貨"
+    spots = [(c["cx"], c["cy"]) for c in view.select(".pin:not(.edge) circle.pt")]
+    assert len(set(spots)) == len(spots)                                               # nothing stacked
+    assert not [t for t in view.select(".pin .no") if "×" in t.get_text()]
 
 
 def test_a_close_up_shows_the_neighbours_dimmed(tmp_path):
