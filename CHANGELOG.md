@@ -67,7 +67,7 @@ picked on a design board.
 - None required. To keep an already-shared page while publishing a new one, register it
   first: `tripwork.py publish <slug> --freeze <code>`.
 
-Tests: 2427 passed with the consumer workspace (privacy check included). Browser suite in a
+Tests: 2427 passed with the consumer workspace (privacy check included; in CI the two workspace checks skip). Browser suite in a
 cloud container: 652 passed, 1 failed — `test_the_move_label_sits_on_its_line[webkit]`'s
 icon-to-ink check measures 1.07 px against 1.0 there, identically on 3.1.2 (no PingFang in the
 container; Noto's CJK ink sits differently from the font the baseline was measured with).
