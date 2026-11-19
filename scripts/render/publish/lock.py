@@ -20,7 +20,7 @@ STATICRYPT = "staticrypt@3.5.4"
 LOCK_COPY = {"title": "我們的旅程", "placeholder": "輸入密碼", "button": "打開行程", "remember": "記得密碼",
              "error": "密碼不對，再試一次。", "show": "顯示", "hide": "隱藏"}
 
-_CSS = """:root{%(light)s;--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body);color-scheme:light}
+_CSS = """:root{%(light)s;--f-body:system-ui,-apple-system,"PingFang TC","Noto Sans TC","Noto Sans CJK TC",sans-serif;--f-round:'ZenEmb','GenSenEmb',var(--f-body);color-scheme:light}
 :root:has(#theme:checked){%(dark)s}
 #theme{position:absolute;opacity:0;pointer-events:none}
 .bubble{position:fixed;right:24px;bottom:24px;z-index:9;width:44px;height:44px;border-radius:50%%;display:grid;place-items:center;cursor:pointer;background:var(--card);color:var(--ink);box-shadow:0 2px 10px rgba(0,0,0,.35),0 0 0 1px var(--rule)}

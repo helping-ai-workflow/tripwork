@@ -128,7 +128,7 @@ def build(trip_dir, work_dir=None, fetch=None, offline=False):
     """Build and write the side-file; returns the document."""
     from scripts.gate import poi_pool
     from scripts.paths import artifact_path, work_dir_for
-    from scripts.render.reader.maps import _geo, _segments, day_points
+    from scripts.render.reader.maps import _geo, _segments, day_points, far_ends
     from scripts.render.reader.page import _context
 
     t = pathlib.Path(trip_dir)
@@ -153,7 +153,10 @@ def build(trip_dir, work_dir=None, fetch=None, offline=False):
             if id(p) not in in_segment and p["poi"].get("id"):
                 lone.setdefault(p["poi"]["id"], p["poi"])
         for pts in _segments(points):
-            entry = _overview(get, [_geo(p["poi"]) for p in pts])
+            far = far_ends(pts)                 # #38 M4: a far hotel is an edge arrow, not in the frame
+            entry = _overview(get, [_geo(p["poi"]) for p in pts if p["key"] not in far])
+            if far:
+                entry["far"] = sorted(far)
             # the stops this image was made for: the reader falls back to its schematic
             # when the itinerary has moved on since (maps.py::map_card)
             entry["poi_ids"] = sorted({p["poi"].get("id") for p in pts if p["poi"].get("id")})

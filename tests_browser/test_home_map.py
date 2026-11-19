@@ -24,6 +24,8 @@ def home_url(tmp_path_factory):
 
 
 def test_home_pin_on_first_and_last_day(open_page, home_url):
+    # #38 M4: this home is ~27 km from the day's stops, so it is an arrow at the frame's
+    # edge (path.ea) rather than a dot -- either way it is drawn inside the frame
     url, labels = home_url
     pg = open_page(PHONE, js=False, url=url)
     for d, chip, pid in ((1, 1, "home-origin"), (2, -1, "home-return")):
@@ -32,7 +34,7 @@ def test_home_pin_on_first_and_last_day(open_page, home_url):
         chips = pg.eval_on_selector_all(f"section[data-pg=d{d}] .mapc .chips a.chip", "es=>es.map(e=>e.textContent)")
         assert chips[chip] == (labels["home_start"] if d == 1 else labels["home_end"])
         inside = pg.evaluate(f"""(()=>{{const v=document.querySelector('section[data-pg=d{d}] .mv-d{d}-all');
-            const p=v.querySelector('g.pin[data-poi="{pid}"] circle');if(!p)return null;
+            const p=v.querySelector('g.pin[data-poi="{pid}"] circle, g.pin[data-poi="{pid}"] path.ea');if(!p)return null;
             const f=p.closest('.mframe').getBoundingClientRect(),c=p.getBoundingClientRect();
             return c.left>=f.left&&c.right<=f.right&&c.top>=f.top&&c.bottom<=f.bottom}})()""")
         assert inside is True, (d, inside)

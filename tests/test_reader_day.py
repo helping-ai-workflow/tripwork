@@ -64,9 +64,10 @@ def test_expanded_rows_in_order():
     d = _day(2)
     gor = _stop(d, "hak-goryokaku").select_one(".in")
     assert gor.select_one("figure.bp .bpi")["role"] == "img"                 # the photo (a CSS background since P7)
-    assert [t.get_text() for t in gor.select("dl > dt")] == ["停留", "營業", "安排", "來源"]
+    # #36: a place with no street address still says so, with a 給司機看 sheet of its name
+    assert [t.get_text() for t in gor.select("dl > dt")] == ["停留", "營業", "地址", "安排", "來源"]
     yama = _stop(d, "hak-yama").select_one(".in")
-    assert [t.get_text() for t in yama.select("dl > dt")] == ["停留", "介紹", "營業", "安排", "來源"]
+    assert [t.get_text() for t in yama.select("dl > dt")] == ["停留", "介紹", "營業", "地址", "安排", "來源"]
     assert "至 22:00（最後入場 21:30）" in yama.get_text()
     asaichi = _stop(d, "hak-asaichi").select_one(".in")
     assert "至 14:00（L.O. 13:30）" in asaichi.get_text()
@@ -85,8 +86,9 @@ def test_legs_carry_their_mode():
     modes = [next(c for c in l.select_one("svg")["class"] if c.startswith("m-")) if l.select_one("svg")
              else None for l in legs]
     assert modes == ["m-walk", "m-taxi", "m-bus", "m-taxi", None]
-    texts = [l.get_text(" ", strip=True) for l in legs]
-    # v1.1 (user): a capsule is mode + minutes + distance; no 估 marker, no note
+    # v1.1 (user): a capsule is mode + minutes + distance; no 估 marker. #32 (user, 2026-11-18):
+    # the row's own words now follow under it (.lnt) -- the capsule line is .lrh / .ltx
+    texts = [(l.select_one(".ltx") or l).get_text(" ", strip=True) for l in legs]
     from scripts.render.reader.text import move_summary
     assert texts[0] == BeautifulSoup(move_summary("步行", 12, 0.9), "html.parser").get_text(" ", strip=True)
     assert texts[2].startswith("巴士 30 分")

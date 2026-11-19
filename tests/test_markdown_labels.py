@@ -49,6 +49,7 @@ def test_a_move_row_carries_its_mode(mode):
 def test_a_move_without_mode_has_no_mark():
     md = _md([{"slot": "move", "from": "甲", "to": "乙", "mode": "none", "text": "同一棟"}], [])
     assert "[甲→乙]" in md and not any(e in md for e in ICON_EMOJI.values())
+    assert "maps/dir/" not in md          # #27: a stay (mode: none) gets no route link
 
 
 def test_a_leg_row_reads_its_mode_from_legs():

@@ -1,5 +1,77 @@
 # Changelog
 
+## 3.2.0 — where to change trains, when to be at the airport, and a re-verify that keeps what it verified
+
+From the 2026-11-18 review of a consumer trip's issues (#22–#39); every visual choice was
+picked on a design board.
+
+### Added
+
+- **Transfer points** (#37): a `slot: transfer` row names the station or stop between two
+  moves, its platform and what to do there; the reader draws it as a dot on the move line
+  with the wait (「等 28 分」). The gate lists bare joins of two moves in one notice and warns
+  on a wait over 15 minutes with no transfer point (gate-report `warnings`, new).
+- **Move rows show their words** (#32): the row's text and its platform facts —
+  `board_at` / `route` / `alight_at` / `pay` / `next_service` — open under the move, with
+  the operator's official English names (`*_en`, #22) and a 「售票機上選」 line for a
+  booked rail move.
+- **When to be at the airport** (#23): flights record `check_in_close_mins` (never a
+  default) or the published `arrive_by_mins`; the move there is checked at the upper end of
+  its estimate (`mins_max`). A miss fails `check-in missed:` and stops to ask
+  (`check_in_missed`).
+- **Side of airport security** (#33): `security_zone` on airport shops; an airside shop
+  before the security transfer, or a landside one after it, fails the gate.
+- **Venue notices** (#34): `venue_notices` records each station, airport or building's own
+  news page looked at within 30 days of departure; a closure that changes a move needs its
+  `detour`.
+- **Places inside a building** (#35): `inside` / `floor` give a shop its building's
+  coordinate (and approximateness) and, lacking its own, its address plus floor.
+- **Bookings to cancel** (#26): `status: cancel` / `cancelled`, `cancel_by`, `cancel_how`;
+  shown at the top of the day and as a checklist line; a notice once past `cancel_by`.
+- **How a restaurant works** (#30): a sourced `dining` record, shown as a 用餐 row; cash-only
+  places join a 準備現金 line.
+- **Week-before forecast** (#31): `tripwork.py forecast <slug> [--jma DATE=OFFICE/POINT]`
+  writes `data/forecast.yaml` — JMA's weekly forecast, else a marked model forecast, at
+  most 7 days ahead. The reader puts it in the 地圖 row (no height of its own) and marks it
+  預報已過時 past 48 hours; the md adds a 天氣 line per day.
+- **Frozen publish pages** (#24): `publish/codes.yaml`; `publish --new-code` keeps the
+  current page frozen, `--freeze CODE` adopts one on disk, `--retire CODE` takes one off.
+  `deploy` uploads every kept page byte for byte and checks each frozen page's sha256
+  before and online after.
+- **Day maps** (#38): an end of the day over 10 km and 3× the stops' spread away is an
+  arrow at the overview's edge (「旅館 約 49 km」); stops are numbered and joined; dots on
+  one spot fan out round a dashed ring, or a solid ring named after their building; a
+  close-up shows the day's other stops, dimmed.
+- `verify --only ID…` verifies just the named candidates (#25).
+
+### Changed
+
+- **A re-verify never quietly downgrades** (#25): a coordinate stays while its lookup is
+  unchanged (keys a later version added do not count), the previous region verdict stands
+  when no centre can be had, and `business_status` / `booking` / `name_roman` the candidate
+  omits are kept. A POI the itinerary uses that would lose `verified` stops the run (exit 3,
+  `scheduled_poi_downgrade`) unless `--allow-downgrade`.
+- **Region check by address** (#29): a POI whose own address parts name the claimed
+  district is in it up to 30 km from the centre; otherwise the 5 km radius, as before.
+- **`deploy` stops on a locked page `codes.yaml` does not list** (#24) instead of deleting
+  it online.
+- Notices of one kind are one line (#36 #37 …); a place with no street address keeps a
+  給司機看 sheet of its local name and area that points at 導航 (#36).
+- A name already ending in a bracket takes `name_zh` inside it (#28); a move that goes
+  nowhere gets a search link, not an A→A route (#27).
+- The 給司機看 sheet hides the theme button (#39).
+- Every page's body font stack names "Noto Sans CJK TC" (Linux and Android's name).
+
+### Migration
+
+- None required. To keep an already-shared page while publishing a new one, register it
+  first: `tripwork.py publish <slug> --freeze <code>`.
+
+Tests: 2427 passed with the consumer workspace (privacy check included; in CI the two workspace checks skip). Browser suite in a
+cloud container: 652 passed, 1 failed — `test_the_move_label_sits_on_its_line[webkit]`'s
+icon-to-ink check measures 1.07 px against 1.0 there, identically on 3.1.2 (no PingFang in the
+container; Noto's CJK ink sits differently from the font the baseline was measured with).
+
 ## 3.1.2 — the phone home gives 旅程與費用 its room back
 
 ### Fixed

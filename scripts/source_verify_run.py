@@ -37,7 +37,7 @@ import time
 import requests
 import yaml
 
-from scripts.geocode import (address_is_fine, address_point, country_code, county_district, in_region,
+from scripts.geocode import (address_is_fine, address_point, country_code, county_district, in_claimed, in_region,
                              pick_point, place_point, resolve_place, village_of, village_point)
 from scripts.paths import artifact_path
 from scripts.geocode_cache import load_cache, save_cache
@@ -75,16 +75,28 @@ def _carried_keys():
                   - set(item("candidates.schema.json", "candidates")) - set(DRIVER_COMPUTED))
 
 
-def _carry_over(poi, prior, cand):
+# #25: candidate fields an earlier run recorded that a later candidates.yaml may not
+# repeat (a mid-trip edit adds new candidates and leaves the old ones short). Sourced
+# facts, so the previous value stands -- and the run says which it kept.
+KEPT_FROM_PRIOR = ("business_status", "booking", "name_roman")
+
+
+def _carry_over(poi, prior, cand, carried=None):
     """Keep what an overlay recorded on the previous run (TW-090): carried fields the
     new record lacks, and a source's `official` flag for the same URL -- unless the
-    candidate itself states `official` for that URL (research's word wins)."""
+    candidate itself states `official` for that URL (research's word wins). #25: also
+    the KEPT_FROM_PRIOR fields the candidate does not state, named in `carried`."""
     if not prior:
         return poi
     stated = {s.get("url") for s in cand.get("sources") or [] if "official" in s}
     for key in _carried_keys():
         if key not in poi and key in prior:
             poi[key] = prior[key]
+    for key in KEPT_FROM_PRIOR:
+        if key not in poi and cand.get(key) is None and prior.get(key) is not None:
+            poi[key] = prior[key]
+            if carried is not None:
+                carried.append(f"{poi.get('id')}.{key}")
     official = {s.get("url") for s in prior.get("sources") or [] if s.get("official")}
     for s in poi.get("sources") or []:
         if s.get("url") in official and s.get("url") not in stated:
@@ -185,6 +197,23 @@ def _own_place(name):
     return s
 
 
+def named_in(district, display_name):
+    """#29 A': the result's address parts (display_name after its own name) include the
+    claimed district -- '旭山動物園, 東旭川町倉沼, 旭川市, 上川総合振興局, 北海道' names 旭川市.
+    OSM's own boundaries, so it holds in any country; the district must be written in
+    the local language, as for the centroid lookup."""
+    key = district_key(district)
+    if not key:
+        return False
+    unit = re.escape(key) + r"(?:[都道府県市郡区町村郷鎮]|[0-9０-９一二三四五六七八九十]+丁目)?"
+    return any(re.fullmatch(unit, _own_place(part.strip()))
+               for part in str(display_name or "").split(",")[1:])
+
+
+def _region(centroid, radius_km, district):
+    return (centroid[0], centroid[1], radius_km, lambda name: named_in(district, name))
+
+
 def _landed_in(district, display_name):
     """The result IS the district: its own name (display_name's first part, below its
     city) is the district -- with its unit (函館 -> 函館市), one of its numbered blocks
@@ -272,8 +301,10 @@ def _confirmed_geocode(prior, cand):
     if not geo.get("geocode_source") or geo.get("lat") is None or geo.get("lng") is None:
         return None
     now = _lookup_query(cand)
-    if "query" in geo:
-        same = geo["query"] == now
+    if isinstance(geo.get("query"), dict):
+        # #25: compare the keys the record has; a key a later version added to the
+        # lookup (v2.1.0 `address`) does not make an unchanged lookup "changed"
+        same = all(now.get(k) == v for k, v in geo["query"].items())
     else:
         same = (prior.get("name_local") == cand.get("name_local")
                 and prior.get("name_roman") == cand.get("name_roman")
@@ -312,7 +343,7 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
     sentinel is unrelated to, and survives, Gate 2c's later v0.34.0
     retirement — see classify_candidate's old call site.)
     """
-    if offline:
+    if offline and kept is None:      # #25: a kept coordinate needs no lookup, offline too
         return None, False, False, None, False
 
     query = _lookup_query(cand)
@@ -327,16 +358,22 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
         if kept.get("geocode_source") == "cluster_fallback":
             return kept, True, True, resolved, True
         centroid = _district_centroid(district, country, cache, offline, district_centroids)
-        inside = (in_region(kept["lat"], kept["lng"], centroid[0], centroid[1], radius_km)
-                  if centroid is not None else True)
-        return kept, True, inside, resolved, centroid is not None
+        if centroid is None:
+            # #25: the previous run confirmed the region (a kept coordinate is a
+            # `verified` one); a centroid that cannot be had now -- offline, a 丁目
+            # district, a network failure -- is no evidence against it
+            return kept, True, True, resolved, True
+        inside = in_claimed(kept["lat"], kept["lng"],
+                            resolved if isinstance(resolved, str) else "",
+                            _region(centroid, radius_km, district))
+        return kept, True, inside, resolved, True
 
     centroid = _district_centroid(district, country, cache, offline, district_centroids)
     region_checked = centroid is not None
 
     # v2.1.0 D6: a bare-name hit counts only inside the claimed district
     result, source = _rate_limited_resolve(name_local, district, country, cache, name_roman=name_roman,
-                                           region=(centroid[0], centroid[1], radius_km) if region_checked else None)
+                                           region=_region(centroid, radius_km, district) if region_checked else None)
     # v1.3.0: the venue's sourced address checks the name lookup. A name hit far from the
     # address is a namesake (a bare-name tier found the same name elsewhere): dropped. With
     # no name hit left, the address point (its 丁目 or town) stands in, recorded as
@@ -371,7 +408,8 @@ def _geocode_candidate(cand, country, cache, offline, district_centroids, radius
             return geo, True, True, NO_RESOLVED_NAME, True
     if result is not None:
         geo = {"lat": result.lat, "lng": result.lng, "geocode_source": source, "query": query}
-        in_region_flag = (in_region(result.lat, result.lng, centroid[0], centroid[1], radius_km)
+        in_region_flag = (in_claimed(result.lat, result.lng, result.display_name,
+                                     _region(centroid, radius_km, district))
                           if region_checked else True)
         return geo, True, in_region_flag, result.display_name, region_checked
 
@@ -428,7 +466,8 @@ def _build_poi(cand, official_domains, resolved_name):
     # v1.0 P2: carried through so a re-verify does not wipe them (research
     # records them on the candidate; this driver rebuilds verified-pois from
     # candidates on every run).
-    for key in ("intro", "intro_source", "booking", "address_local", "address_source"):
+    for key in ("intro", "intro_source", "booking", "address_local", "address_source",
+                "inside", "floor", "floor_source", "security_zone", "security_zone_source", "dining"):
         if cand.get(key) is not None:
             poi[key] = cand[key]
     if resolved_name is NO_RESOLVED_NAME:
@@ -438,9 +477,60 @@ def _build_poi(cand, official_domains, resolved_name):
     return poi
 
 
-def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False):
+STOPPED_DOWNGRADE = 3
+
+
+def _place_inside(pois, inside, prior, official_domains, local_lang, today, carried):
+    """#35: a place inside a building (`inside: <poi_id>`) takes the building's coordinate
+    -- and its geocode_source, so a building that is itself only approximate keeps its
+    shops approximate -- and, lacking its own, the building's address plus `floor`.
+    The building must be `verified` in this same run; otherwise the place stays
+    `unverified` with the reason."""
+    by_id = {p["id"]: p for p in pois if p}
+    for at, cand in inside:
+        poi = _carry_over(_build_poi(cand, official_domains, NO_RESOLVED_NAME),
+                          prior.get(cand.get("id")), cand, carried)
+        parent = by_id.get(cand["inside"])
+        geo = (parent or {}).get("geocode") or {}
+        if not parent or parent.get("verify_status") != "verified" or geo.get("lat") is None:
+            poi["verify_status"] = "unverified"
+            poi["status_reason"] = (f"inside {cand['inside']}: that building is not a verified POI "
+                                    f"with a coordinate, so this place has no position yet")
+            pois[at] = poi
+            continue
+        poi["geocode"] = {"lat": geo["lat"], "lng": geo["lng"], "geocode_source": geo["geocode_source"],
+                          "parent": parent["id"], "query": _lookup_query(cand)}
+        if not poi.get("address_local") and parent.get("address_local"):
+            poi["address_local"] = " ".join(x for x in (parent["address_local"], cand.get("floor")) if x)
+            if parent.get("address_source"):
+                poi["address_source"] = parent["address_source"]
+        normalised, status, note = _verify_one(poi, True, True, local_lang, NO_RESOLVED_NAME, today)
+        normalised["verify_status"] = status
+        if note:
+            normalised["status_reason"] = note
+            if status == "conflicting":
+                normalised["conflict_note"] = note
+        pois[at] = normalised
+
+
+def _scheduled_ids(trip_dir):
+    """Every POI the itinerary uses: stops, lodgings and per-day alternatives."""
+    from scripts.gate import _alternative_ids, _referenced_ids
+    p = artifact_path(trip_dir, "itinerary.yaml")
+    days = ((_load_yaml_file(p) if p.is_file() else None) or {}).get("days") or []
+    return _referenced_ids(days) | _alternative_ids(days)
+
+
+def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False,
+        only=None, allow_downgrade=False):
     """Verify every candidate in trip_dir/data/candidates.yaml and write
-    trip_dir/data/verified-pois.yaml (scripts/paths.py). Returns (exit_code, pois)."""
+    trip_dir/data/verified-pois.yaml (scripts/paths.py). Returns
+    (exit_code, messages, out_path, pois).
+
+    #25: `only` (ids) verifies just those candidates and keeps every other record as the
+    previous run wrote it. A POI the itinerary uses that this run would take from
+    `verified` to anything else is not written: the run returns STOPPED_DOWNGRADE with
+    the list, for the user to decide, unless `allow_downgrade`."""
     trip_dir = pathlib.Path(trip_dir)
     work_dir = pathlib.Path(work_dir)
 
@@ -472,16 +562,31 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False)
 
     # v1.3.0: the cache is saved even when a failure (a network that outlasts the retries,
     # Ctrl+C) leaves the loop, so it costs one re-run, not the run's progress
+    only = set(only) if only else None
+    carried, inside = [], []
     try:
         for cand in candidates:
             old = prior.get(cand.get("id"))
+            if only is not None and cand.get("id") not in only:
+                if old:
+                    pois.append(old)                  # untouched, as the last run wrote it
+                else:                                 # never silently dropped
+                    pois.append(dict(_build_poi(cand, official_domains, None),
+                                     verify_status="unverified",
+                                     status_reason="not verified yet: this run verified only "
+                                                   "the candidates named with --only"))
+                continue
+            if cand.get("inside"):             # #35: placed by its building, after the loop
+                inside.append((len(pois), cand))
+                pois.append(None)
+                continue
             kept = None if regeocode else _confirmed_geocode(old, cand)
             if kept is not None:
                 kept["resolved_name"] = old.get("resolved_name")
             geo, geocoded, in_region_flag, resolved_name, region_checked = _geocode_candidate(
                 cand, country, cache, offline, district_centroids, radius_km, kept=kept)
             poi = _carry_over(_build_poi(cand, official_domains, resolved_name),
-                              prior.get(cand.get("id")), cand)
+                              prior.get(cand.get("id")), cand, carried)
             if geo is not None:
                 poi["geocode"] = geo
 
@@ -510,17 +615,31 @@ def run(trip_dir, work_dir, offline=False, official_domains=(), regeocode=False)
                 if status == "conflicting":
                     normalised["conflict_note"] = note
             pois.append(normalised)
+        _place_inside(pois, inside, prior, official_domains, local_lang, today, carried)
     finally:
         save_cache(str(cache_path), cache)
 
     out_path = artifact_path(trip_dir, "verified-pois.yaml")
+    notes = [f"kept from the previous run (candidate did not state it): {', '.join(carried)}"] \
+        if carried else []
+    scheduled = _scheduled_ids(trip_dir)
+    lost = [p["id"] for p in pois if p.get("id") in scheduled
+            and (prior.get(p["id"]) or {}).get("verify_status") == "verified"
+            and p.get("verify_status") != "verified"]
+    if lost and not allow_downgrade:
+        reasons = [f"  - {p['id']}: {p.get('verify_status')} -- {p.get('status_reason', '')}"
+                   for p in pois if p.get("id") in lost]
+        return STOPPED_DOWNGRADE, [
+            f"stopped: {len(lost)} POI(s) the itinerary uses would lose `verified`; "
+            f"{out_path.name} is unchanged", *reasons,
+            "ask the user; re-run with --allow-downgrade to write it anyway"] + notes, out_path, pois
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_text(
         yaml.safe_dump({"pois": pois}, allow_unicode=True, sort_keys=False),
         encoding="utf-8")
 
     code, msgs = validate_file(str(out_path))
-    return code, msgs, out_path, pois
+    return code, list(msgs) + notes, out_path, pois
 
 
 def main(argv):
@@ -533,6 +652,12 @@ def main(argv):
     ap.add_argument("--regeocode", action="store_true",
                     help="look every POI up again, even one whose coordinate a previous run "
                          "verified with the same lookup strings (TW-097)")
+    ap.add_argument("--only", nargs="+", metavar="ID", default=None,
+                    help="verify only these candidate ids; every other POI stays as the "
+                         "previous run wrote it (#25)")
+    ap.add_argument("--allow-downgrade", action="store_true",
+                    help="write the result even when a POI the itinerary uses loses "
+                         "`verified` (the run stops otherwise, #25)")
     ap.add_argument("--official-domain", action="append", default=[], metavar="SUFFIX",
                     dest="official_domains",
                     help="extra domain suffix this trip's venues should be flagged "
@@ -542,7 +667,8 @@ def main(argv):
     try:
         code, msgs, out_path, pois = run(
             args.trip_dir, args.work_dir, offline=args.offline,
-            official_domains=args.official_domains, regeocode=args.regeocode)
+            official_domains=args.official_domains, regeocode=args.regeocode,
+            only=args.only, allow_downgrade=args.allow_downgrade)
     except CountryUnknown as exc:
         print(f"國家名稱查不到國碼（{exc}），請在 trip-brief 把 destination.country 寫成兩碼國碼，例如 JP",
               file=sys.stderr)
@@ -556,6 +682,11 @@ def main(argv):
     except (FileNotFoundError, KeyError, TypeError, yaml.YAMLError, OSError) as exc:
         print(f"missing/invalid required input: {exc!r}", file=sys.stderr)
         return 2
+
+    if code == STOPPED_DOWNGRADE:
+        for m in msgs:
+            print(m, file=sys.stderr)
+        return STOPPED_DOWNGRADE
 
     if code == 2:
         # validate_file's own usage-error class (unresolvable schema, bad YAML

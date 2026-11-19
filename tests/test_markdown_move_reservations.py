@@ -1,5 +1,7 @@
 """md day table: a move cell carries its booking by the reader's rule (reservation.road_line),
 skipping a value its row text already spells out; the 交通 list never reads 「。，」."""
+import re
+
 from scripts.render.markdown import render_markdown_page
 from tests import reservation_fixture as F
 
@@ -10,7 +12,10 @@ def _md(itin=None, legs=None, res=None):
 
 
 def _line(md, needle):
-    return next(l for l in md.splitlines() if l.startswith("|") and needle in l)
+    # a flight cell also says when to be at the airport (#23, its own test in
+    # test_issue33_23_34_airport_venues.py); these tests read the booking tail only
+    line = next(l for l in md.splitlines() if l.startswith("|") and needle in l)
+    return re.sub(r" · 到機場 [^（|]*", "", line)
 
 
 def _section(md, head):

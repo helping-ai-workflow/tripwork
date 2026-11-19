@@ -36,7 +36,7 @@ Gates are evaluated in strict order — Gate 0 fires before Gate 1, Gate 1 befor
 **`cluster_fallback` geocode.** When Nominatim cannot resolve a POI, the default outcome is D7 (`unverified`). You may instead record the cluster (district) centroid with `geocode.geocode_source: cluster_fallback`; `verify_poi` accepts it like any other recorded `geocode_source`, with no proof beyond Gate 0 — the sourced `business_status` Gate 0 already requires is the evidence that the venue exists. That evidence proves the place EXISTS, not where it is: the coordinate is still the district midpoint. **So when you record a `cluster_fallback` geocode, tell the user** — name the POI and state that its coordinate is the district centroid, not the venue's own position, so anything distance- or walk-time-sensitive gets checked by hand. The deliverable repeats this for every scheduled one (`scripts/render/centroid.py` adds a 出發前檢查清單 line), but not every verified POI gets scheduled — tell the user when you record it. Never describe a `cluster_fallback` POI's location as verified; the gate passing it is not that disclosure.
 
 **Name-match confirmation:** pass the resolved place's `display_name` back as `verify_poi(..., resolved_name=...)` — if it does not correspond to the queried venue (a renamed nearby place / name drift, e.g. querying 星月大地 but Nominatim returns 星月驛站) the POI is `conflicting` ('name mismatch'), never `verified`. When Nominatim resolves coordinates but the result carries no name to compare against (a coordinate-only hit), pass `scripts/verify.py::NO_RESOLVED_NAME` as `resolved_name` — it records "the lookup ran and found nothing to compare", and Gate 2b treats that as a PASS, distinct from omitting the argument (which means the lookup never ran, and is `unverified`). **D7:** a real place Nominatim cannot resolve degrades to `unverified` (recorded for manual confirmation) — never silently `rejected`. Pass a per-trip cache (`work/<slug>/geocode-cache/geocode.json` via `scripts/geocode_cache.py`) as `resolve_place(..., cache=cache)` — load it once at the start and save it at the end so re-runs skip already-resolved and known-miss lookups.
-3. **Region match + cross-source conflict** (Gate 3) — evaluated only after Gates 1 & 2 pass. A **conflict** is a *material factual disagreement* between independent sources — opening hours, closed day, or address differ in a way that changes the plan (a rating is never compared: it is recorded in `rating`, not judged). Signal it via `conflict_detected=True`; on conflict -> `conflicting` + `conflict_note`, and **stop and ask the user** which source to trust. For the region check, resolve each **claimed district once** via `scripts/geocode.py::resolve_place(district, city, country)` using the same per-trip cache (the candidate's `district_query` instead, when the readable `claimed_district` does not geocode to the place; a result whose name does not contain the district — `scripts/source_verify_run.py::district_key` — is refused and the region stays unconfirmed), record the district centroid (e.g. under `work/<slug>/`), and pass it to `scripts/geocode.py::in_region` (radius defaults to 5 km, overridable via `trip-brief.routing.region_radius_km`); a POI outside -> `conflicting`, record `conflict_note`.
+3. **Region match + cross-source conflict** (Gate 3) — evaluated only after Gates 1 & 2 pass. A **conflict** is a *material factual disagreement* between independent sources — opening hours, closed day, or address differ in a way that changes the plan (a rating is never compared: it is recorded in `rating`, not judged). Signal it via `conflict_detected=True`; on conflict -> `conflicting` + `conflict_note`, and **stop and ask the user** which source to trust. For the region check, resolve each **claimed district once** via `scripts/geocode.py::resolve_place(district, city, country)` using the same per-trip cache (the candidate's `district_query` instead, when the readable `claimed_district` does not geocode to the place; a result whose name does not contain the district — `scripts/source_verify_run.py::district_key` — is refused and the region stays unconfirmed), record the district centroid (e.g. under `work/<slug>/`), and judge the POI with `scripts/geocode.py::in_claimed`: inside the radius (`scripts/geocode.py::in_region`, 5 km by default, overridable via `trip-brief.routing.region_radius_km`), **or** — when the POI's own Nominatim address parts name the claimed district (`scripts/source_verify_run.py::named_in`, OSM's own boundaries, any country) — within `REGION_CAP_KM` (30 km) of the district's centre (#29: a zoo on the edge of a large city written as just the city's name passes; a namesake in another town, or anything past 30 km in a huge or island-spanning unit, does not). Write `claimed_district` in the local language so its name can match. A POI outside -> `conflicting`, record `conflict_note` (suggest a finer `claimed_district` / `district_query`).
 
 ## Record source names, an intro, and booking openings (v1.0 reader)
 
@@ -55,6 +55,32 @@ Gates are evaluated in strict order — Gate 0 fires before Gate 1, Gate 1 befor
   candidate in `candidates.yaml`: `source_verify_run.py` rebuilds verified-pois from candidates
   on every run and carries these through, so a later re-verify keeps them. Added only to verified-pois, they are wiped.
 
+## Places inside buildings, airports, and how a restaurant works
+
+- **Inside a building (#35).** A shop in a department store, station, airport terminal or
+  underground mall records `inside: <the building's poi_id>` and `floor` (with `floor_source`)
+  on its candidate. The driver gives it the building's coordinate and `geocode_source` (so a
+  building that is itself approximate keeps its shops approximate), and — when the shop has no
+  `address_local` — the building's address plus the floor. The building must be verified in
+  the same run. **Never for a shopping street**: its shops have their own addresses.
+- **Side of airport security (#33).** An airport shop records `security_zone`: `landside`
+  (before security) or `airside` (after), with `security_zone_source`; `unknown` when no source
+  says — never assume landside. The same chain's two shops on either side are two POIs.
+- **How a restaurant works (#30).** For a restaurant the itinerary schedules, record `dining`
+  items the place's own site, its official social account or a review page states, each with
+  `source_url`: `order` (table / counter / ticket_machine), `pay` (before / after), `payment`
+  (cash / card / ic / qr; `[cash]` alone = 只收現金), `self_service` (clear your own tray),
+  `queue` (ticket / line / no_reservation). Leave out what no source says — never infer it from
+  the country or the kind of shop — and never copy Google Places payment data (only
+  `gmaps_place_id` may be stored).
+
+**An address seen on Google Maps is a lead, never the source (#36).** Google's terms let
+only `gmaps_place_id` be kept from Places, so never copy its address, phone or hours into a
+record. Use what Google shows to find the same address on a non-Google page — the venue's
+own site or social account, a listing such as 食べログ — and record that page as
+`address_source`. With no such page, leave `address_local` empty: the reader's 給司機看 then
+shows the local name and area and points at 導航, which opens Google Maps itself.
+
 ## Record closure days + hours
 
 While verifying opening hours, record each POI's `closed_days` (the per-POI closure axis consumed by synthesis via `scripts/trip_calendar.py::poi_closed_on`). Values: weekday names (`tuesday`) for fixed weekly closures, ISO dates (`2026-05-25`) for one-off closures, or the token `public_holiday` when a place shuts on any public holiday. Closures come from the same cross-source hours check — a POI's stated regular closing day (e.g. a palace closed Tuesdays, a small shop closed on holidays) belongs here, not invented.
@@ -64,6 +90,18 @@ Also record the intra-day `hours` object (consumed by synthesis via `scripts/hou
 A place with genuinely no closing time — an open-air beach, lake, park or old street — records `hours.no_fixed_close: true` rather than omitting `close`. An omission means "nobody checked"; the flag means "checked, there is none". The gate cannot tell those apart without it. This is a sourced CLAIM, not a fallback for an incomplete lookup: an eatery or any business with a plausible closing time that simply wasn't recorded is a **data gap**, not a `no_fixed_close` candidate — stamping the flag there would launder "nobody finished checking" into "checked, there is none". Go back and find the hours, or leave `close` absent and let the gate flag it.
 
 **Cache invalidation on re-verify.** When the user manually confirms a place or asks to re-verify, delete that POI's `cache_key` entry from `work/<slug>/geocode-cache/geocode.json` and re-run with `--regeocode` (a plain re-run keeps a `verified` POI's coordinate while its lookup strings are unchanged) — otherwise a cached miss (D7 negative cache) permanently suppresses the re-query.
+
+**A re-run never quietly downgrades (#25).** A fresh container has no geocode cache, so a
+re-run used to lose verified POIs. The driver now keeps a `verified` POI's coordinate while
+its lookup strings are unchanged (a lookup key a later version added, such as `address`,
+does not count as a change), keeps the previous region verdict when no district centre can
+be had this time, and keeps a previous `business_status` / `booking` / `name_roman` that the
+candidate does not state (the run lists them as "kept from the previous run"). To add
+candidates mid-trip, verify only them: `tripwork.py verify <slug> --only <id> ...` leaves every
+other record as the last run wrote it. **Stop and ask:** when a POI the itinerary uses (a stop,
+a lodging or an alternative) would lose `verified`, the run exits 3, lists each one with its
+reason and leaves `verified-pois.yaml` unchanged. Show the list to the user; re-run with
+`--allow-downgrade` only when they agree to the downgrade.
 
 ## Output
 
@@ -78,7 +116,7 @@ Then validate it: `python <plugin>/scripts/tripwork.py validate <slug> verified-
 |---|---|
 | Input | `trips/<slug>/data/candidates.yaml` + `trips/<slug>/data/trip-brief.yaml`. |
 | Output | `trips/<slug>/data/verified-pois.yaml` with per-POI `verify_status` + reasons. |
-| Stop condition | Cross-source conflict (`cross_source_conflict`), or a `must_do` item fails verification (`must_do_unverified`) → ask user. |
+| Stop condition | Cross-source conflict (`cross_source_conflict`), or a `must_do` item fails verification (`must_do_unverified`), or a re-run would downgrade a POI the itinerary uses (`scheduled_poi_downgrade`, exit 3) → ask user. |
 | Next stage | `tripwork:tripwork-orchestrator`. |
 
 ## Red Flags

@@ -46,9 +46,13 @@ def test_the_driver_sheet_is_big_print_local_name_and_address_and_closes_back_to
     assert sheet.select_one("a.drvx")["href"] == f'#{st["id"]}'                # closing keeps the stop open
 
 
-def test_no_address_means_no_row_and_no_sheet():
+def test_no_address_says_so_and_gives_the_name_to_search():
+    # #36 (user, 2026-11-18): no street address -> the row says so, and the driver's sheet
+    # carries the local name and its area to search, never an invented address
     _s, st = _stop(copy.deepcopy(poi_map()))
-    assert "地址" not in [dt.get_text() for dt in st.select(".in dl > dt")] and not st.select(".drv, .drvbtn")
+    assert "地址" in [dt.get_text() for dt in st.select(".in dl > dt")]
+    assert "沒有門牌地址" in st.select_one(".nadr").get_text()
+    assert "請用店名搜尋" in st.select_one(".drv").get_text() and not st.select(".drv .drva[lang]")
 
 
 def test_a_lodging_shows_its_address_too():

@@ -65,7 +65,7 @@ def test_the_overview_pins_every_stop_and_one_hotel_capsule():
     pins = allv.select("g.pin")
     assert sorted(p["data-poi"] for p in pins) == ["hak-asaichi", "hak-goryokaku", "hak-hotel", "hak-yama"]
     assert LABELS["hotel_merged"] in _pin(allv, "hak-hotel").get_text()
-    assert _pin(allv, "hak-asaichi").select_one("text").get_text() == "08:00"
+    assert _pin(allv, "hak-asaichi").select_one("text.tl").get_text() == "08:00"     # #38: the dot carries its number (text.no)
     assert not allv.select("polyline, path.route-line")                  # no visiting-order line
 
 
@@ -197,7 +197,7 @@ def test_a_tag_near_the_edge_stays_inside_the_frame():
     s = 1000 / PHONE_W
     for g in allv.select("g.pin"):
         tx, ty = map(float, re.match(r"translate\(([-\d.]+),([-\d.]+)\)", g.select_one("g")["transform"]).groups())
-        half = _label_w(g.select_one("text").get_text()) / 2 * s      # v1.1: bare text, sized by the shipped helper
+        half = _label_w(g.select_one("text.tl").get_text()) / 2 * s   # v1.1: bare text, sized by the shipped helper (#38: not the dot's number)
         assert half <= tx <= 1000 - half, g["data-poi"]
         assert 10 * s <= ty <= 800 - 10 * s, g["data-poi"]
 

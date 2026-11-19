@@ -24,6 +24,12 @@ def is_move(row):
     return row.get("slot") == "move"
 
 
+def is_transfer(row):
+    """#37: a transfer point between two moves -- a station, a stop, an airport -- where
+    the traveller waits. A node of the day, but not a stop: no poi_id needed."""
+    return row.get("slot") == "transfer"
+
+
 def _number(v):
     """A non-negative number. bool is an int subclass and is not one; a string
     "5" is not one either -- the gate CLI does not schema-validate, so a
@@ -33,7 +39,8 @@ def _number(v):
 
 def node_poi_ids(day):
     return {r.get("poi_id") for r in day.get("rows") or []
-            if not is_move(r) and isinstance(r.get("poi_id"), str) and r.get("poi_id")}
+            if not is_move(r) and not is_transfer(r)
+            and isinstance(r.get("poi_id"), str) and r.get("poi_id")}
 
 
 def chain_failures(itinerary):
@@ -56,7 +63,12 @@ def chain_failures(itinerary):
                 out.append(f"day chain broken: {date} rows {j - 1} and {j} are adjacent "
                            f"stops with no move between them")
         for j, r in enumerate(rows):
-            if not is_move(r) and not r.get("poi_id"):
+            if is_transfer(r):
+                if not (isinstance(r.get("place"), str) and r["place"].strip()):
+                    out.append(f"transfer without place: {date} row {j} names no place")
+                if not (0 < j < last and is_move(rows[j - 1]) and is_move(rows[j + 1])):
+                    out.append(f"transfer misplaced: {date} row {j} is not between two moves")
+            elif not is_move(r) and not r.get("poi_id"):
                 out.append(f"chain node without poi: {date} row {j} has no poi_id")
     return out
 

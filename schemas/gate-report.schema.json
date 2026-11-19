@@ -48,6 +48,13 @@
       "type": "boolean",
       "description": "export-gate only: false marks a personal / non-distributable deliverable (e.g. google-sourced photos) — a clean terminal state, NOT a re-render-looping failure. A status==pass deliverable with distributable==false is complete-but-non-distributable. (P7)"
     },
+    "warnings": {
+      "type": "array",
+      "description": "Lines that never change status but point at a likely mistake the user should see first (#37: a long wait with no transfer point). Reported to the user, not routed.",
+      "items": {
+        "type": "string"
+      }
+    },
     "notices": {
       "type": "array",
       "description": "Advisory lines that never change status (v1.1): e.g. a scheduled stop or chosen lodging with no address_local, so its 給司機看 sheet is not shown. Reported to the user, not routed.",

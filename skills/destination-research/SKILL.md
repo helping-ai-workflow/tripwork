@@ -25,6 +25,11 @@ Gather a *candidate pool* into `trips/<slug>/data/candidates.yaml` (schema: `sch
   source is found (it cannot pass `source-verify` without one). A local name or street address a
   Taiwan page gives is a claim: record it (`name_local`; `address_local` with `address_source`
   pointing at that page) for `source-verify` to check.
+- **`name_display` holds the place's name alone** — no bracketed note such as
+  `○○（車站直結購物中心）`. A note goes in `name_zh` (the Chinese gloss) or `intro`. The
+  renderers show `name_display（name_zh）`; a name that already ends in a bracket gets the
+  gloss merged into it (`○○（note・gloss）`), and `itinerary-gate` prints one notice line
+  listing such names (#28).
 - **Record what each source is.** Every `sources[]` entry carries `site` (the site's name in
   Chinese — translate a foreign one), `site_local` for a non-Chinese source (the site's own
   name), and `note` (one line: what this page says that matters). The v1.0 reader prints them

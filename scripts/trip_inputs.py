@@ -45,5 +45,6 @@ def trip_inputs(trip_dir):
     kwargs = {"brief": _load(trip_dir, "trip-brief.yaml"), "accommodations": acc,
               "advisory": _load(trip_dir, "advisory.yaml"), "legs": _load(trip_dir, "legs.yaml"),
               "maps": _load(trip_dir, "day-maps.yaml"), "cost": _load(trip_dir, "cost.yaml"),
-              "reservations": _load(trip_dir, "reservations.yaml")}
+              "reservations": _load(trip_dir, "reservations.yaml"),
+              "forecast": _load(trip_dir, "forecast.yaml")}
     return itin, poi_map, kwargs, len((media or {}).get("media") or {})

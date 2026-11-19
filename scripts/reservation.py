@@ -8,7 +8,11 @@ booking silently: an entry that no longer matches a row is a gate failure.
 import re
 
 STATUSES = ("booked", "todo", "none", "self")
-LABEL = {"booked": "已訂", "todo": "還要訂", "none": "不用訂", "self": "自理"}
+LABEL = {"booked": "已訂", "todo": "還要訂", "none": "不用訂", "self": "自理",
+         "cancel": "要取消", "cancelled": "已取消"}
+# #26: a booking given up after the plan changed -- kept (number, seats) for the refund,
+# matched to no row, never drawn as part of the day's plan
+CANCEL_STATES = ("cancel", "cancelled")
 REF_LABEL = {"move": "訂位編號", "stop": "預約編號", "lodging": "訂房編號"}
 MASK = "••••"
 
@@ -38,7 +42,7 @@ def entries(reservations):
         if not isinstance(r, dict):
             continue
         r = dict(r)
-        for k in ("date", "time"):
+        for k in ("date", "time", "cancel_by"):
             if k in r and not isinstance(r[k], (str, int, float, bool)) and r[k] is not None:
                 r[k] = str(r[k])
         if _valid(r):
@@ -138,6 +142,8 @@ def match(itinerary, legs, reservations, poi_map=None):
     pairs, failures, taken = [], [], {}
     days = itinerary.get("days") or []
     for res in entries(reservations):
+        if res.get("status") in CANCEL_STATES:
+            continue
         name = f"{res.get('date')} {what(res, poi_map)}"
         found = _candidates(itinerary, legs, res)
         if not found:
@@ -156,6 +162,23 @@ def match(itinerary, legs, reservations, poi_map=None):
             continue
         pairs.append({"res": res, "kind": kind_of(res), "date": res["date"], "day": day, "row": row})
     return pairs, failures
+
+
+def to_cancel(reservations):
+    """#26: the bookings still to cancel, earliest deadline first (no deadline last)."""
+    todo = [r for r in entries(reservations) if r.get("status") == "cancel"]
+    return sorted(todo, key=lambda r: (r.get("cancel_by") is None, str(r.get("cancel_by") or ""), r.get("date")))
+
+
+def cancel_notices(reservations, today=None):
+    """#26: a booking past its cancel_by that is still `cancel` -- one line."""
+    import datetime
+    from scripts.gate import summary_notice
+    today = today or datetime.date.today()
+    late = [f"{r.get('date')} {what(r)}" for r in to_cancel(reservations)
+            if r.get("cancel_by") and str(r["cancel_by"])[:10] < today.isoformat()]
+    return summary_notice("bookings are past their cancel_by and still to cancel", late,
+                          "cancel them now or mark them cancelled")
 
 
 def detail_pairs(res, kind):
@@ -260,7 +283,25 @@ def visible_checklist(itinerary, legs, reservations, poi_map):
         y, m, d = str(days[p["day"]].get("date")).split("-")
         out.append({"kind": "預約", "task": head + (f"，{people}" if people else ""),
                     "origin": f"D{p['day'] + 1}・{int(m)}/{int(d)}"})
+    # #26: a booking given up -- its own line until it is cancelled, deadline first
+    for r in to_cancel(reservations):
+        det = "；".join(f"{k} {v}" for k, v in detail_pairs(r, kind_of(r)))
+        detail = "；".join(x for x in (r.get("cancel_how"), det) if x)
+        out.append(dict({"kind": "預約", "task": f"取消 {what(r, poi_map)} 的訂位",
+                         "due": str(r["cancel_by"]) if r.get("cancel_by") else "出發前", "due_is_hard": bool(r.get("cancel_by")),
+                         "origin": r["date"]}, **({"detail": detail} if detail else {})))
+    # #30: a scheduled place that takes cash only -- one 打包 line naming them
+    cash = [_name(poi_map.get(row.get("poi_id"))) for day in days for row in day.get("rows") or []
+            if isinstance(row, dict) and _cash_only((poi_map or {}).get(row.get("poi_id")))]
+    cash = list(dict.fromkeys(c for c in cash if c))
+    if cash:
+        out.append({"kind": "打包", "task": "準備現金", "detail": "只收現金：" + "、".join(cash)})
     return out
+
+
+def _cash_only(poi):
+    pay = (((poi or {}).get("dining") or {}).get("payment") or {}) if isinstance((poi or {}).get("dining"), dict) else {}
+    return isinstance(pay, dict) and pay.get("value") == ["cash"]
 
 
 def _leg_of(row, legs):

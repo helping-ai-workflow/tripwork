@@ -50,7 +50,7 @@ def test_none_leg_without_details_is_unchanged():
     row = itin["days"][2]["rows"][0]                         # 淺草→羽田, none, no details
     div = _legs(_soup(), 3)[0]
     assert str(div) == str(BeautifulSoup(leg(row, legs["legs"]), "html.parser").div)
-    assert "lr" not in div["class"]
+    assert "lr" not in div["class"] or div.select_one(".lnt")      # #32: only its own words added
 
 
 def test_todo_leg_label():

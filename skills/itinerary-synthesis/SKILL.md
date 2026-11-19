@@ -51,6 +51,37 @@ stop → … → last stop → tonight's lodging (last day: the departure point)
   (`scripts/rederive.py::rederive_moves`): `km` may not be shorter than the straight line and
   `mins` may not beat `scripts/rederive.py::move_floor_mins` for the mode. Record the real
   number — a timetable or a route engine — never a guess raised until it passes.
+- **Transfer points (#37).** Where one vehicle ends and the next begins — a station, a bus
+  stop, an airport — write a `slot: transfer` row between the two moves: `place` (with its
+  `（中文）` gloss when it has kana), optional `platform`, and in `text` what to do there (取票、
+  劃位、買便當). It needs no `poi_id`; the wait is worked out from the two moves around it. A
+  stay inside a station is a transfer, not a `mode: none` move. `itinerary-gate` prints one
+  notice listing the joins of two moves with no transfer point, and **a warning** for each
+  wait over 15 minutes without one (`scripts/transfer.py`). A join next to a flight is left to
+  the airport check below.
+- **Platform facts (#32 / #22).** A bus, rail or ferry move may record `board_at`, `route`,
+  `alight_at`, `pay`, `next_service`; for rail and flights add `board_at_en` / `alight_at_en` /
+  `route_en` in the operator's **official English** (what its ticket machines show — never a
+  romanisation of your own) with `operator_en_source`. The row `text` still carries the whole
+  instruction; the reader shows it on the move. A bus or rail move with no words at all is a
+  notice; rail or flight moves without the English names are one notice line.
+- **Airports (#23 / #33).** For a flight, the move before it must reach the airport by the time
+  `scripts/airport.py::be_at_airport` gives: the airline's or airport's published arrival
+  advice (`arrive_by_mins`), else check-in close (`check_in_close_mins`, from the airline's own
+  page, never a default) less 60 min international / 30 min domestic. Record the estimate's
+  upper end as `mins_max` on the move to the airport (45–65 min → `mins: 50`, `mins_max: 65`);
+  the gate checks with it and fails `check-in missed: …` → **stop and ask** (`check_in_missed`).
+  On the return day count tax-free checks and bag drop before check-in. When a shop with
+  `security_zone` is scheduled at the airport, add a `slot: transfer` row with `security: true`
+  for passing security: `airside` shops go after it, `landside` before it, or the gate fails
+  `security zone order: …`. A shop whose side no source states is a notice.
+- **Venue notices (#34).** For each venue the itinerary passes through — every transfer point
+  and every building a scheduled place is `inside` — read the venue's own news page (お知らせ)
+  within 30 days of departure and record it in top-level `venue_notices`: `venue` (its poi_id or
+  the transfer `place`), `checked`, `source_url`, and `items` (`text`, `from`, `to`) for works or
+  closures in the trip dates — record the look even when there is nothing. An item that changes
+  a move's route lists it in `affects` (`date` + `time`), and that move says how it goes round in
+  `detour`, or the gate warns.
 
 ## Alternatives and options (v1.0 reader)
 
@@ -242,5 +273,5 @@ Validate the canonical artifact: `python <plugin>/scripts/tripwork.py validate <
 |---|---|
 | Input | verified-pois + routing + accommodations + legs (empty only if no inter-stop moves and no home endpoints) + calendar + seasonal + transit + cost + advisory — all nine trip artifacts, read but deliberately NOT individually tracked as `_DEPS` edges (`scripts/orchestration.py`): re-synthesis is the expensive branch, so this artifact's own freshness is decided by rule 13's report-tier check instead of a research-tier content diff — see `deps_stale`'s docstring. |
 | Output | `trips/<slug>/data/itinerary.yaml` (canonical). |
-| Stop condition | A `must_do` theme has no verified POI to cover it (`must_do_uncovered`), is closed on every feasible trip day (`must_do_closed_every_day`), or cannot fit before its last order/entry on any feasible slot (`must_do_after_last_call`); a booking whose **lead-time missed** (`lead_time_missed`); or a travel-day move that re-checks `missed_last_service` at its now-known departure → ask user. Six title candidates a day are written (`day_title_pick`) → give the user the title picker (`scripts/title_picker.py`) and apply their reply (`scripts/title_picks.py`). |
+| Stop condition | A `must_do` theme has no verified POI to cover it (`must_do_uncovered`), is closed on every feasible trip day (`must_do_closed_every_day`), or cannot fit before its last order/entry on any feasible slot (`must_do_after_last_call`); a booking whose **lead-time missed** (`lead_time_missed`); or a travel-day move that re-checks `missed_last_service` at its now-known departure; or the trip to the airport cannot arrive by the time to be there for a flight (`check_in_missed`) → ask user. Six title candidates a day are written (`day_title_pick`) → give the user the title picker (`scripts/title_picker.py`) and apply their reply (`scripts/title_picks.py`). |
 | Next stage | `tripwork:tripwork-orchestrator`. |

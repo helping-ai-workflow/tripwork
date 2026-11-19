@@ -98,12 +98,23 @@
       "description": "Fallbacks per named trigger. itinerary-synthesis has always produced this section (SKILL.md calls it a Required derived section) but had no container, so it was hand-assembled into the markdown and a full re-render would silently lose it. (TW-069)",
       "items": {
         "type": "object",
-        "required": ["trigger", "fallback"],
+        "required": [
+          "trigger",
+          "fallback"
+        ],
         "additionalProperties": false,
         "properties": {
-          "trigger": {"type": "string", "minLength": 1},
-          "fallback": {"type": "string", "minLength": 1},
-          "note": {"type": "string"}
+          "trigger": {
+            "type": "string",
+            "minLength": 1
+          },
+          "fallback": {
+            "type": "string",
+            "minLength": 1
+          },
+          "note": {
+            "type": "string"
+          }
         }
       }
     },
@@ -145,13 +156,49 @@
             "items": {
               "type": "object",
               "additionalProperties": false,
-              "required": ["text", "shape", "refs"],
+              "required": [
+                "text",
+                "shape",
+                "refs"
+              ],
               "properties": {
-                "text": {"type": "string", "minLength": 1},
-                "shape": {"enum": ["couplet", "sentence", "triple", "question", "chiasmus", "anadiplosis", "number", "onomatopoeia"]},
-                "twist": {"enum": ["rhyme", "pun", "contrast", "exaggerate", "pov", "swap", "double_meaning", "turn"]},
-                "refs": {"type": "array", "items": {"type": "string"}},
-                "riff_on": {"type": "string"}
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "shape": {
+                  "enum": [
+                    "couplet",
+                    "sentence",
+                    "triple",
+                    "question",
+                    "chiasmus",
+                    "anadiplosis",
+                    "number",
+                    "onomatopoeia"
+                  ]
+                },
+                "twist": {
+                  "enum": [
+                    "rhyme",
+                    "pun",
+                    "contrast",
+                    "exaggerate",
+                    "pov",
+                    "swap",
+                    "double_meaning",
+                    "turn"
+                  ]
+                },
+                "refs": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  }
+                },
+                "riff_on": {
+                  "type": "string"
+                }
               }
             }
           },
@@ -220,7 +267,8 @@
                     "activity",
                     "visit",
                     "move",
-                    "lodging"
+                    "lodging",
+                    "transfer"
                   ]
                 },
                 "poi_id": {
@@ -237,7 +285,12 @@
                 },
                 "closing_status": {
                   "type": "string",
-                  "enum": ["ok", "tight", "after_last_call", "closed"],
+                  "enum": [
+                    "ok",
+                    "tight",
+                    "after_last_call",
+                    "closed"
+                  ],
                   "description": "Verdict synthesis computed via scripts/hours.py::closing_status for this row. Optional in schema for back-compat; required by the itinerary gate on every row carrying both a `time` and a resolving `poi_id`. Without it the closing-buffer iron rule (using-tripwork/SKILL.md:48) has no mechanical form."
                 },
                 "leg_index": {
@@ -245,50 +298,215 @@
                   "minimum": 0,
                   "description": "Index into legs.yaml's `legs` array that this move row renders. Optional in schema for back-compat; required by the itinerary gate's `home_legs_rendered` check for every `kind: home` leg — without a row referencing it by leg_index, a home leg's classify_leg verdict is checked and its fare is summed, but nothing proves it ever reached the reader. (TW-069)"
                 },
-                  "mode": {
-                    "type": "string",
-                    "enum": [
-                      "walk",
-                      "rail",
-                      "bus",
-                      "taxi",
-                      "drive",
-                      "ferry",
-                      "flight",
-                      "ropeway",
-                      "none"
+                "mode": {
+                  "type": "string",
+                  "enum": [
+                    "walk",
+                    "rail",
+                    "bus",
+                    "taxi",
+                    "drive",
+                    "ferry",
+                    "flight",
+                    "ropeway",
+                    "none"
+                  ],
+                  "description": "Move rows only: how this segment is travelled. `none` = same place (breakfast at the hotel). Optional in schema for back-compat; required by the itinerary gate on every move row without a leg_index (v1.0, spec §4.1)."
+                },
+                "mins": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Move rows only: minutes for this segment. Required by the gate unless mode is none."
+                },
+                "km": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Move rows only: route km for this segment. Required by the gate unless mode is none; re-derived against the endpoints' straight-line distance by scripts/rederive.py::rederive_moves."
+                },
+                "basis": {
+                  "type": "string",
+                  "enum": [
+                    "sourced",
+                    "estimated"
+                  ],
+                  "description": "Move rows only: `sourced` needs source_url, `estimated` needs estimate_method (rendered 估)."
+                },
+                "source_url": {
+                  "type": "string",
+                  "pattern": "^https?://"
+                },
+                "estimate_method": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "note": {
+                  "type": "string"
+                },
+                "place": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Transfer rows (#37): the station, stop, platform area or airport where the traveller waits between two moves. Need not be a verified POI."
+                },
+                "platform": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Transfer rows: the platform or stop number, e.g. 6番のりば（6 號站牌）."
+                },
+                "security": {
+                  "type": "boolean",
+                  "description": "Transfer rows (#33): this transfer is passing airport security / departure control. POIs with security_zone airside go after it, landside before it."
+                },
+                "detour": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#34): how this move goes around a closure a venue notice announces (venue_notices[].items[].affects)."
+                },
+                "mins_max": {
+                  "type": "number",
+                  "minimum": 0,
+                  "description": "Move rows (#23): the upper end of the estimate (45-65 min -> 65). The airport check uses it."
+                },
+                "board_at": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#32): where to board -- stop, platform."
+                },
+                "board_at_en": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#22): board_at in the operator's official English, as its ticket machines show it."
+                },
+                "route": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#32): line, route number or train name, e.g. 41 號, 特急ライラック11号."
+                },
+                "route_en": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#22): the route / train name in the operator's official English, e.g. Lilac 11."
+                },
+                "alight_at": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#32): where to get off."
+                },
+                "alight_at_en": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#22): alight_at in the operator's official English."
+                },
+                "pay": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#32): how to pay, e.g. 現金 ¥670，不收 Suica."
+                },
+                "next_service": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Move rows (#32): the next service if this one is missed."
+                },
+                "operator_en_source": {
+                  "type": "string",
+                  "pattern": "^https?://",
+                  "description": "Move rows (#22): the operator's official English page the *_en names come from."
+                },
+                "check_in_close_mins": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "#23 flight move rows without a leg_index: check-in closes this many minutes before departure, from the airline's own page (check_in_source). Never a default."
+                },
+                "check_in_source": {
+                  "type": "string",
+                  "pattern": "^https?://",
+                  "description": ""
+                },
+                "arrive_by_mins": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "#23 flight move rows without a leg_index: the airline's or airport's published advice to be at the airport this many minutes before departure (arrive_by_source)."
+                },
+                "arrive_by_source": {
+                  "type": "string",
+                  "pattern": "^https?://",
+                  "description": ""
+                },
+                "international": {
+                  "type": "boolean",
+                  "description": "#23 flight move rows without a leg_index: an international flight (60 min buffer before check-in closes when no arrive_by_mins is published; domestic 30)."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "venue_notices": {
+      "type": "array",
+      "description": "#34: what each venue's own notice page said for the trip dates -- an airport, a station, a building with shops inside. One entry per venue checked, also when it announced nothing.",
+      "items": {
+        "type": "object",
+        "required": [
+          "venue",
+          "checked",
+          "source_url"
+        ],
+        "additionalProperties": false,
+        "properties": {
+          "venue": {
+            "type": "string",
+            "minLength": 1,
+            "description": "The venue's poi_id, or a transfer row's place."
+          },
+          "checked": {
+            "type": "string",
+            "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          },
+          "source_url": {
+            "type": "string",
+            "pattern": "^https?://"
+          },
+          "items": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "required": [
+                "text"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "text": {
+                  "type": "string",
+                  "minLength": 1
+                },
+                "from": {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                },
+                "to": {
+                  "type": "string",
+                  "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+                },
+                "affects": {
+                  "type": "array",
+                  "description": "Move rows whose route this closure changes: each must carry `detour`.",
+                  "items": {
+                    "type": "object",
+                    "required": [
+                      "date",
+                      "time"
                     ],
-                    "description": "Move rows only: how this segment is travelled. `none` = same place (breakfast at the hotel). Optional in schema for back-compat; required by the itinerary gate on every move row without a leg_index (v1.0, spec §4.1)."
-                  },
-                  "mins": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "Move rows only: minutes for this segment. Required by the gate unless mode is none."
-                  },
-                  "km": {
-                    "type": "number",
-                    "minimum": 0,
-                    "description": "Move rows only: route km for this segment. Required by the gate unless mode is none; re-derived against the endpoints' straight-line distance by scripts/rederive.py::rederive_moves."
-                  },
-                  "basis": {
-                    "type": "string",
-                    "enum": [
-                      "sourced",
-                      "estimated"
-                    ],
-                    "description": "Move rows only: `sourced` needs source_url, `estimated` needs estimate_method (rendered 估)."
-                  },
-                  "source_url": {
-                    "type": "string",
-                    "pattern": "^https?://"
-                  },
-                  "estimate_method": {
-                    "type": "string",
-                    "minLength": 1
-                  },
-                  "note": {
-                    "type": "string"
+                    "additionalProperties": false,
+                    "properties": {
+                      "date": {
+                        "type": "string"
+                      },
+                      "time": {
+                        "type": "string"
+                      }
+                    }
                   }
+                }
               }
             }
           }

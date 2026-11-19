@@ -6,7 +6,10 @@ Generated link markup ([name](url)) is never escaped — only free text is.
 """
 import re
 from scripts.render.heading import dates_line, trip_title
-from scripts.render.gmaps_links import link_markdown, dir_url
+from scripts.render.gmaps_links import link_markdown, dir_url, search_url
+from scripts.transfer import machine_line, move_facts, transfer_line
+from scripts.airport import be_at_airport
+from scripts.forecast_text import forecast_line
 from scripts import reservation
 from scripts.render.centroid import merged_line
 from scripts.render.reader.text import md_wd, to_date
@@ -73,6 +76,13 @@ def _poi_cell(poi, text):
         parts.append(escaped)
     return " ".join(parts)
 
+def same_place(frm, to, mode=None):
+    """A move row that goes nowhere (#27): its two ends are the same place, or it is a
+    stay written as `mode: none` (a ticket window inside a station). Its directions link
+    would be a zero-length route."""
+    return mode == "none" or str(frm).strip() == str(to).strip()
+
+
 def _move_cell(frm, to, text, poi=None, mode=None):
     """Move row with endpoints: a directions link LEADS the cell (mirrors _poi_cell's
     link-first ordering). When the row ALSO resolves a poi, the poi maps link + official
@@ -80,7 +90,12 @@ def _move_cell(frm, to, text, poi=None, mode=None):
     official link for the export gate's bookable check (no silent evasion). Then the text.
     Labels are escaped free text; generated link targets (dir_url / maps_url) are not. (G2)"""
     mark = MODE_MARK.get(mode)
-    parts = [f"[{mark + ' ' if mark else ''}{md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
+    lead = f"{mark} " if mark else ""
+    if same_place(frm, to, mode):    # #27: no A->A route; a search link for the place
+        label = md_escape(frm) if str(frm).strip() == str(to).strip() else f"{md_escape(frm)}→{md_escape(to)}"
+        parts = [f"[{lead}{label}]({search_url(to)})"]
+    else:
+        parts = [f"[{lead}{md_escape(frm)}→{md_escape(to)}]({dir_url(frm, to)})"]
     if poi:
         parts.append(link_markdown(poi))
         link = _source_link(poi)
@@ -111,13 +126,24 @@ def render_day_table(day, poi_map, legs=None, tickets=None):
         mode = (leg or {}).get("mode") if leg is not None else row.get("mode")
         if row.get("slot") == "move" and frm and to:
             cell = _move_cell(frm, to, text, poi, mode)   # G2: directions link at cell start
+        elif row.get("slot") == "transfer":               # #37: where the traveller waits
+            cell = " ".join(x for x in (f"**{md_escape(transfer_line(day.get('rows', []), i))}**",
+                                        md_escape(text)) if x)
         elif poi:
             cell = _poi_cell(poi, text)
         else:
             cell = md_escape(text)
+        facts = move_facts(row) if row.get("slot") == "move" else []
+        if row.get("slot") == "move" and mode == "flight":    # #23: when to be at the airport
+            need = be_at_airport(dict(leg or {}, **row))
+            facts.append(("到機場", f"{need // 60:02d}:{need % 60:02d} 前" if need is not None
+                          else "報到截止時間未查"))
+        if facts:                                         # #32 / #22: the platform facts
+            cell = f"{cell} · " + "・".join(f"{k} {md_escape(v)}" for k, v in facts)
         tail = (tickets or {}).get(i)
         if tail:
-            cell = f"{cell}（{md_escape(tail)}）"
+            machine = machine_line(row) if row.get("mode") == "rail" else ""
+            cell = f"{cell}（{md_escape(tail)}" + (f"；售票機上選：{md_escape(machine)}" if machine else "") + "）"
         lines.append(f"| {time} | {cell} |")
     return "\n".join(lines) + "\n"
 
@@ -157,7 +183,8 @@ def _amount(n):
     return f"{n:,}"
 
 
-def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reservations=None):
+def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reservations=None,
+                         forecast=None):
     """Canonical itinerary.yaml -> the full markdown deliverable page.
 
     HTML has render_html_page; until now markdown's
@@ -221,6 +248,9 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reserv
                    if isinstance(row, dict) and row.get("slot") in ("visit", "activity", "move")}
         lines.append(render_day_table(day, poi_map, legs, tickets).rstrip())
         lines.append("")
+        weather = forecast_line(forecast, day.get("date"))      # #31: the week-before forecast
+        if weather:
+            lines += [f"**天氣**：{md_escape(weather)}", ""]
         poi = poi_map.get(day.get("lodging"))
         if poi:
             stay = res_of(d)
@@ -242,6 +272,17 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reserv
             head = f"{e['time'] + ' ' if e['time'] else ''}{title}" + (f"，{e['sub']}" if e["sub"] else "")
             lines.append(f"  - {md_escape(head)}：**{reservation.LABEL.get(e['status'], '')}**"
                          + (f"（{md_escape(det)}）" if det else ""))
+        lines.append("")
+
+    cancel = reservation.to_cancel(reservations)
+    if cancel:                                            # #26: given up, still to cancel
+        lines += ["## 要取消的訂位", ""]
+        for r in cancel:
+            det = "；".join(f"{k} {v}" for k, v in reservation.detail_pairs(r, reservation.kind_of(r)))
+            extra = [x for x in (f"{r['cancel_by']} 前取消" if r.get("cancel_by") else "",
+                                 r.get("cancel_how") or "", det) if x]
+            lines.append(f"- {md_escape(md_wd(to_date(r['date'])))} {md_escape(reservation.what(r, poi_map))}"
+                         + (f"：{md_escape('；'.join(extra))}" if extra else ""))
         lines.append("")
 
     contingency = itin.get("contingency") or []

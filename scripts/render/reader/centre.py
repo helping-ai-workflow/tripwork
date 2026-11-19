@@ -12,7 +12,7 @@ opens on its plain radio scrolled to the fold, so pulling down unfolds it (pg-dN
 export-gate admits a <script> only when its sha256 equals this constant's
 (scripts/export_gate.py::_SCRIPT_SHA256); change the text here and the gate follows."""
 
-CENTRE_JS = """(()=>{const go=()=>{const id=decodeURIComponent(location.hash.slice(1)),t=id&&document.getElementById(id);if(!t)return;
+CENTRE_JS = """(()=>{document.querySelectorAll('.wx[data-at]').forEach(p=>{const t=Date.parse(p.dataset.at);if(t&&Date.now()-t>1728e5)p.classList.add('old');});const go=()=>{const id=decodeURIComponent(location.hash.slice(1)),t=id&&document.getElementById(id);if(!t)return;
 const L=t.closest('.plist');if(!L)return;const s=t.closest('.stop');
 L.querySelectorAll('details[open]').forEach(d=>{if(!s||(!s.contains(d)&&d.dataset.stop!==s.id))d.open=false;});
 if(t.classList.contains('tx')||t!==s)return;

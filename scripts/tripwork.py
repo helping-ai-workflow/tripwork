@@ -15,7 +15,7 @@ import sys
 
 USAGE = {
     "next": ("<slug>", "print the next pipeline stage (the orchestrator's oracle)"),
-    "verify": ("<slug> [--offline] [--regeocode] [--official-domain SUFFIX ...]",
+    "verify": ("<slug> [--offline] [--regeocode] [--only ID ...] [--allow-downgrade] [--official-domain SUFFIX ...]",
                "source-verify: write data/verified-pois.yaml from data/candidates.yaml"),
     "gate": ("<slug>", "itinerary gate: write work/<slug>/gate-report.yaml"),
     "export": ("<slug>", "render the md + html deliverables (needs a fresh passing gate)"),
@@ -26,9 +26,12 @@ USAGE = {
     "picker": ("<slug> ['<reply>']", "write the title picker page; with a reply, apply the picks"),
     "validate": ("<slug> [artifact]", "schema-check one artifact, or every one in data/"),
     "fingerprint": ("<slug> <projection>", "print the input fingerprint of trip-brief.yaml (projection: advisory)"),
-    "publish": ("<slug> [--share-base URL]",
-                "build the locked family page (password: TRIPWORK_PUBLISH_PASSWORD='…' prefix, asked each time)"),
+    "publish": ("<slug> [--share-base URL] [--new-code] | --freeze CODE | --retire CODE",
+                "build the locked family page (password: TRIPWORK_PUBLISH_PASSWORD='…' prefix, asked each time); "
+                "--new-code keeps the current page frozen"),
     "deploy": ("<slug> --project NAME --confirm", "upload the locked pages to Cloudflare Pages (after the user's yes)"),
+    "forecast": ("<slug> [--jma DATE=OFFICE/POINT ...]",
+                 "the week-before weather forecast into data/forecast.yaml (official JMA, else a marked model)"),
     "table": ("<slug> [欄位… | 吃的 | 景點] [--out FILE] | --page",
               "print the verified places as a Markdown table (a survey's list, or any trip's); "
               "--page writes a survey's list page"),
@@ -91,6 +94,7 @@ COMMANDS = {
     "fingerprint": lambda slug, rest: [("scripts.input_fingerprint", [f"{_trip(slug)}/data/trip-brief.yaml", *rest])],
     "publish": lambda slug, rest: [("scripts.publish", ["build", _trip(slug), *rest])],
     "deploy": lambda slug, rest: [("scripts.publish", ["deploy", _trip(slug), *rest])],
+    "forecast": lambda slug, rest: [("scripts.forecast", [_trip(slug), *rest])],
     "table": lambda slug, rest: [("scripts.survey_table", [_trip(slug), *rest])],
     "migrate": lambda slug, rest: [("scripts.migrate_v1", [_trip(slug) if slug else "trips", *rest])],
 }

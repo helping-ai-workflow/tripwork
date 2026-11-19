@@ -178,6 +178,17 @@ def _rest(b, url, scroller, mp, top, dpr, vp=PHONE, touch=False):
         pg.click("section[data-pg=d2] .mapc summary")
         pg.wait_for_timeout(300)
     t = "document.querySelector('section[data-pg=d2] .pcal .mini').offsetHeight" if top == "F" else top
+    # "deep" means the list's end. WebKit clamps a scroller to scrollHeight - clientHeight in
+    # whole pixels after rounding its fractional box (measured 3x: publish 792.34 -> 792,
+    # check 694.70 -> 695), so two scrollers with the same 182.25 px of travel clamp at 183
+    # and 182 and the whole list sits 1 px apart. Both scroll instead to the floor of the
+    # unrounded travel -- the content's end (last child + bottom padding) less the box --
+    # still the list's end, the same pixel in both builds.
+    if top not in ("0", "F"):
+        travel = ("(()=>{const r=L.getBoundingClientRect(),c=[...L.children].filter(e=>e.getBoundingClientRect().height>0);"
+                  "const end=Math.max(...c.map(e=>e.getBoundingClientRect().bottom))-r.top+L.scrollTop"
+                  "+parseFloat(getComputedStyle(L).paddingBottom);return Math.floor(end-r.height)})()")
+        t = f"Math.min({t},{travel})"
     pg.evaluate(f"(L=>{{L.style.scrollBehavior='auto';L.scrollTop={t}}})(document.querySelector('{scroller}'))")
     pg.wait_for_timeout(700)
     boxes = {k: _rect(pg, f"section[data-pg=d2] {k}") for k in (".dn", ".pcal", ".lfoot", ".lcap")}
