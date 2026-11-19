@@ -155,33 +155,25 @@ label,summary,a.hd,a.chip,.mnav a,.vsum{{-webkit-touch-callout:none}}.list{{posi
 /* 2026-11-18 review (#32 #37 #36 #30 #26 #31 #39), measured against .leg: 13px / 20.8px, 16px past a 2px dashed line */
 .lnt{{color:var(--ink);font-size:13px;line-height:1.6;overflow-wrap:anywhere}}
 .lfa{{display:grid;margin:1px 0 2px;color:var(--ink);font-size:12px;line-height:1.6}}.lf{{display:grid;grid-template-columns:44px minmax(0,1fr);overflow-wrap:anywhere}}.lf b{{color:var(--mut);font-weight:700}}
-.lmore summary{{display:inline-flex;align-items:center;gap:4px;list-style:none;cursor:pointer;color:var(--move);font:700 13px/1.6 var(--f-round)}}
-.lmore summary::-webkit-details-marker{{display:none}}.lmore summary::before{{content:"▸";font-size:11px}}.lmore[open] summary::before{{content:"▾"}}
-.lmore[open]{{display:grid;gap:1px}}
 .tfr{{position:relative;margin:0 0 0 22px;padding:4px 0 4px 16px;border-left:2px dashed var(--move)}}
 .tdot{{position:absolute;left:-8px;top:9px;width:14px;height:14px;border-radius:50%;background:var(--card);border:2.5px solid var(--move);box-sizing:border-box}}
 .tb{{display:grid;gap:1px;min-width:0;margin-left:28px}}.th{{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-height:22px}}
 .tn{{font:700 14px/1.5 var(--f-round);color:var(--ink)}}
 .twt{{flex:none;font:700 12px/18px var(--f-round);padding:0 8px;border-radius:999px;background:color-mix(in srgb,var(--move) 16%,var(--card));color:var(--ink)}}
 .tpl{{font-size:12px;line-height:1.6;color:var(--mut)}}.ttx{{font-size:13px;line-height:1.6;color:var(--ink);overflow-wrap:anywhere}}
-.tfr-card{{border-left:0;margin-left:22px;padding:7px 10px;border:1.5px dashed var(--move);border-radius:12px;background:var(--card)}}.tfr-card .tdot{{display:none}}.tfr-card .tb{{margin-left:0}}
-.tfr-i{{align-items:flex-start}}.tfr-i .twt{{margin-left:2px}}
 .nadr{{color:var(--mut)}}
-.dng{{display:block;font-size:12px;line-height:1.6;color:var(--meal);font-weight:700}}
 .cnls{{display:grid;gap:6px}}.cnl{{display:grid;gap:1px;padding:8px 12px;border:1.5px solid var(--tight);border-radius:12px;background:color-mix(in srgb,var(--tight) 8%,var(--card))}}
 .cnk{{justify-self:start;font:700 12px/18px var(--f-round);padding:0 8px;border-radius:999px;background:var(--tight);color:var(--card)}}
 .cw{{display:flex;flex-wrap:wrap;align-items:baseline;gap:6px}}.cw b{{font:700 14px/1.5 var(--f-round)}}.cby{{font:700 12px/1.5 var(--f-round);color:var(--tight)}}
 .cdt,.chw{{font-size:13px;line-height:1.6;color:var(--mut)}}
-.cnls-strike .cnl{{border-color:var(--rule);background:var(--card)}}.cnls-strike .cnk{{background:none;color:var(--tight);border:1px solid currentColor}}.cnls-strike .cw b{{text-decoration:line-through;text-decoration-color:var(--tight)}}
-.wx{{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:-6px 0 10px;font-size:13px;line-height:1.6;color:var(--mut)}}
+.wx{{display:flex;flex-wrap:wrap;align-items:center;gap:4px 6px;margin:0 12px 8px;font-size:13px;line-height:1.6;color:var(--mut)}}
 .wtp{{font:700 12px/18px var(--f-round);padding:0 8px;border-radius:999px;border:1px solid var(--rule);color:var(--ink)}}
 .wold{{display:none;font:700 12px/18px var(--f-round);color:var(--tight)}}.wx.old .wold{{display:inline}}.wx.old .wxt{{text-decoration:line-through}}
-.wx-card{{margin:0 0 8px;padding:8px 12px;border-radius:12px;background:var(--card);box-shadow:0 0 0 1px var(--rule)}}
 :root:has(.drv:target) .bubble{{display:none}}
 .wxs{{flex:none;display:inline-flex;align-items:center;gap:4px;font:500 13px/1 var(--f-round);color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap}}
-.mapc>summary .wxs{{margin-left:auto}}.dh .wxs{{margin-left:auto;font-size:13px}}.dh .wxs+.dstep{{margin-left:6px}}
+.mapc>summary .wxs{{margin-left:auto}}
 .wxm{{font:700 12px/18px var(--f-round);padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--visit) 16%,var(--card));color:var(--ink)}}
-.wx-in{{margin:0 12px 8px}}.mapc:has(.wx.old) .wxs{{text-decoration:line-through;text-decoration-color:var(--tight)}}.mapc:has(.wx.old) .wxs::after{{content:"過時";font:700 12px/18px var(--f-round);color:var(--tight)}}
+.mapc:has(.wx.old) .wxs{{text-decoration:line-through;text-decoration-color:var(--tight)}}.mapc:has(.wx.old) .wxs::after{{content:"過時";font:700 12px/18px var(--f-round);color:var(--tight)}}
 .altrow{{margin:-2px 0 2px 22px;border:1.5px dashed var(--a);border-radius:12px;background:color-mix(in srgb,var(--a) 7%,var(--card))}}
 .altrow summary{{position:relative;display:flex;align-items:center;gap:8px;padding:6px 30px 6px 10px;cursor:pointer;list-style:none}}
 .ai{{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:50%;background:var(--a);color:var(--card);font:700 13px var(--f-round)}}
@@ -216,7 +208,11 @@ details[open]>summary>.cv{{transform:rotate(-135deg);margin-top:-2px}}
 .pin .pt{{stroke:#fff;stroke-width:3}}
 .pin.k-meal .pt,.pin.k-meal .tl{{fill:var(--meal)}}.pin.k-visit .pt,.pin.k-visit .tl{{fill:var(--visit)}}
 .pin.k-activity .pt,.pin.k-activity .tl{{fill:var(--activity)}}.pin.k-lodging .pt,.pin.k-lodging .tl{{fill:var(--lodging)}}.pin.k-home .pt,.pin.k-home .tl{{fill:var(--ink)}}
-.pin.hl .pt{{stroke-width:6}}.tl{{font:700 14px var(--f-round);text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}}
+.pin.hl .pt{{stroke-width:6}}.pin.dim{{opacity:.5}}
+.pin .no{{fill:#fff;font-family:var(--f-round);font-weight:700;text-anchor:middle;dominant-baseline:central;pointer-events:none}}
+.seqline{{fill:none;stroke:var(--ink);stroke-width:3;stroke-dasharray:7 6;stroke-linecap:round;opacity:.7}}
+.apx{{fill:none;stroke:var(--ink);stroke-width:2;stroke-dasharray:4 5;opacity:.6}}
+.pin.edge .ea{{stroke:#fff;stroke-width:2}}.pin.edge.k-lodging .ea{{fill:var(--lodging)}}.pin.edge.k-home .ea{{fill:var(--ink)}}.tl{{font:700 14px var(--f-round);text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:4px;stroke-linejoin:round}}
 .mnav{{display:flex;justify-content:space-between;padding:6px 2px 0;font:700 12px var(--f-round);color:var(--mut)}}.mnav label{{cursor:pointer}}
 .mv:has(.zck:checked){{position:fixed;inset:0;z-index:30;background:rgba(10,8,6,.92);display:flex!important;flex-direction:column;justify-content:safe center;overflow:auto;padding:12px}}
 .mv:has(.zck:checked) .mframe{{flex:none;width:min(100%,calc((100vh - 24px - 56px) * var(--ar)));margin:0 auto;cursor:zoom-out;border-radius:0}}.mv:has(.zck:checked) .mnav{{display:none}}

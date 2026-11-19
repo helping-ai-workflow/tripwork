@@ -147,7 +147,45 @@ def day_points(ctx, i, day):
         label = LABELS["home_merged" if merged else "home_end"]
         pts.append((seg, {"key": "home-end", "radio": f"d{i}-home-end", "chip": label, "poi": home_end,
                           "kind": "home", "tag": label}))
+    # #38 M3: the stops are numbered in the day's order (ends -- hotel, home -- are not)
+    n = 0
+    for _, p in pts:
+        if p["kind"] not in ("lodging", "home"):
+            n += 1
+            p["no"] = n
+        b = _building(p)
+        if b:                                                   # #35: its building's name
+            p["building"] = _name(ctx.poi_map.get(b)) or ""
     return pts
+
+
+# #38 M4 (user's pick, 2026-11-18): an end of the day -- the hotel, home -- this far from
+# the stops is left out of the overview and drawn as an arrow at its edge, so a day trip's
+# 1.5 km street is not shrunk into a corner of a 35 km frame
+FAR_RATIO, FAR_KM = 3, 10
+
+
+def far_ends(pts):
+    """Keys of the segment's ends lying over FAR_KM from the stops' centre AND over
+    FAR_RATIO times the stops' own spread. scripts/day_maps.py frames the overview
+    without them; the reader draws them as edge arrows."""
+    from scripts.distance import haversine_km
+    stops = [p for p in pts if p.get("kind") not in ("lodging", "home")]
+    ends = [p for p in pts if p.get("kind") in ("lodging", "home")]
+    if not stops or not ends:
+        return set()
+    g = [_geo(p["poi"]) for p in stops]
+    spread = max((haversine_km(*a, *b) for a in g for b in g), default=0.0)
+    c = (sum(x for x, _ in g) / len(g), sum(y for _, y in g) / len(g))
+    return {p["key"] for p in ends
+            if (d := haversine_km(*_geo(p["poi"]), *c)) > FAR_KM and d > FAR_RATIO * spread}
+
+
+def _km_from(p, pts):
+    from scripts.distance import haversine_km
+    g = [_geo(q["poi"]) for q in pts]
+    c = (sum(x for x, _ in g) / len(g), sum(y for _, y in g) / len(g))
+    return haversine_km(*_geo(p["poi"]), *c)
 
 
 def view_of_row(ctx, i, day):
@@ -226,10 +264,49 @@ def _spot(x, y, tw, s, w, h, taken):
     return None
 
 
-def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False):
+def _groups(marks):
+    """Marks drawn on one spot (#38 M5 / #35): [[index, ...], ...] for every spot held
+    by more than one -- a shared fallback coordinate, or shops inside one building."""
+    spots = {}
+    for k, (_pt, x, y, _tag) in enumerate(marks):
+        spots.setdefault((round(x), round(y)), []).append(k)
+    return [ks for ks in spots.values() if len(ks) > 1]
+
+
+def _building(pt):
+    return ((pt["poi"].get("geocode") or {}).get("parent") or pt["poi"].get("inside")) if pt.get("poi") else None
+
+
+def _edge(pt, bbox, w, h, s, km):
+    """#38 M4: an arrow at the frame's edge pointing at a far end, with its name and
+    distance -- '旅館 約 31 km'."""
+    lat, lng = _geo(pt["poi"])
+    x, y = project(lat, lng, bbox, w, h)
+    cx, cy = w / 2, h / 2
+    dx, dy = x - cx, y - cy
+    if not dx and not dy:
+        return ""
+    inset = 16 * s
+    t = min((cx - inset) / abs(dx) if dx else math.inf, (cy - inset) / abs(dy) if dy else math.inf)
+    ex, ey = cx + dx * t, cy + dy * t
+    ang = math.degrees(math.atan2(dy, dx))
+    label = f"{pt['tag']} 約 {round(km)} km"
+    lx, ly = ex - dx * (40 * s / math.hypot(dx, dy)), ey - dy * (40 * s / math.hypot(dx, dy))
+    lw = _label_w(label) * s / 2
+    lx = min(max(lx, lw + 4 * s), w - lw - 4 * s)
+    return (f'<g class="pin edge k-{esc(pt["kind"])}" data-poi="{esc(pt["poi"].get("id"))}">'
+            f'<path class="ea" d="M0 -{8 * s:.1f}L{12 * s:.1f} 0L0 {8 * s:.1f}Z" '
+            f'transform="translate({ex:.1f},{ey:.1f}) rotate({ang:.1f})"/>'
+            f'<g transform="translate({lx:.1f},{ly:.1f}) scale({round(s, 2)})"><text y="5" class="tl">{esc(label)}</text></g></g>')
+
+
+def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False, edges=(), route=True):
     """Dots and their time labels. A label is bare text with a white halo (v1.1, the
     user's pick on the design board: no pill, no leader line) set in the nearest spot
-    that overlaps no other label, no dot, and not the corner credit."""
+    that overlaps no other label, no dot, and not the corner credit. #38: each stop's dot
+    carries its number and a dashed line joins them in order (M3); dots on one spot are
+    fanned out round a dashed ring (M5), or, all in one building, drawn as one '×N' dot
+    (#35); a far end is an edge arrow (M4)."""
     s = w / PHONE_W
     marks = []
     drawn = set()
@@ -244,7 +321,29 @@ def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False):
             drawn.add(id(pt["poi"]))
             tag = LABELS["home_merged" if pt["kind"] == "home" else "hotel_merged"]
         marks.append((pt, x, y, tag))
-    r = 7 * s
+    r = (9 if any(p.get("no") for p, *_ in marks) else 7) * s
+    rings, drop = [], set()
+    for ks in _groups(marks):
+        b = {_building(marks[k][0]) for k in ks}
+        x0, y0 = marks[ks[0]][1], marks[ks[0]][2]
+        if len(b) == 1 and None not in b:                     # #35: one building, one dot
+            nos = [marks[k][0].get("no") for k in ks if marks[k][0].get("no")]
+            pt0 = marks[ks[0]][0]
+            span = f" {min(nos)}–{max(nos)}" if len(nos) > 1 else ""
+            marks[ks[0]] = (dict(pt0, no=None, many=len(ks)), x0, y0, f"{pt0.get('building') or pt0['tag']}{span}")
+            drop.update(ks[1:])
+            continue
+        rr = (r * 1.6) if len(ks) <= 6 else r * 2.2           # M5: fan out, approximate
+        for n, k in enumerate(ks):
+            a = -math.pi / 2 + 2 * math.pi * n / len(ks)
+            pt, _x, _y, tag = marks[k]
+            marks[k] = (pt, round(x0 + math.cos(a) * rr, 1), round(y0 + math.sin(a) * rr, 1), tag)
+        rings.append(f'<circle class="apx" cx="{x0}" cy="{y0}" r="{round(rr + r + 3 * s, 1)}"/>')
+    marks = [m for k, m in enumerate(marks) if k not in drop]
+    line = ""
+    seq = [(x, y) for p, x, y, _ in marks if p.get("no") or p.get("many")]
+    if route and len(seq) > 1:
+        line = '<path class="seqline" d="M' + "L".join(f"{x} {y}" for x, y in seq) + '"/>'
     taken = [(x - r, y - r, x + r, y + r) for _, x, y, _ in marks]
     if credit:
         taken.append((w - 96 * s, h - 24 * s, w, h))      # "© OpenStreetMap", bottom right
@@ -257,12 +356,20 @@ def _pins(pts, bbox, w, h, hl=None, merged=False, credit=False):
             taken.append(box)
         else:                                               # nowhere free: above the dot
             tx, ty = min(max(x, tw * s / 2), w - tw * s / 2), max(y - 22 * s, 10 * s)
-        cls = f'pin k-{esc(pt["kind"])}{" hl" if hl and pt["key"] in hl else ""}'
+        cls = (f'pin k-{esc(pt["kind"])}{" hl" if hl and pt["key"] in hl else ""}'
+               f'{" dim" if hl and pt["key"] not in hl else ""}')
+        big = r * 1.35 if pt.get("many") else r
+        inner = (str(pt["no"]) if pt.get("no") else f'×{pt["many"]}' if pt.get("many") else "")
+        no = (f'<text x="{x}" y="{y}" class="no" style="font-size:{round(11 * s, 1)}px">{esc(inner)}</text>'
+              if inner else "")
         out.append(f'<g class="{cls}" data-poi="{esc(pt["poi"].get("id"))}">'
-                   f'<circle cx="{x}" cy="{y}" r="{round(r, 1)}" class="pt"/>'
+                   f'<circle cx="{x}" cy="{y}" r="{round(big, 1)}" class="pt"/>{no}'
                    f'<g transform="translate({round(tx, 1)},{round(ty, 1)}) scale({round(s, 2)})">'
                    f'<text y="5" class="tl">{esc(tag)}</text></g></g>')
-    return "".join(out)
+    seen = set()
+    edges = [(p, km) for p, km in edges if id(p["poi"]) not in seen and not seen.add(id(p["poi"]))]
+    far = "".join(_edge(p, bbox, w, h, s, km) for p, km in edges)
+    return line + "".join(rings) + "".join(out) + far
 
 
 DATA_IMAGE = re.compile(r"data:image/(png|jpeg|webp|gif);base64,[A-Za-z0-9+/]+={0,2}")
@@ -309,19 +416,21 @@ def target(i, key):
     return {"all": f"t-d{i}-top"}.get(key, f"t-d{i}-{key}")
 
 
-def _frame(ctx, zid, pts, image, bbox, hl=None, merged=False):
+def _frame(ctx, zid, pts, image, bbox, hl=None, merged=False, edges=()):
     if image:
         w, h = image["width"], image["height"]
         base = f'<span class="mimg {image_class(ctx, image["data"])}"></span>'
         svg_cls = "pins"
     else:
         bbox = _schematic_bbox(pts)
+        edges = ()                                        # a schematic shows every point
         w, h = _schematic_size(bbox)
         lines = "".join(f"M{x} 0V{h}" for x in range(80, w, 80)) + "".join(f"M0 {y}H{w}" for y in range(80, h, 80))
         base = ""
         svg_cls = "grid"
         pins_bg = f'<rect class="gbg" width="{w}" height="{h}"/><path class="gline" d="{lines}"/>'
-    svg_inner = (pins_bg if not image else "") + _pins(pts, bbox, w, h, hl, merged, credit=bool(image))
+    svg_inner = (pins_bg if not image else "") + _pins(pts, bbox, w, h, hl, merged, credit=bool(image),
+                                                       edges=edges)
     # the image and its pins share one canvas (preserveAspectRatio none), so a squeezed
     # or cropped frame distorts / crops both alike, never apart. A 4:3 image may be
     # cover-cropped by the phone's full-width 4:3 frame; any other ratio is shown whole
@@ -363,7 +472,10 @@ def map_card(ctx, i, day):
         ok = entry and _image(entry.get("image")) and isinstance(entry.get("bbox"), dict)
         if ok and isinstance(entry.get("poi_ids"), list):         # written for these stops?
             ok = set(entry["poi_ids"]) == {p["poi"].get("id") for p in segs[k]}
-        ok = ok and inside(segs[k], entry["bbox"])
+        # a far end is outside the image by design (#38 M4) -- but only one the image was
+        # made without and that is still far; one that came closer must be inside it
+        far = set(entry.get("far") or []) & far_ends(segs[k]) if ok else set()
+        ok = ok and inside([p for p in segs[k] if p["key"] not in far], entry["bbox"])
         return (entry["image"], entry["bbox"], entry.get("closeups") or {}) if ok else (None, None, {})
 
     order = [("all", "全圖")] + [(p["key"], p["chip"]) for _, p in points]
@@ -379,7 +491,10 @@ def map_card(ctx, i, day):
                 image, bbox, _ = seg_image(k)
                 used_tiles |= bool(image)
                 boxes += [bbox] if image and isinstance(bbox, dict) else []
-                frames.append(f'<div class="seg">{_frame(ctx, zid, pts, image, bbox, merged=merged)}</div>')
+                far = set((side[k] or {}).get("far") or []) & far_ends(pts) if image else set()
+                near = [p for p in pts if p["key"] not in far]
+                edges = [(p, _km_from(p, near)) for p in pts if p["key"] in far]
+                frames.append(f'<div class="seg">{_frame(ctx, zid, near, image, bbox, merged=merged, edges=edges)}</div>')
         else:
             k = next((k for k, pts in enumerate(segs) if any(p["key"] == key for p in pts)), None)
             pt = next(p for _, p in points if p["key"] == key)
@@ -391,7 +506,11 @@ def map_card(ctx, i, day):
                     and isinstance(close.get("bbox"), dict) and inside([pt], close["bbox"])):
                 used_tiles = True
                 boxes.append(close["bbox"])
-                frames.append(f'<div class="seg">{_frame(ctx, zid, [pt], close["image"], close["bbox"], hl={key})}</div>')
+                # #38 M2: the day's other stops inside this close-up, dimmed, so the next
+                # one's direction and distance show
+                near = [p for p in (segs[k] if k is not None else []) if p is not pt
+                        and p["kind"] not in ("lodging", "home") and inside([p], close["bbox"])]
+                frames.append(f'<div class="seg">{_frame(ctx, zid, [pt] + near, close["image"], close["bbox"], hl={key})}</div>')
             else:
                 pts = segs[k] if k is not None else [pt]
                 used_tiles |= bool(image)

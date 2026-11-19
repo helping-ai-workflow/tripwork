@@ -142,6 +142,13 @@
                 "type": "string"
               },
               "description": "The stops this image was made for. When the day's segment no longer has exactly these stops the reader draws its schematic instead of pinning onto a stale image."
+            },
+            "far": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              },
+              "description": "#38 M4: the segment's ends (start / end / home-start / home-end) left out of this overview because they lie far from its stops; the reader draws them as edge arrows."
             }
           }
         }

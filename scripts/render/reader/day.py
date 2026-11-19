@@ -9,16 +9,12 @@ from scripts.render.reader import month_calendar
 from scripts.render.reader.assets import MODE_ICON, SLOT_ICON, icon
 from scripts.render.reader.home import _name, navb
 from scripts.render.reader.maps import DATA_IMAGE, day_points, image_class, map_card, target
-from scripts.transfer import machine_line, move_facts, transfer_line, wait_mins
+from scripts.transfer import machine_line, move_facts, wait_mins
 from scripts.render.reader.text import dur, esc, hhmm, lang_label, minutes, move_summary, number
 
 MODE_LABEL = {"walk": "步行", "rail": "電車", "bus": "巴士", "taxi": "計程車", "drive": "開車",
               "ferry": "渡輪", "flight": "飛機", "ropeway": "纜車"}
 GAP_MINS = 20
-# 2026-11-18 review, design board: the shipped look of each new element. A prototype for
-# the board flips these; after the user's pick only the chosen branch stays.
-LOOK = {"move_note": "open", "transfer": "node", "no_address": "both", "dining": "dl",
-        "cancel": "banner", "forecast": "map"}
 DINING_WORDS = {"order": {"table": "桌邊點餐", "counter": "櫃台點餐", "ticket_machine": "餐券機點餐"},
                 "pay": {"before": "先付", "after": "後付"},
                 "queue": {"ticket": "先抽號碼牌", "line": "現場排隊", "no_reservation": "不收訂位"}}
@@ -98,14 +94,14 @@ def _photo(ctx, p):
             f'<div class="zbar"><span class="zc">{credit}</span><label class="zx" for="{pid}">✕ 關閉</label></div></figure>')
 
 
-def stop(ctx, i, j, row, p, local_lang, name=None):
+def stop(ctx, i, j, row, p, local_lang):
     slot = row.get("slot") or "visit"
     tid = target(i, f"s{j}")
     start = minutes(row.get("time"))
     stay = _stay(p)
     leave = f'<small>– {hhmm(start + stay)}</small>' if start is not None and stay else ""
     head = (f'<span class="t"><b>{esc(row.get("time") or "")}</b>{leave}</span>'
-            f'<span class="nm"><span class="n">{esc(name or _name(p) or row.get("text"))}</span>'
+            f'<span class="nm"><span class="n">{esc(_name(p) or row.get("text"))}</span>'
             f'<span class="one">{esc(_first_clause(row.get("text")))}</span></span>')
     rows = []
     if stay:
@@ -126,7 +122,7 @@ def stop(ctx, i, j, row, p, local_lang, name=None):
         dd, sheet = no_address(tid, p, lang)            # #36: the driver can still search the name
         rows.append(("地址", dd))
     rule = dining_line(p)                                # #30: how the place works
-    if rule and LOOK["dining"] == "dl":
+    if rule:
         rows.append(("用餐", esc(rule)))
     if row.get("text"):
         rows.append(("安排", esc(row["text"])))
@@ -141,8 +137,6 @@ def stop(ctx, i, j, row, p, local_lang, name=None):
     src = sources(p, tid)
     if src:
         rows.append(("來源", src))
-    if rule and LOOK["dining"] == "head":
-        head = head.replace('<span class="one">', f'<span class="dng">{esc(rule)}</span><span class="one">', 1)
     html = card(ctx, tid, slot, row.get("poi_id"), head, rows, sheet, p)
     return html.replace('class="stop s-meal"', 'class="stop s-meal sug"', 1) if status == "self" else html
 
@@ -167,13 +161,11 @@ def dining_line(p):
 
 
 def no_address(tid, p, lang):
-    """#36 (the user's pick): no street address -- the driver's sheet shows the local name
-    and its area to search, said plainly; or (the board's other card) only a line."""
+    """#36 (the user's pick A4, 2026-11-19): no street address -- the driver's sheet shows
+    the local name and its area to search, and points at 導航: Google Maps shows the
+    address there. Google's address is never copied into the page (its terms let only the
+    place id be kept)."""
     area = p.get("district") or ""
-    if LOOK["no_address"] == "line":
-        return '<span class="nadr">沒有門牌地址，請司機用店名搜尋</span>', ""
-    if LOOK["no_address"] == "hint":
-        return '<span class="nadr">沒有門牌地址：按「導航」，Google 地圖會顯示地址，直接給司機看</span>', ""
     dd = ('<span class="nadr">沒有門牌地址</span>'
           f'<a class="drvbtn" href="#{tid}-drv">給司機看</a>')
     sheet = (f'<div class="drv" id="{tid}-drv"><a class="drvbg" href="#{tid}" aria-label="關閉"></a>'
@@ -181,7 +173,7 @@ def no_address(tid, p, lang):
              f'<p class="drvn" lang="{lang}">{esc(p.get("name_local") or _name(p))}</p>'
              + (f'<p class="drva">{esc(area)}</p>' if area else "")
              + '<p class="drvh">沒有門牌地址，請用店名搜尋・把手機轉給司機看</p>'
-             + ('<p class="drvh">也可以關掉這頁，按「導航」用 Google 地圖給司機看</p>' if LOOK["no_address"] == "both" else "")
+             + '<p class="drvh">也可以關掉這頁，按「導航」用 Google 地圖給司機看</p>'
              + '</div>')
     return dd, sheet
 
@@ -259,7 +251,7 @@ def cancel_banner(ctx, i):
         out.append(f'<div class="cnl"><span class="cnk">要取消</span><span class="cw">'
                    f'<b>{esc(reservation.what(r, ctx.poi_map))}</b>{when}</span>'
                    f'{f"<span class=cdt>{esc(det)}</span>" if det else ""}{how}</div>')
-    return f'<div class="cnls cnls-{LOOK["cancel"]}">{"".join(out)}</div>'
+    return f'<div class="cnls">{"".join(out)}</div>'
 
 
 def transfer(rows, j):
@@ -271,18 +263,13 @@ def transfer(rows, j):
     plat = f'<span class="tpl">{esc(r["platform"])}</span>' if r.get("platform") else ""
     text = f'<span class="ttx">{esc(r["text"])}</span>' if r.get("text") else ""
     place = esc(r.get("place") or "")
-    look = LOOK["transfer"]
-    if look == "inline":
-        return (f'<div class="leg tfr-i"><span class="lico">⇄</span><div class="lrb"><span class="lrh">'
-                f'<span class="ltx">在 <b>{place}</b> 換車</span>{wait}</span>{plat}{text}</div></div>')
-    cls = "tfr tfr-card" if look == "card" else "tfr"
-    return (f'<div class="{cls}"><span class="tdot" aria-hidden="true"></span><div class="tb">'
+    return (f'<div class="tfr"><span class="tdot" aria-hidden="true"></span><div class="tb">'
             f'<span class="th"><b class="tn">{place}</b>{wait}</span>{plat}{text}</div></div>')
 
 
 def move_note(row, mode):
     """#32: what the row says about the ride -- the platform facts (#22 English beside each
-    name) and its text -- under the move, open (the user's pick) or folded."""
+    name) and its text -- under the move, open (the user's pick M1, 2026-11-19)."""
     text = str(row.get("text") or "").strip()
     facts = move_facts(row)
     machine = machine_line(row) if mode == "rail" else ""
@@ -293,13 +280,6 @@ def move_note(row, mode):
     fl = ('<span class="lfa">' + "".join(f'<span class="lf"><b>{esc(k)}</b><span>{esc(v)}</span></span>'
                                           for k, v in facts) + "</span>") if facts else ""
     tx = f'<span class="lnt">{esc(text)}</span>' if text else ""
-    look = LOOK["move_note"]
-    if look == "fold":
-        return f'<details class="lmore"><summary>怎麼搭</summary>{fl}{tx}</details>'
-    if look == "first" and text:
-        first, rest = _first_clause(text), text[len(_first_clause(text)):].lstrip("；;。，, ")
-        more = f'<details class="lmore"><summary>{esc(first)}</summary>{fl}<span class="lnt">{esc(rest)}</span></details>'
-        return more if rest or fl else f'<span class="lnt">{esc(first)}</span>'
     return f'{fl}{tx}'
 
 
@@ -404,8 +384,8 @@ def chain(ctx, i, day):
 
 
 def weather(ctx, i):
-    """#31: the day's forecast in one line under its title -- when it was fetched always
-    shown; the script marks it 預報已過時 past 48 hours (data-at)."""
+    """#31: the day's forecast in one line, inside the opened map card -- when it was
+    fetched always shown; the script marks it 預報已過時 past 48 hours (data-at)."""
     from scripts.forecast_text import forecast_line
     fc = getattr(ctx, "forecast", None)
     line = forecast_line(fc, ctx.days[i - 1].get("date"), who=False)
@@ -415,13 +395,13 @@ def weather(ctx, i):
     tip = "".join(f'<span class="wtp">{esc(t)}</span>' for t in tips.split("；") if t)
     at = str(fc.get("fetched_at", ""))
     at = re.sub(r"T(\d\d:\d\d)([+\-Z])", r"T\1:00\2", at)          # Safari parses HH:MM:SS only
-    return (f'<p class="wx wx-{LOOK["forecast"]}" data-at="{esc(at)}">'
+    return (f'<p class="wx" data-at="{esc(at)}">'
             f'<span class="wxt">{esc(main)}</span>{tip}<span class="wold">預報已過時</span></p>')
 
 
 def weather_chip(ctx, i):
-    """#31 without a line of its own: '15～19°・雨' -- the full line (when fetched, the
-    reminders) opens with the map card."""
+    """#31 (the user's pick W3, 2026-11-19): no height of its own -- '15～19° 雨' at the
+    right of the 地圖 row; the full line (when fetched, the reminders) opens with the map."""
     from scripts.forecast_text import forecast_day
     d = forecast_day(getattr(ctx, "forecast", None), ctx.days[i - 1].get("date"))
     if not d:
@@ -434,12 +414,10 @@ def weather_chip(ctx, i):
 
 
 def _map_with_weather(card, wx, chip):
-    """W3 / W4: the map row carries the chip (W3), and the opened map card the full line."""
-    if LOOK["forecast"] not in ("map", "chip") or not wx:
+    if not wx:
         return card
-    if LOOK["forecast"] == "map":
-        card = card.replace("<span>地圖</span>", f"<span>地圖</span>{chip}", 1)
-    return card.replace("</summary>", f"</summary>{wx.replace('wx wx-', 'wx wx-in wx-', 1)}", 1)
+    card = card.replace("<span>地圖</span>", f"<span>地圖</span>{chip}", 1)
+    return card.replace("</summary>", f"</summary>{wx}", 1)
 
 
 def day_page(ctx, i):
@@ -466,11 +444,9 @@ def day_page(ctx, i):
     pprev = both(i - 1, "‹", "前一天") if i > 1 else prev
     pnxt = both(i + 1, "›", "後一天") if i < n else nxt
     wx = weather(ctx, i)
-    chip = weather_chip(ctx, i) if LOOK["forecast"] in ("map", "chip") else ""
+    chip = weather_chip(ctx, i)
     title = (f'<h2 class="dh"><span class="dht">{esc(theme)}</span>'
-             + (chip if LOOK["forecast"] == "chip" else "")
-             + f'<span class="dstep">{pprev}<span class="dn">Day {i}</span>{pnxt}</span></h2>'
-             + (wx if LOOK["forecast"] == "title" else ""))
+             f'<span class="dstep">{pprev}<span class="dn">Day {i}</span>{pnxt}</span></h2>')
     # pick F1: the desktop's list title steps too, at the row's right end like the phone's
     list_title = (f'<h2 class="dh dh-list"><span class="dht">{esc(theme)}</span>'
                   f'<span class="dstep dstep-d">{prev}<span class="dn">Day {i}</span>{nxt}</span></h2>')
@@ -481,7 +457,7 @@ def day_page(ctx, i):
             f'<b class="ym"><label class="unf" for="pg-d{i}" aria-label="展開月曆"></label>'
             f'{esc(month_calendar.month_title(ctx.dates))}</b><span></span></div>'
             f'{month_calendar.mini(ctx.dates, ctx.areas, i)}{title}</div>'
-            f'<div class="pmap">{wx if LOOK["forecast"] == "card" else ""}{_map_with_weather(map_card(ctx, i, day), wx, chip)}</div>'
+            f'<div class="pmap">{_map_with_weather(map_card(ctx, i, day), wx, chip)}</div>'
             # H1c: the phone list card's top edge (its clipped top has no outline of its own)
             # and foot fade, drawn beside it so they do not scroll (theme.py)
             f'<div class="lcap" aria-hidden="true"></div>'

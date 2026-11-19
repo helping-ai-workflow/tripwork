@@ -122,10 +122,10 @@ def test_other_lone_segments_still_dropped():
     assert [[p["key"] for p in s] for s in M._segments(pts)] == [["s1", "s2"]]
 
 
-def _trip_dir(tmp_path, home_lat=HOME["lat"]):
+def _trip_dir(tmp_path, home_lat=HOME["lat"], home_lng=HOME["lng"]):
     t = tmp_path / "trips" / "t"
     write_artifact(artifact_path(t, "trip-brief.yaml"),
-                   {"home_origin_point": {**HOME, "lat": home_lat}, "home_return_point": BACK})
+                   {"home_origin_point": {**HOME, "lat": home_lat, "lng": home_lng}, "home_return_point": BACK})
     write_artifact(artifact_path(t, "verified-pois.yaml"), {"pois": list(POIS.values())})
     write_artifact(artifact_path(t, "itinerary.yaml"),
                    {"days": [{"date": "2030-01-07", "lodging": "h",
@@ -168,10 +168,17 @@ def test_moving_home_marks_segment_stale(tmp_path):
     t = _trip_dir(tmp_path)
     tile = _png()
     doc = day_maps.build(t, tmp_path / "work" / "t", fetch=lambda z, x, y: tile)
-    moved = _trip_dir(tmp_path / "moved", home_lat=24.70)                 # home now outside the old image
-    ctx = _context(*_ctx_inputs(moved), maps=doc)
-    seg = M.map_card(ctx, 1, ctx.days[0]).split('class="mv mv-d1-all"')[1].split('class="mv ')[0]
-    assert 'class="mimg' not in seg                                        # the schematic instead
+    assert doc["days"]["2030-01-07"][0]["far"] == ["home-start"]          # ~27 km: an edge arrow (#38 M4)
+
+    def overview(home_lat, home_lng, name):
+        moved = _trip_dir(tmp_path / name, home_lat=home_lat, home_lng=home_lng)
+        ctx = _context(*_ctx_inputs(moved), maps=doc)
+        return M.map_card(ctx, 1, ctx.days[0]).split('class="mv mv-d1-all"')[1].split('class="mv ')[0]
+    # still far: the image never held home, so it stands and the arrow follows the new point
+    seg = overview(24.70, HOME["lng"], "far")
+    assert 'class="mimg' in seg and 'class="pin edge k-home"' in seg
+    # come close (3 km) but outside the old image: that image was not made for it -> schematic
+    assert 'class="mimg' not in overview(24.86, 121.77, "near")
 
 
 def test_poi_id_cannot_be_home_id():

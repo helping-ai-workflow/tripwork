@@ -74,6 +74,13 @@ Gates are evaluated in strict order — Gate 0 fires before Gate 1, Gate 1 befor
   the country or the kind of shop — and never copy Google Places payment data (only
   `gmaps_place_id` may be stored).
 
+**An address seen on Google Maps is a lead, never the source (#36).** Google's terms let
+only `gmaps_place_id` be kept from Places, so never copy its address, phone or hours into a
+record. Use what Google shows to find the same address on a non-Google page — the venue's
+own site or social account, a listing such as 食べログ — and record that page as
+`address_source`. With no such page, leave `address_local` empty: the reader's 給司機看 then
+shows the local name and area and points at 導航, which opens Google Maps itself.
+
 ## Record closure days + hours
 
 While verifying opening hours, record each POI's `closed_days` (the per-POI closure axis consumed by synthesis via `scripts/trip_calendar.py::poi_closed_on`). Values: weekday names (`tuesday`) for fixed weekly closures, ISO dates (`2026-05-25`) for one-off closures, or the token `public_holiday` when a place shuts on any public holiday. Closures come from the same cross-source hours check — a POI's stated regular closing day (e.g. a palace closed Tuesdays, a small shop closed on holidays) belongs here, not invented.
