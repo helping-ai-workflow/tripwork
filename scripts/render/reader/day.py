@@ -17,8 +17,8 @@ MODE_LABEL = {"walk": "步行", "rail": "電車", "bus": "巴士", "taxi": "計�
 GAP_MINS = 20
 # 2026-11-18 review, design board: the shipped look of each new element. A prototype for
 # the board flips these; after the user's pick only the chosen branch stays.
-LOOK = {"move_note": "open", "transfer": "node", "no_address": "sheet", "dining": "dl",
-        "cancel": "banner", "forecast": "title"}
+LOOK = {"move_note": "open", "transfer": "node", "no_address": "both", "dining": "dl",
+        "cancel": "banner", "forecast": "map"}
 DINING_WORDS = {"order": {"table": "桌邊點餐", "counter": "櫃台點餐", "ticket_machine": "餐券機點餐"},
                 "pay": {"before": "先付", "after": "後付"},
                 "queue": {"ticket": "先抽號碼牌", "line": "現場排隊", "no_reservation": "不收訂位"}}
@@ -172,13 +172,17 @@ def no_address(tid, p, lang):
     area = p.get("district") or ""
     if LOOK["no_address"] == "line":
         return '<span class="nadr">沒有門牌地址，請司機用店名搜尋</span>', ""
+    if LOOK["no_address"] == "hint":
+        return '<span class="nadr">沒有門牌地址：按「導航」，Google 地圖會顯示地址，直接給司機看</span>', ""
     dd = ('<span class="nadr">沒有門牌地址</span>'
           f'<a class="drvbtn" href="#{tid}-drv">給司機看</a>')
     sheet = (f'<div class="drv" id="{tid}-drv"><a class="drvbg" href="#{tid}" aria-label="關閉"></a>'
              f'<a class="drvx" href="#{tid}">✕ 關閉</a>'
              f'<p class="drvn" lang="{lang}">{esc(p.get("name_local") or _name(p))}</p>'
              + (f'<p class="drva">{esc(area)}</p>' if area else "")
-             + '<p class="drvh">沒有門牌地址，請用店名搜尋・把手機轉給司機看</p></div>')
+             + '<p class="drvh">沒有門牌地址，請用店名搜尋・把手機轉給司機看</p>'
+             + ('<p class="drvh">也可以關掉這頁，按「導航」用 Google 地圖給司機看</p>' if LOOK["no_address"] == "both" else "")
+             + '</div>')
     return dd, sheet
 
 
@@ -415,6 +419,29 @@ def weather(ctx, i):
             f'<span class="wxt">{esc(main)}</span>{tip}<span class="wold">預報已過時</span></p>')
 
 
+def weather_chip(ctx, i):
+    """#31 without a line of its own: '15～19°・雨' -- the full line (when fetched, the
+    reminders) opens with the map card."""
+    from scripts.forecast_text import forecast_day
+    d = forecast_day(getattr(ctx, "forecast", None), ctx.days[i - 1].get("date"))
+    if not d:
+        return ""
+    t = (f"{d['tmin']:g}～{d['tmax']:g}°" if isinstance(d.get("tmin"), (int, float))
+         and isinstance(d.get("tmax"), (int, float)) else "")
+    mark = "雪" if d.get("snow") else "雨" if d.get("rain") else ""
+    word = f'<b class="wxm">{mark}</b>' if mark else ""
+    return f'<span class="wxs">{esc(t)}{word}</span>' if t or word else ""
+
+
+def _map_with_weather(card, wx, chip):
+    """W3 / W4: the map row carries the chip (W3), and the opened map card the full line."""
+    if LOOK["forecast"] not in ("map", "chip") or not wx:
+        return card
+    if LOOK["forecast"] == "map":
+        card = card.replace("<span>地圖</span>", f"<span>地圖</span>{chip}", 1)
+    return card.replace("</summary>", f"</summary>{wx.replace('wx wx-', 'wx wx-in wx-', 1)}", 1)
+
+
 def day_page(ctx, i):
     day = ctx.days[i - 1]
     theme = day.get("theme") or day.get("label") or ""
@@ -439,8 +466,10 @@ def day_page(ctx, i):
     pprev = both(i - 1, "‹", "前一天") if i > 1 else prev
     pnxt = both(i + 1, "›", "後一天") if i < n else nxt
     wx = weather(ctx, i)
+    chip = weather_chip(ctx, i) if LOOK["forecast"] in ("map", "chip") else ""
     title = (f'<h2 class="dh"><span class="dht">{esc(theme)}</span>'
-             f'<span class="dstep">{pprev}<span class="dn">Day {i}</span>{pnxt}</span></h2>'
+             + (chip if LOOK["forecast"] == "chip" else "")
+             + f'<span class="dstep">{pprev}<span class="dn">Day {i}</span>{pnxt}</span></h2>'
              + (wx if LOOK["forecast"] == "title" else ""))
     # pick F1: the desktop's list title steps too, at the row's right end like the phone's
     list_title = (f'<h2 class="dh dh-list"><span class="dht">{esc(theme)}</span>'
@@ -452,7 +481,7 @@ def day_page(ctx, i):
             f'<b class="ym"><label class="unf" for="pg-d{i}" aria-label="展開月曆"></label>'
             f'{esc(month_calendar.month_title(ctx.dates))}</b><span></span></div>'
             f'{month_calendar.mini(ctx.dates, ctx.areas, i)}{title}</div>'
-            f'<div class="pmap">{wx if LOOK["forecast"] == "card" else ""}{map_card(ctx, i, day)}</div>'
+            f'<div class="pmap">{wx if LOOK["forecast"] == "card" else ""}{_map_with_weather(map_card(ctx, i, day), wx, chip)}</div>'
             # H1c: the phone list card's top edge (its clipped top has no outline of its own)
             # and foot fade, drawn beside it so they do not scroll (theme.py)
             f'<div class="lcap" aria-hidden="true"></div>'

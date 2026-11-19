@@ -178,6 +178,10 @@ label,summary,a.hd,a.chip,.mnav a,.vsum{{-webkit-touch-callout:none}}.list{{posi
 .wold{{display:none;font:700 12px/18px var(--f-round);color:var(--tight)}}.wx.old .wold{{display:inline}}.wx.old .wxt{{text-decoration:line-through}}
 .wx-card{{margin:0 0 8px;padding:8px 12px;border-radius:12px;background:var(--card);box-shadow:0 0 0 1px var(--rule)}}
 :root:has(.drv:target) .bubble{{display:none}}
+.wxs{{flex:none;display:inline-flex;align-items:center;gap:4px;font:500 13px/1 var(--f-round);color:var(--mut);font-variant-numeric:tabular-nums;white-space:nowrap}}
+.mapc>summary .wxs{{margin-left:auto}}.dh .wxs{{margin-left:auto;font-size:13px}}.dh .wxs+.dstep{{margin-left:6px}}
+.wxm{{font:700 12px/18px var(--f-round);padding:0 6px;border-radius:999px;background:color-mix(in srgb,var(--visit) 16%,var(--card));color:var(--ink)}}
+.wx-in{{margin:0 12px 8px}}.mapc:has(.wx.old) .wxs{{text-decoration:line-through;text-decoration-color:var(--tight)}}.mapc:has(.wx.old) .wxs::after{{content:"過時";font:700 12px/18px var(--f-round);color:var(--tight)}}
 .altrow{{margin:-2px 0 2px 22px;border:1.5px dashed var(--a);border-radius:12px;background:color-mix(in srgb,var(--a) 7%,var(--card))}}
 .altrow summary{{position:relative;display:flex;align-items:center;gap:8px;padding:6px 30px 6px 10px;cursor:pointer;list-style:none}}
 .ai{{display:inline-grid;place-items:center;flex:none;width:22px;height:22px;border-radius:50%;background:var(--a);color:var(--card);font:700 13px var(--f-round)}}
