@@ -149,6 +149,7 @@ claude plugin marketplace update tripwork && claude plugin install tripwork
 
 - **Markdown 行程**：地點名稱本身就是 Google Maps 連結（用當地語言店名，搭車導航最準），移動列附路線導航；可以直接貼進 Notion。
 - **行前清單**：要先訂位、先辦的事（含前置天數），以及這個季節要帶的東西。
+- **出發前一週的天氣預報（選用）**：每天幾度、會不會下雨下雪，日本用氣象廳的官方預報，最多看 7 天；每天都寫明是幾點查的，下雪的日子提醒防滑、下雨的日子提醒帶雨具。
 - **住宿、城際交通、費用估算**：每個過夜鎮一家查證過的旅館；每段城際交通搭哪班車、末班車幾點、Pass 划不划算；整趟花費加總對照你的預算（都標明是估算）。
 - **只蒐集時的清單頁**：查證過的地點一頁看完（吃的／景點分開、有評分的排前面），點開看介紹、地址、來源和導航；
   也可以請它印成表格，挑你要的欄位（例如「吃的」：營業時間、公休、評分、地圖連結）。
@@ -418,7 +419,7 @@ python -m pytest tests_browser
 - **流水線**：`skills/` 下有 18 個 skill：16 個流水線步驟、調度中心 `tripwork-orchestrator`，以及給 agent 看的入口 `using-tripwork`。和其他 plugin 撞名的三個 skill 帶 `tripwork-` 前綴（`tripwork-orchestrator`、`tripwork-export-artifact`、`tripwork-workspace-shape-preflight`，v3.0.0 起）：pi 這類 skill 名稱不分 plugin 的工具遇到同名 skill 只會載入一個；純邏輯在 `scripts/`（都有單元測試），schema 在 `schemas/`，端到端 fixture 在 `tests/`。
 - **CLI**：所有腳本只有一個入口，在工作資料夾（有 `trips/` 的那層）執行
   `python <plugin>/scripts/tripwork.py <指令> <slug>`：`next`（印出下一站）、`verify`、`gate`、`export`、`export-gate`、
-  `maps`、`photos`、`picker`、`validate`、`fingerprint`、`publish`、`deploy`、`migrate`；它補上 `trips/<slug>`、
+  `maps`、`photos`、`picker`、`validate`、`fingerprint`、`publish`、`deploy`、`forecast`、`migrate`；它補上 `trips/<slug>`、
   `--work-dir work/<slug>` 再呼叫各腳本自己的 `main()`，`-h` 列出全部。exit code：0 pass／1 fail／2 用法錯。
   舊的 `python scripts/<x>.py` 會直接報錯並告訴你新指令。
 - **HTML 閱讀器**：`scripts/render/reader/`。手機版全程純 CSS 與頁內錨點（LINE、iPhone「檔案」的預覽不跑 JavaScript）；電腦版（≥1024px）用同一份 DOM 重排成大月曆首頁與每日儀表板。檢查版唯一一段 script 是 `centre.py::CENTRE_JS`（電腦版把跳到的那站置中）；分享版（`render_reader(build="publish")`）再加一段 `publish.py::PUBLISH_JS`（手機手勢、開今天、返回回總覽），兩段都由 `export-gate` 以 sha256 比對放行。每張圖在頁面裡只內嵌一次。

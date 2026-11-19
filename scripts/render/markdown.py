@@ -9,6 +9,7 @@ from scripts.render.heading import dates_line, trip_title
 from scripts.render.gmaps_links import link_markdown, dir_url, search_url
 from scripts.transfer import machine_line, move_facts, transfer_line
 from scripts.airport import be_at_airport
+from scripts.forecast_text import forecast_line
 from scripts import reservation
 from scripts.render.centroid import merged_line
 from scripts.render.reader.text import md_wd, to_date
@@ -182,7 +183,8 @@ def _amount(n):
     return f"{n:,}"
 
 
-def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reservations=None):
+def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reservations=None,
+                         forecast=None):
     """Canonical itinerary.yaml -> the full markdown deliverable page.
 
     HTML has render_html_page; until now markdown's
@@ -246,6 +248,9 @@ def render_markdown_page(itin, poi_map, cost=None, brief=None, legs=None, reserv
                    if isinstance(row, dict) and row.get("slot") in ("visit", "activity", "move")}
         lines.append(render_day_table(day, poi_map, legs, tickets).rstrip())
         lines.append("")
+        weather = forecast_line(forecast, day.get("date"))      # #31: the week-before forecast
+        if weather:
+            lines += [f"**天氣**：{md_escape(weather)}", ""]
         poi = poi_map.get(day.get("lodging"))
         if poi:
             stay = res_of(d)

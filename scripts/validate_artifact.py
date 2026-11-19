@@ -32,6 +32,7 @@ SCHEMA_BY_BASENAME = {
     "advisory.yaml": "advisory.schema.json",
     "itinerary.yaml": "itinerary.schema.json",
     "reservations.yaml": "reservations.schema.json",
+    "forecast.yaml": "forecast.schema.json",
     "gate-report.yaml": "gate-report.schema.json",
     "export-gate-report.yaml": "gate-report.schema.json",  # shared shape
     "stage-state.yaml": "stage-state.schema.json",

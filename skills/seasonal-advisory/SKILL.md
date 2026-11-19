@@ -42,6 +42,19 @@ driving leg whose estimated arrival is `after_dark(arrival, date, lat)` — emit
 `daylight[].after_dark_arrival: true`. The computation is approximate (local solar time,
 ~±15-20 min); present it as guidance, not an exact time.
 
+## The week before departure: forecast (#31, optional)
+
+`seasonal.yaml` holds normals and hazards for planning. In the 7 days before departure, when
+the user asks for the weather or a re-export is due, fetch the day-by-day forecast:
+`python <plugin>/scripts/tripwork.py forecast <slug> --jma all=<office>/<point>` (Japan: the
+JMA office code from `https://www.jma.go.jp/bosai/common/const/area.json`, e.g. `016000`, and
+the temperature point name, e.g. `札幌`; one `--jma DATE=…` per day of a multi-city trip). It
+writes `data/forecast.yaml`: official days first, any other day within 7 days a **model**
+forecast at that night's lodging, marked so, and nothing beyond 7 days (the reader says
+尚無預報). Outside Japan, run it without `--jma` (model only, marked) unless an official
+service's forecast is recorded by hand in the same shape. Re-run it during the trip before a
+re-publish: the reader marks a forecast older than 48 hours 預報已過時.
+
 ## Output
 
 Write `trips/<slug>/data/seasonal.yaml`, then validate it:

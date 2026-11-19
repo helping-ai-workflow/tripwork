@@ -82,10 +82,11 @@ def _nav_css(pages):
 
 
 def render_reader(itinerary, poi_map, *, brief=None, accommodations=None, advisory=None, legs=None,
-                  maps=None, cost=None, reservations=None, build="check"):
+                  maps=None, cost=None, reservations=None, forecast=None, build="check"):
     if build not in ("check", "publish"):
         raise ValueError(f"unknown build: {build!r}")
     ctx = _context(itinerary or {}, poi_map, brief, accommodations, advisory, legs, maps, cost, reservations)
+    ctx.forecast = forecast if isinstance(forecast, dict) else None      # #31
     pages = (["home", "lodging", "transport", "meals", "advisory", "checklist"]
              + [f"d{i}" for i in range(1, len(ctx.days) + 1)])
     # each day has a second radio, pg-dNf: the day opened with its small calendar put away --

@@ -64,7 +64,7 @@ def main(argv):
                           f"`{_TOOL} gate {slug}` lists, then export")
 
     md = render_markdown_page(itin, poi_map, kwargs["cost"], brief=kwargs["brief"], legs=kwargs["legs"],
-                              reservations=kwargs["reservations"])
+                              reservations=kwargs["reservations"], forecast=kwargs["forecast"])
     html = render_html_page(itin, poi_map, build="check", **kwargs)
     paths["md"].write_text(md, encoding="utf-8")
     paths["html"].write_text(html, encoding="utf-8")

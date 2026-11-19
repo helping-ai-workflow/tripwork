@@ -1,0 +1,32 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "forecast.yaml",
+  "description": "#31: the day-by-day weather forecast fetched in the week before departure (scripts/forecast.py). Official forecasts first (a national weather service such as the JMA); a model forecast only where no official one is had, and marked so. At most 7 days ahead: a day beyond that has no entry and reads 尚無預報.",
+  "type": "object",
+  "required": ["fetched_at", "days"],
+  "additionalProperties": false,
+  "properties": {
+    "fetched_at": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}", "description": "When it was fetched, ISO 8601 with its UTC offset. The reader marks a forecast older than 48 hours 預報已過時."},
+    "days": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["date", "kind", "source", "source_url"],
+        "additionalProperties": false,
+        "properties": {
+          "date": {"type": "string", "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"},
+          "place": {"type": "string", "minLength": 1, "description": "The forecast area or point, e.g. 石狩・空知・後志地方 / 札幌."},
+          "tmin": {"type": "number"},
+          "tmax": {"type": "number"},
+          "weather": {"type": "string", "minLength": 1, "description": "In Chinese: 晴 / 多雲時有雪 …"},
+          "pop": {"type": "integer", "minimum": 0, "maximum": 100, "description": "Chance of precipitation, %."},
+          "snow": {"type": "boolean", "description": "Snow or ice is forecast: the day carries a 防滑 reminder."},
+          "rain": {"type": "boolean", "description": "Rain is forecast: an outdoor day carries a 雨具 reminder."},
+          "kind": {"enum": ["official", "model"]},
+          "source": {"type": "string", "minLength": 1},
+          "source_url": {"type": "string", "pattern": "^https?://"}
+        }
+      }
+    }
+  }
+}

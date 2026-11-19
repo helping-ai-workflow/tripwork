@@ -13,7 +13,7 @@ def _html_escape(text: object) -> str:
 
 def render_html_page(itin: dict, poi_map: dict, *, brief=None, accommodations=None,
                      advisory=None, legs=None, maps=None, cost=None, reservations=None,
-                     build="check") -> str:
+                     forecast=None, build="check") -> str:
     """Render the self-contained reader page. `poi_map` is verified-pois + chosen
     lodgings + the media overlay (scripts/media_merge.py::apply_media); pass the
     brief, accommodations, advisory and legs so the home page, stamp calendar and
@@ -22,4 +22,4 @@ def render_html_page(itin: dict, poi_map: dict, *, brief=None, accommodations=No
     `cost` is cost.yaml, which feeds the home's 旅程與費用 card. `build='publish'` adds the publish page's script (spec §1)."""
     return render_reader(itin, poi_map, brief=brief, accommodations=accommodations,
                          advisory=advisory, legs=legs, maps=maps, cost=cost,
-                         reservations=reservations, build=build)
+                         reservations=reservations, forecast=forecast, build=build)
